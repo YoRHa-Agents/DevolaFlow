@@ -372,7 +372,7 @@ class ToolUseTruncation:
     Reports how many ``tool_use`` records were preserved verbatim
     (``kept_count``) versus had their middle elided (``cleared_count``),
     plus the head/tail/placeholder/exclude policy that was applied.
-    Producing layer is the L3 task agent; consumer is the L2 wave agent.
+    Producing layer is the L2 task agent; consumer is the L1 wave agent.
     """
 
     kept_count: int
@@ -944,7 +944,7 @@ def _validate_summary_args(mode: str, max_tokens: int) -> None:
 
     Extracted from the legacy ``summarise_predecessor`` body in v8.0.0
     (P-02) to bring the parent function's cyclomatic complexity from 16
-    down to ≤10 (NineS finding ``[CC-39ab83-0001]``). Raises
+    down to ≤10 after a historical complexity finding. Raises
     :class:`ValueError` for unknown modes or non-positive ``max_tokens``.
 
     v8.0.0 (P-12) — ``abstractive`` mode is now implemented via the
@@ -1323,7 +1323,7 @@ def _assemble_abstractive_summary(
 #
 # Each fallback emits a single WARNING log line via
 # ``logging.getLogger("devolaflow.compressor.stage_b")`` carrying
-# ``stage_b.fallback mode=<mode> reason=<detail>`` so SI-4 EvoBench
+# ``stage_b.fallback mode=<mode> reason=<detail>`` so SI-4 built-in harness
 # regression analysis can attribute the cause and so production
 # auditors can distinguish "Stage B never invoked" from "Stage B
 # invoked then fell back" (per Stage B design §4 last paragraph).
@@ -1422,7 +1422,7 @@ def _log_stage_b_fallback(mode: str, *, reason: str) -> None:
     """Emit a single S-5 structured WARNING for a Stage B fallback.
 
     Validates ``mode`` against :data:`STAGE_B_FAILURE_MODES` to prevent
-    silent typos that would defeat the SI-4 EvoBench attribution chain.
+    silent typos that would defeat the SI-4 harness attribution chain.
     Raises ValueError on unknown mode (S-5: explicit failure rather than
     silent log of garbage).
     """
@@ -1638,7 +1638,7 @@ def summarise_predecessor(
     v8.0.0 (P-02) refactor: this function delegates section selection to
     :func:`_select_sections_for_summary` and body packing to
     :func:`_assemble_summary_body`, bringing its cyclomatic complexity
-    from 16 down to ≤10 (NineS finding ``[CC-39ab83-0001]`` closure). The
+    from 16 down to ≤10 and closing the historical complexity finding. The
     return contract (7 keys, types, and order of ``covered_sections`` /
     ``dropped_sections``) is preserved bytewise — the helper extraction
     is a pure refactor, NOT a behaviour change.

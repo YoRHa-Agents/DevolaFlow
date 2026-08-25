@@ -2,825 +2,382 @@
 id: plan-mode-enforcement
 version: "11.0.0"
 purpose: >
-  Plan-mode L0 operating contract: when a dispatcher detects plan mode, this
-  reference defines the canonical plan output template, plan-mode rules,
-  reinforcement-loop mechanics, and stagnation-escalation behavior. Pairs
-  with the W-8 / SI-9 convergence-round reinforcement primitive in
-  src/devolaflow/gate/reinforcement.py and the round-aware dispatch
-  escalation in src/devolaflow/task_adaptive_selector.py.
+  Plan-mode L0 contract for producing goal, checklist, and preflight drafts;
+  confirming priorities, verification, dependencies, and ownership; and
+  handing the approved contract to the bounded checklist-round runtime.
 tier: 2
-token_estimate: 3400
-last_updated: "2026-08-19"
+token_estimate: 3000
+last_updated: "2026-08-25"
 ---
 
-# Plan-Mode Enforcement & Reinforcement Loop Contract
-
-> **Tier-2 reference** — load when the dispatcher enters Plan Mode (Cursor
-> SwitchMode `plan`, system_reminder "Plan mode is active", explicit user
-> "build a plan" / "design first" / "/plan", or env
-> `DEVOLAFLOW_PLAN_MODE=1` / filesystem marker `.devolaflow_plan_mode`),
-> AND when L1/L2 build a round-N+1 dispatch carrying
-> `applicable_rules.reinforcement` payload after a gate FAIL. SKILL.md
-> §"Mode Awareness" + §"Reinforcement Rules" carry the 1-paragraph
-> summaries; this file carries the full operating contract.
+# Plan-Mode Enforcement & Reinforcement Contract
 
 ## 1. When to Load
 
-This reference is loaded by L0/L1 dispatchers under any of the following
-trigger conditions:
+Load this reference when:
 
-| Trigger                                                          | Source                                                                  | Effect                                                                |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `<system_reminder>` contains "Plan mode is active"               | host runtime (Cursor / Claude Code system message channel)              | force-loads §3 plan template + §4 constraints + §5 rules              |
-| `SwitchMode` tool available + current mode is `plan`             | Cursor mode-switch event                                                | same as above                                                         |
-| User says "build a plan" / "plan this" / "design first" / "/plan" | NL trigger phrase from prompt                                           | escalates `plan_mode_template` section to `critical` priority         |
-| `DEVOLAFLOW_PLAN_MODE` in `{"1","true","yes","on"}`              | env var (per `task_adaptive_selector._detect_plan_mode`)                | applies `_PLAN_MODE_OVERRIDES` block (see §2)                         |
-| `.devolaflow_plan_mode` file in cwd                              | filesystem marker (per `task_adaptive_selector._PLAN_MODE_MARKER`)      | same as env var                                                       |
-| L1 / L2 building round-N+1 dispatch after gate FAIL              | `ProposalGenerator.generate_round_dispatch()` in `src/devolaflow/feedback.py` | force-loads §6 reinforcement mechanics + §7 convergence loop |
+- the host says Plan Mode is active;
+- the user asks to plan or design before execution;
+- `DEVOLAFLOW_PLAN_MODE=1` or `.devolaflow_plan_mode` activates the runtime
+  detector;
+- L0 is building a later-round dispatch with reinforcement.
 
-The reference is also discoverable via SKILL.md §"Reference Navigation
-Guide" Tier-2 sub-table. L1/L2 agents that detect a mode-handoff arrival
-(plan→agent, plan→hotfix) should load this reference to confirm rules
-inheritance.
+Plan Mode is an L0 Project activity. It designs the user contract but does not
+execute it. L1/L2 may return bounded read-only research, but implementation
+begins only after approval and valid preflight.
 
-## 2. Plan Mode Detection (priority order)
+## 2. Detection and Runtime Overrides
 
-When multiple signals are present, evaluate in this priority order:
+Evaluate signals in this order:
 
-1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
-2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
-3. User explicitly says "build a plan" / "plan this" / "design first" /
-   "/plan" → **PLAN MODE**
-4. Otherwise → **AGENT MODE** (default; full orchestration). **v6.1.5+
-   runtime hook:** `select_context(plan_mode=True)` (or env
-   `DEVOLAFLOW_PLAN_MODE=1`) escalates plan-relevant sections
-   (`agent_hierarchy`, `decomposition_gate`, `rationalization_prevention`)
-   to `critical` priority and upgrades `model_hint` to `quality`.
+1. host system message says Plan Mode is active;
+2. the current Cursor mode is `plan`;
+3. the user explicitly asks to plan/design first;
+4. runtime env/marker detection;
+5. otherwise use Agent Mode.
 
-### 2.1 `_PLAN_MODE_OVERRIDES` block
+`select_context(plan_mode=True)` applies `_PLAN_MODE_OVERRIDES` from
+`src/devolaflow/task_adaptive_selector.py`:
 
-Defined in `src/devolaflow/task_adaptive_selector.py` (lines 67-77):
+- `agent_hierarchy`, `decomposition_gate`, and
+  `rationalization_prevention` become critical;
+- `convergence_loop` becomes important;
+- compression becomes minimal;
+- `model_hint` becomes `quality`.
+
+When no signal is present, no override is applied. The default Agent Mode
+payload remains backward-compatible.
+
+### 2.1 Agent obligations
+
+| Layer | May do | MUST NOT |
+|---|---|---|
+| L0 | Produce drafts, inspect read-only evidence, ask user questions | Edit implementation files |
+| L1 | Research and propose wave grouping when dispatched | Implement, mutate artifacts, call `AskQuestion` |
+| L2 | Return bounded read-only research when dispatched | Implement, edit, call `AskQuestion`, or start hidden loops |
+
+`AskQuestion` and `ExitPlanMode` are **L0 ONLY** host interactions. L1/L2 also
+MUST NOT use unbounded `WebFetch` or `WebSearch`; return the need to L0 unless
+an upstream timeout is explicit. If `ExitPlanMode` is unavailable, L0 says
+the plan is ready and waits; it does not simulate approval.
+
+## 3. Canonical Plan Output
+
+Plan Mode produces three drafts: `goal.md`, `checklist.md`, and
+`preflight.md`. It does not produce a fixed stage DAG. `stage.md` is created
+or updated by L0 only when execution begins and records actual round history.
+
+Use the following output structure:
+
+```text
+# [Plan title]
+
+## Overview
+[1–2 sentences] | Complexity: [class] | Seed: [registered seed name]
+Runtime: TemplateRegistry.load_template("change-driven")
+Escalation: Task → Wave → Project → Human
+
+## goal.md draft
+Why: [problem and desired outcome]
+Goals:
+- G1: [verifiable outcome]
+- G2: [verifiable outcome]
+Out of scope:
+- [explicit exclusion]
+
+## checklist.md draft
+### G1: [goal title copied verbatim]
+- [ ] C-G1.1 (P0) [assertion, <=25 words]
+      verify: [bounded command or metric, or user-check]
+      depends: []
+      owned_files: [repository-relative writable paths]
+      read_only: [repository-relative dependencies]
+- [ ] C-G1.2 (P1) [...]
+
+### G2: [goal title copied verbatim]
+- [ ] C-G2.1 (P2) [...]
+
+## preflight.md draft
+Project configuration: [detected values and inherited deltas]
+Required decisions: [questions that materially affect execution]
+Preauthorized blockers: [bounded actions the user allows]
+Denied actions: [actions that always stop]
+Verification environment: [commands, credentials state, services]
+Authorization state: unsigned
+
+## Execution handoff
+Round selection: reverted blockers → P0 → P1 → P2 → stable order
+Wave limits: <=5 tasks/wave; <=7 waves/round; writable ownership disjoint
+Round PASS: selected items have valid evidence + passing checks + zero blockers
+Composite: trend-only per round; archive threshold remains 8.5/9.0
+
+## Constraints Checklist
+- [ ] Every goal maps to one checklist section
+- [ ] Every checklist item is an assertion, not an activity label
+- [ ] Every item has P0, P1, or P2 priority confirmed by the user
+- [ ] Every item has a bounded command, metric, or explicit user-check
+- [ ] Dependencies use item-level `depends`; no fixed workflow DAG exists
+- [ ] Every implementation item declares owned_files and read_only paths
+- [ ] Parallel writable ownership is pairwise disjoint
+- [ ] Task and round loops have explicit ceilings
+- [ ] Predecessors are referenced by repository-relative artifact path
+- [ ] Preflight is complete but unsigned until the user approves
+```
+
+### 3.1 Goal contract
+
+- Number goals `G1`, `G2`, and so on.
+- Keep each goal outcome-focused and verifiable.
+- The goal-ID set must equal the checklist section-ID set.
+- Preserve the user's wording where it expresses scope or acceptance intent.
+- Keep explicit exclusions to prevent silent expansion.
+
+### 3.2 Checklist contract
+
+Each item needs:
+
+| Field | Contract |
+|---|---|
+| ID | `C-G<n>.<n>`; stable inside the change |
+| Priority | P0/P1/P2; advisory seed values require user confirmation |
+| Assertion | Testable result, at most 25 words |
+| Verify | Bounded command, measurable threshold, or explicit user-check |
+| Depends | Item IDs only; empty when independent |
+| Owned files | Repository-relative writable scope |
+| Read-only | Repository-relative context dependencies |
+
+Seed partitions and `source_stages` help L0 discover likely assertions. Their
+order is presentation-only and MUST NOT become an execution sequence.
+
+### 3.3 Preflight contract
+
+Preflight is the sole execution-before-confirmation surface. It combines:
+
+- detected and inherited project configuration;
+- only the configuration deltas needing user attention;
+- required credentials/services without copying secrets;
+- likely blockers and explicitly preauthorized responses;
+- denied/destructive actions that always require a stop;
+- verification commands and bounded timeouts;
+- a signature/hash binding authorization to the presented content.
+
+No round starts while `authorized_at` is absent, the authorization hash is
+invalid, or the project configuration hash has drifted.
+
+### 3.4 Intent and runtime selection
+
+L0 matches intent to one of the 23 registry-v3 seed names:
 
 ```python
-_PLAN_MODE_OVERRIDES: dict[str, Any] = {
-    "section_priority_overrides": {
-        "agent_hierarchy": "critical",
-        "decomposition_gate": "critical",
-        "rationalization_prevention": "critical",
-        "convergence_loop": "important",
-        "execution_protocol": "supplementary",
-    },
-    "compression_intensity": "minimal",
-    "model_hint_override": "quality",
-}
+seed = registry.load_seed(seed_name)
+runtime = registry.load_template("change-driven")
 ```
 
-Effects on the dispatch payload:
+`load_seed()` provides declarative decomposition knowledge. Only
+`load_template("change-driven")` provides executable lifecycle semantics.
+Historical `load_template(seed_name)` calls are compatibility aliases; new
+plans MUST use the explicit two-call form.
 
-- **section_priority_overrides** — the listed sections are bumped to the
-  declared priority before budget allocation runs; this guarantees
-  agent-hierarchy + decomposition-gate + rationalization-prevention always
-  fit even when the budget is tight.
-- **compression_intensity: minimal** — disables verbatim → bullet
-  contraction in `compressor.py` so plan output retains structural
-  fidelity.
-- **model_hint_override: quality** — forces the L0 model selector to pick
-  the highest-quality tier regardless of profile defaults (plans must not
-  cut model corners on the most consequential dispatch — the one humans
-  read).
+## 4. Plan Constraints Gate
 
-### 2.2 R5 backward-compat for AGENT MODE
+Before presenting the plan, L0 verifies:
 
-When neither plan-mode signal is present, AGENT MODE is active and ALL
-sections render under their profile defaults (no overrides applied). The
-`_PLAN_MODE_OVERRIDES` payload only injects when `apply_plan_mode_overrides()`
-is called explicitly, so the AGENT MODE byte-output is identical to v6.0.x
-pre-plan-mode behavior — verified by
-`tests/test_task_adaptive_selector_plan_mode.py`.
+1. The three drafts are present.
+2. Every goal has at least one checklist assertion.
+3. Every checklist assertion has a confirmed priority and verification mode.
+4. Every command verification has a bounded timeout.
+5. Every dependency references an existing checklist item.
+6. No dependency cycle blocks all remaining items. A cycle is an item-level
+   contract error, not a reason to recreate a workflow DAG.
+7. Writable ownership is declared and can be partitioned without parallel
+   overlap.
+8. Round capacity can fit within 5 tasks per wave and 7 waves per round.
+9. Every loop has a maximum.
+10. All paths are repository-relative.
+11. Preflight clearly distinguishes preauthorized actions from mandatory
+    human stops.
+12. No seed field is treated as an executable instruction.
 
-## 3. Plan Output Template (verbatim contract)
+A failed item blocks plan handoff and requires plan revision.
 
-When PLAN MODE is active, the L0 agent writes its plan into the canonical
-output target (Cursor: `create_plan` tool; Claude Code: `plan.md`; raw:
-markdown stdout) using the following template VERBATIM. The template is the
-delegation contract that downstream L1/L2/L3 agents inherit; section
-ordering, header levels, and field names must match exactly.
+### 4.1 `CASCADE_REQUIRED` three-layer contract
+
+STANDARD and COMPLEX work returns `CASCADE_REQUIRED`. Set
+`gate.cascade_required: true` and `gate.cascade_min_layers: 3` (default 3),
+then traverse:
 
 ```text
-# [Plan Title]
-
-## Overview
-[1-2 sentences] | Workflow: [type] | Gate: [standard/strict/relaxed]
-Escalation: Task → Wave → Stage → Project → Human
-
-## Execution Model
-| Plan Element | Layer | Role |
-|---|---|---|
-| Stage dispatch | L0 Project | Selects workflow, sequences stages |
-| Stage execution | L1 Stage | Decomposes into waves, runs gate |
-| Wave dispatch | L2 Wave | Dispatches parallel tasks, checks conflicts |
-| Task execution | L3 Task | **Only layer that does work** |
-
-## Stages (gate-before-advance: no stage starts until predecessor gate PASS)
-
-### S01: [primitive] — [name] [L0 dispatches → L1 executes]
-- gate_type: [standard|convergence|passthrough] | threshold: [N] | coverage: [N]%
-- max_rounds: [N] (convergence only) | on_stagnation: escalate
-- context_profile: [type] | deliverables: [artifact paths → consumed by S02]
-- L1_receives: stage definition, predecessor gate results, token budget ~5K
-
-#### W01 (parallel | <=5 tasks | disjoint ownership) [L2 dispatches tasks]
-| ID | Layer | Type | Task | Team | Writable (<=6) | Read-only | Est. | AC |
-|----|-------|------|------|------|----------------|-----------|------|-----|
-| T01 | L3 | impl | ... | Implement | ... | ... | ... | ... |
-
-## Constraints Checklist
-- [ ] Every task row is L3 (no L0-L2 performing work — P1 enforced)
-- [ ] Stage headers specify L1 agent constraints (MUST NOT write code)
-- [ ] Execution model section present with per-layer delegation rules
-- [ ] Each wave: <=5 tasks, pairwise disjoint writable files
-- [ ] Each stage: <=7 waves
-- [ ] Task limits: impl <=30min, research <=45min, <=6 writable files
-- [ ] Stage DAG: no cycles, gate-before-advance (D4)
-- [ ] Convergence stages: max_rounds + stagnation rule specified
-- [ ] Predecessors referenced by artifact path, not content copy
-
-## Invariants (ALL enforced)
-- P1: L0-L2 dispatch only; only L3 Tasks execute work
-- P2: Token budgets — L0: ~3K, L1: ~5K, L2: ~4K, L3: ~8K
-- P3: Inter-layer messages use typed YAML (TaskDispatch/StatusReport)
-- P4: Every loop has max_iterations; failures: retry/escalate/abort
-- P5: Layers communicate through artifact files, not conversation history
+L0 Project → L1 Wave → L2 Task
 ```
 
-### 3.1 Field semantics (per-row contract)
+A claimed cascade without L1 is a violation. SIMPLE/TRIVIAL work returns
+`CASCADE_OPTIONAL`; only the documented single-file, under-20-line trivial
+waiver may collapse dispatch.
 
-- **Workflow type** — must match a registry entry (`workflow-system/agent/templates/registry.yaml`). Free-form names break `TemplateRegistry.load_template()` exact-match.
-- **Gate** — `relaxed` (≥70 / ≥60% cov) | `standard` (≥85 / ≥80%) | `strict` (≥90 / ≥90%) | `audit` (≥95 / ≥90%) per `gate/profiles.py`.
-- **Escalation** — always upward, never skip levels (per S-9 escalation invariant).
-- **Layer** — L0 / L1 / L2 / L3 only; per the 4-layer hierarchy in SKILL.md §"4-Layer Agent Hierarchy". Mixed-layer task rows fail the constraints checklist.
-- **gate_type** — `standard` (linear gate-before-advance), `convergence` (gen→verify loop with `max_rounds`), `passthrough` (no gate; rare; only for setup stages).
-- **max_rounds** — defaults from gate profile: `relaxed=3`, `standard=5`, `strict=5`, `audit=7`. Required field on `convergence` stages.
-- **on_stagnation** — `escalate` (default; emit ExceptionEscalation), `retry` (rare; only for transient I/O), `abort` (very rare).
-- **context_profile** — string key into `workflow-system/agent/context_profiles.yaml::profiles`.
-- **deliverables** — repo-relative artifact paths consumed by next stage (P5 contract — no shared memory).
-- **Writable** — list of repo-relative paths the L3 may modify; pairwise disjoint within a wave (S-8 invariant).
-- **Read-only** — list of repo-relative paths the L3 may read; intersect freely across wave tasks.
-
-### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)
-
-Added v11.0.0 PV-01 per D-P-4 — `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-P-4.md`. The §3 base
-template assumes a single-horizon plan (one goal, stage-by-stage execution). Real plans
-sometimes branch across horizons (e.g., "Phase A: research; Phase B: depending on
-research outcome, EITHER design path X OR design path Y"). The convergence-loop machinery
-ALREADY supports this at the wave level (`gate_type: convergence` + `max_rounds` +
-`on_stagnation` + the round-aware escalation from §6 and §7). What was MISSING until
-v11.0.0 PV-01 is the operator-facing documentation of HOW to express such plans cleanly
-within the EXISTING fields. This sub-section closes that gap WITHOUT introducing new
-schema fields — multi-horizon plans use the existing `gate_type`, `max_rounds`,
-`context_profile`, `deliverables`, and `name` / `description` fields with two opt-in
-text-annotation conventions (`[EXPLORE]` and `[REVISABLE: <stage-id>]`).
-
-#### 3.2.1 — When multi-step plans apply
-
-Apply §3.2 conventions when ANY of these triggers are present in the plan request:
-
-* **Research-then-design**: phase A is exploratory (literature review / spike / probe);
-  phase B's shape depends on phase A's outcome (e.g., "if benchmark X says approach Z is
-  faster, do Z; else do Y").
-* **Benchmark-driven branch decisions**: a stage's outcome decides between 2+ candidate
-  paths in subsequent stages — the candidates need to be enumerable in the plan body so
-  reviewers can reason about both branches before committing.
-* **Spec-first-then-impl-or-defer**: phase A authors a spec; phase B is impl IFF the spec
-  reaches some quality bar (e.g., SI-3 § score) — otherwise defer to next cycle.
-* **Revise-after-stage-N-feedback**: a `convergence` stage's round-2 transition may
-  invalidate the assumption that downstream stages were planned around — those downstream
-  stages need an explicit revision marker so reviewers know they're tentative.
-
-Single-horizon plans (one goal; stages are linear; no branching) do NOT need §3.2 — they
-go straight to the §3 base template. §3.2 is OPT-IN.
-
-#### 3.2.2 — Template extension (uses existing fields ONLY)
-
-Multi-horizon plans express their structure through the EXISTING `stages × waves × tasks`
-template by leveraging the following field combinations:
-
-* **Exploratory probe stage** — set `gate_type: convergence` with `max_rounds: 2` and
-  `on_stagnation: escalate` for stages whose outcome decides the next stage's shape.
-  The convergence loop's W-8 / SI-9 reinforcement mechanism naturally accommodates the
-  "round-2 outcome decides" semantics.
-* **Profile flip per phase** — use the `context_profile` field to switch profiles between
-  phases. Example: phase A uses `research` profile (heavy on exploratory tooling +
-  semantic search); phase B uses `convergence_heavy` profile (heavy on gate verification
-  + reinforcement). Profile flips are zero-cost (no schema change; just different
-  context_profiles.yaml selections per stage).
-* **Fork semantics in `deliverables`** — document the branch decision in the
-  `deliverables` field by annotating which artifact is the BRANCH-DECISION INPUT for the
-  next stage. Example: `deliverables: [research-report.md] (consumed by S02 — branch
-  decision input determines path X vs path Y)`.
-
-Zero new schema fields. The `lean-dispatch.yaml#layout_invariant.canonical_order`
-remains at length 17 with positions 1-12 frozen per A-2.1. Multi-baseline byte test
-(10/10) stays green by construction.
-
-#### 3.2.3 — Plan-internal uncertainty annotation: `[EXPLORE]`
-
-Annotate exploratory stages by prefixing the stage `name` text with `[EXPLORE]`.
-
-```text
-### S01: research — [EXPLORE] feasibility study of approach Z
-- gate_type: convergence | threshold: 8.0 | coverage: N/A
-- max_rounds: 2 | on_stagnation: escalate
-- context_profile: research | deliverables: [feasibility-report.md]
-                      (consumed by S02 — branch decision input)
-- L1_receives: stage definition, predecessor gate results, token budget ~5K
-```
-
-This convention is OPT-IN — absence is canonical and equally valid. The annotation lives
-in plain text within the existing `name` field; older plan parsers see it as part of the
-stage name and ignore it. Operators who never use the convention emit single-horizon
-plans that look identical to v8.4.1-era plans.
-
-#### 3.2.4 — Plan-revision markers: `[REVISABLE: <stage-id>]`
-
-Annotate `convergence` stages whose round-2 outcome may revise downstream stages by
-appending `[REVISABLE: <downstream-stage-id>]` to the stage description.
-
-```text
-### S02: design — [EXPLORE] choose between path X and path Y [REVISABLE: S03]
-- gate_type: convergence | threshold: 8.5 | coverage: N/A
-- max_rounds: 2 | on_stagnation: escalate
-- context_profile: convergence_heavy
-- deliverables: [design-decision.md, chosen-path.md]
-                      (consumed by S03 — implementation target)
-- L1_receives: stage definition, S01 feasibility report, token budget ~5K
-```
-
-The `[REVISABLE: S03]` marker telegraphs to reviewers that S03's stage spec is tentative
-until S02's round-2 (or final round) outcome lands. Reviewers should treat S03 as a
-sketch to be re-validated rather than a committed plan.
-
-If multiple downstream stages are revisable, list them comma-separated:
-`[REVISABLE: S03, S04]`. Wildcard-like markers (`[REVISABLE: ALL_AFTER]`) are NOT
-supported — the convention requires explicit stage-IDs so reviewers can reason about
-which downstream blocks are tentative.
-
-#### 3.2.5 — Worked example (research-then-design plan)
-
-A 3-stage multi-horizon plan demonstrating both conventions:
-
-```text
-# Plan: Optimize compressor pipeline for 25%+ throughput
-
-## Overview
-Multi-horizon optimization research-then-design-then-impl. | Workflow: research-impl |
-Gate: standard
-Escalation: Task → Wave → Stage → Project → Human
-
-## Execution Model
-[4-row table from §3 verbatim — omitted for brevity]
-
-## Stages
-
-### S01: research — [EXPLORE] benchmark candidates A/B/C
-- gate_type: convergence | threshold: 8.0 | coverage: N/A
-- max_rounds: 2 | on_stagnation: escalate
-- context_profile: research
-- deliverables: [benchmark-report.md] (consumed by S02 — branch decision input)
-- L1_receives: stage definition, token budget ~5K
-
-#### W01 (parallel | <=3 tasks | disjoint ownership)
-| ID | Layer | Type | Task | Team | Writable | Read-only | Est. | AC |
-|----|-------|------|------|------|----------|-----------|------|-----|
-| T01 | L3 | research | Benchmark candidate A | research | benchmarks/cand_a/ | src/compressor/ | 30min | report-shape match |
-| T02 | L3 | research | Benchmark candidate B | research | benchmarks/cand_b/ | src/compressor/ | 30min | report-shape match |
-| T03 | L3 | research | Benchmark candidate C | research | benchmarks/cand_c/ | src/compressor/ | 30min | report-shape match |
-
-### S02: design — [EXPLORE] choose winning candidate [REVISABLE: S03]
-- gate_type: convergence | threshold: 8.5 | coverage: N/A
-- max_rounds: 2 | on_stagnation: escalate
-- context_profile: convergence_heavy
-- deliverables: [design-decision.md, chosen-path.md] (consumed by S03)
-- L1_receives: stage definition, S01 benchmark report, token budget ~5K
-
-### S03: impl — implement chosen path [REVISABLE: pending S02 decision]
-- gate_type: standard | threshold: 8.5 | coverage: 80%
-- context_profile: impl_heavy
-- deliverables: [src/compressor/<chosen>.py, tests/test_<chosen>.py]
-- L1_receives: stage definition, S02 chosen-path.md, token budget ~5K
-
-## Constraints Checklist
-[9-item checklist from §4 verbatim — omitted for brevity]
-
-## Invariants
-[5-item P1..P5 list from §3 verbatim — omitted for brevity]
-```
-
-The `[EXPLORE]` annotations on S01 + S02 telegraph that those stages are exploratory.
-The `[REVISABLE: S03]` annotation on S02 telegraphs that S03's spec is tentative until
-S02's round-2 outcome lands. The S03 description carries a reciprocal `[REVISABLE:
-pending S02 decision]` so reviewers reading S03 in isolation see the tentative status
-without backtracking to S02.
-
-#### 3.2.6 — Cross-references
-
-* §3 (Plan Output Template) — the base template all plans inherit from.
-* §6 (Reinforcement Rules) — the round-N>1 mechanics that operate on `[EXPLORE]` stages.
-* §7 (Convergence Loop Mechanics) — the `max_rounds` + `on_stagnation` semantics that
-  underpin `[EXPLORE]` + `[REVISABLE]` plans.
-* `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-P-4.md` — the PDS authoring this sub-section.
-
-## 4. Constraints Checklist (verbatim — must verify before finalizing plan)
-
-The 9-item checklist is the gate the plan must clear before it can be
-handed to L1 for execution. Each item is binary; partial-pass is not
-acceptable.
-
-1. **Every task row is L3** — no L0-L2 performing work. P1 enforced. Trivial
-   exception (`< 20 lines`, single file) MAY be inlined into L0 with
-   explicit `[trivial waiver]` annotation.
-2. **Stage headers specify L1 agent constraints** — explicit "MUST NOT write
-   code" / "MUST NOT execute Shell" line in every stage header.
-3. **Execution model section present** — the 4-row table from §3 must be
-   verbatim in the plan output (P1 reminder for downstream readers).
-4. **Each wave: ≤5 tasks, pairwise disjoint writable files** — wave
-   coordinator (L2) verifies disjointness at dispatch; conflict detection
-   is O(|tasks|²) per wave. The 5-task ceiling matches L2 budget (~4K
-   tokens) — exceeding it forces the wave to split.
-5. **Each stage: ≤7 waves** — stage dispatcher (L1) verifies. Exceeding the
-   7-wave ceiling forces stage split (often resolved by introducing an
-   intermediate `gate` primitive).
-6. **Task limits: impl ≤30min, research ≤45min, ≤6 writable files** —
-   approximate budget; not enforced at runtime but used as a planning
-   sanity check. Tasks exceeding 30min are usually candidates for
-   sub-decomposition.
-7. **Stage DAG: no cycles, gate-before-advance (D4)** — the stage graph
-   must be a DAG; a cycle (e.g. design → impl → design) must be modeled
-   as a single `convergence` stage with `max_rounds`. D4 = "no stage
-   advances until predecessor gate PASS" per `decomposition-gate.md`.
-8. **Convergence stages: max_rounds + stagnation rule specified** — every
-   `gate_type: convergence` stage MUST have both fields populated; missing
-   either is a P4 violation (no infinite loops).
-9. **Predecessors referenced by artifact path, not content copy** — P5
-   invariant. Plans that embed predecessor content directly violate
-   context isolation and break the cached-prefix invariant.
-10. **Cascade depth (STANDARD+)** — every plan whose Execution Model
-    targets STANDARD or COMPLEX complexity (per
-    `change_activation.classify_complexity` →
-    `change_activation.cascade_requirement` returning `CASCADE_REQUIRED`)
-    MUST contain at least one L1 Stage row AND at least one L2 Wave row
-    BEFORE any L3 Task row. SIMPLE / TRIVIAL plans inherit item #1's
-    `[trivial waiver]` carve-out and MAY collapse to a single L3 row
-    directly under L0. v11.1.0 PV-04 NEST sub-fields
-    `gate.cascade_required: bool` + `gate.cascade_min_layers: int` carry
-    the signal in the dispatch payload (per A-2.3 NEST decision rule);
-    PV-05 Architecture rule A-7 promotes this from soft check to strict
-    enforcement.
-
-The L0 agent runs the checklist as a self-verify before emitting the plan.
-Any fail blocks the plan emission and forces revision.
-
-## 5. Plan Mode Rules — DO and DO NOT
+## 5. DO and DO NOT
 
 ### 5.1 DO
 
-- Use **read-only tools** for plan research: Read, Glob, Grep,
-  SemanticSearch (allowed under L0 in plan mode per `_PLAN_MODE_OVERRIDES`).
-- Emit the plan via `create_plan` (Cursor) or write `plan.md` (Claude
-  Code). Other clients: emit raw markdown to stdout under a `# Plan` H1.
-- Embed stage→wave→task decomposition with file ownership and AC for every
-  L3 row.
-- Annotate each stage's `gate_type`, `context_profile`, and convergence
-  parameters (`max_rounds` + `on_stagnation`).
-- Annotate every plan element with its delegation layer (L0/L1/L2/L3) so
-  downstream readers can audit P1 compliance.
-- Verify the §4 Constraints Checklist (especially P1 enforcement items)
-  before finalizing.
-- **Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans**
-  (per §4 item #10 + v11.1.0 PV-04 schema NEST `gate.cascade_required`);
-  collapse to single-L3 only for TRIVIAL/SIMPLE per item #1's
-  `[trivial waiver]` carve-out.
-- Cite predecessor artifacts by repo-relative path (S-2). External
-  references use the GitHub URL (S-7).
+- Use read-only planning tools to inspect the codebase and workspace.
+- Present material uncertainty and decisions to the user.
+- Route intent through `load_seed()` and use only the `change-driven` runtime.
+- Include P0/P1/P2, verify, depends, owned files, and read-only files.
+- Prefer item-level dependencies over prescribed task order.
+- Cite artifacts and sources by repository-relative path per S-2.
+- Preserve exact paths, metrics, error text, and user constraints.
+- Wait for explicit approval and signed preflight before execution.
 
 ### 5.2 DO NOT
 
-- Do **NOT** dispatch tasks, write code, run tests, or modify files —
-  this violates P1 + the plan-mode operating contract.
-- Do **NOT** start execution until the user explicitly approves the plan
-  (per the v3.x plan-mode-enforcement contract; user approval is the
-  hand-off signal from PLAN MODE → AGENT MODE).
-- Do **NOT** over-decompose (the 30min impl / 45min research budget is a
-  ceiling, not a target — many tasks are 10-15min). Over-decomposition
-  inflates wave count and breaks the ≤7-waves-per-stage invariant.
-- Do **NOT** embed tool calls in the plan body — the plan is a
-  declarative contract, not an executable script.
-- Do **NOT** select model tier without rationale — `model_hint` defaults to
-  `inherit`; explicit overrides need a per-task justification annotation.
-- Do **NOT** skip the §4 Constraints Checklist. Plans that elide the
-  checklist break downstream gate evaluation.
-- Do **NOT** copy predecessor content into the plan body. Cite by path
-  per P5.
+- Do not implement, run implementation checks, or dispatch tasks in Plan Mode.
+- Do not emit a stage-by-stage execution DAG.
+- Do not execute checklist seeds or infer order from provenance.
+- Do not assign priorities without presenting them for user confirmation.
+- Do not leave verification as vague prose such as "works correctly."
+- Do not copy full predecessor artifacts into the plan.
+- Do not hide an unresolved blocker behind a high composite score.
+- L1/L2 do not call `AskQuestion`, or unbounded `WebFetch`/`WebSearch`.
 
-### 5.3 Cursor-specific notes
+## 6. Feedback Ingestion
 
-When running under Cursor, the `SwitchMode` tool is available. The L0 agent
-SHOULD call `SwitchMode(target_mode_id="plan")` if the host signals plan
-intent but the runtime mode is still `agent`. Conversely,
-`SwitchMode(target_mode_id="agent")` is the explicit hand-off after user
-approval (do not auto-call without user consent).
+At Plan-Mode entry, L0 scans the workspace and reads up to the three newest
+feedback files. It extracts concise themes and uses them to challenge scope,
+terminology, and defaults in the three drafts.
 
-### 5.4 Claude Code-specific notes
+### Automatic Ingestion at Plan-Mode Entry (v9.1.4+)
 
-When running under Claude Code, plan output goes to `plan.md` at the
-working-directory root. The Claude Code TUI auto-renders the plan in a
-side panel. The user-approval signal is a follow-up message containing
-"approve" / "go ahead" / "execute" — at which point L0 transitions to
-AGENT MODE and starts dispatch.
+1. Call `devolaflow.workspace_context.scan_workspace(repo_root)`.
+2. Read `WorkspaceContext.recent_feedbacks`; the public cap is
+   `MAX_FEEDBACKS_RETURNED == 3`.
+3. Use the standard `Read` tool for each returned path.
+4. Extract ≤ 5 short themes, each ≤ 30 characters.
+5. Surface them in
+   `change_context.prior_feedback_themes`.
+6. Cite sources with repository-relative POSIX paths per S-2, for example
+   `.local/feedbacks/feedback_for_vX.Y.Z.md`.
 
-### 5.5 Feedback Ingestion (v9.1.1+)
+Theme extraction is read-only and needs no new env flag. Memory-case
+consultation remains separately gated by its existing runtime flag.
 
-L0 plan mode MUST consume `WorkspaceContext.recent_feedbacks`
-automatically when scanning the consumer repo. The latest 3 feedbacks
-(by mtime descending) are surfaced in plan-mode reasoning to anchor
-proposals against the user's accumulated voice.
+## 7. Reinforcement
 
-**Mechanism:**
-
-1. At plan-mode entry, L0 calls
-   `devolaflow.workspace_context.scan_workspace(repo_root)` (the
-   read-only discovery API shipped in v9.1.1 PV-01 — see
-   `references/agent-workspace.md` §"When to Engage").
-2. The returned `WorkspaceContext.recent_feedbacks` tuple holds up to 3
-   `Path` objects pointing at `.local/feedbacks/feedback_for_v*.md`,
-   ordered by `os.stat().st_mtime` descending (newest first). The cap
-   matches `_RECENT_FEEDBACKS_LIMIT = 3` in
-   `src/devolaflow/workspace_context.py` — older feedback files
-   remain on disk but are not auto-loaded into the dispatch context
-   (token-budget reason: the 3 newest carry the highest signal-to-noise
-   for the imminent plan).
-3. L0 reads each path with the standard `Read` tool (allowed under
-   plan mode per §5.1) and extracts the user's themes. The themes feed
-   the plan's "Overview" + "Stages" sections so the plan output reflects
-   the user's accumulated voice rather than a fresh interpretation of
-   the latest prompt only.
-4. Themes are NOT copied verbatim into the plan body (P5 / S-2 /
-   no-content-copy invariant). Cite by repo-relative path
-   (`.local/feedbacks/feedback_for_vX.Y.Z.md` §<heading>) instead.
-
-**v9.1.1 PV-01 ships the discovery API only — automatic ingestion at
-plan-mode entry is the v9.1.4 PV-04 deliverable** (per the v9.2.0
-cycle plan). The S-5-compliant default — no auto-write side effects —
-applies regardless of PV.
-
-#### Automatic Ingestion at Plan-Mode Entry (v9.1.4+)
-
-Starting in v9.1.4 (PV-04 of the v9.2.0 cycle), L0 plan mode MUST
-automatically ingest the `WorkspaceContext.recent_feedbacks` summary
-when entering plan mode AND surface ≤ 5 extracted themes (≤ 30 chars
-each) in the dispatch payload's `change_context.prior_feedback_themes`
-NEST sub-field (per A-2.3 — the canonical_order length stays at 16,
-no new top-level dispatch key was added). The contract:
-
-1. **Discovery call** — at plan-mode entry, L0 calls
-   `devolaflow.workspace_context.scan_workspace(repo_root)` and reads
-   `WorkspaceContext.recent_feedbacks` (the tuple is already capped at
-   `MAX_FEEDBACKS_RETURNED == 3` per the v9.1.1 PV-01 design — older
-   feedbacks remain on disk but are not auto-loaded).
-2. **Read with the standard `Read` tool** — for each of the (≤ 3)
-   feedback paths, L0 reads the file with the standard `Read` tool
-   (allowed under plan mode per §5.1 — no new tool permission needed).
-3. **Theme extraction (L0 LLM contract — normative)** — extract ≤ 5
-   short noun/verb phrases (each ≤ 30 chars; lowercase
-   `snake_case` preferred) from the H1/H2 headings, key bullet
-   markers, and recurring concept terms across the feedback bodies.
-   Examples: `handoff_auto_write`, `slash_commands_cli`,
-   `workspace_discovery`, `memory_consultation`,
-   `spec_bootstrap`. Themes that are NOT short noun/verb phrases
-   (e.g., full sentences, prose paragraphs) violate the
-   `prior_feedback_themes` schema cap.
-4. **Surfacing** — populate the dispatch payload's
-   `change_context.prior_feedback_themes` sub-field (NEST per A-2.3 —
-   schema documented in
-   `schemas/lean-dispatch.yaml#lean_format_spec.change_context.prior_feedback_themes`)
-   with the extracted theme list. Cite each source by repo-relative
-   POSIX path per S-2 (e.g.,
-   `.local/feedbacks/feedback_for_v9.1.3.md` §"What's New"). NEVER
-   embed absolute filesystem paths.
-
-**Why a NEST extension and not an APPEND?** Per A-2.3 nest-vs-append
-decision rule, the new sub-field rides the existing `change_context`
-position 16 block — the sub-field is independently optional and
-modifies how an existing block is interpreted (the L3 task agent
-treats `change_context` as the binding for in-flight workspace state
-PLUS, when present, the user-voice anchors). This preserves the I-8
-invariant: `canonical_order` length STAYS AT 16 and `version` STAYS
-AT 5. The v8.3.0 PV-05 + v8.4.0 + v9.2.0 multi-baseline byte tests
-in `tests/test_layout_invariant_multi_baseline.py` continue to PASS
-without modification.
-
-**Activation gate (W-20 reuse)** — feedback ingestion auto-runs in
-plan mode by default (no env-flag required for the read-only
-discovery + theme extraction; the activity is a `Read` operation L0
-already performs in plan mode). The companion memory-case
-consultation (`change_context.memory_case_hits`) is gated by
-`DEVOLAFLOW_MEMORY_ROUTER=1` (REUSED per W-20 — no new env-flag).
-The third sub-field, `source_of_truth_excerpt`, is L0-discretion
-(reads `.local/memory/specs/<domain>/spec.md` when `spec_delta_target`
-is set on the change folder).
-
-**Coverage anchor** — `tests/test_feedback_ingestion_plan_mode.py`
-pins this contract: empty-feedbacks → empty list, S-2 repo-relative
-paths via `WorkspaceContext.to_summary_dict()`, the 3-feedback cap
-honored, AND the §5.5 sub-section content asserted verbatim (so a
-future doc rewrite that drops the contract markers fails CI
-immediately).
-
-## 6. Reinforcement Rules (W-8 / SI-9) — Mechanism + L3 Obligation
-
-When a stage gate FAILS (composite_score < threshold OR blocker count > 0
-OR coverage < threshold), the next round's dispatch carries
-`applicable_rules.reinforcement` — top-5 prior-round findings (severity ≥
-major) injected as MUST-fix mandates.
-
-### 6.1 `applicable_rules.reinforcement` payload shape
+When a round fails, L0 converts up to five prior findings into
+`applicable_rules.reinforcement`.
 
 ```yaml
 applicable_rules:
-  reinforcement:                          # max 5 entries; severity-filtered
+  reinforcement:
     - id: "R-001"
-      severity: blocker | critical | major
-      finding: "verbatim from prior-round gate output"
-      source_file: "repo/relative/path.py"     # optional; for L3 to locate
-      source_line: 142                          # optional
-      remediation_hint: "1-sentence delta"      # optional
-    # ... up to 4 more entries ...
+      severity: blocker
+      finding: "verbatim prior-round finding"
+      source_file: "repository/relative/path.py"
+      remediation_hint: "bounded delta"
 ```
 
-**Severity filter:** blocker > critical > major; ignore minor / info /
-warn from reinforcement (those go to `informational` instead). **Selection
-order:** by severity descending; within same severity, by gate
-chronological order (earliest finding first). **Deduplication:** identical
-`(severity, source_file, source_line)` tuples merge into one entry with
-combined `finding` + `remediation_hint` text.
+Selection order is blocker → critical → major, stable within severity. Minor
+and informational findings stay informational. Deduplicate matching source
+coordinates without paraphrasing facts.
 
-### 6.2 L3 obligation
+A user-reverted checklist item becomes blocker reinforcement for the next
+round. Its `finding` preserves the user's reason verbatim.
 
-L3 Task Agents that receive a dispatch with non-empty
-`applicable_rules.reinforcement` MUST:
+### 7.1 L2 obligation
 
-1. Address ALL listed reinforcement rules **before** any new work. Failure
-   to address any rule = automatic blocker in the next gate (the gate
-   evaluator parses the L3 status report for explicit closure of each
-   reinforcement entry).
-2. Emit per-rule closure markers in the StatusReport's `delta` block:
-   `closes_reinforcement: ["R-001", "R-003"]`.
-3. If a rule cannot be closed in this round (e.g. dependency on another
-   wave's task), explicitly emit `defers_reinforcement: ["R-002 — blocked
-   on TaskAgent T03 deliverable"]` so the L1 gate can evaluate
-   stagnation correctly.
+An L2 Task receiving reinforcement MUST:
 
-### 6.3 Python API surface
+1. address every applicable item before new work;
+2. report `closes_reinforcement` by ID;
+3. report any unavoidable deferral with its dependency;
+4. provide fresh verification evidence.
 
-Two source-of-truth modules:
+Failure to close or explicitly defer a rule is a blocker in L1 aggregation.
 
-- `src/devolaflow/gate/reinforcement.py` — `findings_to_reinforcement(findings, max_entries=5)` filters, sorts, and deduplicates findings into the reinforcement payload. ~227 LOC at v8.4.x.
-- `src/devolaflow/feedback.py` — `ProposalGenerator.generate_round_dispatch(round_n, prior_findings, base_dispatch)` merges prior-round findings into `base_dispatch.applicable_rules.reinforcement` and bumps the dispatch payload's round counter.
+### 7.2 L0 caller responsibility
 
-The two are always called together by L1 between gate evaluation and
-round-N+1 wave dispatch. Verified end-to-end by
-`tests/test_dispatch_emission_runs_hooks.py` and
-`tests/test_no_ghost_features.py::test_round_aware_dispatch_escalation_exists`.
+L0 owns gate evaluation and calls
+`findings_to_reinforcement()` plus
+`ProposalGenerator.generate_round_dispatch()`. Every emitted dispatch still
+runs through `pre_dispatch` → `post_dispatch`. L1 forwards the resulting
+task-scoped subset; it does not synthesize reinforcement policy.
 
-### 6.4 Round-aware escalation table
-
-`task_adaptive_selector._ROUND_ESCALATION_DEFAULTS` defines the
-per-round-number context budget bumps and `model_hint` upgrades:
-
-| Round | Budget multiplier | `model_hint`     | Notes                                        |
-| ----- | ----------------- | ---------------- | -------------------------------------------- |
-| 1     | 1.0               | `inherit`        | base round (no reinforcement carried)        |
-| 2     | 1.0               | `inherit`        | first reinforcement round; budget unchanged  |
-| 3     | 1.2               | `quality`        | +20% budget; force-quality model             |
-| 4+    | 1.2               | `quality`        | sustained at +20% / quality                  |
-
-L1 applies the table when calling `generate_round_dispatch()`.
-
-## 7. Convergence Loop Mechanics
-
-The Gen-Verify loop is the convergence wave's runtime topology. It applies
-to `gate_type: convergence` stages — typically `review+fix`, `test+fix`,
-`benchmark+optimize`, `design+critique`, and `verify+remediate`.
-
-### 7.1 Loop structure
-
-1. L2 Wave dispatches **generator** task + **verifier** task in parallel.
-   Generator produces an artifact; verifier evaluates it against
-   `acceptance_criteria` (lifted from the wave dispatch payload).
-2. Verifier emits `{PASS | FAIL + feedback}`. PASS → wave done; L1 marks
-   stage gate PASS. FAIL → L1 calls `generate_round_dispatch()` (see §6.3)
-   to build round N+1 dispatch carrying the verifier's findings as
-   reinforcement payload.
-3. Round N+1 generator addresses the reinforcement (see §6.2 L3
-   obligation), produces refined artifact. Verifier re-evaluates.
-4. Loop terminates on **any** of:
-   - verifier emits PASS (success path; gate PASS),
-   - `round_n >= max_rounds` (escalate per §8),
-   - composite_score Δ < `stagnation_epsilon` over 2 rounds (stagnation;
-     escalate per §8),
-   - L1 receives ExceptionEscalation from any task (immediate halt).
-
-### 7.2 `max_rounds` defaults per gate profile
-
-| Profile    | `max_rounds` | Rationale                                                   |
-| ---------- | ------------ | ----------------------------------------------------------- |
-| `relaxed`  | 3            | low-stakes content; cheap to escalate after 3 attempts      |
-| `standard` | 5            | balanced default; matches W-8 / SI-9 hard cap               |
-| `strict`   | 5            | same hard cap; higher per-round bar (composite ≥ 90)        |
-| `audit`    | 7            | release-blocking; willing to spend more rounds for ≥ 95     |
-
-The `max_rounds` value MUST be specified on every `convergence` stage; the
-profile default is a fallback only.
-
-### 7.3 Stagnation detection
-
-Stagnation = composite_score Δ < `stagnation_epsilon` (default 1.0) over
-**2 consecutive rounds** with no new blocker introduced. The 2-round
-window prevents single-round noise (e.g. a verifier flip-flop) from
-falsely triggering escalation.
-
-### 7.4 Verifier criteria sourcing
-
-The verifier reads `acceptance_criteria` from the wave dispatch payload
-(per `schemas/lean-dispatch.yaml#layout_invariant.canonical_order`
-position `accept`). Acceptance criteria authoring guidance lives in
-`references/decomposition-gate.md` §"Acceptance Criteria". For
-`convergence` stages, AC SHOULD be expressed as testable assertions
-(boolean predicate) rather than descriptive prose, so the verifier can
-emit unambiguous PASS / FAIL.
-
-## 8. Stagnation Escalation (P4 Bounded Retry)
-
-When the convergence loop terminates due to `max_rounds` exceeded OR
-stagnation, L1 emits an `ExceptionEscalation` upward to L0 per the P4
-bounded retry contract.
-
-### 8.1 P4 classification
-
-Every loop has a `max_iterations` ceiling. Every failure triggers a
-classified response:
-
-| Classification | Trigger                                        | Action                                                        |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------------- |
-| `retry`        | transient I/O fault; round_n < max_rounds      | re-dispatch same round payload (no reinforcement bump)        |
-| `escalate`     | max_rounds reached OR stagnation OR blocker    | emit ExceptionEscalation upward (Task → Wave → Stage → Project → Human) |
-| `abort`        | unrecoverable schema violation OR P1 violation | halt entire workflow; surface to human immediately            |
-
-### 8.2 Escalation chain
-
-The escalation chain is always upward, never skip levels:
+## 8. Checklist-Round Loop
 
 ```text
-L3 Task → L2 Wave → L1 Stage → L0 Project → Human
+L0 selects items and waves
+  → L1 dispatches each wave's independent L2 tasks
+    → L2 implements and self-verifies
+      → L1 checks conflicts and aggregates evidence
+        → L0 verifies and updates checklist state
+          → round PASS, next round, or escalation
 ```
 
-L2 receives Task escalations and decides: address inline (e.g. retry with
-adjusted dispatch) or propagate to L1. L1 receives Wave escalations and
-decides: re-dispatch wave or propagate to L0. L0 receives Stage
-escalations and decides: re-dispatch stage with relaxed profile, or
-present options to human. Skipping levels (e.g. L3 → L0 direct) breaks
-the audit trail and is a P4 violation.
+Round PASS requires all selected items to have valid evidence and passing
+checks, plus zero blockers. Composite score is recorded in `stage.md` as a
+trend signal; it is not a round-PASS condition.
 
-### 8.3 ExceptionEscalation schema
+Termination:
+
+- all checklist items checked and no reverted item open → archive gate;
+- no net checklist progress for 2 consecutive rounds → escalate;
+- one item fails in 3 selected rounds → escalate that item;
+- `max_rounds` reached → escalate;
+- schema, ownership, or preflight violation → abort or escalate by class.
+
+The archive gate separately requires valid evidence references and readiness
+composite ≥8.5 for lite/minor or ≥9.0 for full/major.
+
+Task Quality Score is not part of this loop. After completion, the full rubric
+loads on-demand from `references/task-quality-score.md` only when the user
+asks; this path is **L0 ONLY**, and L1/L2 never emit scores.
+
+## 9. Escalation
+
+```text
+L2 Task → L1 Wave → L0 Project → Human
+```
+
+| Class | Trigger | Action |
+|---|---|---|
+| retry | transient fault below retry ceiling | bounded redispatch |
+| escalate | blocker, stagnation, dependency decision, exhausted limit | send upward |
+| abort | ownership, schema, or destructive-policy violation | halt and report |
 
 ```yaml
 exception_escalation:
-  source_id: "<task_id|wave_id|stage_id>"
-  source_layer: "L1|L2|L3"
-  reason: "max_rounds_exceeded|stagnation|p1_violation|p4_violation|unrecoverable_error"
+  source_id: "<task_id|wave_id|round_id>"
+  source_layer: "L0|L1|L2"
+  reason: "stagnation|max_rounds|blocker|contract_violation|unrecoverable_error"
   classification: "retry|escalate|abort"
   context:
-    round_n: <int>                  # only for max_rounds_exceeded / stagnation
-    composite_history: [<float>]    # last 5 rounds, oldest first
-    blocker_findings: [<str>]       # list of blocker-severity findings
-    last_dispatch_id: "<dispatch_id>"
-  remediation_hint: "<1-sentence>"  # optional; L1's best-guess fix
+    round_n: 2
+    checked_delta: 0
+    blocker_findings: []
+    last_dispatch_id: "..."
+  remediation_hint: "one bounded next step"
 ```
 
-The schema is canonical per `schemas/exception-escalation.schema.yaml`
-(when present) and consumed by L0's `gate.scorer.evaluate_escalation()`.
+No layer may skip its immediate parent.
 
-### 8.4 Per-team escalation routing
+## 10. Soul Rule S-10 Hook Chain
 
-Default routing (configurable per `context_profiles.yaml::profiles.<name>.escalation_routing`):
+Every dispatch returned by
+`ProposalGenerator.generate_round_dispatch()` must be visible to
+`pre_dispatch` and `post_dispatch`.
 
-| Team       | Primary escalation target | Rationale                                      |
-| ---------- | ------------------------- | ---------------------------------------------- |
-| Research   | Stage Agent (L1)          | research blocks usually need scope re-decision |
-| Design     | Project Agent (L0)        | design blocks usually need workflow re-routing |
-| Implement  | Wave Agent (L2)           | impl blocks often resolve in adjacent wave     |
-| Test       | Wave Agent (L2)           | test blocks usually mean code-side fix needed  |
-| Review     | Stage Agent (L1)          | review blocks usually mean criteria revision   |
+| Slot | Responsibility |
+|---|---|
+| `pre_dispatch` | Validate acceptance criteria, owned files, schema, and prohibited score/banner leakage |
+| `post_dispatch` | Permissive extension slot; default handler does not mutate bytes |
 
-## 9. Cross-References
+The chain runs on round-1 pass-through, no-reinforcement, and
+reinforcement-applied paths. L2 does not manipulate dispatcher hooks.
 
-### 9.1 SKILL.md sections (1-paragraph summaries)
+## 11. Cross-References
 
-- `## Mode Awareness` — Plan-mode detection priority order + AGENT MODE
-  default + `_PLAN_MODE_OVERRIDES` runtime hook.
-- `### Reinforcement Rules (v5.1+)` — 1-paragraph summary of §6 above.
-- `### Wave Coordination Modes` — Gen-Verify mode selection + topology
-  override.
-- `## Gate Mechanism` — composite_score formula + per-dimension scoring +
-  pass conditions + gate profiles.
-
-### 9.2 Source files (Python API)
-
-- `src/devolaflow/gate/reinforcement.py` — `findings_to_reinforcement()` (W-8 module).
-- `src/devolaflow/feedback.py` — `ProposalGenerator.generate_round_dispatch()`.
-- `src/devolaflow/task_adaptive_selector.py` — `_PLAN_MODE_OVERRIDES`, `_ROUND_ESCALATION_DEFAULTS`, `apply_plan_mode_overrides()`.
-- `src/devolaflow/lifecycle/dispatcher.py` — dispatch event emission +
-  `pre_dispatch` / `post_dispatch` hook orchestration.
-- `src/devolaflow/lifecycle/__init__.py` — `run_hooks(event, payload, *, strict=False)`.
-
-### 9.3 Schemas
-
-- `schemas/lean-dispatch.yaml` — canonical dispatch payload (lean format);
-  `applicable_rules.reinforcement` field at canonical_order position
-  `rules`.
-- `schemas/lean-report.yaml` — StatusReport schema; `delta.closes_reinforcement`
-  / `defers_reinforcement` field semantics.
-
-### 9.4 AGENTS.md rules
-
-- `AGENTS.md` §"P1 Dispatcher-Not-Implementer" — L0-L2 may NOT execute
-  work.
-- `AGENTS.md` §"P4 Bounded Retry" — every loop has a `max_iterations`
-  ceiling.
-- `AGENTS.md` §"W-8 — Convergence Round Reinforcement (SI-9)" —
-  reinforcement-loop discipline + 2-round stagnation rule.
-- `AGENTS.md` §"S-1 — Dispatcher-Not-Implementer Invariant" — Soul-rule
-  invariant; trivial exception (single file, < 20 lines) does NOT apply
-  to plan mode (plans are inherently dispatcher artifacts).
-
-### 9.5 Testing surface
-
-- `tests/test_no_ghost_features.py::test_round_aware_dispatch_escalation_exists` — pins the round-aware dispatch wiring.
-- `tests/test_no_ghost_features.py::test_reinforcement_findings_function_exists` — pins `findings_to_reinforcement()` callable.
-- `tests/test_dispatch_emission_runs_hooks.py` — end-to-end pre_dispatch / post_dispatch hook coverage; landed in v8.4.4 PV-04 per
-  `docs/cycle-archive/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.
-- `tests/test_task_adaptive_selector_plan_mode.py` — `_detect_plan_mode()`
-  + `_PLAN_MODE_OVERRIDES` application coverage.
-
-### 9.6 External
-
-- DevolaFlow repository: https://github.com/YoRHa-Agents/DevolaFlow
-- NineS evaluator (used for SI-2 self-eval): https://github.com/YoRHa-Agents/NineS
-
-## 10. Soul Rule S-10 — Prompt-Side Governance Contract Embedding (v8.4.4 PV-04)
-
-Every dispatch payload returned by
-`src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch`
-MUST be visible to the lifecycle hook chain
-(`pre_dispatch` → `post_dispatch`) via
-`devolaflow.lifecycle.run_hooks(event, payload, strict=False)`.
-
-### 10.1 Why this rule
-
-Prior to v8.4.4 the dispatcher ran the hook chain only at validation
-checkpoints (manual invocations from tests + CLI ops). Round-N+1
-dispatches emitted from `generate_round_dispatch` bypassed it entirely
-— a dead-wire identified in v6.0.3's highest-ROI retro precedent and
-escalated to BLOCKER C-03 in `docs/cycle-archive/v9.0.0/v9.0.0_gap_analysis.md`
-§3.1. S-10 codifies the wired-up state and lifts it into the Soul-set
-so future refactors cannot regress.
-
-### 10.2 Hook chain semantics
-
-| Slot | Default handler | Role |
-|---|---|---|
-| `pre_dispatch` | `validate_dispatch` (+ extras: `validate_owned_files`, `reject_subagent_quality_score`, `reject_subagent_banner_emission` — the latter default-wired since v15.0.0 G-038; opt-out `unregister_pre_dispatch_extra()`) | validate dispatch CONTENT (acceptance criteria, owned files, schema compliance, L0-only score/banner leakage) |
-| `post_dispatch` | `post_dispatch` permissive no-op | future-extensibility slot for governance contracts (Soul-set version embedding, rule-manifest URL, reinforcement state) — actual content lands in PV-07 with the rule-corpus selectivity slice |
-
-### 10.3 R5 strict triple codification
-
-1. **Hook**: `lifecycle/__init__.py::DEFAULT_EVENTS` includes both
-   `pre_dispatch` and `post_dispatch`; both wired to permissive
-   defaults that NEVER mutate the payload.
-2. **Schema**: `feedback.py::generate_round_dispatch` calls the hook
-   chain on every return path (round-1 pass-through, no-reinforcement,
-   reinforcement-applied).
-3. **Test**: `tests/test_dispatch_emission_runs_hooks.py` asserts the
-   hook is invoked exactly once per dispatch in permissive mode AND
-   that the returned dispatch is byte-identical to the control when no
-   extras register.
-
-### 10.4 L3 obligation
-
-L3 Task Agents do NOT need to interact with the hook chain directly —
-the wiring is an L0/L1/L2 dispatcher concern. L3 Task Agents may
-register custom `post_dispatch` extras when they need to inject
-observability or governance side-effects, but the registration is
-runtime-ephemeral and MUST clean up after the task completes
-(`lifecycle.clear_hooks(POST_DISPATCH_EVENT)`) so future dispatches
-see the canonical no-op default.
+- `references/agent-hierarchy.md` — three-layer responsibilities.
+- `references/decomposition-gate.md` — round/wave/task decomposition and
+  evidence gate.
+- `references/context-isolation.md` — 5K/5K/8K context contracts.
+- `references/artifact-quality.md` — L2 self-verification evidence.
+- `schemas/lean-dispatch.yaml` — dispatch layout and reinforcement fields.
+- `schemas/lean-report.yaml` — evidence and closure reporting.

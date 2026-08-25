@@ -1,6 +1,6 @@
 # Weekly refresh of bridge shape-contract fixtures.
 #
-# v10.8.0 D-C-2 closure — re-captures NineS / Si-Chip / RTK / ui-pro
+# v10.8.0 D-C-2 closure — re-captures Si-Chip / RTK / ui-pro
 # stdout/YAML/JSON output from LIVE plugin binaries into
 # `tests/integration/fixtures/<plugin>/`. Opens a draft PR if the
 # fixture diff shows upstream schema drift.
@@ -13,7 +13,7 @@ name: bridge-fixture-refresh
 
 on:
   schedule:
-    # Every Sunday 00:00 UTC — mirror the RTK + Si-Chip + NineS release
+    # Every Sunday 00:00 UTC — mirror the RTK + Si-Chip release
     # cadence signal so upstream schema drift surfaces within 7 days.
     - cron: "0 0 * * 0"
   workflow_dispatch: {}
@@ -43,12 +43,11 @@ jobs:
       - name: Install DevolaFlow
         run: |
           pip install -e .
-      - name: Install NineS + Si-Chip + RTK + ui-pro (best-effort)
+      - name: Install Si-Chip + RTK + ui-pro (best-effort)
         run: |
           # Canonical install URLs per runtime-plugins.yaml. Each install
           # may fail independently — the refresh script gracefully skips
           # missing plugins per D-C-2 §9 R2.
-          curl -fsSL https://yorha-agents.github.io/NineS/install.sh | bash -s -- --yes || echo "NineS install failed (skip)"
           curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes || echo "Si-Chip install failed (skip)"
           curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | bash -s -- --yes || echo "RTK install failed (skip)"
           npm install -g uipro-cli || echo "ui-pro install failed (skip)"

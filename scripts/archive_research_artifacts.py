@@ -63,7 +63,8 @@ Output structure (per cycle)::
     ├── gap_analysis.md       # copy of v<MAJOR>.<MINOR>.0_gap_analysis.md
     ├── implementation_plan.md
     ├── design/               # copy of v<MAJOR>.<MINOR>.0_pv*_design.md
-    ├── nines/                # copy of v<MAJOR>.<MINOR>.*_nines.{json,md}
+    ├── harness/              # current built-in harness evaluations/baselines
+    ├── nines/                # legacy NineS artifacts (historical routing only)
     ├── evaluation/           # copy of v<MAJOR>.<MINOR>.*_evaluation.md
     ├── retrospective.md      # copy of v<MAJOR>.<MINOR>.0_retrospective.md
     └── <subdir>/             # whole-tree copy of v<MAJOR>.<MINOR>.*/ research subdirs
@@ -194,6 +195,7 @@ def _gather_artifacts(
         "gap_analysis": [],
         "implementation_plan": [],
         "design": [],
+        "harness": [],
         "nines": [],
         "evaluation": [],
         "retrospective": [],
@@ -213,9 +215,14 @@ def _gather_artifacts(
             buckets["implementation_plan"].append(f)
         elif "design" in name:
             buckets["design"].append(f)
+        elif "harness" in name:
+            buckets["harness"].append(f)
         elif "nines" in name:
+            # Backward-compatible historical route. New evaluation evidence
+            # belongs in the built-in harness bucket above.
             buckets["nines"].append(f)
         elif "evaluation" in name or "evobench" in name.lower():
+            # ``evobench`` remains a read-only historical filename route.
             buckets["evaluation"].append(f)
         elif "retrospective" in name:
             buckets["retrospective"].append(f)
@@ -366,6 +373,7 @@ def archive(
         "gap_analysis": archive_dir,
         "implementation_plan": archive_dir,
         "design": archive_dir / "design",
+        "harness": archive_dir / "harness",
         "nines": archive_dir / "nines",
         "evaluation": archive_dir / "evaluation",
         "retrospective": archive_dir,

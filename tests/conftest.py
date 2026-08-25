@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -44,91 +43,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.skip(reason=f"DEFERRED: {reason}"))
         else:
             item.add_marker(pytest.mark.xfail(reason=f"DEFERRED (xfail): {reason}", strict=False))
-
-
-@pytest.fixture(autouse=True)
-def _force_fallback_token_estimator(request, monkeypatch):
-    """Force ``tiktoken=None`` for deterministic benchmark scoring (autouse).
-
-    ``devolaflow.task_adaptive_selector.estimate_tokens`` uses ``tiktoken``
-    when available, otherwise falls back to ``len(text) // 4``. The two
-    estimators disagree by enough that benchmark scenarios pick different
-    section sets — and the v6.0.5+
-    ``test_v6_baseline_matches_current_results_within_tolerance`` staleness
-    guard becomes flaky when local and CI environments differ on
-    tiktoken availability.
-
-    Solution: hide ``tiktoken`` from ``sys.modules`` for the duration of
-    every benchmark test so both environments take the deterministic
-    fallback path. Production runtime is unaffected — agents that have
-    tiktoken installed still get the more accurate estimate.
-
-    Scope: applies only to tests in ``test_benchmarks.py`` (matched by
-    the test's file path containing ``"test_benchmarks"``) to avoid
-    changing behavior of other test modules (e.g. compressor or
-    selector unit tests that may explicitly want tiktoken).
-
-    Why this fixture exists (recap for v11.1.3 D-3 readers):
-        Without the autouse force-to-fallback, EvoBench scenarios produce
-        different absolute composite scores depending on whether the test
-        runner has ``tiktoken`` installed (CI runner vs. dev laptop vs.
-        fresh clone). The fallback estimator (``len(text) // 4``) is
-        deterministic per fixture input; the ``tiktoken`` BPE estimator
-        is *also* deterministic but produces a different absolute count,
-        leading to ~7-percentage-point divergence on benchmark composite
-        scores between the two environments. Pinning to fallback keeps
-        pytest results comparable across machines.
-
-    W-16 baseline regen note (v11.1.3 D-3; closes the v11.1.0 PV-02
-    closeout finding telegraphed at v11.1.0 cycle close):
-        Operators regenerating EvoBench baselines OUTSIDE the pytest
-        harness (e.g., a standalone script that imports
-        ``devolaflow.benchmarks`` directly, or a one-shot
-        ``python scripts/...`` invocation that does not load conftest)
-        WILL NOT see this fixture apply, and the resulting baselines
-        will diverge from pytest scoring by ~7pp on the composite axis.
-
-        Three options to reproduce pytest scoring outside pytest:
-
-          Option A (preferred — least surprise): invoke regen under the
-            pytest harness, e.g. ``pytest tests/test_benchmarks.py
-            --regenerate-baselines`` (or whichever flag the regen
-            entry-point exposes for the cycle in question). The autouse
-            fixture fires automatically because conftest is loaded.
-
-          Option B: pre-set ``sys.modules["tiktoken"] = None`` BEFORE
-            importing any ``devolaflow`` modules in the regen script.
-            This replicates the fixture's effect at import-time:
-
-                import sys
-                sys.modules["tiktoken"] = None
-                from devolaflow import ...  # noqa: E402 — order matters
-
-            The order is load-bearing: imports BEFORE the assignment
-            still resolve to the real ``tiktoken`` if it's installed.
-
-          Option C: uninstall tiktoken from the venv (``pip uninstall
-            tiktoken``). Heavy-handed — affects every workflow in the
-            env, not just the regen — and undesirable on dev laptops
-            that use tiktoken for unrelated work. Only consider this
-            for a dedicated CI venv whose sole purpose is baseline
-            regeneration.
-
-        Cross-reference: ``workflow-system/agent/references/
-        troubleshooting.md`` §2.16 "Token-estimation determinism (W-16
-        baseline regen)" carries the same 3-option summary in the
-        operator-facing reference layer.
-
-        Source: ``docs/cycle-archive/v11.1.0/retrospective.md`` cycle-
-        close summary (the v11.1.0 PV-02 W-16 wholesale baseline regen
-        was the first cycle where this divergence surfaced empirically;
-        v11.1.3 D-3 closes the documentation gap).
-    """
-    fspath = str(getattr(request.node, "fspath", ""))
-    if "test_benchmarks" not in fspath:
-        return
-    # Block both raw import and any cached module reference.
-    monkeypatch.setitem(sys.modules, "tiktoken", None)
 
 
 @pytest.fixture

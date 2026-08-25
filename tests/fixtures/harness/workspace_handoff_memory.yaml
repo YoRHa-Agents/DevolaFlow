@@ -1,0 +1,87 @@
+schema_version: 1
+id: workspace_handoff_memory
+provenance:
+  - legacy-evobench:agent_workspace_active
+  - legacy-evobench:handoff_envelope_density
+  - legacy-evobench:reflective_reflex_capture
+feature_tags:
+  - change_context
+  - owned_files
+  - append_only_handoff
+  - operational_memory
+dispatch:
+  hdr:
+    id: harness-workspace-handoff
+    parent: harness-root
+    layer: wave
+    timeout: 900
+  task:
+    id: WH-01
+    type: code
+    title: Apply workspace-bound handoff task
+  goal: Honor owned files, append-only handoffs, and relevant operational memory.
+  pred:
+    - ref: .local/.agent/handoff/wave__task__fixture-change__001.yaml
+      key_facts:
+        - Existing handoff envelopes are immutable.
+        - New information uses the next sequence.
+    - ref: .local/memory/cases/index.yaml
+      key_facts:
+        - Consult only fresh matching cases.
+        - Stale memory does not enter dispatch.
+  files:
+    - src/devolaflow/agent_workspace/change.py
+    - tests/test_handoff_envelope_immutable.py
+  rules:
+    strategy: full
+    lang: python
+    focus:
+      - ownership
+      - append-only-ledger
+  shared: Active change ownership is the write boundary.
+  accept:
+    - Writes remain within the owned-file manifest.
+    - Existing handoff envelope bytes remain unchanged.
+  gate:
+    blockers: 0
+    retries: 1
+  acceptance_criteria_v2:
+    - id: WH-AC-1
+      description: Handoff immutability tests pass.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_handoff_envelope_immutable.py -q --no-cov
+    - id: WH-AC-2
+      description: Writes remain within the owned-file manifest.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_hook_runtime_wiring.py::test_file_write_resolves_manifest_from_change_id_on_disk -q --no-cov
+    - id: WH-AC-3
+      description: Existing handoff envelope bytes remain unchanged.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_handoff_envelope_immutable.py::test_envelope_file_cannot_be_overwritten_via_write_envelope -q --no-cov
+  change_context:
+    change_id: fixture-change
+    active_folder: .local/.agent/active/fixture-change
+    state: IN_PROGRESS
+    spec_delta_target: agent_workspace
+    owned_files_ref: .local/.agent/active/fixture-change/owned_files.txt
+    acceptance_ref: .local/.agent/active/fixture-change/acceptance.md
+    memory_case_hits:
+      - ownership-boundary
+expected:
+  guard_ids:
+    - WH-AC-1
+    - WH-AC-2
+    - WH-AC-3
+  report_required_keys:
+    - hdr
+    - state
+    - artifacts
+    - ac_results
+    - diff_stats
+  report_forbidden_keys:
+    - quality_score
+  required_literals:
+    - append-only
+    - owned_files
+    - memory case
+  fold_sensitive: false

@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from devolaflow.template_engine.composer import collect_stage_refs
 from devolaflow.template_engine.inheritance import InheritanceError, resolve_inheritance
@@ -33,7 +34,8 @@ from devolaflow.template_engine.parser import (
     parse_template,
     parse_template_string,
 )
-from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.registry import ChecklistSeedAliasWarning, TemplateRegistry
+from devolaflow.template_engine.seeds import ChecklistSeedError
 from devolaflow.template_engine.validator import (
     check_dependency_lattice,
     check_gate_completeness,
@@ -677,15 +679,13 @@ composition:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# §8  Composition alias layer (v15.0.0 Phase B — v15-ADR-002)
+# §8  Registry-v3 checklist seeds and compatibility aliases
 # ═══════════════════════════════════════════════════════════════════
 
 REPO_TEMPLATES_ROOT = Path(__file__).parent.parent / "workflow-system" / "agent" / "templates"
 
-# The full pre-collapse 23-name surface: 7 survivor yamls + the 16
-# legacy names re-expressed as compositions. Every historical name MUST
-# keep resolving through load_template() (v15-ADR-002 >=1-major alias
-# guarantee).
+# The canonical 23-name seed surface. Only ``change-driven`` is executable;
+# the other 22 names are one-major compatibility aliases.
 PRE_COLLAPSE_TEMPLATE_NAMES = [
     # survivors (yaml-backed)
     "change-driven",
@@ -722,64 +722,69 @@ class TestCompositionAliasLayer:
 
     @pytest.mark.parametrize("name", PRE_COLLAPSE_TEMPLATE_NAMES)
     def test_historical_name_resolves(self, repo_registry: TemplateRegistry, name: str) -> None:
-        tpl = repo_registry.load_template(name)
-        assert tpl is not None, (
-            f"pre-collapse name {name!r} no longer resolves — violates the "
-            f"v15-ADR-002 >=1-major alias guarantee"
-        )
-        assert tpl.metadata.name == name
+        seed = repo_registry.load_seed(name)
+        assert seed is not None, f"canonical seed {name!r} no longer resolves"
+        assert seed.metadata.name == name
+        assert seed.kind == "checklist-seed"
 
     def test_alias_resolution_attaches_deprecation_record(
         self, repo_registry: TemplateRegistry
     ) -> None:
-        tpl = repo_registry.load_template("hotfix")
-        assert tpl is not None
-        record = tpl.parameters["composition"]
-        assert record["alias_of"] == "change-driven"
-        assert "v15-ADR-002" in record["deprecation"]
-        assert record["params"]["gate"] == "standard"
-        # Survivors carry NO composition record (byte-stable load path).
-        survivor = repo_registry.load_template("change-driven")
-        assert survivor is not None
-        assert "composition" not in survivor.parameters
+        with pytest.warns(ChecklistSeedAliasWarning, match="load_seed\\('hotfix'\\)"):
+            alias = repo_registry.load_template("hotfix")
+        assert alias is not None
+        assert alias.parameters["checklist_seed"] == {
+            "name": "hotfix",
+            "path": "seeds/hotfix.yaml",
+            "runtime": "change-driven",
+            "compatibility_alias": True,
+        }
+        runtime = repo_registry.load_template("change-driven")
+        assert runtime is not None
+        assert "checklist_seed" not in runtime.parameters
+        assert "composition" not in alias.parameters
 
     def test_multi_step_onboarding_resolution(self, repo_registry: TemplateRegistry) -> None:
-        tpl = repo_registry.load_template("onboarding")
-        assert tpl is not None
-        record = tpl.parameters["composition"]
-        assert record["alias_of"] == "repo-init"
-        assert [s["base"] for s in record["steps"]] == ["repo-init", "documentation-only"]
+        seed = repo_registry.load_seed("onboarding")
+        assert seed is not None
+        assert seed.source_stage_sequence() == [
+            ("analyze", "analyze"),
+            ("document", "implement"),
+            ("setup", "implement"),
+            ("verify", "test"),
+        ]
+        assert not hasattr(seed, "composition")
 
     def test_unknown_name_returns_none(self, repo_registry: TemplateRegistry) -> None:
         assert repo_registry.load_template("no-such-workflow") is None
 
     def test_manifest_valid_against_disk(self, repo_registry: TemplateRegistry) -> None:
-        from devolaflow.template_engine.compositions import validate_composition_manifest
-
-        manifest = repo_registry.compositions()
-        assert len(manifest) == 16
-        survivor_names = {m.name for m in repo_registry.discover()}
-        assert validate_composition_manifest(manifest, survivor_names) == []
+        raw = yaml.safe_load((REPO_TEMPLATES_ROOT / "registry.yaml").read_text(encoding="utf-8"))
+        entries = raw["compositions"] + raw["templates"]
+        assert len(entries) == 23
+        assert all((REPO_TEMPLATES_ROOT / entry["seed"]).is_file() for entry in entries)
+        assert all(repo_registry.load_seed(entry["name"]) is not None for entry in entries)
+        assert [entry["name"] for entry in entries if "path" in entry] == ["change-driven"]
 
     def test_unknown_base_fails_loudly(self, tmp_path: Path) -> None:
-        from devolaflow.template_engine.compositions import CompositionManifestError
-
-        (tmp_path / "builtin").mkdir()
         (tmp_path / "registry.yaml").write_text(
-            'schema_version: "2.0"\n'
+            'schema_version: "3.0"\n'
             "compositions:\n"
             "  - name: ghost-flow\n"
-            "    base: no-such-survivor\n"
-            "    stages:\n"
-            "      - {id: design, primitive: design}\n",
+            "    seed: seeds/ghost-flow.yaml\n"
+            "    category: build\n"
+            "    tags: [ghost]\n"
+            '    description: "Missing seed fixture."\n'
+            "templates: []\n",
             encoding="utf-8",
         )
         registry = TemplateRegistry(templates_root=tmp_path)
-        with pytest.raises(CompositionManifestError, match="no-such-survivor"):
-            registry.load_template("ghost-flow")
+        with pytest.raises(ChecklistSeedError, match="Checklist seed not found"):
+            registry.load_seed("ghost-flow")
 
     def test_pre_v2_layout_has_empty_manifest(self, tmp_path: Path) -> None:
         (tmp_path / "builtin").mkdir()
         registry = TemplateRegistry(templates_root=tmp_path)
         assert registry.compositions() == {}
+        assert registry.load_seed("hotfix") is None
         assert registry.load_template("hotfix") is None

@@ -14,19 +14,21 @@ This module wires two flows:
    promotion engine). This is the missing half of the v8.2.6 archive flow:
    without it, per-change reflective reflexes never make it into the global
    ``.local/memory/operational.jsonl`` substrate.
-2. **Context hydration** — :func:`hydrate_change_context` loads all seven
-   artifacts of an active change folder for L0/L1/L2/L3 context injection,
-   capping each artifact at its Rule C-9 hard ceiling (so a runaway
-   ``spec.md`` cannot blow a Wave Agent's 4K budget). Truncation appends a
-   sentinel rather than raising — the caller still gets *some* context.
+2. **Context hydration** — :func:`hydrate_change_context` detects the
+   canonical active-change layout and loads either the exact seven-key legacy
+   payload or the checklist payload (including verbatim ``evidence/*.txt``)
+   for L0/L1/L2/L3 context injection. Text artifacts are capped at their hard
+   ceilings so a runaway ``spec.md`` cannot blow a Wave Agent's 4K budget.
+   Truncation appends a sentinel rather than raising — the caller still gets
+   *some* context.
 
 Public surface (consumed by ``v8.2.6`` change-driven workflow + future
 ``/devola:archive`` command in ``v8.2.9``):
 
 * :func:`consolidate_change_on_archive` — archive-time JSONL → global
   promotion via :func:`consolidate_session`.
-* :func:`hydrate_change_context` — load + cap all 7 artifacts for an
-  active change.
+* :func:`hydrate_change_context` — load + cap the canonical artifact set for
+  a legacy or checklist-layout active change.
 * :exc:`MemoryBridgeError` — raised by
   :func:`consolidate_change_on_archive` when the per-change JSONL is
   syntactically malformed (S-5: loud, never silent).
@@ -54,7 +56,10 @@ import yaml
 from devolaflow.agent_workspace.change import (
     ACTIVE_DIR_DEFAULT,
     ARCHIVE_DIR_DEFAULT,
+    ChangeLayout,
     ChangeNotFoundError,
+    ChangeStoreError,
+    detect_change_layout,
 )
 from devolaflow.agent_workspace.lint import estimate_tokens
 from devolaflow.learnings import Learning, consolidate_session
@@ -94,6 +99,18 @@ _HYDRATE_BUDGETS: Final[dict[str, int]] = {
     "status": 200,
     "owned_files": 100,
 }
+"""Legacy hydration hard ceilings; retained byte-for-byte for compatibility."""
+
+_CHECKLIST_HYDRATE_BUDGETS: Final[dict[str, int]] = {
+    "goal": 400,
+    "checklist": 2400,
+    "stage": 800,
+    "preflight": 1200,
+    "spec": 3000,
+    "status": 300,
+    "owned_files": 100,
+}
+"""Checklist-layout hard ceilings for context hydration."""
 
 
 class MemoryBridgeError(RuntimeError):
@@ -207,14 +224,20 @@ def hydrate_change_context(
     change_id: str,
     active_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Load all seven artifacts of an active change for context injection.
+    """Hydrate an active change using its canonical storage layout.
 
-    Each artifact is capped to its Rule C-9 hard ceiling (see
-    :data:`_HYDRATE_BUDGETS`) so a runaway artifact cannot blow an
-    upper-layer agent's token budget. Truncation is destructive but
-    additive — the original file on disk is untouched, only the in-memory
-    payload is shortened — and a :data:`TRUNCATION_SENTINEL` marker is
-    appended so consumers can detect the cap was hit.
+    Legacy folders preserve the original exact seven-key return contract and
+    hard ceilings. Checklist folders expose only ``goal``, ``checklist``,
+    ``stage``, ``preflight``, ``spec``, ``status``, ``owned_files``,
+    ``learnings``, and ``evidence``; legacy ``acceptance`` and ``tasks`` keys
+    are deliberately omitted. Evidence values are verbatim text keyed by
+    ``.txt`` basename.
+
+    Text artifacts are capped to the hard ceiling for the detected layout.
+    Truncation is destructive but additive — the original file on disk is
+    untouched, only the in-memory payload is shortened — and a
+    :data:`TRUNCATION_SENTINEL` marker is appended so consumers can detect the
+    cap was hit.
 
     Args:
         change_id: The active change-id whose artifacts to load.
@@ -222,24 +245,16 @@ def hydrate_change_context(
             ``.local/.agent/active`` resolved against ``Path.cwd()``.
 
     Returns:
-        A dict with exactly seven keys:
-
-        * ``goal`` — ``str | None`` (None when ``goal.md`` is absent).
-        * ``acceptance`` — ``str | None``.
-        * ``spec`` — ``str | None``.
-        * ``tasks`` — ``str | None``.
-        * ``status`` — ``dict | None`` (parsed STATUS.yaml).
-        * ``owned_files`` — ``list[str]`` (one path per line; ``[]`` when absent).
-        * ``learnings`` — ``list[Learning]`` (parsed JSONL; ``[]`` when absent).
-
-        Missing artifacts return ``None`` for str / dict values and an
-        empty container for list values. The change folder itself MUST
-        exist; missing folder raises :exc:`ChangeNotFoundError`.
+        The exact seven-key legacy payload, or the nine-key checklist payload
+        described above. Missing text/status artifacts return ``None``;
+        missing list/mapping collections return an empty container.
 
     Raises:
         ChangeNotFoundError: When ``active_root/<change_id>/`` does not
             exist (S-5: loud — hydrate is a contract, the caller must
             know the change is real before requesting context).
+        ChangeStoreError: When checklist and legacy marker artifacts coexist
+            and the canonical detector reports ``INVALID_MIXED``.
     """
     if active_root is None:
         active_root = _resolve_under_cwd(ACTIVE_DIR_DEFAULT)
@@ -249,6 +264,28 @@ def hydrate_change_context(
             f"hydrate_change_context: no active folder for change_id="
             f"{change_id!r} under {active_root!s}"
         )
+
+    layout = detect_change_layout(folder)
+    if layout is ChangeLayout.INVALID_MIXED:
+        raise ChangeStoreError(
+            f"hydrate_change_context: change folder {folder!s} has "
+            "INVALID_MIXED layout: checklist.md cannot coexist with "
+            "tasks.md or acceptance.md"
+        )
+
+    if layout is ChangeLayout.CHECKLIST:
+        budgets = _CHECKLIST_HYDRATE_BUDGETS
+        return {
+            "goal": _hydrate_markdown(folder / "goal.md", budgets["goal"]),
+            "checklist": _hydrate_markdown(folder / "checklist.md", budgets["checklist"]),
+            "stage": _hydrate_markdown(folder / "stage.md", budgets["stage"]),
+            "preflight": _hydrate_markdown(folder / "preflight.md", budgets["preflight"]),
+            "spec": _hydrate_markdown(folder / "spec.md", budgets["spec"]),
+            "status": _hydrate_status(folder / "STATUS.yaml", budgets["status"]),
+            "owned_files": _hydrate_owned_files(folder / "owned_files.txt", budgets["owned_files"]),
+            "learnings": _hydrate_learnings(folder / "learnings.jsonl"),
+            "evidence": _hydrate_evidence(folder / "evidence"),
+        }
 
     return {
         "goal": _hydrate_markdown(folder / "goal.md", _HYDRATE_BUDGETS["goal"]),
@@ -481,3 +518,19 @@ def _hydrate_learnings(path: Path) -> list[Learning]:
         if learning is not None:
             learnings.append(learning)
     return learnings
+
+
+def _hydrate_evidence(path: Path) -> dict[str, str]:
+    """Return checklist evidence as ``basename -> verbatim text``.
+
+    Only regular ``*.txt`` files participate in the canonical evidence set.
+    Sorted traversal gives callers deterministic insertion order without
+    altering file contents. A missing evidence directory returns ``{}``.
+    """
+    if not path.is_dir():
+        return {}
+    return {
+        evidence_path.name: evidence_path.read_text(encoding="utf-8")
+        for evidence_path in sorted(path.glob("*.txt"))
+        if evidence_path.is_file()
+    }

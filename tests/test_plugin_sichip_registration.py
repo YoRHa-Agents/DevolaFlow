@@ -3,13 +3,13 @@
 Pins the contract for the 4th `runtime-plugins.yaml` entry (`si-chip`):
 
 1. **Canonical registry has si-chip** — schema_version 4 (v15.2.0 B-6 bump) + plugins
-   (`nines`, `ui-pro`, `rtk`, `si-chip`) with the v3 `upgrade_cmd`
+   (`ui-pro`, `rtk`, `si-chip`, `codegraph`, `impeccable`) with the v3 `upgrade_cmd`
    field present.
 2. **Schema parses si-chip** — `resolve_plugin('si-chip', registry)`
    returns a `RuntimePluginSpec` with the documented fields
    (backend=curl_install_script, canonical_url=GitHub URL, etc.).
 3. **Workflow → plugin resolution** — `plugins_for_workflow` returns
-   `si-chip` for the 3 workflows it is invoked by (`skill-optimization`,
+    `si-chip` for the 3 workflows it is invoked by (`skill-optimization`,
    `self-update`, `nines-assisted`).
 4. **Legacy plugins.yaml backward-compat** — the legacy catalog has the
    `si-chip` entry too (same spec shape used by pre-v8.2.1 callers).
@@ -59,11 +59,7 @@ class TestSiChipInCanonicalRegistry:
             "schema_version must be 4 (v9.4.0 PV-04 v3 + v15.2.0 B-6 bump)"
         )
         plugin_ids = [p["id"] for p in raw["plugins"]]
-        assert plugin_ids == ["nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"], (
-            f"v13.0.0 contract: impeccable MUST be the 6th plugin, appended at the "
-            f"END of the list; si-chip retains its 4th-position registry-order "
-            f"discipline. Actual order: {plugin_ids!r}"
-        )
+        assert plugin_ids == ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
 
     def test_si_chip_resolves_via_resolve_plugin(self) -> None:
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
@@ -130,10 +126,7 @@ class TestSiChipWorkflowResolution:
             f"PV-01 AC-2: si-chip MUST resolve for skill-optimization "
             f"workflow (the canonical optimisation pipeline). Got {plugins!r}"
         )
-        assert plugins == ["nines", "si-chip"], (
-            f"Expected order: nines first (legacy), si-chip second "
-            f"(v9.5.0 addition). Got {plugins!r}"
-        )
+        assert plugins == ["si-chip"]
 
     def test_workflow_resolution_includes_si_chip_for_self_update(self) -> None:
         plugins = plugins_for_workflow("self-update")
@@ -146,13 +139,10 @@ class TestSiChipWorkflowResolution:
         plugins = plugins_for_workflow("nines-assisted")
         assert "si-chip" in plugins, (
             f"PV-01 AC-2: si-chip MUST resolve for nines-assisted workflow "
-            f"(the canonical NineS+Si-Chip dual-evaluation pipeline). "
+            f"(the harness-backed historical evaluation seed). "
             f"Got {plugins!r}"
         )
-        # Both nines AND si-chip should resolve — operators want both tools
-        # active for the deepest analysis path.
-        assert "nines" in plugins
-        assert "si-chip" in plugins
+        assert plugins == ["si-chip"]
 
     def test_workflow_resolution_excludes_unrelated_workflows(self) -> None:
         """si-chip must NOT resolve for workflows it isn't wired into."""

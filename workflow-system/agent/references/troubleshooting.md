@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Troubleshooting
@@ -53,14 +53,14 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | W-18 ghost-audit refresh missing pre-CHANGELOG | governance | §2.10 | v9.0.0 PV-05 |
 | Soul-set freeze (W-21) violation on PR | governance | §2.10 | v9.0.0 PV-07 |
 | W-20 env-flag reuse rejected | governance | §2.10 | v9.0.0 PV-05 |
-| `nines self-eval` upstream timeout | NineS integration | §2.11 | v9.0.0 PV-05 |
+| Built-in harness evidence is `INSUFFICIENT` | harness evaluation | §2.11 | v16.0.0 |
 | Si-Chip iteration_delta DEFER pattern | Si-Chip integration | §2.12 | v10.2.3 PV-04 |
 | MR/PR rejection on protected branch push | git workflow | §2.13 | v9.5.0 |
 | `test_demo_index_gate_types` "automated" trip | doc consistency | §2.14 | v10.0.0 §4.2 |
 | Reference doc loaded but never cited in artefacts | reference utilization | §2.15 | v10.4.0 (D-D audit) |
 | `assert len(actual) == N` adapter golden mismatch | reference set drift | §2.6 | v9.0.0 PV-01 |
 | `EnvelopeRecord` filename parse rejection | handoff schema | §2.4 | v8.2.4 |
-| Bridge defect (upstream shape vs unit fixture) | Si-Chip / NineS | §2.12 | v10.2.3 PV-04 |
+| Bridge defect (upstream shape vs unit fixture) | Si-Chip | §2.12 | v10.2.3 PV-04 |
 | Baseline regen scores diverge ~7pp from pytest scoring | tokenization determinism | §2.16 | v11.1.3 D-3 |
 | `devola-init` target fails on a pip-wheel-only install | install / CLI | §2.17 | v9.2.2 (I-001/I-004) |
 | Pre-existing working-tree corruption at cycle entry | working-tree sanity | §2.18 | v12.2.0 retro §4.3 |
@@ -75,16 +75,16 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   or a CI run fails on `tests/test_validate_owned_files.py`. The hook
   message names the offending file path and the change-id whose
   `owned_files.txt` lacks it.
-* **Root cause** (S-8): an L3 Task Agent attempted to write a file outside
+* **Root cause** (S-8): an L2 Task Agent attempted to write a file outside
   the union of (a) paths in `.local/.agent/active/<change-id>/owned_files.txt`,
   (b) the change folder itself, (c) `.local/.agent/handoff/`. STRICT mode
   blocks; lite mode warns.
 * **Fix**:
   1. Confirm the file SHOULD belong to this change. If yes — author a new
-     handoff envelope (`L3 → L2`, seq+1) requesting `owned_files.txt` to be
+     handoff envelope (`L2 → L1`, seq+1) requesting `owned_files.txt` to be
      extended; never edit the file outside the workflow.
-  2. If no — refactor the change so the file is owned by the producing
-     L3 (move the work to the correct dispatch boundary).
+  2. If no — refactor the change so the file is owned by the correct
+     L2 Task dispatch.
   3. For trivial single-file edits < 20 lines, the P1 waiver still
      applies; cite it explicitly in the dispatch report.
 * See `references/agent-workspace.md` §6 for the handoff protocol and
@@ -146,22 +146,17 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   sequence number, and re-run the dispatch. The `audit_long_reference_usage.py`
   audit (D-D-2) confirms envelope creation patterns over time.
 
-#### 2.5 Gate FAIL diagnostics
+#### 2.5 Round-gate FAIL diagnostics
 
-* **Symptom A — composite ≥ threshold but gate FAILs**: usually means
-  zero blocker AND zero MUST-priority violations is NOT met (there's at
-  least one blocker), OR coverage < `coverage_threshold`. Check
-  `gate.report.findings_by_severity` and the coverage column.
-* **Symptom B — gate stagnation 2+ rounds**: per W-8, the L0 must
-  escalate to human (the reinforcement mechanism's max-5-rules cap is
-  insufficient). The escalation payload should cite the round-N
-  composite trajectory and the per-round severity histogram.
-* **Symptom C — gate threshold not met after max_rounds**: P4 bounded
-  retry — the round count exhausted; escalate Wave → Stage → Project →
-  Human via the standard escalation chain.
-* See `references/decomposition-gate.md` §3 for the full pass/fail
-  matrix and `references/plan-mode-enforcement.md` §"Reinforcement
-  Rules" for the W-8 / SI-9 contract.
+* **Symptom A — composite is high but round FAILs**: item evidence is missing,
+  a configured check failed, reinforcement is open, or a blocker/conflict
+  remains. Composite is trend-only for rounds.
+* **Symptom B — no checklist progress for 2 rounds**: L0 escalates with the
+  checked-item deltas, open items, and reinforcement trajectory.
+* **Symptom C — `max_rounds` reached**: P4 requires L0 to stop and escalate
+  to the human; the ceiling is never incremented silently.
+* See `references/decomposition-gate.md` §7 for the round gate and
+  `references/plan-mode-enforcement.md` §7 for reinforcement.
 
 #### 2.6 Version drift diagnostics
 
@@ -279,24 +274,15 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   flagging the proposed S-(N+1) for cycle N+2 review. Cycle N+1
   explicitly does NOT consider the addition.
 
-#### 2.11 NineS upstream collector timeouts (W-2)
+#### 2.11 Built-in harness evidence is `INSUFFICIENT` (W-2)
 
-* **Symptom**: `nines -f json self-eval` hangs at 180s on `code_coverage`,
-  or `nines analyze` returns `index_recall: 0.8` despite a fresh
-  `make nines-index-rebuild` invocation.
-* **Root cause** (v9.0.0 PV-05 A1): NineS v3.3.0 hardcodes the cov
-  timeout at 54s; the `nines.toml [hygiene] cov_timeout = 180` key is
-  forward-declared for v3.4+ but not honoured by v3.3.0 binaries.
-* **Fix**:
-  1. R-6 fallback active: `pyproject.toml [tool.coverage.run] parallel = false`
-     prevents host-side cov-data fragmentation; this is set in v8.5.0+.
-  2. For `index_recall`, the upstream caches the index between
-     invocations; the `make nines-index-rebuild` mechanism ships the
-     rebuild signal but v3.3.0 does NOT honour it at `self-eval` time.
-     Operators run the 2-step `make nines-index-rebuild && nines self-eval`.
-  3. Manual fallback: when NineS is unavailable, manual analysis
-     following the same dimensions (code quality, architecture, tests,
-     maintainability) is acceptable but MUST be noted as manual.
+* **Symptom**: `python -m devolaflow.harness evaluate ...` completes but
+  reports `INSUFFICIENT`.
+* **Root cause**: the telemetry ledger lacks enough valid observations for
+  one or more required evaluation dimensions.
+* **Fix**: collect the missing harness observations, rerun the evaluator,
+  and preserve the explicit `INSUFFICIENT` state until evidence satisfies
+  the release gate. Do not fabricate a score or replace the evaluator output.
 
 #### 2.12 Si-Chip iteration_delta DEFER + bridge defect
 
@@ -368,55 +354,18 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
      filesystem-side signal (envelopes + research artefacts citing
      the reference).
 
-#### 2.16 Token-estimation determinism (W-16 baseline regen)
+#### 2.16 Retired EvoBench baseline regeneration
 
-* **Symptom**: an operator regenerates EvoBench baselines via a
-  standalone script (anything that imports `devolaflow.benchmarks` or
-  invokes the regen entry-point WITHOUT going through the pytest
-  harness) and the resulting `benchmarks/devolaflow_context/baselines/
-  *_baseline.json` composite scores differ from the pytest-side scores
-  reported by `pytest tests/test_benchmarks.py -v` by roughly **7
-  percentage points** on the composite axis. Subsequent W-4 / SI-4
-  regression checks then trip on every PV until someone realises the
-  baseline itself is mis-anchored.
-* **Root cause**: `tests/conftest.py::_force_fallback_token_estimator`
-  is an autouse pytest fixture that monkeypatches
-  `sys.modules["tiktoken"] = None` for the duration of every
-  `test_benchmarks.py` test. With `tiktoken` hidden,
-  `devolaflow.task_adaptive_selector.estimate_tokens` falls back to
-  the deterministic `len(text) // 4` heuristic. Both estimators are
-  deterministic, but their absolute counts differ, leading to the
-  ~7pp composite divergence. The fixture is INTENTIONAL — it pins
-  pytest scoring so CI and dev laptops agree regardless of whether
-  `tiktoken` is installed. The bug is *not* the fixture; the bug is
-  that operator-side regen scripts run OUTSIDE pytest and therefore
-  never see the fixture fire.
-* **Fix** (3 options, in order of preference):
-  1. **Option A — invoke under pytest** (preferred). Run the regen as
-     `pytest tests/test_benchmarks.py --regenerate-baselines` (or the
-     equivalent flag the regen entry-point exposes). conftest is
-     loaded automatically; the autouse fixture fires; scores match
-     pytest-side composites byte-for-byte modulo float-formatting.
-  2. **Option B — pre-set `sys.modules["tiktoken"] = None` BEFORE
-     importing devolaflow** in the regen script. Order is load-bearing:
-     ```python
-     import sys
-     sys.modules["tiktoken"] = None
-     from devolaflow import ...  # noqa: E402 — order matters
-     ```
-     Imports BEFORE the assignment still resolve to the real
-     `tiktoken` if it's installed.
-  3. **Option C — uninstall tiktoken from the venv** (`pip uninstall
-     tiktoken`). Heavy-handed; affects every workflow in the env, not
-     just the regen. Reserve for dedicated CI venvs whose only purpose
-     is baseline regeneration; do not run on dev laptops that use
-     tiktoken for unrelated work.
-* See `tests/conftest.py::_force_fallback_token_estimator` for the
-  fixture body + matching docstring; the v11.1.0 cycle's W-16
-  wholesale baseline regen at PV-02 was the first cycle where this
-  divergence surfaced empirically. Source: `docs/cycle-archive/
-  v11.1.0/retrospective.md` cycle-close summary; v11.1.3 D-3 closed
-  the documentation gap.
+* **Symptom**: an old runbook asks for an EvoBench JSON regeneration
+  command or references the former benchmark-only tiktoken fixture.
+* **Cause**: the EvoBench runner, scenarios, regeneration script, latency
+  harness, and benchmark-only tests were retired when the built-in harness
+  became the live evaluation surface.
+* **Fix**: do not regenerate the historical JSON. Preserve it under
+  `docs/cycle-archive/v15.2.0/evobench-baselines/`, keep only the ten
+  immutable layout YAML witnesses under
+  `benchmarks/devolaflow_context/baselines/`, and run
+  `python -m pytest tests/harness/ tests/test_layout_invariant_multi_baseline.py -v`.
 
 #### 2.17 `devola-init` on a pip-wheel-only install (I-001 / I-004)
 
@@ -454,30 +403,29 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
 ### 3. Escalation Patterns
 
 DevolaFlow's escalation chain (P4 Bounded Retry) is **always upward**:
-Task → Wave → Stage → Project → Human. Never skip levels.
+Task → Wave → Project → Human. Never skip levels.
 
 | Severity tag | Action | Receiver |
 |---|---|---|
 | `AUTO_RECOVER` | Retry up to 3× with exponential backoff | Same agent |
-| `PAUSE` | Pause task, queue question, continue parallel work | Wave / Stage |
-| `HUMAN_INTERVENE` | Stop stage, present options to human | Human |
+| `PAUSE` | Pause task, queue question, continue parallel work | Wave / Project |
+| `HUMAN_INTERVENE` | Stop the affected wave/round, present options | Human |
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt all | Human (mandatory) |
 
-**Stagnation pattern (W-8 / SI-9)**: if the gate composite stagnates for
-2+ rounds despite the reinforcement payload (max 5 severity-filtered
-rules), the L0 escalates to Human regardless of `max_rounds`. The
-escalation report MUST cite the 2 trailing composites + the
-reinforcement-rule trajectory + the per-round finding histogram.
+**Stagnation pattern (W-8 / SI-9)**: if checklist progress is zero for two
+rounds despite at most five severity-filtered reinforcement rules, L0
+escalates regardless of `max_rounds`. Include checked deltas, open/reverted
+item IDs, reinforcement history, and composite trend as supporting context.
 
-**External-upstream pattern**: when the failure is in NineS A1 (cov
-timeout), Si-Chip MVP-8 (nested-key contract change), or any other
+**External-upstream pattern**: when the failure is in Si-Chip MVP-8
+(nested-key contract change), or any other
 external dependency, the escalation should distinguish "DevolaFlow
-implementation defect" from "upstream issue" and recommend the manual
-fallback (per §2.11) rather than blocking the cycle.
+implementation defect" from "upstream issue" and preserve the explicit
+degraded or insufficient verdict rather than fabricating a pass.
 
 ## Cross-References
 
-- `references/agent-hierarchy.md` — L0/L1/L2/L3 dispatcher contracts
+- `references/agent-hierarchy.md` — L0/L1/L2 layer contracts
   and the P1 dispatcher-not-implementer invariant.
 - `references/agent-workspace.md` — change-driven workspace, handoff
   envelopes (S-9), and the `.local/.agent/` tree.
@@ -491,8 +439,8 @@ fallback (per §2.11) rather than blocking the cycle.
   the standard escalation chain.
 - `references/message-schemas.md` — TaskDispatch / StatusReport /
   HandoffEnvelope shapes.
-- `references/meta-framework.md` — workflow primitives + alias
-  mapping.
+- `references/meta-framework.md` — checklist seeds, provenance, runtime, and
+  compatibility aliases.
 - `references/plan-mode-enforcement.md` — plan-mode L0 contract,
   reinforcement rules, convergence loop.
 - `references/shell-proxy.md` — RTK plugin, command mapping recipes,

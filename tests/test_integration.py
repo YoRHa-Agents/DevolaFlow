@@ -16,29 +16,35 @@ from devolaflow.template_engine.registry import TemplateRegistry
 
 
 def test_full_pipeline_template_loads(project_root: Path):
-    """Verify the full-pipeline name resolves via the composition alias layer.
+    """Verify full-pipeline loads as a checklist seed.
 
-    full-pipeline.yaml was deleted at v15.0.0 (Phase B collapse per
-    v15-ADR-002); the name resolves to its change-driven composition.
+    Registry v3 keeps historical stages as provenance only. Execution uses
+    the sole ``change-driven`` runtime.
     """
     registry = TemplateRegistry(project_root / "workflow-system" / "agent" / "templates")
-    template = registry.load_template("full-pipeline")
-    assert template is not None
-    assert template.metadata.name == "full-pipeline"
-    assert template.parameters["composition"]["alias_of"] == "change-driven"
+    seed = registry.load_seed("full-pipeline")
+    runtime = registry.load_template("change-driven")
+    assert seed is not None
+    assert seed.metadata.name == "full-pipeline"
+    assert seed.kind == "checklist-seed"
+    assert runtime is not None
+    assert runtime.metadata.name == "change-driven"
 
 
 def test_hotfix_template_loads(project_root: Path):
-    """Verify the hotfix name resolves via the composition alias layer.
+    """Verify hotfix loads as a checklist seed.
 
-    hotfix.yaml was deleted at v15.0.0 (Phase B collapse per v15-ADR-002);
-    the name resolves to its change-driven composition.
+    ``source_stages`` retain historical provenance and do not select runtime
+    execution order.
     """
     registry = TemplateRegistry(project_root / "workflow-system" / "agent" / "templates")
-    template = registry.load_template("hotfix")
-    assert template is not None
-    assert template.metadata.name == "hotfix"
-    assert template.parameters["composition"]["alias_of"] == "change-driven"
+    seed = registry.load_seed("hotfix")
+    runtime = registry.load_template("change-driven")
+    assert seed is not None
+    assert seed.metadata.name == "hotfix"
+    assert seed.source_stage_sequence()
+    assert runtime is not None
+    assert runtime.metadata.name == "change-driven"
 
 
 def test_full_pipeline_gate_simulation():

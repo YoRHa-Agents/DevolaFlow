@@ -7,7 +7,7 @@ Pins the execution-side adapter contract from
   change-driven write surface —
   ``agent_workspace.change.Change.to_active_folder`` — BEFORE each
   artifact write, via ``lifecycle.runtime_wiring.fire_file_write``.
-* ``task_stop`` (``test_on_complete``) fires from the L3 report
+* ``task_stop`` (``test_on_complete``) fires from the L2 report
   emission surface — ``agent_workspace.handoff.HandoffStore.
   write_envelope`` for ``StatusReport`` envelopes — via
   ``lifecycle.runtime_wiring.fire_task_stop``.
@@ -79,8 +79,8 @@ def _make_change(owned_files: list[str]) -> Change:
 def _status_report_envelope(metrics: dict) -> object:
     return make_envelope(
         seq=1,
-        from_layer="L3",
-        to_layer="L2",
+        from_layer="L2",
+        to_layer="L1",
         change_id="t3-hook-wiring",
         envelope_kind="StatusReport",
         payload={"task_id": "T-1", "metrics": metrics},
@@ -236,7 +236,7 @@ def test_runtime_wiring_zero_io_noop_without_env_flag(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# task_stop — L3 report emission surface (HandoffStore.write_envelope)
+# task_stop — L2 report emission surface (HandoffStore.write_envelope)
 # ---------------------------------------------------------------------------
 
 
@@ -323,13 +323,13 @@ def test_task_stop_noop_without_env_flag(tmp_path, monkeypatch) -> None:
 
 
 def test_task_stop_not_fired_for_task_dispatch_envelope(tmp_path, monkeypatch) -> None:
-    """Only StatusReport envelopes are an L3 report finalisation — dispatches skip."""
+    """Only StatusReport envelopes are an L2 report finalisation — dispatches skip."""
     monkeypatch.setenv(ENV_FLAG, "1")
     store = HandoffStore(repo_root=tmp_path)
     envelope = make_envelope(
         seq=1,
-        from_layer="L2",
-        to_layer="L3",
+        from_layer="L1",
+        to_layer="L2",
         change_id="t3-hook-wiring",
         envelope_kind="TaskDispatch",
         payload={

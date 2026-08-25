@@ -64,10 +64,12 @@ from __future__ import annotations
 import copy
 import logging
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from devolaflow.gate.models import GateVerdict, Severity
 from devolaflow.gate.reinforcement import (
+    MAX_REINFORCEMENT_RULES,
     ReinforcementBlock,
     merge_reinforcement_into_dispatch,
 )
@@ -125,6 +127,37 @@ _HOOK_CHAIN: tuple[str, ...] = (
 ReinforcementFactory = Callable[..., ReinforcementBlock | None]
 
 
+def _compose_reinforcement(
+    supplemental: ReinforcementBlock | None,
+    gate: ReinforcementBlock | None,
+) -> ReinforcementBlock | None:
+    """Prepend supplemental rules to gate rules with one stable global cap."""
+
+    if supplemental is None:
+        return gate
+
+    rules = []
+    seen_ids: set[str] = set()
+    for block in (supplemental, gate):
+        if block is None:
+            continue
+        for rule in block.rules:
+            if rule.id in seen_ids:
+                continue
+            seen_ids.add(rule.id)
+            rules.append(rule)
+            if len(rules) == MAX_REINFORCEMENT_RULES:
+                break
+        if len(rules) == MAX_REINFORCEMENT_RULES:
+            break
+
+    metadata_source = gate or supplemental
+    merged_rules = tuple(rules)
+    if metadata_source is supplemental and merged_rules == supplemental.rules:
+        return supplemental
+    return replace(metadata_source, rules=merged_rules)
+
+
 class ProposalEmitter:
     """Emit dispatch payloads through the S-10 lifecycle hook chain.
 
@@ -174,6 +207,7 @@ class ProposalEmitter:
         target_score: float = 85.0,
         severity_floor: Severity = "major",
         reinforcement_factory: ReinforcementFactory,
+        supplemental_reinforcement: ReinforcementBlock | None = None,
     ) -> dict[str, Any]:
         """Produce a dispatch for convergence round ``round_num``.
 
@@ -218,6 +252,11 @@ class ProposalEmitter:
             inheritance: ``ProposalEmitter`` does NOT own the
             verdict-to-block conversion — that lives on the
             ``ProposalGenerator`` per D-Q-2 §2 patch_design.
+        supplemental_reinforcement:
+            Optional caller-built rules that precede gate-derived findings.
+            Stable id de-duplication and one global top-five cap apply only
+            when this opt-in block is present; omitting it preserves legacy
+            gate-only serialization byte-for-byte.
 
         Returns
         -------
@@ -230,15 +269,16 @@ class ProposalEmitter:
         """
         dispatch = copy.deepcopy(base_dispatch)
 
-        if round_num <= 1 or verdict is None:
-            return self._fire_hook_chain(dispatch)
+        gate_block = None
+        if round_num > 1 and verdict is not None:
+            gate_block = reinforcement_factory(
+                verdict,
+                round_num=round_num,
+                target_score=target_score,
+                severity_floor=severity_floor,
+            )
 
-        block = reinforcement_factory(
-            verdict,
-            round_num=round_num,
-            target_score=target_score,
-            severity_floor=severity_floor,
-        )
+        block = _compose_reinforcement(supplemental_reinforcement, gate_block)
         if block is None:
             return self._fire_hook_chain(dispatch)
 

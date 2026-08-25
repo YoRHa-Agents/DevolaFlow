@@ -5,9 +5,9 @@
     "## Version & Update",
     "## Quick Action Decision",
     "## Mode Awareness",
-    "## 4-Layer Agent Hierarchy"
+    "## 3-Layer Agent Hierarchy"
   ],
-  "line_count_range": [400, 520],
+  "line_count_range": [400, 450],
   "must_have_frontmatter_keys": ["id", "version", "purpose", "tier", "token_estimate", "name", "description"],
   "must_not_contain": ["MVP-SKILL", "evaluate_gate_with_nines", "run_nines_advisor"]
 }

@@ -1,0 +1,221 @@
+# -----------------------------------------------------------------------------
+# Schema: change-stage
+# Target: .local/.agent/active/<change-id>/stage.md
+# Design ref: checklist_iteration_design.md §5
+# Token budget: soft 400 / hard 800 (Rule C-9)
+# -----------------------------------------------------------------------------
+# `stage.md` is the bounded round controller. L0 records the user's priority
+# settings, selects checklist items, records wave execution at round boundaries,
+# and publishes the next-round plan. It replaces a fixed stage DAG.
+# -----------------------------------------------------------------------------
+
+design_reference: ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §5"
+schema_name: change-stage
+schema_version: 1
+last_updated: "2026-08-24"
+governing_rules: [P4, P5, C-3, C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/stage.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/stage.md"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 400
+  hard: 800
+  units: tokens
+  enforcement:
+    - lint: "python -m devolaflow.agent_workspace.lint <change-id>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required: [parent, schema_version, current_round, max_rounds, capacity_per_round]
+  fields:
+    parent:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Parent change-id; MUST equal the active change folder name."
+    schema_version:
+      type: int
+      enum: [1]
+    current_round:
+      type: int
+      minimum: 0
+      relation: "current_round <= max_rounds"
+      description: "Zero before the loop starts; otherwise the active or most recently closed round."
+    max_rounds:
+      type: int
+      minimum: 1
+      default_formula: "ceil(checklist.total_items / capacity_per_round) + 2"
+      description: "P4 hard ceiling fixed at propose time unless the user explicitly changes it."
+    capacity_per_round:
+      type: int
+      minimum: 1
+      maximum: 5
+      default: 5
+      description: "Maximum checklist items selected in one round; shares the Wave <=5 limit."
+
+body:
+  required_sections:
+    - heading: "# Stage — Round Control"
+      pattern: "^# Stage — Round Control\\s*$"
+    - heading: "## Priority Settings"
+      pattern: "^## Priority Settings\\s*$"
+    - heading: "## Round History"
+      pattern: "^## Round History\\s*$"
+    - heading: "## Next Round Plan"
+      pattern: "^## Next Round Plan\\s*$"
+  canonical_order:
+    - "# Stage — Round Control"
+    - "## Priority Settings"
+    - "## Round History"
+    - "## Next Round Plan"
+
+  priority_settings:
+    initial_pattern: "^- \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z initial: P0=\\[.*\\] P1=\\[.*\\] P2=\\[.*\\]$"
+    adjustment_pattern: "^- \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z adjustment: C-G[1-9][0-9]*\\.[1-9][0-9]* P[012] -> P[012] \\| user: .+$"
+    initial_entry_required: true
+    append_only: true
+    actor: user
+    description: "Initial priorities and later adjustments are appended; the user's instruction is copied verbatim."
+
+  round_history:
+    format: markdown_table
+    header: "| Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |"
+    separator: "|---|---|---|---|---|---|---|"
+    required_columns:
+      round:
+        type: int
+        minimum: 1
+      picked:
+        type: list
+        item_format: "C-Gn.m(P0|P1|P2)"
+        max_items: 5
+        description: "Item ids and effective priorities at selection time."
+      waves:
+        type: list
+        item_pattern: "^W[1-7]$"
+        max_items: 7
+        description: "Wave ids used in the round; each wave carries no more than five tasks."
+      result:
+        type: ratio
+        form: "<checked>/<picked>"
+        relation: "0 <= checked <= picked <= capacity_per_round"
+      blockers:
+        type: int
+        minimum: 0
+      checkpoint:
+        type: string
+        pattern: "^\\.local/checkpoints/cp_[A-Za-z0-9_.-]+\\.yaml$"
+        description: "Repo-relative convergence_round_complete checkpoint path."
+      gate_trend:
+        type: number
+        minimum: 0
+        maximum: 100
+        nullable: true
+        description: "Auxiliary composite score only; it is not a round PASS threshold."
+
+  next_round_plan:
+    candidate_line_pattern: "^- Candidates: \\[.*\\]$"
+    estimated_rounds_pattern: "^- Estimated remaining rounds: [0-9]+$"
+    user_may_reject: true
+    description: "L0 rewrites this section after every round using the selection algorithm."
+
+selection_algorithm:
+  source: "Unchecked checklist items at the start of a round."
+  limit: capacity_per_round
+  stable: true
+  order:
+    - rank: 1
+      criterion: reverted_open
+      direction: first
+      requirement: "Carry the user's verbatim reason as blocker reinforcement."
+    - rank: 2
+      criterion: priority
+      direction: "P0, then P1, then P2"
+      requirement: "Use the latest user adjustment in Priority Settings."
+    - rank: 3
+      criterion: dependencies
+      direction: "Satisfied before blocked"
+      requirement: "Skip an item for the round when any `depends` item is unchecked."
+    - rank: 4
+      criterion: checklist_order
+      direction: ascending
+      requirement: "Preserve source order for deterministic ties."
+  wave_constraints:
+    max_tasks_per_wave: 5
+    max_waves_per_round: 7
+    disjoint_owned_files: true
+
+bounded_execution:
+  max_rounds:
+    on_limit_with_open_items: "Emit ExceptionEscalation for human intervention."
+  stagnation:
+    window_rounds: 2
+    signal: "newly_checked - newly_reverted"
+    condition: "net_delta <= 0 for two consecutive closed rounds"
+    action: escalate
+  item_retry:
+    consecutive_selected_rounds: 3
+    condition: "The same item is selected in three consecutive rounds and remains unchecked."
+    action: "Escalate that item for user disposition: reprioritize, split, or drop."
+
+gate_contract:
+  round_pass:
+    required:
+      - "checked_this_round == picked_this_round."
+      - "Every newly checked item has valid evidence."
+      - "blocker_findings == 0."
+      - "Every selected reverted item has closes_reinforcement."
+    not_required:
+      - "Composite score meeting a threshold; score is recorded only as a trend."
+  archive_pass:
+    required:
+      - "checklist.checked == checklist.total_items."
+      - "checklist.reverted_open == 0."
+      - "All checklist evidence references exist and validate."
+      - "Composite score >= 8.5 in lite mode or >= 9.0 in full mode."
+
+history_contract:
+  - "Round numbers start at 1, are contiguous, and never overwrite an earlier row."
+  - "Exactly one history row is appended for every closed round."
+  - "The Picked list is the verbatim selection result and contains at most capacity_per_round ids."
+  - "Result, Blockers, and Gate trend match the round gate report."
+  - "Every closed round references its convergence_round_complete checkpoint."
+  - "Priority changes are append-only and preserve the user's instruction verbatim."
+  - "current_round equals the active round, or the highest history round when no round is active."
+
+invariants:
+  - "capacity_per_round defaults to 5 and MUST NOT exceed 5."
+  - "Selection follows reverted-open, priority, dependency, then source-order precedence."
+  - "max_rounds, two-round stagnation, and three-selection item retry limits are independently enforced."
+  - "A round passes only when all picked items are evidence-backed and checked with zero blockers."
+  - "Composite score is a round trend signal but remains an archive hard threshold."
+  - "Round and priority history is append-only; earlier entries are never rewritten."
+  - "MUST NOT contain absolute filesystem paths."
+  - "The archived file is copied byte-identical after the archive gate passes."
+
+example: |
+  ---
+  parent: checklist-rounds
+  schema_version: 1
+  current_round: 2
+  max_rounds: 5
+  capacity_per_round: 5
+  ---
+
+  # Stage — Round Control
+
+  ## Priority Settings
+  - 2026-08-24T09:00:00Z initial: P0=[C-G1.1, C-G1.2] P1=[C-G2.1] P2=[]
+  - 2026-08-24T10:30:00Z adjustment: C-G2.1 P1 -> P0 | user: "Run the user-control assertion next."
+
+  ## Round History
+  | Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |
+  |---|---|---|---|---|---|---|
+  | 1 | C-G1.1(P0), C-G1.2(P0) | W1 | 1/2 | 0 | .local/checkpoints/cp_20260824T101500Z_convergence_round_complete.yaml | 87.2 |
+  | 2 | C-G1.2(P0), C-G2.1(P0) | W1 | 2/2 | 0 | .local/checkpoints/cp_20260824T111500Z_convergence_round_complete.yaml | 91.0 |
+
+  ## Next Round Plan
+  - Candidates: []
+  - Estimated remaining rounds: 0

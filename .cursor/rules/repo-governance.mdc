@@ -9,7 +9,7 @@ These rules can NEVER be violated regardless of context, task type, or agent lay
 
 ## S-1 — Dispatcher-Not-Implementer Invariant
 
-Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews. L0-L2 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement. Trivial exception: single file, < 20 lines.
+Dispatcher agents (Project, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews. L0-L1 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L1 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement. Trivial exception: single file, < 20 lines.
 
 ## S-2 — No Absolute Paths in Agent Files
 
@@ -48,7 +48,7 @@ Sources: SF-6, SI-7.
 
 ## S-8 — No Writes Outside Active Change Owned Files
 
-When an L3 Task Agent is operating inside a `change-driven` workflow with an
+When an L2 Task Agent is operating inside a `change-driven` workflow with an
 active change folder (`.local/.agent/active/<change-id>/`), it MUST NOT modify
 any file outside the union of:
 1. paths listed in `.local/.agent/active/<change-id>/owned_files.txt`
@@ -62,7 +62,7 @@ Violations:
 
 Exceptions:
 - Trivial single-file edits < 20 lines (P1 trivial waiver also applies here)
-- L0/L1/L2 dispatcher reads (Read/Glob/Grep/SemanticSearch) are unrestricted
+- L0/L1 dispatcher reads (Read/Glob/Grep/SemanticSearch) are unrestricted
 
 Source: v15-ADR-008 §S-8.
 
@@ -124,23 +124,22 @@ Source: v15-ADR-008 §S-10.
 
 # Architecture Rules (P1) — Core Architectural Decisions
 
-## A-1 — 4-Layer Agent Hierarchy (P1–P5)
+## A-1 — 3-Layer Agent Hierarchy (P1–P5)
 
 ### P1 Dispatcher-Not-Implementer
-Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L2 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L3 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
+Dispatcher agents (Project, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L1 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L1 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L2 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
 
 ### P2 Minimal Context
 Each agent layer receives only the context it needs:
-- L0 Project Agent: ~3K tokens (workflow template + status)
-- L1 Stage Agent: ~5K tokens (stage def + predecessor summaries)
-- L2 Wave Agent: ~4K tokens (task list + dependency map)
-- L3 Task Agent: ~8K tokens (task spec + owned files + rules)
+- L0 Project Agent: ~5K tokens (workflow template + round status)
+- L1 Wave Agent: ~5K tokens (task list + dependency map + evidence summaries)
+- L2 Task Agent: ~8K tokens (task spec + owned files + rules)
 
 ### P3 Structured Messages
 All inter-layer communication uses typed YAML message schemas (TaskDispatch, StatusReport, ExceptionEscalation). Free-form natural language between layers is prohibited.
 
 ### P4 Bounded Retry
-Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Stage→Project→Human.
+Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Project→Human.
 
 ### P5 Artifacts as Contracts
 Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
@@ -151,7 +150,7 @@ Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dis
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2/L3 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
@@ -180,9 +179,9 @@ Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseli
 
 Baseline retention is TIERED per v15-ADR-005 (G-014), replacing the former keep-all-forever wording:
 
-* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test. IMMUTABLE — never moved, renamed, or pruned; they cannot be regenerated from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
-* **Tier B — rolling window (in CI)**: per-minor `v*_baseline.json` EvoBench JSONs for the current + previous 2 cycles (W-16's comparison window) stay in `benchmarks/devolaflow_context/baselines/`. The newest-baseline pin convention (`_newest_baseline_path`) is unaffected.
-* **Tier C — archived (out of CI)**: per-minor JSONs older than the Tier-B window move via `git mv` to `docs/cycle-archive/<cycle>/baselines/` (W-19's committed-archive surface) — history preserved, never deleted. Files still loaded by in-repo tests stay in place until their readers are re-wired.
+* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test at their historical `benchmarks/devolaflow_context/baselines/` paths. IMMUTABLE — never moved, renamed, regenerated, or pruned; they cannot be reconstructed from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
+* **Tier B — active harness window**: W-16 settlement artifacts named `harness_baseline_<cycle>.json` for the current + previous 2 cycles stay under `.local/telemetry/baselines/` as the active comparison window. They are derived from aggregated harness telemetry; they are not schema witnesses and MUST NOT be copied into the Tier-A directory.
+* **Tier C — archived harness evidence**: harness baselines older than the Tier-B window move to `docs/cycle-archive/<cycle>/harness/` (W-19's committed-archive surface) — history preserved, never deleted. Retired pre-v16 benchmark JSON remains historical archive evidence only and never returns to a live reader.
 
 ## A-3 — Context Token Budgets
 
@@ -190,10 +189,9 @@ Context profiles (`workflow-system/agent/context_profiles.yaml`) must define exp
 
 | Layer | Budget | Role |
 |-------|--------|------|
-| L0 Project | ~3K tokens | Workflow template + status |
-| L1 Stage | ~5K tokens | Stage def + predecessor summaries |
-| L2 Wave | ~4K tokens | Task list + dependency map |
-| L3 Task | ~8K tokens | Task spec + owned files + rules |
+| L0 Project | ~5K tokens | Workflow template + round status |
+| L1 Wave | ~5K tokens | Task list + dependency map + evidence summaries |
+| L2 Task | ~8K tokens | Task spec + owned files + rules |
 
 Source: CO-3, SI-6.
 
@@ -307,8 +305,8 @@ When a dispatch payload's `gate.cascade_required` field is `true`
 (populated by `devolaflow.skills.change_activation::cascade_requirement`
 when the classified complexity is STANDARD or COMPLEX), the dispatch
 chain MUST traverse at least `gate.cascade_min_layers` layers of the
-4-layer agent hierarchy (default 4 = L0→L1→L2→L3) before reaching an
-L3 Task Agent. SIMPLE/TRIVIAL complexity bypasses this rule per
+3-layer agent hierarchy (default 3 = L0 Project→L1 Wave→L2 Task) before
+reaching an L2 Task Agent. SIMPLE/TRIVIAL complexity bypasses this rule per
 `cascade_requirement()` returning `"CASCADE_OPTIONAL"`.
 
 ### A-7.1 — Conditional strict enforcement
@@ -316,12 +314,11 @@ L3 Task Agent. SIMPLE/TRIVIAL complexity bypasses this rule per
 Strict enforcement is conditioned on `cascade_requirement(complexity)`:
 
 * `cascade_requirement == "CASCADE_REQUIRED"` (STANDARD/COMPLEX) →
-  `validate_cascade_gate_fields` raises `CascadeViolationError` when
-  the dispatch chain is below `cascade_min_layers`. Soft mode (warn +
-  log) is preserved as the v11.1.0 default per the cycle plan §6
-  "DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR" pattern; full
-  strict promotion lands at v12.0.0 per W-21 2-cycle deliberation
-  cadence.
+  `validate_cascade_gate_fields` enforces the contract in STRICT mode:
+  it returns `None` on pass and raises `CascadeViolationError` on the
+  first invalid field or depth violation. A legacy
+  `cascade_min_layers: 4` declaration emits a WARNING and is validated
+  against an effective minimum of 3 without mutating the input payload.
 * `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
   validation is skipped; legacy v11.0.x dispatches with no L1/L2 trace
   pass byte-identically. Verified by
@@ -350,17 +347,18 @@ two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
 
 ### A-7.4 — Enforcement surface
 
-* CI-side: `tests/test_cascade_enforcement.py` (13 tests covering
-  strict-mode + soft-mode + backward-compat + skip-path + truth-table
-  propagation) pins the PV-04 NEST schema + PV-04 opt-in helper +
-  PV-04 SOFT validator + PV-05 strict-mode-preview contracts.
-* Runtime (PV-04 baseline; PV-05 preserves): `validate_cascade_gate_fields`
-  returns warnings list (SOFT mode); `populate_cascade_gate_fields`
-  populates the gate block at dispatch time when invoked.
-* Audit (PV-05): `scripts/audit_layer_usage.py --strict --threshold N`
-  returns exit 1 when cycle-doc cascade_ratio < N (default-OFF; opt-in
-  per W-20). The default threshold is 0.30 — conservative initial floor;
-  v11.1.x or v12.0 may tighten.
+* CI-side: `tests/test_cascade_enforcement.py` covers strict mode,
+  backward compatibility, skip paths, truth-table propagation, and the
+  legacy `cascade_min_layers: 4` WARNING + effective-minimum-3 behavior
+  without input mutation.
+* Runtime: `validate_cascade_gate_fields` returns `None` on pass and
+  raises `CascadeViolationError` on the first violation;
+  `populate_cascade_gate_fields` writes the default minimum of 3 when
+  cascade is required.
+* Audit: `scripts/audit_layer_usage.py --threshold N` runs the strict
+  ratchet by default and returns exit 1 when cycle-doc cascade_ratio is
+  below N; `--no-strict` is the explicit compatibility opt-out. The
+  default threshold is 0.30.
 * Schema (PV-04): `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
   NESTed under the existing `gate` block (canonical_order length stays
   at 17 per A-2.3); A-2.4 multi-baseline byte test 32/32 GREEN
@@ -449,12 +447,14 @@ budgets:
 | File | Soft budget | Hard ceiling |
 |------|-------------|--------------|
 | goal.md | 200 | 400 |
-| acceptance.md | 400 | 800 |
+| checklist.md | 1200 | 2400 |
+| stage.md | 400 | 800 |
+| preflight.md | 600 | 1200 |
 | spec.md | 1500 | 3000 |
-| tasks.md | 800 | 1500 |
-| STATUS.yaml | 100 | 200 |
+| STATUS.yaml | 150 | 300 |
 | owned_files.txt | 50 | 100 |
 | Handoff envelope | 600 | 1200 |
+| evidence/ | No token limit | ≤ 10 KB/file; ≤ 50 KB/directory |
 
 The `.local/human/` surface (v14.0.0) carries its own per-artifact token
 budgets (TOKENS are the sole enforced unit; line/word figures are
@@ -484,31 +484,35 @@ Source: v15-ADR-008 §C-9; human-surface details in `references/human-surface.md
 
 Before starting any version iteration, produce a research/analysis artifact identifying gaps between current state and target goals. No implementation without documented gap analysis. Analysis artifacts live in `.local/research/`. The gap analysis must enumerate: (a) specific deficiencies found, (b) priority ranking, (c) proposed fixes with file-level scope. This gate is the entry point for SI-2 through SI-10.
 
-## W-2 — NineS-Driven Analysis (SI-2)
+## W-2 — Harness-Driven Analysis (SI-2)
 
-For external reference analysis, run NineS deep analysis:
+Iteration analysis, including work informed by external references, MUST be
+grounded in repository evidence and the built-in harness evaluator:
 ```
-nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
+python -m devolaflow.harness evaluate --ledger .local/telemetry/harness.jsonl --repo . --output .local/research/<cycle>_harness_evaluation.json
 ```
-For end-of-iteration self-evaluation, run NineS self-eval with the repo's canonical config:
-```
-nines -f json -c nines.toml self-eval --baseline-version <version> --golden-dir data/golden_test_set --samples-dir data/golden_test_set --src-dir src/devolaflow --test-dir tests --project-root .
-```
-Store raw JSON output in `.local/research/`. When NineS is unavailable, manual analysis following the same dimensions is acceptable but must be noted as manual.
+Run the same built-in evaluator for end-of-iteration self-evaluation and store
+its raw JSON output in `.local/research/`. There is no external-tool or manual
+fallback: missing or insufficient harness evidence MUST remain explicit as an
+`INSUFFICIENT` result and be resolved or escalated before release.
 
 ## W-3 — Evaluation Before Release (SI-3)
 
 Every pre-release requires an evaluation report covering: Code quality (0.20), Architecture rationality (0.20), Test adequacy (0.20), Maintainability (0.15), Compatibility (0.10), Performance impact (0.15). Version readiness threshold: weighted composite ≥ 8.5/10.
 
-## W-4 — Benchmark Regression Guard (SI-4)
+## W-4 — Harness Regression Guard (SI-4)
 
-Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean message schemas, SKILL.md sections, or gate modules requires EvoBench verification:
+Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean
+message schemas, SKILL.md sections, gate modules, or harness modules requires:
 ```
-python -m pytest tests/test_benchmarks.py -v
+make test-harness
 ```
-Regression threshold: composite score must not drop >5% below baseline per scenario.
-
-Context optimization changes must demonstrate improvement (or no regression) via EvoBench benchmarks. Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/`.
+The deterministic harness domain tests MUST pass. Context optimization changes
+must also compare the measured token-injection distributions,
+`quantifiable_ratio`, checklist completion, and reversion/blocker trends
+against the active W-16 harness baseline. Any configured regression threshold
+breach is a release blocker; the comparison evidence belongs in the
+iteration's harness evaluation under `.local/research/`.
 
 Changes to `src/devolaflow/gate/` require running the full gate test suite:
 ```
@@ -519,7 +523,7 @@ Absorbs W-11 (CP-4), W-13 (CP-6), W-14 (CO-5) — v15.0.0 fold per v15-ADR-004; 
 
 ## W-5 — Skill Format Coupling (SI-5)
 
-Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check ≤ 500, (2) `build-skill` for all 4 adapters, (3) benchmark run passes, (4) version consistency passes. Partial compliance is treated as full violation.
+Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check ≤ 500, (2) `build-skill` for all 4 adapters, (3) `make test-harness` passes, (4) version consistency passes. Partial compliance is treated as full violation.
 
 Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`) build successfully and stay within their budgets.
 
@@ -544,11 +548,11 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 ## W-9 — Test-Then-Commit Protocol (SI-10)
 
 Every iteration follows this strict pre-commit sequence — all 7 must pass:
-1. `make test-core` — all tests pass (`pytest tests/ -q --tb=short`, `--ignore`-ing the three files gates 4/5/7 run standalone)
+1. `make test-core` — all tests pass (`pytest tests/ -q --tb=short`, excluding the three standalone gate surfaces for gates 4/5/7)
 2. `ruff check src/ tests/` — no lint errors
 3. `ruff format --check src/ tests/` — formatting correct (`make lint` runs gates 2–3)
 4. `make test-version` — version consistency (`tests/test_version.py`, standalone)
-5. `make test-benchmarks` — no benchmark regressions (`tests/test_benchmarks.py`, standalone)
+5. `make test-harness` — built-in harness contracts (`tests/harness/`, standalone)
 6. `make check-cursor-skill` — exit 0
 7. `make iteration-delta-gate` — Si-Chip iteration_delta gate (7th gate per v10.2.1 D-V-1)
 
@@ -556,21 +560,32 @@ Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps 
 
 `make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus 6 release-only extras (NOT SI-10 gates): `validate-templates`, `build-skill`, `sync-human-docs`, `compile-rules`, `check-drift`, `check-rules-drift`.
 
-## W-16 — Wholesale Baseline Regen on Cycle Start
+## W-16 — Harness Baseline Settlement
 
-Per the v8.3.0 PV-09 precedent: when a new MAJOR or MINOR cycle starts, the FIRST PV MUST regenerate ALL EvoBench / golden-test baselines wholesale rather than per-PV piecemeal. Running `python -m pytest tests/test_benchmarks.py --regenerate-baselines` (or equivalent per-suite refresh script) at cycle-start prevents intra-cycle drift where each PV's micro-baseline accumulates floating-point / formatter delta that the cumulative end-of-cycle audit then has to chase.
+Each MAJOR or MINOR cycle MUST settle its harness evidence exactly once. At
+cycle close, or before the first PV of the next cycle, aggregate the completed
+cycle's telemetry and freeze the active comparison artifact as
+`.local/telemetry/baselines/harness_baseline_<cycle>.json`. Patch releases do
+not create independent baselines.
 
-Cycle start = the first PV after a tag bumps the MINOR or MAJOR digit (e.g. v8.4.0 → v8.5.0 → v9.0.0). Patch-level PVs (v8.4.X → v8.4.Y) do NOT trigger wholesale regen.
+Every PV in the new cycle compares against that single settled artifact rather
+than an incremental predecessor-PV snapshot. Keep the current and previous two
+cycle artifacts in the active Tier-B window; archive older artifacts under
+`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-19.
 
-The wholesale regen artifact lives in `benchmarks/devolaflow_context/baselines/<cycle>_baseline.json` (e.g. `v8.5.0_baseline.json` for the PV-05 baseline that underpins PV-06..PV-N). All subsequent PVs in the cycle compare against this single baseline; per-PV regression is the delta from the wholesale baseline, not an incremental delta from the previous PV.
+Schema bumps still require a new immutable `layout_invariant_v*.yaml` witness
+and all existing Tier-A witnesses to pass per A-2.4. Harness settlement never
+regenerates, relocates, or prunes those byte witnesses.
 
-**v12.3.0 PV-04 clarification**: the wholesale regen MAY land at cycle START OR cycle CLOSE — whichever PV first observes baseline drift. The actual contract is "MUST regenerate ONCE per cycle, AT the PV that first detects drift, otherwise at cycle CLOSE if no PV drifted".
+Historical note: the **v12.3.0 PV-04 clarification** governed timing for the
+retired wholesale benchmark regime. Harness settlement supersedes that regime
+without weakening its once-per-cycle anti-drift intent.
 
 Source: v15-ADR-008 §W-16.
 
 ## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
 
-Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `data/golden_test_set/*.toml` fixture surfacing through 5 parametrized assertions in `tests/test_golden_test_set.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the v8.X.0 → v8.(X+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern.
+Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `tests/fixtures/harness/*.yaml` fixture surfacing through the existing parametrized assertions in `tests/harness/test_fixtures.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the vX.Y.0 → vX.(Y+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern.
 
 **Mid-cycle audit at PV-05** (or the cycle's halfway point if the PV count differs from 10): the cycle-lead L0 MUST report cumulative NEW test function delta against the cycle baseline and forecast the remaining-PV budget. If the projection exceeds +150, defer non-essential tests to the next cycle.
 
@@ -611,18 +626,18 @@ docs/cycle-archive/v<MAJOR>.<MINOR>.0/
 ├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
 ├── implementation_plan.md
 ├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
-├── nines/                # copy of .local/research/v<MAJOR>.<MINOR>.*_nines.{json,md}
+├── harness/              # built-in harness evaluations and settled baselines
 ├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
 └── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
 ```
 
-The archive is created at cycle CLOSE (after the final patch of a MINOR series ships) and committed as part of the cycle-rollup release commit. Mid-cycle archive runs are no-ops if the destination already exists (idempotent).
+The archive is created at cycle CLOSE (after the final patch of a MINOR series ships) and committed as part of the cycle-rollup release commit. Mid-cycle archive runs are no-ops if the destination already exists (idempotent). Pre-v16 archives MAY retain `nines/` or benchmark-named evidence as immutable history; those folders are not current evaluation inputs.
 
 Source: v15-ADR-008 §W-19.
 
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
-Before authoring a NEW `DEVOLAFLOW_*` environment variable, the proposing L3 Task Agent MUST consult `workflow-system/agent/references/env-flags.md` (the canonical inventory) and apply the **reuse-first** test:
+Before authoring a NEW `DEVOLAFLOW_*` environment variable, the proposing L2 Task Agent MUST consult `workflow-system/agent/references/env-flags.md` (the canonical inventory) and apply the **reuse-first** test:
 
 1. Does an existing flag activate the SAME runtime surface? → REUSE the existing flag (the v8.3.4 PV-04 command-mapping layer is the canonical example: it REUSES `DEVOLAFLOW_RTK_PROXY` rather than adding `DEVOLAFLOW_COMMAND_MAPPING` because the activation surface is the same).
 2. Does an existing flag's R5 strict pattern apply (env-var read EXACTLY `"1"` + companion runtime probe)? → If yes, the new flag MUST adopt the same parsing + zero-IO design.
@@ -819,9 +834,10 @@ The subagent-pattern selection (v11.4.0+; codified by
 dispatch pattern decision rule that operators consult at L0/L1/L2
 wave-decomposition time. Pairs with W-22 (HUMAN-facing grill mode)
 on the orthogonal natural-language activation axis. The 4-pattern
-philschmid-2026 taxonomy maps to L0..L3 as: **Pattern 1 Inline Tool**
-(native — single L3 via `Task`); **Pattern 2 Fan-Out** (native — L2
-wave, max 5 parallel L3 per `references/agent-hierarchy.md` §5);
+philschmid-2026 taxonomy maps to the L0..L2 hierarchy as:
+**Pattern 1 Inline Tool** (native — one L2 Task via `Task`);
+**Pattern 2 Fan-Out** (native — one L1 Wave, max 5 parallel L2 Tasks
+per `references/agent-hierarchy.md` §5);
 **Pattern 3 Agent Pool** (forward-compat-only at v11.4.0; landing
 deferred to v12.0.0+ SI-1); **Pattern 4 Teams** (PERMANENTLY NOT
 SUPPORTED — Soul-level P5 invariant forbids cross-agent shared

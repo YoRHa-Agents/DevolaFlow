@@ -3,7 +3,7 @@
 Documented in ``workflow-system/agent/SKILL.md`` §"Lifecycle Hooks".
 Bound to the ``task_stop`` event by :mod:`devolaflow.lifecycle.__init__`.
 
-Contract: when an L3 task agent reports completion, its status report
+Contract: when an L2 task agent reports completion, its status report
 MUST claim tests-pass + lint-clean before the wave-level orchestrator
 treats the task as truly done. This elevates Invariant **P4** (Bounded
 Retry — `tests_failed > 0` should trigger an auto-retry, not a silent
@@ -323,7 +323,7 @@ def _try_persist_session_state(
     must never fail the task because of an opt-in persistence layer.
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #1), the three persistence
+    reduction (historical analysis row #1), the three persistence
     bodies live in :func:`_persist_learnings_shard`,
     :func:`_persist_legibility_shard`, and
     :func:`_persist_lifecycle_event_shard`. Behaviour is byte-identical

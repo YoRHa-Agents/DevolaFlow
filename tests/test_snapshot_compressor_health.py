@@ -1,15 +1,4 @@
-"""Tests for ``scripts/snapshot_compressor_health.py``.
-
-Covers the v10.6.0 PV-03 D-Q-4 deliverable: the post-v9.3.0-split
-health snapshot of ``src/devolaflow/compressor/``. Five tests exercise
-the public surface of the script (``scan_compressor_files``,
-``parse_radon_cc``, ``compute_health_summary``, ``render_markdown_report``,
-``run``) per PDS ``.local/research/v11.0.0_patches/D-Q-4.md`` §2 +
-§7 effort_estimate.
-
-Source: v10.6.0 PV-03 — codified per
-`.local/research/v11.0.0_patches/D-Q-4.md` §2.
-"""
+"""Tests for deterministic local compressor health measurements."""
 
 from __future__ import annotations
 
@@ -152,7 +141,7 @@ def test_compute_health_summary_aggregates_correctly(snapshot_module, tmp_path) 
 
 
 def test_render_markdown_report_emits_required_sections(snapshot_module) -> None:
-    """The rendered markdown carries the v10.2.2_nines.md schema (§1-§6)."""
+    """The stable report carries all six local-measurement sections."""
     # Build a minimal CompressorHealth via compute_health_summary on
     # an empty package (the renderer is the unit under test, not the
     # aggregator).
@@ -198,15 +187,15 @@ def test_render_markdown_report_emits_required_sections(snapshot_module) -> None
         "## §1 — Per-package summary",
         "## §2 — Top findings",
         "## §3 — Keypoints (per-file)",
-        "## §4 — Agent-impact",
-        "## §5 — Findings flagged for v11.0.x+ self-iteration",
+        "## §4 — Deterministic health summary",
+        "## §5 — Findings flagged for follow-up",
         "## §6 — References",
     ):
         assert section in report, f"missing required section: {section!r}"
 
     # Baseline comparison stanza present.
     assert "v9.3.0" in report
-    assert "Comparison vs v9.3.0 PV-04 pre-split baseline" in report
+    assert "Legacy comparison vs v9.3.0 PV-04 pre-split baseline" in report
     # The 1 warning surfaces in §2 (a table row containing "some_god_function").
     assert "some_god_function" in report
 
@@ -228,7 +217,7 @@ def test_run_writes_output_file(snapshot_module, repo_root, tmp_path) -> None:
     assert rc == 0
     assert output_path.is_file()
     text = output_path.read_text(encoding="utf-8")
-    assert "# v10.6.X compressor/ Post-Split Health Snapshot" in text
+    assert "# Compressor Health Snapshot" in text
     assert "## §1 — Per-package summary" in text
     # Per-package row reports 4 files.
     assert "| 4 |" in text, "§1 row must report 4 files in the compressor package"

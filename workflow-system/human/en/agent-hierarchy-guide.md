@@ -1,16 +1,16 @@
 ---
 title: "Agent Hierarchy Guide"
-description: "Understanding the 4-layer delegation hierarchy."
+description: "Understanding the three-layer Project, Wave, and Task hierarchy."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Agent Hierarchy Guide
 
-Understanding the 4-layer delegation hierarchy.
+Understanding the three-layer Project, Wave, and Task hierarchy.
 
 ## Why a Hierarchy?
 
@@ -18,51 +18,55 @@ A single AI agent attempting a complex task (e.g., "build an auth system") faces
 1. **Context overflow** — it tries to hold everything in memory at once
 2. **Scope creep**, it drifts between design, implementation, and review without structure
 
-DevolaFlow solves this by splitting work across 4 layers, each with a strict context budget and a clear role.
+DevolaFlow uses three layers to constrain context drift while keeping the dispatch chain short.
 
-## Layer 0: Project Agent (~3K tokens)
+## L0: Project Agent (~5K tokens)
 
-The Project Agent is the **orchestra conductor**. It:
-- Receives the user's request and selects a workflow type
-- Sequences stages and dispatches them one at a time
-- Evaluates gate results to decide: advance, retry, or escalate
+The Project Agent is the **orchestra conductor**. It selects a checklist seed and anchors `goal.md`, `checklist.md`, and `preflight.md` with the user. It also:
+- Picks P0/P1/P2 items for each bounded round and partitions them into waves
+- Verifies Task evidence before checking assertions
+- Evaluates round and archive gates, then decides: advance, retry, or escalate
 - Reports final status to the human
 
-**Never does**: Read source code, write files, run tests, or review code.
+**Never does**: Implement, run tests, author deliverables, or modify Task output.
 
-## Layer 1: Stage Agent (~5K tokens)
+## L1: Wave Agent (~5K tokens)
 
-Each Stage Agent owns **one stage** of the workflow (e.g., "Design", "Implement"). It:
-- Receives the stage definition and predecessor summaries
-- Decomposes the stage into waves (groups of parallel tasks)
-- Runs convergence loops if review/test findings require iteration
-- Evaluates the stage's quality gate
+A Wave Agent coordinates a bounded group of parallel Tasks. It:
+- Receives checklist item IDs, verbatim assertions, verification rules, and file ownership
+- Dispatches up to five L2 Tasks with disjoint writable files
+- Collects StatusReports and checks for cross-task conflicts
+- Aggregates evidence and submits a concise check proposal to L0
 
-**Constraints**: Max 7 waves per stage. Gate evaluation is mandatory before advancing.
+**Never does**: Perform any Task's work or modify its output.
 
-## Layer 2: Wave Agent (~4K tokens)
+## L2: Task Agent (~8K tokens)
 
-A Wave Agent dispatches **parallel tasks** within a wave. It:
-- Assigns tasks to Task Agents with disjoint file ownership
-- Collects results and checks for cross-task conflicts
-- Reports wave completion status to the Stage Agent
+The Task Agent is the **only implementation layer**. It:
+- Receives one atomic assignment tied to checklist item IDs
+- Works within its owned files only
+- Self-verifies against the supplied assertions without self-scoring
+- Reports artifacts, test results, and verbatim evidence to L1
 
-**Constraints**: Max 5 tasks per wave. File ownership must not overlap between parallel tasks.
+**Constraints**: It cannot spawn sub-agents or write outside the owned set.
 
-## Layer 3: Task Agent (~8K tokens)
+## Checklist-Round Flow
 
-The Task Agent is the **only layer that does actual work**. It:
-- Receives a single, atomic task with clear acceptance criteria
-- Works within its owned files only (max 6 writable files)
-- Produces artifacts (code, tests, docs, reports)
-- Reports completion with metrics (tests passed, coverage, findings)
+```
+L0 picks open checklist assertions and records the round in stage.md
+  └─ L1 Wave dispatches isolated L2 Tasks
+       ├─ L2 Task executes and reports evidence
+       └─ L2 Task executes and reports evidence
+  └─ L1 aggregates evidence and proposes checks
+L0 verifies evidence, checks passing assertions, and closes or repeats the round
+```
 
-**Constraints**: Max 30 min (implementation) or 45 min (research). Cannot spawn sub-agents.
+`stage.md` is a round-control artifact, not an agent role. In checklist seeds, `source_stages` stores only historical source IDs and primitive provenance; it has no executable ordering semantics.
 
 ## Escalation Chain
 
 ```
-Task Agent → Wave Agent → Stage Agent → Project Agent → Human
+Task Agent → Wave Agent → Project Agent → Human
 ```
 
 Escalation always moves **upward**, never skips levels. Every failure is classified:
@@ -71,7 +75,7 @@ Escalation always moves **upward**, never skips levels. Every failure is classif
 |----------|--------|
 | `AUTO_RECOVER` | Retry up to 3× with exponential backoff |
 | `PAUSE` | Pause task, queue question, continue parallel work |
-| `HUMAN_INTERVENE` | Stop stage, present options to human |
+| `HUMAN_INTERVENE` | Stop the round, present options to the human |
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt everything |
 
 ## Communication Protocol
@@ -86,17 +90,13 @@ All inter-layer communication uses **typed YAML messages** (not free-form chat):
 
 ```
 Human: "Fix the login timeout bug"
-  └─ Project Agent: selects hotfix workflow
-       └─ Stage Agent (Triage): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: analyzes bug, identifies root cause
-       └─ Stage Agent (Fix): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: implements minimal fix (3 files changed)
-       └─ Stage Agent (Test): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: runs focused test suite (42 pass, 0 fail)
-       └─ Stage Agent (Release): dispatches 1 wave
-            └─ Task Agent: tags v1.2.1, updates changelog
-  └─ Project Agent: reports SUCCESS to human
+  └─ L0 Project: selects hotfix seed; user confirms checklist and preflight
+       └─ Round 1 / L1 Wave
+            └─ L2 Task: reproduces defect and reports root-cause evidence
+       └─ L0: verifies evidence and checks diagnosis assertion
+       └─ Round 2 / L1 Wave
+            ├─ L2 Task: implements the minimal fix
+            └─ L2 Task: runs focused regression tests
+       └─ L1: aggregates evidence; L0 verifies and checks both assertions
+  └─ L0 Project: archive gate passes; reports SUCCESS to human
 ```

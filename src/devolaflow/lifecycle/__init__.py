@@ -62,6 +62,7 @@ Public API
 
 from __future__ import annotations
 
+from devolaflow.harness.telemetry import record_dispatch_telemetry
 from devolaflow.lifecycle.auto_write_handoff import (
     EVENT as _PRE_HANDOFF_EVENT,
 )
@@ -226,6 +227,12 @@ _alias_event(_ENVELOPE_WRITE_EVENT, CHECK_ENVELOPE_WRITE_EVENT)
 # NEW canonical string see byte-identical handler dispatch.
 _set_default_hook(_PRE_DISPATCH_EVENT, validate_dispatch)
 _set_default_hook(_POST_DISPATCH_EVENT, post_dispatch)
+# v16.0.0 M2-W4-T1 — keep the canonical post_dispatch default as the
+# byte-preserving no-op, then add harness telemetry as an observational extra.
+# The identity check keeps module reloads idempotent while preserving
+# deterministic default-first handler order.
+if record_dispatch_telemetry not in list_handlers(_POST_DISPATCH_EVENT):
+    register_hook(_POST_DISPATCH_EVENT, record_dispatch_telemetry)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
@@ -469,6 +476,7 @@ __all__ = [
     "register_hook",
     "register_surgical_scope_hook",
     "registered_events",
+    "record_dispatch_telemetry",
     "reject_subagent_banner_emission",
     "reject_subagent_quality_score",
     "run_hooks",

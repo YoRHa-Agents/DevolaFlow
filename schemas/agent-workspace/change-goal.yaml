@@ -1,22 +1,23 @@
 # -----------------------------------------------------------------------------
 # Schema: change-goal
 # Target: .local/.agent/active/<change-id>/goal.md
-# Design ref: .local/research/v8.3.0_design.md §2.1
-# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Design ref: .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §7
+# Patch slot: v16.0.0 M1 (checklist-anchored artifact schemas)
 # Token budget: soft 200 / hard 400 (per Rule C-9)
 # -----------------------------------------------------------------------------
-# A `goal.md` is a single-paragraph intent statement that opens an in-flight
-# change. It is the FIRST artifact authored when /devola:propose runs (lifecycle
-# FSM: PROPOSED state). The file is written ONCE at propose time and is frozen
-# at archive time (copied verbatim into `.local/.agent/archive/<date>-<id>/`).
+# A `goal.md` is the numbered goal contract that opens an in-flight change.
+# It is the FIRST artifact authored when /devola:propose runs (lifecycle FSM:
+# PROPOSED state). Each G<n> goal links to the same-numbered checklist section.
+# The file is written ONCE at propose time and is frozen at archive time
+# (copied verbatim into `.local/.agent/archive/<date>-<id>/`).
 #
 # Format: Markdown with YAML frontmatter (delimited by `---` lines).
 # -----------------------------------------------------------------------------
 
-design_reference: .local/research/v8.3.0_design.md §2.1
+design_reference: .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §7
 schema_name: change-goal
-schema_version: 1
-last_updated: "2026-04-22"
+schema_version: 2
+last_updated: "2026-08-24"
 governing_rules: [C-9]
 
 instance_path_template: ".local/.agent/active/<change-id>/goal.md"
@@ -36,7 +37,7 @@ token_budget:
 # YAML frontmatter contract — REQUIRED keys MUST appear between the opening
 # `---` and closing `---` markers at the very top of the file.
 frontmatter:
-  required: [id, created, priority, intent_class]
+  required: [id, created, priority, intent_class, goals_count]
   fields:
     id:
       type: string
@@ -54,6 +55,11 @@ frontmatter:
       type: string
       enum: [feature, bugfix, refactor, migration, spike, docs, ops]
       description: "What kind of change this is — orthogonal to priority."
+    goals_count:
+      type: int
+      minimum: 1
+      maximum: 10
+      description: "Number of `- G<n>:` entries under `## Goals`; MUST equal the body count."
 
 # Markdown body contract — REQUIRED sections MUST appear in this exact order
 # below the closing frontmatter delimiter.
@@ -67,12 +73,13 @@ body:
       pattern: "^## Why\\s*$"
       max_chars: 400
       description: "1–2 sentences naming the problem being solved (≤ 400 chars body)."
-    - heading: "## In scope"
-      pattern: "^## In scope\\s*$"
+    - heading: "## Goals"
+      pattern: "^## Goals\\s*$"
       bullet_list: true
       min_bullets: 1
-      max_bullets: 8
-      description: "Bulleted list of items explicitly inside scope (1–8 bullets)."
+      max_bullets: 10
+      bullet_pattern: "^- G([1-9]|10): .+ → checklist\\.md ## G([1-9]|10)\\s*$"
+      description: "Numbered goals. Each entry uses `- G<n>: <goal> → checklist.md ## G<n>` and links to the same-numbered checklist section."
     - heading: "## Out of scope"
       pattern: "^## Out of scope\\s*$"
       bullet_list: true
@@ -80,12 +87,32 @@ body:
       max_bullets: 8
       description: "Bulleted list of items explicitly OUT of scope (0–8 bullets; absence allowed but encouraged)."
   prose_forbidden_outside_required_sections: true
+  goal_entries:
+    id_pattern: "^G([1-9]|10)$"
+    unique_ids: true
+    ordered_sequentially_from: 1
+    link_target_pattern: "^checklist\\.md ## G([1-9]|10)$"
+    link_id_must_equal_entry_id: true
+    count_field: goals_count
+    description: "G<n> ids MUST be unique and appear in ascending contiguous order (G1..G<goals_count>); every link target uses the identical G<n> id."
+
+# Compatibility window for pre-v16 change folders. Folder shape, not archive
+# age, selects the contract so historical files remain byte-identical.
+compatibility:
+  schema_version_1:
+    detection: "The change folder does not contain checklist.md."
+    behavior: "Validate goal.md with the v1 contract: goals_count and `## Goals` are not required, and the legacy `## In scope` section remains valid."
+    checklist_linking: "No synthetic G<n> ids or checklist links are inferred for a v1 folder."
+    history_rewrite: forbidden
+    description: "Legacy active and archived folders MAY finish under the v1 protocol; validators MUST read them without rewriting goal.md."
 
 # Lifecycle invariants — what `goal.md` may NOT do.
 invariants:
   - "MUST be written exactly once at propose time."
   - "MUST NOT be modified after the change transitions to IN_PROGRESS (see change-status.state)."
   - "MUST be copied byte-identical when archived (see lifecycle FSM in design.md §1.3)."
+  - "goals_count MUST equal the number of G<n> entries under `## Goals`."
+  - "The goal id set MUST equal the checklist.md `## G<n>:` section id set for schema v2 folders."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
   - "MUST reference external resources by URL, not local clone path (S-7 / SF-6)."
 
@@ -96,6 +123,7 @@ example: |
   created: "2026-04-22T10:14:33Z"
   priority: P2
   intent_class: feature
+  goals_count: 2
   ---
 
   # Goal: Add user-toggleable dark mode to the demo dashboard
@@ -104,10 +132,9 @@ example: |
   Users on long-running benchmark sessions report eye strain on the
   default light theme. A persistent dark-mode toggle is a 2-week ask.
 
-  ## In scope
-  - CSS custom properties for light/dark palettes
-  - localStorage-backed toggle in shared/nav.js
-  - Bilingual UI label (EN/ZH) per ST-3
+  ## Goals
+  - G1: Provide a complete light/dark palette → checklist.md ## G1
+  - G2: Persist a user-selected theme across reloads → checklist.md ## G2
 
   ## Out of scope
   - System-preference auto-detection (defer to v8.4.0)

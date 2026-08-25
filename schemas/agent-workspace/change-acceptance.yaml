@@ -18,6 +18,10 @@ schema_name: change-acceptance
 schema_version: 1
 last_updated: "2026-04-22"
 governing_rules: [C-9, W-3]
+deprecated_since: "16.0.0"
+replacement: change-checklist
+removal_target: "17.0.0"
+deprecation_summary: "Retained through v16 for read-only validation and completion of legacy change folders; new changes use checklist.md via the change-checklist schema."
 
 instance_path_template: ".local/.agent/active/<change-id>/acceptance.md"
 archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/acceptance.md"

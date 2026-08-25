@@ -1,0 +1,36 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: performance-optimization
+  version: "1.0.0"
+  description: "Seed for evidence-backed performance improvement."
+  category: build
+  intent_keywords: [performance, optimize, profiling, benchmark, speed, latency]
+  source:
+    kind: composition
+    name: performance-optimization
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: performance-contract
+    title_template: "Profile and optimization design"
+    source_stages:
+      - {id: profile, primitive: analyze}
+      - {id: design, primitive: design}
+    assertions:
+      - key: baseline-defined
+        statement_template: "A reproducible baseline and target metric define the optimization scope"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: measured-improvement
+    title_template: "Optimization benchmark and validation"
+    source_stages:
+      - {id: optimize, primitive: implement}
+      - {id: benchmark, primitive: test}
+      - {id: validate, primitive: validate}
+    assertions:
+      - key: target-achieved
+        statement_template: "Measured performance meets the approved target without functional regression"
+        suggested_priority: P0
+        verify: {mode: metric, template: "performance_target_met == true and regression_count == 0"}

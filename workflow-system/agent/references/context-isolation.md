@@ -2,10 +2,9 @@
 id: "agent/references/context-isolation"
 version: "1.0.0"
 purpose: >
-  Defines the context isolation strategy including the 3 failure modes it
-  prevents, how subagents get isolated context windows, the full context
-  injection template (YAML), what must NOT leak between agents (6 categories),
-  what IS shared, and context budget management by layer with max files/tokens.
+  Defines context isolation for the three-layer Project → Wave → Task model:
+  fresh Task contexts, artifact-mediated communication, leak prevention,
+  cache-safe predecessor handling, and 5K/5K/8K layer budgets.
 triggers:
   - "setting up context injection"
   - "debugging context leaks"
@@ -14,7 +13,7 @@ tier: 2
 token_estimate: 3400
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Context Isolation Reference
@@ -39,15 +38,15 @@ From §6.2:
 
 ### Mechanism 1 — Fresh Context Per Spawn
 
-Every Task Agent (Layer 3) starts with an empty context window. It receives
-ONLY the TaskDispatch message and the files listed in `owned_files`. No
-conversation history from prior tasks leaks in.
+Every L2 Task Agent starts with an empty context window. It receives only the
+TaskDispatch message plus authorized `owned_files` and `read_only` context.
+No conversation history from prior tasks leaks in.
 
 ### Mechanism 2 — File Ownership Boundaries
 
-Each Task Agent is authorized to read/modify ONLY files listed in its
-`TaskDispatch.context.owned_files`. File ownership is partitioned at the
-Wave level — no two tasks in the same wave share a writable file.
+Each L2 Task Agent may modify only `TaskDispatch.context.owned_files` and may
+read the declared owned/read-only scope. File ownership is partitioned at the
+L1 Wave level — no two tasks in the same wave share a writable file.
 
 ### Mechanism 3 — Artifact-Mediated Communication
 
@@ -55,7 +54,7 @@ Tasks never directly communicate. When Task B depends on Task A's output:
 
 ```
 Task A writes to file
-  → Wave Agent collects result
+  → L1 Wave Agent collects result
     → Task B receives a SUMMARY REFERENCE in context injection
       (NOT the full content)
 ```
@@ -63,8 +62,8 @@ Task A writes to file
 ## 3. Context Injection Template
 From §6.3:
 
-Every Task Agent receives this structured context at spawn time. This is
-the ONLY information the Task Agent has access to (beyond its own tool outputs).
+Every L2 Task Agent receives this structured context at spawn time. This is
+the ONLY information the Task Agent has access to beyond its own tool outputs.
 
 ```yaml
 context_injection:
@@ -72,7 +71,7 @@ context_injection:
   # Section 1: Identity and role (~100 tokens)
   identity:
     role: "string"                     # research | design | implement | test | review
-    task_id: "string"                  # e.g., S03_W02_T01
+    task_id: "string"                  # e.g., R03_W02_T01
     team: "string"                     # AgentTeam role template to follow
 
   # Section 2: Task specification (500-1500 tokens)
@@ -130,7 +129,7 @@ context_injection:
 context_injection:
   identity:
     role: "implement"
-    task_id: "S04_W02_T01"
+    task_id: "R04_W02_T01"
     team: "Implement"
 
   task:
@@ -198,14 +197,14 @@ From §6.4:
 | 3 | **Full predecessor artifacts** | Complete research reports, design documents, review reports | Context budget exhaustion; summaries are sufficient |
 | 4 | **Error details from siblings** | Stack traces, failure logs from sibling tasks | Irrelevant to current task; may confuse the agent |
 | 5 | **Quality scores from other tasks** | Review scores, coverage metrics from unrelated modules | Could create false pressure to match or exceed |
-| 6 | **Deferred items from other stages** | Items explicitly pushed to later stages | Not actionable for the current task |
+| 6 | **Deferred items from other rounds** | Items explicitly left for a later round | Not actionable for the current task |
 
 ## 5. What IS Shared (Via Artifact Summaries)
 From §6.4:
 
 | Category | How Shared | Example |
 |----------|-----------|---------|
-| Interface contracts | Function signatures, type definitions from predecessor stages | `trait ConfigSource { fn load(&self) -> Result<Config>; }` |
+| Interface contracts | Function signatures and types from predecessor artifacts | `trait ConfigSource { fn load(&self) -> Result<Config>; }` |
 | Design decisions | ADR summaries that constrain the current task | "Decision: use TOML over YAML for config (rationale: ...)" |
 | Naming conventions | Project-wide patterns from code-rules | `snake_case` for Rust, module naming patterns |
 | Quality thresholds | Acceptance criteria from project configuration | "coverage >= 80%, zero blockers" |
@@ -219,18 +218,17 @@ From §6.5:
 
 | Layer | Strategy | Budget | What's Loaded | Max Files | Max Tokens |
 |-------|----------|--------|---------------|-----------|------------|
-| L0 Project | Minimal | ~3K | Workflow template, project config, stage status dashboard | 3 | 3000 |
-| L1 Stage | Standard | ~5K | Stage definition, predecessor artifact summaries, wave plan | 5 | 5000 |
-| L2 Wave | Minimal | ~4K | Wave task list, task status tracking | 3 | 4000 |
-| L3 Task | Standard–Full | ~8K | Task spec, owned files, code-rules, design excerpt | 15 (read) + 6 (write) | 8000 |
+| L0 Project | Minimal | ~5K | Seed metadata, goal/checklist/preflight state, round status, evidence proposals | 5 | 5000 |
+| L1 Wave | Standard | ~5K | Task list, dependency/ownership map, evidence summaries | 5 | 5000 |
+| L2 Task | Standard–Full | ~8K | Task spec, owned files, rules, relevant interfaces | 15 (read) + 6 (write) | 8000 |
 
 ### Loading Strategy Reference
 
 | Strategy | Description | Used By |
 |----------|-------------|---------|
-| **Minimal** | Only essential context; no file contents, no deep references | L0 Project, L2 Wave |
-| **Standard** | Essential context + key excerpts from predecessor artifacts | L1 Stage, L3 Task (typical) |
-| **Full** | Standard + complete code-rules + detailed design references | L3 Task (complex tasks) |
+| **Minimal** | Only essential context; no file contents, no deep references | L0 Project |
+| **Standard** | Essential context + key excerpts from predecessor artifacts | L1 Wave, L2 Task (typical) |
+| **Full** | Standard + complete rules + detailed design references | L2 Task (complex tasks) |
 
 ### Budget Enforcement Rules
 
@@ -244,10 +242,9 @@ From §6.5:
 
 | Layer | Max Writable Files | Max Readable Files | File Content in Context? |
 |-------|-------------------|-------------------|-------------------------|
-| L0 Project | 2 (dashboard, config) | 3 | NO (paths only) |
-| L1 Stage | 2 (README, report) | 5 | Summaries only |
-| L2 Wave | 0 (in-memory only) | 3 | NO (paths only) |
-| L3 Task | 6 | 15 | YES (owned files loaded) |
+| L0 Project | Lifecycle-control artifacts only | 5 | Paths and summaries |
+| L1 Wave | WaveReport/handoff only | 5 | Summaries only |
+| L2 Task | 6 | 15 | YES (owned files loaded) |
 
 ## 7. Context Injection Checklist
 
@@ -269,7 +266,7 @@ CONTEXT INJECTION CHECKLIST
 □ Rules loading strategy matches task complexity
 □ Timeout is set (default: estimated_minutes × 120 seconds)
 □ max_files_to_read is set (prevents context explosion)
-□ Total token estimate is within layer budget (~8K for L3)
+□ Total token estimate is within layer budget (~8K for L2 Task)
 
 LEAK PREVENTION CHECKS:
 □ No conversation history from prior tasks included
@@ -277,7 +274,7 @@ LEAK PREVENTION CHECKS:
 □ No full predecessor artifacts (summaries only)
 □ No error details from sibling tasks
 □ No quality scores from unrelated tasks
-□ No deferred items from other stages
+□ No deferred items from other rounds
 ```
 
 ## 8. Information Density Optimization (v2.2.0)
@@ -337,7 +334,7 @@ P-10) → `change_context` (v8.3.0 PV-05) → `predecessor_dedup_ledger`
 
 **`predecessor_dedup_ledger` self-containment (v15.0.0, G-007 / F-P4-4):**
 position 17 carries cross-round dedup state, and per §2 Mechanism 1 a
-round-N Task Agent spawns with a FRESH context — it has no round-N-1
+round-N L2 Task Agent spawns with a FRESH context — it has no round-N-1
 dispatch to resolve a bare `"@round-N-1:pred-K"` reference into. The
 contract is therefore intra-payload by construction: when a
 `pred[i].summary` is replaced by a reference, the SAME dispatch's ledger
@@ -362,15 +359,15 @@ enforced by `tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rou
 ## 11. Tool-Output Truncation (v7.0.1+)
 
 In multi-round convergence, prior-round `tool_use` outputs (Read/Grep/Shell
-returns) accumulate inside the predecessor context the L2 wave agent feeds
-to the next round's L3 task agents. Anthropic's cookbook (`[ref-6]`) calls
+returns) accumulate inside the predecessor context the L1 Wave Agent feeds
+to the next round's L2 Task Agents. Anthropic's cookbook (`[ref-6]`) calls
 this the "lightest-touch" lever: keep the `tool_use` record (so the model
 knows the call happened) but elide the bulky `tool_result` payload once it
 falls below a recency threshold. DevolaFlow ships the deterministic
 prompt-side equivalent in `devolaflow.compressor` per ADR-002.
 
-**When the runtime applies truncation.** The L3 task agent emits its
-`StatusReport` with the full tool_use list. Before the L2 wave agent splices
+**When the runtime applies truncation.** The L2 Task Agent emits its
+`StatusReport` with the full tool_use list. Before the L1 Wave Agent splices
 that report into the next round's predecessor context, it calls
 `clear_old_tool_uses(tool_uses, keep=3, exclude_tool_names=("Read",))`.
 The default behaviour preserves the most recent 3 tool calls verbatim and
@@ -407,8 +404,8 @@ truncation always lands on character boundaries, not structural ones.
 **Reading the `tool_results.summary` block.** `clear_old_tool_uses()`
 returns a `ToolUseTruncation` summary that the producing agent records in
 `schemas/lean-report.yaml#tool_results.summary` (`kept_count`,
-`cleared_count`, `cleared_at_round`). The L2 wave agent inspects the
-summary to decide whether to refresh the L1 dispatch tool list:
+`cleared_count`, `cleared_at_round`). The L1 Wave Agent inspects the
+summary to decide whether to refresh the L0 round dispatch tool list:
 `cleared_count > 0` is the canonical signal that round-N reused fewer
 verbatim tool outputs than round-(N−1) and the cached prefix is starting
 to drift. Together with the cache-layout invariant (§10), this is the
@@ -423,10 +420,10 @@ spillover.
 
 ## 12. Hierarchical Predecessor Summariser (v7.0.2+)
 
-Predecessor artifacts from the prior stage enter a consuming layer's
+Predecessor artifacts from the prior round or wave enter a consuming layer's
 dispatch under `pred[*]`. When a single artifact exceeds ~25 % of the
-consuming layer's token budget (L3 8000 → 2000 tokens; L2 4000 → 1000
-tokens; L1 5000 → 1250 tokens; L0 3000 → 750 tokens), embedding the body
+consuming layer's token budget (L2 Task 8000 → 2000 tokens; L1 Wave
+5000 → 1250 tokens; L0 Project 5000 → 1250 tokens), embedding the body
 verbatim starves every other dispatch section. DevolaFlow ships
 `devolaflow.compressor.summarise_predecessor(artifact_path, *,
 max_tokens=500, mode="extractive", schema_hint=None)` as the
@@ -453,7 +450,7 @@ and `pred[*].summary_max_tokens` — both declared in
 `schemas/lean-dispatch.yaml#per_predecessor` and appended nested inside
 each pred entry, *never* as new top-level keys, to preserve the §10
 cache-layout invariant. Missing fields default to `extractive` / 500
-tokens. Abstractive mode is reserved for narrative stage reports and
+tokens. Abstractive mode is reserved for narrative round reports and
 opts in per profile; it still runs the extractive pass first so the
 preserve-list facts travel verbatim, and is guarded by the §13
 persistence probe against named-entity drift. At the v7.1.0 cut the six
@@ -469,16 +466,16 @@ token sub-agent contexts.
 
 `summarise_predecessor()` is the only primitive that can silently
 paraphrase a file path or a commit hash — losing a single such entity
-between Stage A and Stage B breaks the P5 artifact contract and burns
+between compression Phase A and Phase B breaks the P5 artifact contract and burns
 a convergence round on search-instead-of-execute rabbit holes. The
 persistence probe is the deterministic integration guard that catches
 this failure. The harness lives in `tests/test_e2e_compression.py`
 (with seed logic in `tests/_probe_fixtures.py`): it synthesises a
-Stage A artifact seeded with a preserve-list panel, runs it through
+Phase A artifact seeded with a preserve-list panel, runs it through
 `summarise_predecessor` + `render_dispatch` + `task_adaptive_selector.
 select_context`, then calls `compute_entity_carrythrough_rate()` to
-measure the fraction of Stage A entities that appear verbatim in the
-rendered Stage B dispatch. Any paraphrase, case-fold on a
+measure the fraction of Phase A entities that appear verbatim in the
+rendered Phase B dispatch. Any paraphrase, case-fold on a
 file-path/commit-hash, or outright omission fails the probe with a
 diagnostic naming the lost entity.
 
@@ -538,8 +535,8 @@ active scope; rows downstream of a row do not disturb rows upstream.
 | Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 17-key top-level order (positions 1-12 frozen, 13+ append-only) so round-N reuses round-(N−1)'s KV prefix. |
 | Predecessor embed       | 1+    | Hierarchical summariser                | §12       | Collapses pred artifact > 25 % of layer budget via `summarise_predecessor()`.  |
 | Predecessor embed       | 1+    | Preserve-list extraction               | §12 / §13 | `extract_named_entities()` surfaces 8 structured classes verbatim.             |
-| L3 status → L2 context  | ≥ 2   | Tool-output truncation                 | §11       | `clear_old_tool_uses(keep=3, exclude=["Read"])` elides prior-round payloads.   |
-| L1 → L2 → L3 pipeline   | 1+    | Persistence probe                      | §13       | CI assertion that preserve-list entities carry through Stage A → Stage B.      |
+| L2 Task status → L1 Wave context | ≥ 2 | Tool-output truncation | §11 | `clear_old_tool_uses(keep=3, exclude=["Read"])` elides prior-round payloads. |
+| L0 → L1 → L2 pipeline   | 1+    | Persistence probe                      | §13       | CI assertion that preserve-list entities carry through compression Phase A → Phase B. |
 | Session end             | n/a   | Learnings consolidation / decay        | §14       | `consolidate_session()` bumps used learnings; `decay_confidence()` prunes.     |
 | Next session load       | n/a   | Pinned-session surfacing               | §14       | `load_relevant_learnings(session_id=...)` surfaces pinned entries first.       |
 
@@ -560,10 +557,10 @@ primitive does NOT require a version rollback — only the coupled bundle
 which the `scripts/bump_version.py` harness and SI-5 coupling already
 gate.
 
-## 16. Abstractive summariser Stage A (P-12, v8.0.0)
+## 16. Abstractive Summariser Phase A (P-12, v8.0.0)
 
 `summarise_predecessor(..., mode='abstractive')` is now wired via a
-deterministic Stage A heuristic (no LLM). It complements the extractive
+deterministic Phase A heuristic (no LLM). It complements the extractive
 default by routing each parsed section through `_compute_information_density`
 (unique-token ratio × 0.6 + entity-density signal × 0.4, both bounded to
 `[0.0, 1.0]`) and switching to a denser representation when the body is
@@ -582,6 +579,6 @@ dilute:
 Opt-in via `context_profiles.yaml#complex_feature.summary_mode`
 = `abstractive` (top-level section, sibling to `meta:`/`sections:`/
 `profiles:`, NOT a new profile — keeps profile count stable). All
-existing profiles remain `extractive` (CO-2 verbatim). Stage B
+existing profiles remain `extractive` (CO-2 verbatim). Phase B
 (LLM-assisted, v8.2.0 PV-01) design lives in
 `docs/cycle-archive/v8.0.0/design/v8.0.0_p12_abstractive_stage_b_design.md`.

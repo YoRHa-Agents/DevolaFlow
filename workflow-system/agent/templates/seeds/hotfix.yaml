@@ -1,0 +1,43 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: hotfix
+  version: "1.0.0"
+  description: "Seed for urgent, bounded defect remediation."
+  category: build
+  intent_keywords: [bug, fix, hotfix, patch, urgent]
+  source:
+    kind: composition
+    name: hotfix
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: diagnosis
+    title_template: "Bug diagnosis"
+    source_stages:
+      - {id: bug_triage, primitive: analyze}
+    assertions:
+      - key: cause-reproduced
+        statement_template: "The defect is reproducible and its root cause is isolated"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: remediation
+    title_template: "Minimal remediation"
+    source_stages:
+      - {id: fix, primitive: implement}
+      - {id: test, primitive: test}
+    assertions:
+      - key: regression-covered
+        statement_template: "The minimal fix passes focused regression coverage with no unrelated changes"
+        suggested_priority: P0
+        verify: {mode: metric, template: "focused_test_failures == 0"}
+  - key: release
+    title_template: "Fast-track release"
+    source_stages:
+      - {id: release, primitive: release}
+    assertions:
+      - key: release-safe
+        statement_template: "Release evidence and rollback instructions are ready before fast-track publication"
+        suggested_priority: P0
+        verify: {mode: manual}

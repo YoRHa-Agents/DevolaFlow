@@ -13,6 +13,8 @@
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 # v9.6.0 PV-04: bulk-refreshed last_checked → 2026-05-02 across all 21 entries
 # (D-R-5); primelocus-hydra graduated to frozen_reference (D-R-9).
+# Pre-v16 analysis-tool notes below are historical provenance only. Live
+# evaluation depends solely on `python -m devolaflow.harness evaluate`.
 
 active_tracking:
 
@@ -36,7 +38,7 @@ active_tracking:
     devolaflow_integration_points:
       - context_profiles.yaml (advisor section per layer)
       - gate/scorer.py (borderline gate evaluation)
-      - SKILL.md (L3 Task Agent system prompt extension)
+      - SKILL.md (L2 Task Agent system prompt extension)
     gap_ids: [H3]
 
   - id: superpowers
@@ -162,7 +164,7 @@ active_tracking:
       - convergence loop (progressive recovery stages)
       - team permissions enforcement
     gap_ids: [M3, L2, L5]
-    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, so deep NineS analysis was deferred per W-2 fallback. The 4-stage progressive recovery pattern is structurally analogous to DevolaFlow's W-8/SI-9 reinforcement (Task→Wave→Stage→Project→Human escalation chain); the institutional-review gate type from edict's Menxia is a candidate for a dedicated `pre_dispatch` lifecycle hook variant in a future PV (defer-to v9.8.0+)."
+    note: "v9.6.0 PV-03 historical freshness record — no local clone was available at PV-01 harness time, so deep external analysis was deferred. This is provenance only, not a live W-2 fallback. Edict's external 4-stage progressive-recovery taxonomy remains analogous to W-8/SI-9 reinforcement; current DevolaFlow escalation is Task→Wave→Project→Human. The institutional-review gate type from Menxia remains a future `pre_dispatch` hook candidate."
 
   - id: karpathy-llm-wiki
     repo_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
@@ -251,10 +253,10 @@ active_tracking:
       - "plugin architecture changes"
     devolaflow_integration_points:
       - "research stage: codebase analysis methodology"
-      - "NineS analyze: complementary deep analysis"
+      - "built-in harness fixtures: complementary contract analysis"
       - "skill format: plugin/skill architecture patterns"
       - "workflow-system/agent/references/meta-framework.md §2.2.1 (multi-team codebase analysis pattern, v9.6.0)"
-    note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings) and re-analyzed via NineS v3.3.0 in v9.6.0 PV-01 (23 findings: 4 error / 13 info / 6 warning — error/warning are upstream complexity issues, not blockers for DevolaFlow integration)."
+    note: "Claude Code plugin for codebase understanding via knowledge graphs. Historical pre-v16 external analyses produced 22 findings, then 23 findings in v9.6.0 PV-01 (4 error / 13 info / 6 warning — error/warning are upstream complexity issues, not blockers for DevolaFlow integration). Current evaluation uses the built-in harness."
 
   - id: openspec
     repo_url: https://github.com/Fission-AI/OpenSpec
@@ -288,9 +290,10 @@ active_tracking:
       (ADDED/MODIFIED/REMOVED). Adopted in v8.3.0 per
       .local/research/v8.3.0_openspec_deep_analysis.md. Slash commands
       (/openspec/propose, /openspec/apply, /openspec/archive) deferred to
-      DevolaFlow v8.4.0+ per Q-3 in design.md §11.2; the lifecycle stages
-      are wired through the change-driven workflow template instead.
-      v9.6.0 PV-01 deep re-analysis (NineS v3.3.0): confirmed 11 in-repo
+      DevolaFlow v8.4.0+ per Q-3 in design.md §11.2. Current DevolaFlow
+      materializes goal/checklist/stage/preflight/evidence artifacts and
+      executes them through the sole change-driven runtime.
+      v9.6.0 PV-01 historical deep re-analysis confirmed 11 in-repo
       specs catalog; DevolaFlow's parallel surface is
       `.local/memory/specs/<domain>/spec.md` (A-4 source-of-truth).
 
@@ -317,10 +320,10 @@ active_tracking:
     devolaflow_integration_points:
       - "workflow-system/agent/plugins.yaml (codegraph block)"
       - "workflow-system/agent/knowledge/runtime-plugins.yaml (codegraph entry)"
-      - "workflow-system/agent/templates/builtin/repo-init.yaml (scaffold stage post-step)"
-      - "workflow-system/agent/templates/builtin/onboarding.yaml (analyze codegraph_commands)"
-      - "workflow-system/agent/templates/builtin/security-audit.yaml (analyze codegraph_commands)"
-      - "workflow-system/agent/templates/builtin/product-verification.yaml (analyze codegraph_commands)"
+      - "workflow-system/agent/templates/seeds/repo-init.yaml (scaffold provenance)"
+      - "workflow-system/agent/templates/seeds/onboarding.yaml (analyze codegraph_commands provenance)"
+      - "workflow-system/agent/templates/seeds/security-audit.yaml (analyze codegraph_commands provenance)"
+      - "workflow-system/agent/templates/seeds/product-verification.yaml (analyze codegraph_commands provenance)"
       - "workflow-system/agent/context_profiles.yaml (codegraph_integration block)"
       - "workflow-system/agent/references/codegraph.md (NEW Tier-2 reference)"
       - "workflow-system/agent/references/degraded-mode.md (codegraph fallback row)"
@@ -332,10 +335,10 @@ active_tracking:
       EXPANSION MINOR cycle. Codegraph is a 100% local, MCP-first
       pre-indexed code knowledge graph (tree-sitter + SQLite FTS5)
       published as `@colbymchenry/codegraph` on npm. The DevolaFlow
-      integration mirrors the NineS shape: plugin catalog block +
+      integration follows the runtime-plugin shape: plugin catalog block +
       runtime registry entry + reference-dependencies entry + Python
-      wrapper package + workflow wiring across 4 analyze-stage
-      templates + context_profiles top-level codegraph_integration
+      wrapper package + seed provenance across 4 analyze primitives
+      + context_profiles top-level codegraph_integration
       block + new Tier-2 reference doc. Reuses
       DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 per W-20 reuse-first; NO new
       env flag (count stays at 7).
@@ -361,7 +364,7 @@ active_tracking:
     devolaflow_integration_points:
       - "workflow-system/agent/plugins.yaml (impeccable block + ui_refinement role)"
       - "workflow-system/agent/knowledge/runtime-plugins.yaml (impeccable entry, backend npm_then_init)"
-      - "workflow-system/agent/templates/builtin/web-design.yaml (refine + verify stages)"
+      - "workflow-system/agent/templates/seeds/web-design.yaml (refine + verify provenance)"
       - "workflow-system/agent/context_profiles.yaml (impeccable_integration block)"
       - "workflow-system/agent/references/impeccable.md (NEW Tier-2 reference)"
       - "workflow-system/agent/references/degraded-mode.md (impeccable fallback row + section)"
@@ -396,7 +399,7 @@ periodic_monitoring:
       - new isolation patterns or merge reconciliation improvements
       - documentation site updates at googlecloudplatform.github.io/scion
     devolaflow_integration_points:
-      - Wave dispatch (git worktree provisioning per L3 task)
+      - Wave dispatch (git worktree provisioning per L2 Task)
       - parallel task execution isolation
     gap_ids: [M5]
 
@@ -560,7 +563,7 @@ periodic_monitoring:
       - gist revisions or significant fork innovations
       - community adoption or derivative implementations
     devolaflow_integration_points:
-      - post-workflow stage (reflect→triage→cascade)
+      - post-completion checklist item (reflect→triage→cascade)
       - per-project customization layer
     gap_ids: [H7, L6]
     note: "v9.6.0 PV-03 freshness refresh — source_type=gist (manual review per W-2). The reflect→triage→cascade loop pattern is partially realized by DevolaFlow's W-7/SI-8 retrospective + W-8/SI-9 reinforcement chain (the cascade phase corresponds to round-N+1 dispatch with reinforcement findings)."
@@ -583,7 +586,7 @@ periodic_monitoring:
       - SKILL.md (progressive section loading)
       - adapter pipeline (vendor-agnostic validation)
     gap_ids: [L7]
-    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, deferred to manual review per W-2. v0.7.0 last release was 2026-04-06; expected next minor 2026-05+ when MemoryTools API matures. The progressive disclosure pattern is structurally aligned with DevolaFlow's tier-1/tier-2/tier-3 reference loading via task_adaptive_selector.py."
+    note: "v9.6.0 PV-03 freshness refresh — no local clone was available at PV-01 harness time, so review used the W-2 manual fallback. v0.7.0 last release was 2026-04-06; expected next minor 2026-05+ when MemoryTools API matures. The progressive disclosure pattern is structurally aligned with DevolaFlow's tier-1/tier-2/tier-3 reference loading via task_adaptive_selector.py."
 
 tracking_policy:
   active_tracking:
@@ -600,7 +603,7 @@ tracking_policy:
       - Anthropic advisor tool exits beta or changes API shape
       - "new repo with >5K stars and relevance >=4/5 in agent orchestration space"
       - DevolaFlow version bump changes overlap analysis (re-classify gaps)
-      - EvoBench regression detected after context profile changes
+      - built-in harness regression detected after context profile changes
     review_actions:
       - read changed files/docs from tracked source
       - re-evaluate relevance_score against current DevolaFlow version

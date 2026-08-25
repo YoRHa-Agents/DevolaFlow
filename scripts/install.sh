@@ -436,7 +436,6 @@ install_plugins() {
   else
     warn "devolaflow package not importable — skipping bundled plugin install."
     warn "  Install plugins manually, e.g.:"
-    warn "    pip install --upgrade nines"
     warn "    npm install -g uipro-cli && uipro init --ai cursor --global"
     warn "    npm install -g @colbymchenry/codegraph"
     warn "    npm install -g impeccable && impeccable skills install --yes"
@@ -706,7 +705,7 @@ case "$TARGET" in
   Flags:
     --project     repo-local install path (default)
     --global      user-wide install path when supported; ALSO installs all
-                  runtime plugins (nines/ui-pro/rtk/si-chip/codegraph/impeccable)
+                  runtime plugins (ui-pro/rtk/si-chip/codegraph/impeccable)
                   by default — failures are warn-not-fatal
     --no-plugins  with --global, skip the bundled runtime-plugin install
                   (skill files only)

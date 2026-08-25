@@ -2,9 +2,9 @@
 """Build a chronological mid-cycle research artifact index.
 
 Implements the v10.7.0 D-O-3 deliverable per
-`.local/research/v11.0.0_patches/D-O-3.md`. The script scans
-``.local/research/v*_*.md`` and emits a chronological index — a
-markdown table by default, JSON via ``--json``.
+`.local/research/v11.0.0_patches/D-O-3.md`. The script scans versioned
+Markdown and JSON research artifacts and emits a chronological index — a
+Markdown table by default, JSON via ``--json``.
 
 Why this matters: during a mid-cycle PV (e.g., PV-04 of v10.2.0
 cycle), an operator looking for a prior PV's design doc has to
@@ -24,11 +24,12 @@ aid today. This script produces one.
 
 Algorithm (per PDS §2 + §6 admission verdict):
 
-1. Glob ``.local/research/v*_*.md`` files matching the strict pattern
-   ``v(\\d+)\\.(\\d+)\\.(\\d+)_<topic>\\.md``.
+1. Glob versioned ``.md`` and ``.json`` files matching the strict pattern
+   ``v(\\d+)\\.(\\d+)\\.(\\d+)_<topic>\\.(md|json)``.
 2. Group by cycle (X.Y.0); within each group, sort by patch / topic.
-3. Allow filtering by cycle (``--cycle vX.Y.0``) and category
-   (``--category gap_analysis|cycle_plan|pds|retrospective|nines|evaluation``).
+3. Allow filtering by cycle (``--cycle vX.Y.0``) and category. Current
+   built-in harness evidence routes to ``harness``; ``nines`` remains a
+   legacy read-only category for historical artifacts.
 4. Emit a 4-column markdown table (PV / Date / Topic / Path) by
    default; JSON via ``--json``.
 
@@ -71,10 +72,11 @@ __all__ = [
     "scan_research_artifacts",
 ]
 
-# Strict version-prefix regex: vX.Y.Z_<topic>.md.
+# Strict version-prefix regex: vX.Y.Z_<topic>.(md|json).
 # Topic must start with [a-z] then [a-z0-9_]*.
 ARTIFACT_PATTERN: re.Pattern[str] = re.compile(
-    r"^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)_(?P<topic>[a-z][a-z0-9_]*)\.md$"
+    r"^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)_(?P<topic>[a-z][a-z0-9_]*)"
+    r"\.(?:md|json)$"
 )
 
 # Topic-keyword → category mapping. Multiple keywords per category enable
@@ -84,6 +86,8 @@ CATEGORY_KEYWORDS: dict[str, frozenset[str]] = {
     "cycle_plan": frozenset({"cycle_plan", "cycle-plan", "implementation_plan", "patch_plan"}),
     "pds": frozenset({"_design", "_patches"}),
     "retrospective": frozenset({"retrospective"}),
+    "harness": frozenset({"harness"}),
+    # Historical compatibility only. New evaluation artifacts use ``harness``.
     "nines": frozenset({"nines"}),
     "evaluation": frozenset({"evaluation", "eval"}),
     "audit": frozenset({"audit", "snapshot", "compressor_health", "canonical_order"}),
@@ -119,7 +123,9 @@ def scan_research_artifacts(research_dir: Path) -> list[ResearchArtifact]:
     if not research_dir.is_dir():
         return []
     out: list[ResearchArtifact] = []
-    for path in sorted(research_dir.glob("v*.md")):
+    for path in sorted(research_dir.glob("v*.*")):
+        if path.suffix not in {".md", ".json"}:
+            continue
         match = ARTIFACT_PATTERN.match(path.name)
         if match is None:
             continue
@@ -198,6 +204,10 @@ def render_markdown(artifacts: list[ResearchArtifact]) -> str:
         "cycle-close only). Use this index for in-cycle navigation; "
         "use the W-19 archive for cross-cycle citation."
     )
+    lines.append(
+        "Current evaluator evidence uses the `harness` category. The `nines` "
+        "category is retained only for backward-compatible historical routing."
+    )
     lines.append("")
     lines.append(f"- Total artifacts: **{len(artifacts)}**")
     if not artifacts:
@@ -217,8 +227,7 @@ def render_markdown(artifacts: list[ResearchArtifact]) -> str:
         for art in cycle_artifacts:
             rel = art.path.relative_to(art.path.parent.parent.parent)
             lines.append(
-                f"| v{art.version} | {art.mtime_iso} | {art.category} | "
-                f"{art.topic} | `{rel}` |"
+                f"| v{art.version} | {art.mtime_iso} | {art.category} | {art.topic} | `{rel}` |"
             )
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -297,9 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=sorted(list(CATEGORY_KEYWORDS.keys()) + ["other"]),
         help="filter by topic category",
     )
-    parser.add_argument(
-        "--json", action="store_true", help="emit JSON instead of markdown"
-    )
+    parser.add_argument("--json", action="store_true", help="emit JSON instead of markdown")
     args = parser.parse_args(argv)
     repo_root = args.repo_root or _resolve_repo_root()
     return run(

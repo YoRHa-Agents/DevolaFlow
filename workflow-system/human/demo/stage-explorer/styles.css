@@ -42,9 +42,8 @@ select:focus { outline: none; border-color: var(--accent); }
   border-left: 3px solid var(--border);
 }
 .chain-layer.l0 { border-left-color: #B8860B; }
-.chain-layer.l1 { border-left-color: #C49A3C; }
-.chain-layer.l2 { border-left-color: #5B7553; }
-.chain-layer.l3 { border-left-color: #9B4444; }
+.chain-layer.l1 { border-left-color: #5B7553; }
+.chain-layer.l2 { border-left-color: #9B4444; }
 .chain-layer strong { font-size: 0.95rem; }
 .chain-layer small { color: var(--muted); font-size: 0.82rem; }
 

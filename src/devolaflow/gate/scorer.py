@@ -663,7 +663,7 @@ def _attach_ratchet_action(
 # byte-identical to pre-P-09 behaviour (per ``patch_plan §3 P-09 AC #6``
 # — supplying nothing must never silently change a PASS into a FAIL).
 #
-# The CRITICAL path (cc > 15 OR NineS ERROR finding) reduces the gate
+# The CRITICAL path (cc > 15 OR an injected error finding) reduces the gate
 # composite by ``profile.complexity_weight * 100`` and flips the
 # verdict to FAIL when it was previously PASS, so the convergence
 # orchestrator routes through the next ITERATE round (S-5 — never
@@ -700,6 +700,9 @@ def _attach_complexity_evaluation(
             "nesting_depth_max": evaluation.signals.nesting_depth_max,
             "cyclomatic_complexity": evaluation.signals.cyclomatic_complexity,
             "ratio_to_minimal": evaluation.signals.ratio_to_minimal,
+            "error_findings": evaluation.signals.error_findings,
+            "warning_findings": evaluation.signals.warning_findings,
+            # Deprecated compatibility keys.
             "nines_error_findings": evaluation.signals.nines_error_findings,
             "nines_warn_findings": evaluation.signals.nines_warn_findings,
         },
@@ -948,8 +951,7 @@ def _attach_cycle_report(verdict: GateVerdict, report: CycleReport) -> GateVerdi
 #
 # Public ``evaluate_gate`` signature + docstring + observable behaviour
 # are BYTE-IDENTICAL pre/post-refactor (W-4 / SI-4 / CP-4 byte-equivalence
-# verified by ``tests/test_gate.py`` 101-test invariant suite + the
-# 36-scenario EvoBench sweep). The break-path collaborator ordering
+# verified by the gate and built-in harness suites). The break-path collaborator ordering
 # (cycle → ratchet → complexity → legibility) and the non-break-path
 # ordering (advisor → budget-warn → cycle → ratchet → complexity →
 # legibility) are preserved verbatim by the new pipeline composition.
@@ -1180,8 +1182,8 @@ def evaluate_gate(
         consumed by the detector. When ``None`` and
         ``complexity_detector`` is supplied, the wiring is a no-op
         (still byte-identical) — gate consumers can defer signal
-        capture to the wave / task agent without forcing a synchronous
-        NineS subprocess on every gate call.
+        capture to the wave / task agent without forcing synchronous
+        filesystem inspection on every gate call.
     complexity_task_complexity:
         Tier name ("trivial" / "simple" / "standard" / "complex") used
         to look up the per-tier WARNING budgets. Defaults to

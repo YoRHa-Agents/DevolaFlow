@@ -14,10 +14,12 @@ v8.0.0 (P-04) — adds deterministic fence expansion via
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from devolaflow.gate.models import CYCLE_DEFAULT_SEVERITY, CycleReport, Finding, Severity
+from devolaflow.harness.tiers import SOURCE_TIERS
 
 SEVERITY_ORDER: dict[str, int] = {
     "blocker": 0,
@@ -54,6 +56,7 @@ _CHARS_PER_TOKEN: int = 4
 # ``(fence_type, sequence)`` pair always renders the same id (see
 # ``patch_plan §3 P-04 AC #1``).
 _FENCE_RULE_ID_FORMAT: str = "F-{fence_type}-{sequence:03d}"
+_REVERT_RULE_ID_FORMAT: str = "R-{item_id}-{round_num:03d}"
 
 
 @dataclass(frozen=True)
@@ -123,6 +126,64 @@ def findings_to_reinforcement(
     )
 
 
+def reverted_items_to_reinforcement(
+    reverted_items: Sequence[Any],
+    round_num: int,
+    prior_score: float = 0.0,
+    target_score: float = 0.0,
+) -> ReinforcementBlock:
+    """Convert open parser checklist reverts into blocker reinforcement.
+
+    Reasons are copied verbatim into mandates per C-3. Source order is stable,
+    ids include the checklist id and target round, and the existing top-five
+    reinforcement cap applies unchanged.
+    """
+
+    if type(round_num) is not int or round_num < 1:
+        raise ValueError(f"round_num must be a positive integer (got {round_num!r})")
+
+    rules: list[ReinforcementRule] = []
+    for item in reverted_items:
+        reason = getattr(item, "reverted_reason", None)
+        if getattr(item, "checked", False) or reason is None:
+            continue
+        item_id = getattr(item, "item_id", None)
+        if not isinstance(item_id, str) or not item_id:
+            raise TypeError("reverted checklist items must expose a non-empty item_id")
+        if not isinstance(reason, str) or not reason:
+            raise TypeError(
+                f"reverted checklist item {item_id!r} must expose a non-empty reverted_reason"
+            )
+        rules.append(
+            ReinforcementRule(
+                id=_REVERT_RULE_ID_FORMAT.format(
+                    item_id=item_id,
+                    round_num=round_num,
+                ),
+                severity="blocker",
+                mandate=reason,
+            )
+        )
+        if len(rules) == MAX_REINFORCEMENT_RULES:
+            break
+
+    return ReinforcementBlock(
+        round=round_num,
+        prior_score=prior_score,
+        target_score=target_score,
+        severity_floor="blocker",
+        rules=tuple(rules),
+        escalation_note=(
+            f"Round {round_num}: {len(rules)} user-reverted checklist item(s) "
+            "MUST close blocker reinforcement before recheck."
+        ),
+    )
+
+
+# Explicit public API pin until dispatch callers opt into round control.
+_reverted_items_dead_api_pin = (reverted_items_to_reinforcement,)
+
+
 def reinforcement_to_dict(block: ReinforcementBlock) -> dict[str, Any]:
     """Serialize a :class:`ReinforcementBlock` to a plain dict for YAML."""
     return {
@@ -136,6 +197,7 @@ def reinforcement_to_dict(block: ReinforcementBlock) -> dict[str, Any]:
                 "severity": r.severity,
                 "mandate": r.mandate,
                 **({"file": r.file} if r.file else {}),
+                "tier": SOURCE_TIERS["reinforcement_rule"],
             }
             for r in block.rules
         ],

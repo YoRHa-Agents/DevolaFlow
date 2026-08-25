@@ -1,439 +1,125 @@
-# Template registry — schema v2.0 (v15.0.0 Phase B collapse per v15-ADR-002).
-#
-# v1.0 (through v14.5.0) listed 23 builtin yamls, 16 of them `(legacy)`
-# REGISTERED-BUT-UNUSED per the D-A-2 audit (27% utilization). v2.0 keeps
-# the 7 survivor yamls under `templates:` and re-expresses the 16 legacy
-# names as named entries in the `compositions:` manifest below — each is
-# `base` (a survivor) + parameter overrides, expressible with the 5
-# composition operators in references/meta-framework.md §5.
-#
-# Alias guarantee (v15-ADR-002 decision 3): every composition name resolves
-# via TemplateRegistry.load_template(<name>) for >= 1 MAJOR; resolution
-# emits a deprecation WARNING (S-5: no silent rewrite). Hard removal of
-# the aliases lands no earlier than v16.0.0.
-schema_version: "2.0"
-last_updated: "2026-06-12T00:00:00Z"
+# Template registry — schema v3.0.
+# Checklist seeds retain decomposition knowledge without executable DAG semantics.
+schema_version: "3.0"
+last_updated: "2026-08-24T00:00:00Z"
 
-# ── Named compositions (the 16 former legacy yamls) ──────────────────
-# Each entry carries EITHER `base` (single survivor + params) OR
-# `compose: sequence` + `steps` (ordered survivor/composition refs).
-# `expression` is the operator-facing one-line form from
-# v15-ADR-002 / product review §2.1. `category`/`tags` are preserved
-# verbatim from the v1.0 registry stanzas so keyword discovery survives.
-#
-# `stages:` is the C-3 VERBATIM stage-id → primitive sequence extracted
-# from the deleted yaml — the loader synthesizes the resolved template
-# from this sequence, so legacy behavior stays reproducible. Carried-over
-# stage wiring that other governance surfaces pin (v12.5.0 D-1.2
-# codegraph recipes, v8.2.1 AC-4 plugin preconditions) lives under
-# `params`; conditional stages keep their `skip_condition` inline. The
-# full former stage bodies remain recoverable from git history at the
-# v14.5.0 tag.
-# `gate:` is the gate type carried verbatim from the former
-# meta-framework.md §4 "Template Quick-Reference — Gate Types" row.
 compositions:
   - name: hotfix
-    base: change-driven
-    expression: "change-driven(gate=standard, stages={propose: triage, apply: fix, verify: test}, timeout=hotfix)"
-    params:
-      gate: standard
-      stage_aliases: {propose: triage, apply: fix, verify: test}
-      timeout: hotfix
-    gate: standard
-    stages:
-      - {id: bug_triage, primitive: analyze}
-      - {id: fix, primitive: implement}
-      - {id: test, primitive: test}
-      - {id: release, primitive: release}
+    seed: seeds/hotfix.yaml
     category: build
     tags: [bug, fix, hotfix, patch, urgent]
     description: "Rapid bug triage, minimal fix, focused test, fast-track release."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
   - name: research-only
-    base: change-driven
-    expression: "change-driven(apply.team=research, skip=archive)"
-    params:
-      apply_team: research
-      skip_stages: [archive]
-    gate: standard
-    stages:
-      - {id: research, primitive: research}
-      - {id: compare, primitive: analyze}
-      - {id: report, primitive: validate}
+    seed: seeds/research-only.yaml
     category: discover
     tags: [research, compare, evaluate]
-    description: "Pure research/comparison; propose → apply → verify, no archive."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Pure research and comparison with a validated report."
   - name: design-only
-    base: change-driven
-    expression: "change-driven(apply.team=design, skip=archive)"
-    params:
-      apply_team: design
-      skip_stages: [archive]
-    gate: standard
-    stages:
-      - {id: research, primitive: research}
-      - {id: design, primitive: design}
-      - {id: review, primitive: review}
+    seed: seeds/design-only.yaml
     category: shape
     tags: [design, research, review, architecture]
-    description: "Design/architecture authoring; propose → apply → verify, no archive."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Research-backed design and architecture review."
   - name: documentation-only
-    base: change-driven
-    expression: "change-driven(apply.team=implement-docs, skip=archive)"
-    params:
-      apply_team: implement-docs
-      skip_stages: [archive]
-    gate: standard
-    stages:
-      - {id: survey, primitive: research}
-      - {id: author, primitive: implement}
-      - {id: review, primitive: review}
+    seed: seeds/documentation-only.yaml
     category: deliver
     tags: [documentation, docs, write, review]
-    description: "Documentation authoring; propose → apply → verify, no archive."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Documentation survey, authoring, and review."
   - name: spike-poc
-    base: change-driven
-    expression: "change-driven(gate=relaxed, verify=evaluate⊕decide)"
-    params:
-      gate: relaxed
-      verify_mode: evaluate-then-decide
-    gate: standard
-    stages:
-      - {id: research, primitive: research}
-      - {id: prototype, primitive: implement}
-      - {id: evaluate, primitive: validate}
+    seed: seeds/spike-poc.yaml
     category: discover
     tags: [spike, poc, prototype, experiment]
-    description: "Throwaway prototype with an evaluate⊕decide verify branch."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Bounded throwaway prototype with an explicit evaluation verdict."
   - name: refactoring
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=refactoring)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: refactoring
-    gate: convergence
-    stages:
-      - {id: scope_analysis, primitive: analyze}
-      - {id: plan, primitive: plan}
-      - {id: implement, primitive: implement}
-      - {id: test, primitive: test}
-      - {id: review, primitive: review}
+    seed: seeds/refactoring.yaml
     category: build
     tags: [refactor, tech-debt, improve, restructure]
-    description: "Tech-debt restructuring under the full-mode convergence gate."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Evidence-backed technical-debt restructuring."
   - name: feature-enhancement
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=feature-enhancement)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: feature-enhancement
-    gate: convergence
-    stages:
-      - {id: scope, primitive: analyze}
-      - {id: design, primitive: design}
-      - {id: plan, primitive: plan}
-      - {id: implement, primitive: implement}
-      - {id: review, primitive: review}
-      - {id: test, primitive: test}
-      - {id: release, primitive: release}
+    seed: seeds/feature-enhancement.yaml
     category: composite
     tags: [feature, enhance, extend, modify]
-    description: "Extend an existing feature under the full-mode convergence gate."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Extend an existing feature through design, implementation, and release evidence."
   - name: full-pipeline
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=full-pipeline, release_tail=true)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: full-pipeline
-      release_tail: true
-    gate: convergence
-    stages:
-      - {id: design, primitive: design}
-      - {id: plan, primitive: plan}
-      - {id: impl, primitive: implement}
-      - {id: review, primitive: review}
-      - {id: test, primitive: test}
-      - {id: verify, primitive: verify}
-      - {id: refine, primitive: refine}
-      - {id: testgate, primitive: validate}
-      - {id: release, primitive: release}
+    seed: seeds/full-pipeline.yaml
     category: composite
     tags: [full, pipeline, feature, implementation, release]
-    description: "Greenfield/end-to-end build; full-mode convergence + release tail."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Greenfield or end-to-end build decomposition knowledge."
   - name: performance-optimization
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=performance)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: performance
-    gate: convergence
-    stages:
-      - {id: profile, primitive: analyze}
-      - {id: design, primitive: design}
-      - {id: optimize, primitive: implement}
-      - {id: benchmark, primitive: test}
-      - {id: validate, primitive: validate}
+    seed: seeds/performance-optimization.yaml
     category: build
     tags: [performance, optimize, profiling, benchmark, speed, latency]
-    description: "Profile → optimize → benchmark under the convergence gate."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Profile, optimize, benchmark, and validate measurable performance."
   - name: security-audit
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=security)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: security
-      # v12.5.0 PV-04 D-1.2 codegraph wiring, carried over verbatim from
-      # the deleted security-audit.yaml analyze stage (attack-surface map).
-      codegraph_commands:
-        callers: "codegraph callers {auth_handler} --limit 20 --json"
-        impact: "codegraph impact {auth_module} --depth 3 --json"
-    gate: convergence
-    stages:
-      - {id: threat_model, primitive: research}
-      - {id: scan, primitive: analyze}
-      - {id: analyze, primitive: analyze}
-      - {id: remediate, primitive: implement}
-      - {id: verify, primitive: validate}
+    seed: seeds/security-audit.yaml
     category: composite
     tags: [security, audit, vulnerability, CVE, scan]
-    description: "Threat-model/scan/remediate under the convergence gate."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Threat modeling, scanning, analysis, remediation, and verification."
   - name: research-design-review-refine
-    base: change-driven
-    expression: "change-driven(mode=full, gate=convergence, quality_focus=design-iteration)"
-    params:
-      mode: full
-      gate: convergence
-      quality_focus: design-iteration
-    gate: convergence
-    stages:
-      - {id: research, primitive: research}
-      - {id: design, primitive: design}
-      - {id: review, primitive: review}
-      - {id: refine, primitive: refine}
-      # Conditional stage — skip_condition carried verbatim from the
-      # deleted research-design-review-refine.yaml.
-      - id: knowledge_gap_research
-        primitive: research
-        skip_condition: "refine.unresolved | length == 0"
+    seed: seeds/research-design-review-refine.yaml
     category: composite
     tags: [research, design, review, refine, iterate]
-    description: "Iterative design loop (RDRR) under the convergence gate."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Iterative research, design, review, refinement, and knowledge-gap closure."
   - name: dependency-setup
-    base: change-driven
-    expression: "change-driven(mode=install)"
-    params:
-      mode: install
-    gate: standard
-    stages:
-      - {id: research, primitive: research}
-      - {id: plan, primitive: plan}
-      - {id: configure, primitive: implement}
-      - {id: verify, primitive: test}
+    seed: seeds/dependency-setup.yaml
     category: build
     tags: [setup, install, dependency, environment, tooling, configuration]
-    description: "Environment/tooling install flow (D-A-2 §2 Phase B example, verbatim)."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Environment and tooling setup with bounded verification."
   - name: onboarding
-    compose: sequence
-    expression: "repo-init(mode=core) → documentation-only"
-    steps:
-      - base: repo-init
-        params: {mode: core}
-      - base: documentation-only
-    params:
-      # v12.5.0 PV-04 D-1.2 codegraph wiring, carried over verbatim from
-      # the deleted onboarding.yaml analyze stage (entry-point ranking).
-      codegraph_commands:
-        entry_points: 'codegraph context "entry points" --format markdown --max-nodes 30'
-        files: "codegraph files --format tree"
-    gate: standard
-    stages:
-      - {id: analyze, primitive: analyze}
-      - {id: document, primitive: implement}
-      - {id: setup, primitive: implement}
-      - {id: verify, primitive: test}
+    seed: seeds/onboarding.yaml
     category: discover
     tags: [onboarding, setup, getting-started, contributor, codebase]
-    description: "Contributor onboarding: repo-init(core) then docs authoring."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Contributor onboarding through analysis, documentation, setup, and verification."
   - name: demo-showcase
-    base: web-design
-    expression: "web-design(verify_cfg={visual, interact})"
-    params:
-      gate: standard
-      verify_cfg: [visual, interact]
-    gate: standard
-    stages:
-      - {id: research, primitive: research}
-      - {id: design, primitive: design}
-      - {id: build, primitive: implement}
-      - {id: review, primitive: review}
-      - {id: refine, primitive: refine}
-      - {id: package, primitive: release}
+    seed: seeds/demo-showcase.yaml
     category: composite
     tags: [demo, showcase, presentation, prototype, ui, visual, pitch]
-    description: "Demo/presentation build — web-design flavor with visual+interaction verify."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "Demo and presentation decomposition with visual-quality evidence."
   - name: product-verification
-    base: web-design
-    expression: "web-design(verify_cfg={visual, interact, a11y, accept})"
-    params:
-      gate: convergence
-      verify_cfg: [visual, interact, a11y, accept]
-      # v15.2.0 B-6 (ensure→suggest): the v8.2.1 AC-4 hard precondition is
-      # now a capability PROBE at precondition entry — ui-pro present →
-      # enhanced verify recipe; absent → basic verify recipe + one-time
-      # hint (never a hard failure; see references/degraded-mode.md).
-      suggest_plugins: [ui-pro]
-      # v12.5.0 PV-04 D-1.2 codegraph wiring, carried over verbatim from
-      # the deleted product-verification.yaml analyze stage.
-      codegraph_commands:
-        explore: "codegraph explore {feature_entry} --max-nodes 20"
-        impact: "codegraph impact {feature_entry} --depth 3 --json"
-    gate: convergence
-    stages:
-      - {id: precondition, primitive: implement}
-      - {id: analyze, primitive: analyze}
-      - {id: design_tests, primitive: design}
-      - {id: implement_tests, primitive: implement}
-      - {id: execute_dev_tests, primitive: test}
-      - {id: execute_verification, primitive: verify}
-      - {id: review_results, primitive: review}
-      - {id: refine, primitive: refine}
-      - {id: validate, primitive: validate}
+    seed: seeds/product-verification.yaml
     category: composite
     tags: [verify, visual, acceptance, interaction, accessibility, uat, e2e, product, quality]
-    description: "Full user-facing verification — web-design flavor with the 4-axis verify_cfg."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
-
+    description: "User-facing verification across visual, interaction, accessibility, and acceptance axes."
   - name: entropy-cleanup
-    base: change-driven
-    expression: "change-driven(stages={propose: scan, verify: review})"
-    params:
-      gate: standard
-      stage_aliases: {propose: scan, verify: review}
-    gate: standard
-    stages:
-      - {id: scan, primitive: analyze}
-      - {id: propose, primitive: design}
-      - {id: review, primitive: review}
-      - {id: apply, primitive: implement}
+    seed: seeds/entropy-cleanup.yaml
     category: control
     tags: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
-    description: "Stale-doc/drift GC — already shaped propose/apply/verify."
-    deprecated_since: "11.0.0"
-    collapsed_in: "15.0.0"
-    alias_removal_no_earlier_than: "16.0.0"
+    description: "Stale-documentation and drift cleanup knowledge."
 
-# ── Survivor templates (7 yamls on disk) ─────────────────────────────
-# NOTE: `templates:` MUST remain the LAST top-level block in this file —
-# scripts/scaffold_template.py appends new stanzas at EOF and relies on
-# the append landing inside this list.
+# Keep templates as the final top-level block.
 templates:
   - name: migration
-    path: builtin/migration.yaml
-    source: builtin
-    version: "1.0.0"
+    seed: seeds/migration.yaml
     category: build
     tags: [migrate, upgrade, transition, port]
-
+    description: "Systematic migration with validation, cutover, and rollback readiness."
   - name: skill-optimization
-    path: builtin/skill-optimization.yaml
-    source: builtin
-    version: "1.0.0"
+    seed: seeds/skill-optimization.yaml
     category: composite
     tags: [skill, optimize, benchmark, context, compress, iterate, density]
-
+    description: "Agent-skill profiling, optimization, validation, and documentation knowledge."
   - name: self-update
-    path: builtin/self-update.yaml
-    source: builtin
-    version: "1.0.0"
-    category: composite
+    seed: seeds/self-update.yaml
+    category: control
     tags: [self-update, update, upgrade, refs, validate, meta]
-
+    description: "Reference dependency research, integration, testing, and evaluation knowledge."
   - name: nines-assisted
-    path: builtin/nines-assisted.yaml
-    source: builtin
-    version: "1.0.0"
+    seed: seeds/nines-assisted.yaml
     category: composite
-    tags: [nines, evaluation, analysis, pipeline, self-eval, review, assisted, full]
-
+    tags: [harness, evaluation, analysis, pipeline, self-eval, review, assisted, full]
+    description: "Built-in harness-backed historical research and iteration decomposition knowledge."
   - name: repo-init
-    path: builtin/repo-init.yaml
-    source: builtin
-    version: "1.0.0"
+    seed: seeds/repo-init.yaml
     category: discover
     tags: [init, scaffold, bootstrap, repo, workspace, rules]
-
+    description: "Repository workspace and governance initialization knowledge."
   - name: change-driven
+    seed: seeds/change-driven.yaml
     path: builtin/change-driven.yaml
-    source: builtin
-    version: "1.0.0"
     category: composite
-    tags: [change, propose, apply, archive, lifecycle, agent-workspace, opsx]
-
+    tags: [change, propose, preflight, round, archive, lifecycle, agent-workspace, opsx]
+    description: "The sole executable checklist-round lifecycle runtime."
   - name: web-design
-    path: builtin/web-design.yaml
-    source: builtin
-    version: "1.0.0"
+    seed: seeds/web-design.yaml
     category: composite
     tags: [web-design, frontend, landing-page, ui, design, polish, impeccable, ui-pro]
+    description: "Frontend design, implementation, refinement, and deterministic verification knowledge."

@@ -35,7 +35,7 @@
 
     <section>
       <h2 class="section-title" data-i18n="viz.pipelineDiagram">Stage Pipeline Diagram</h2>
-      <p class="section-hint" data-i18n="viz.pipelineHint">Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.</p>
+      <p class="section-hint" data-i18n="viz.pipelineHint">Shows the Project Agent orchestrating checklist rounds. Each round is decomposed into waves and executed by Task Agents.</p>
       <div id="diagram"></div>
       <div class="legend">
         <strong data-i18n="viz.legendTitle">Diagram legend</strong>
@@ -48,7 +48,7 @@
 
     <section>
       <h2 class="section-title" data-i18n="viz.agentHierarchy">Agent Hierarchy for This Workflow</h2>
-      <p class="section-hint" data-i18n="viz.agentHierarchyHint">How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.</p>
+      <p class="section-hint" data-i18n="viz.agentHierarchyHint">How the 3-layer delegation works for this specific workflow. Upper layers dispatch; only L2 (Task Agent) does actual work.</p>
       <div id="wf-hierarchy"></div>
     </section>
 
@@ -64,10 +64,10 @@
     addTranslations('en', {
       'viz.title': 'Workflow Visualizer',
       'viz.pipelineDiagram': 'Stage Pipeline Diagram',
-      'viz.pipelineHint': 'Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.',
+      'viz.pipelineHint': 'Shows the Project Agent orchestrating checklist rounds. Each round is decomposed into waves and executed by Task Agents.',
       'viz.legendTitle': 'Diagram legend',
       'viz.agentHierarchy': 'Agent Hierarchy for This Workflow',
-      'viz.agentHierarchyHint': 'How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.',
+      'viz.agentHierarchyHint': 'How the 3-layer delegation works for this specific workflow. Upper layers dispatch; only L2 (Task Agent) does actual work.',
       'viz.useWhen': 'Use when',
       'viz.legendConvergence': 'convergence gate (multi-round review-fix loop)',
       'viz.legendStandard': 'standard gate (single pass/fail)',
@@ -77,10 +77,10 @@
     addTranslations('zh', {
       'viz.title': '工作流可视化',
       'viz.pipelineDiagram': '阶段流水线图',
-      'viz.pipelineHint': '展示项目代理如何编排各阶段。每个阶段由阶段代理分派，由任务代理执行。',
+      'viz.pipelineHint': '展示项目代理如何编排清单轮次。每个轮次被分解为波次，由任务代理执行。',
       'viz.legendTitle': '图例说明',
       'viz.agentHierarchy': '此工作流的代理层次结构',
-      'viz.agentHierarchyHint': '四层委派在此工作流中的具体运作方式。上层负责调度；只有第三层（任务代理）执行实际工作。',
+      'viz.agentHierarchyHint': '三层委派在此工作流中的具体运作方式。上层负责调度；只有 L2（任务代理）执行实际工作。',
       'viz.useWhen': '适用场景',
       'viz.legendConvergence': '收敛门控（多轮审查-修复循环）',
       'viz.legendStandard': '标准门控（单次通过/失败）',

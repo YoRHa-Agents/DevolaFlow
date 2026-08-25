@@ -1,0 +1,39 @@
+project:
+  name: DevolaFlow
+  purpose: Deterministic v16 checklist-round fixture
+  scope_keywords:
+    - agent-workspace
+    - checklist-rounds
+  existing_codebase: true
+tech_stack:
+  primary_language: python
+  runtime_version: "3.11+"
+  dependency_manifest: pyproject.toml
+repository:
+  mode: github
+  default_branch: main
+  branching_strategy: feature
+localization:
+  primary_language: en
+  bilingual_output: false
+  doc_language: en
+  code_comments_language: en
+platforms:
+  os:
+    - linux
+    - macos
+    - windows
+  architectures:
+    - x86_64
+    - arm64
+quality:
+  coverage_target_pct: 80
+  gate_profile: standard
+  max_rounds: 3
+release:
+  versioning: semver
+  channels:
+    - release
+workflow:
+  seed_mode: feature-enhancement
+  runtime_loop: checklist_rounds

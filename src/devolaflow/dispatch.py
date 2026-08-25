@@ -47,12 +47,12 @@ from typing import Any
 
 # ---------------------------------------------------------------------------
 # v9.7.0 (PV-03 — Performance Overhaul #2) — Auto-wire AsyncDispatchExecutor
-# for L2-wave parallel L3 dispatches.
+# for L1-wave parallel L2 dispatches.
 #
 # The v9.3.0 PV-05 ``AsyncDispatchExecutor`` shipped library-only — the
 # class machinery was complete but no production caller actually invoked
 # it. v9.7.0 PV-03 closes the gap by wiring it into a public dispatch
-# entry point at the L2-wave boundary.
+# entry point at the L1-wave boundary.
 #
 # ``dispatch_wave_tasks(wave_definition, dispatch_factory)`` is the
 # canonical caller: pass a parsed wave-definition dict (the YAML loaded
@@ -74,7 +74,7 @@ from typing import Any
 #
 # P1 invariant — Dispatcher-Not-Implementer (Soul Rule S-1):
 # :func:`dispatch_wave_tasks` does NOT perform any work itself. It only
-# schedules the caller-provided callables. The actual L3 Task work
+# schedules the caller-provided callables. The actual L2 Task work
 # happens inside each callable (typically a ``Task`` tool invocation
 # or a cached :func:`select_context` call). The executor is a pure
 # orchestration layer with zero domain knowledge of compression,
@@ -136,10 +136,10 @@ def dispatch_wave_tasks(
     *,
     max_concurrency: int | None = None,
 ) -> list[Any]:
-    """Dispatch an L2 wave's L3 tasks via :class:`AsyncDispatchExecutor`.
+    """Dispatch an L1 wave's L2 tasks via :class:`AsyncDispatchExecutor`.
 
     Auto-wires v9.3.0 PV-05's library-only :class:`AsyncDispatchExecutor`
-    into the L2-wave dispatch path per v9.7.0 PV-03. Inspects
+    into the L1-wave dispatch path per v9.7.0 PV-03. Inspects
     ``wave_definition['sync_barrier']['mode']``:
 
     * ``"parallel"`` with ≥ 2 tasks →
@@ -245,8 +245,8 @@ def dispatch_wave_tasks(
 # :mod:`devolaflow.si_chip_bridge.runner` (``run_dogfood_cycle``) was reachable
 # ONLY via the v9.5.0 PV-04 ``post_skill_edit`` lifecycle hook, gated on
 # ``DEVOLAFLOW_SI_CHIP_DEEP=1``. L0/L1 dispatchers had no programmatic entry
-# point even though ``skill-optimization`` / ``self-update`` /
-# ``nines-assisted`` workflow templates declare ``si-chip`` in
+# point even though ``skill-optimization`` / ``self-update`` and the opaque
+# historical seed ID ``nines-assisted`` declare ``si-chip`` in
 # ``invoked_by_workflows``. This wrapper closes that integration gap.
 #
 # P1 dispatcher-not-implementer (Soul Rule S-1): the wrapper is a thin
@@ -254,7 +254,7 @@ def dispatch_wave_tasks(
 # :func:`devolaflow.si_chip_bridge.runner.run_dogfood_cycle` which orchestrates
 # profile + count_tokens + (optional) evaluate. The verdict (APPLY / DEFER) is
 # returned to the caller; the caller is responsible for any downstream skill
-# edit decision (typically delegated to an L3 Task Agent).
+# edit decision (typically delegated to an L2 Task Agent).
 #
 # Activation gate: this is a Python API entry point — the workflow stage
 # itself opts in by calling the wrapper. The post_skill_edit lifecycle hook
@@ -279,9 +279,10 @@ def dispatch_dogfood_cycle(
     """Dispatch a Si-Chip dogfood cycle from the L0/L1 workflow surface.
 
     Bridges the gap between the workflow-stage layer (``skill-optimization``,
-    ``self-update``, ``nines-assisted`` templates that declare ``si-chip`` in
-    ``invoked_by_workflows``) and the persistent BasicAbility optimisation
-    factory implemented in :mod:`devolaflow.si_chip_bridge`. Closes D-S-2 from
+    ``self-update``, and the opaque historical seed ID ``nines-assisted`` that
+    declare ``si-chip`` in ``invoked_by_workflows``) and the persistent
+    BasicAbility optimisation factory implemented in
+    :mod:`devolaflow.si_chip_bridge`. Closes D-S-2 from
     ``.local/research/v10.2.0_gap_analysis.md`` §3.2.
 
     P1 dispatcher-not-implementer is preserved: this wrapper does NOT
@@ -289,7 +290,7 @@ def dispatch_dogfood_cycle(
     :func:`devolaflow.si_chip_bridge.runner.run_dogfood_cycle` which
     orchestrates the static profile + token audit + iteration_delta evaluation
     pipeline. APPLY / DEFER verdicts are returned to the caller; downstream
-    L3 Task Agents are responsible for any actual skill-file mutation.
+    L2 Task Agents are responsible for any actual skill-file mutation.
 
     Activation gate (R5 strict):
     - Always available as a Python API.
@@ -300,12 +301,11 @@ def dispatch_dogfood_cycle(
 
     Workflow → ability mapping: the ``workflow_name`` argument is passed
     through as the underlying ``ability_name`` for the Si-Chip
-    ``profile_static.py`` invocation. DevolaFlow's canonical dogfood
-    workflow names (``skill-optimization``, ``self-update``,
-    ``nines-assisted``) all map to the same ``"devola-flow"`` ability for
-    profiling purposes; this wrapper preserves the verbatim
-    ``workflow_name`` so callers retain provenance in the returned
-    :class:`SiChipResult.notes` list.
+    ``profile_static.py`` invocation. ``skill-optimization``, ``self-update``,
+    and the opaque historical seed ID ``nines-assisted`` all map to the same
+    ``"devola-flow"`` ability for profiling purposes; this wrapper preserves
+    the verbatim ``workflow_name`` so callers retain provenance in the
+    returned :class:`SiChipResult.notes` list.
 
     Multi-file ``skill_files``: when the caller supplies multiple files, only
     the FIRST entry is forwarded as ``skill_md`` to the underlying
@@ -317,8 +317,9 @@ def dispatch_dogfood_cycle(
     ----------
     workflow_name : str
         Name of the workflow stage requesting the dogfood cycle. Pass-through
-        as ``ability_name`` to ``run_dogfood_cycle``. Examples:
-        ``"skill-optimization"`` / ``"self-update"`` / ``"nines-assisted"``.
+        as ``ability_name`` to ``run_dogfood_cycle``. Current examples are
+        ``"skill-optimization"`` and ``"self-update"``; the exact opaque
+        historical seed ID ``"nines-assisted"`` remains accepted.
     skill_files : list[str | Path] | None, keyword-only
         Skill files to evaluate. Only the first entry is consumed in v10.2.1;
         when ``None`` or empty, defaults to ``"workflow-system/agent/SKILL.md"``
@@ -327,8 +328,8 @@ def dispatch_dogfood_cycle(
         Eval directories for the ``aggregate_eval.py`` pass. When either is
         ``None``, ``run_dogfood_cycle`` returns a DEFER verdict with
         ``"evaluate: skipped"`` notes (the expected v10.2.1 PV-02 dogfood
-        pass #1 outcome — D-N-1 PV-03 supplies eval data via the NineS
-        adapter).
+        pass #1 outcome; a later historical evaluation adapter supplied
+        the data).
     threshold : float, keyword-only
         Apply/defer threshold; default 0.10 per Si-Chip spec §23.
     work_dir : Path | str | None, keyword-only

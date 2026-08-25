@@ -26,11 +26,8 @@ from tests.ghost._helpers import _w18_research_artifact_path
 #     (analysis-only; W-21 Soul-set threshold empirical calibration check;
 #     5-section structure per `.local/research/v11.0.0_patches/D-P-2.md` §2;
 #     ANALYSIS-ONLY per source line 124 verbatim — W-21 wording byte-stable).
-#  2. D-P-4 — `references/plan-mode-enforcement.md` adds §3.2 "Multi-Step
-#     Plans (Multi-Horizon Reasoning)" with `[EXPLORE]` + `[REVISABLE]`
-#     opt-in annotation conventions; ~210 LOC added; reference stays
-#     within Large tier ≤ 1000 lines per C-4 / SF-1; zero schema field
-#     additions per D-P-4 §2 "uses existing fields ONLY".
+#  2. D-P-4 — `references/plan-mode-enforcement.md`; registry-v3 now pins
+#     its checklist contract and non-executable seed boundary.
 #
 # Per W-18 sequencing, this lint refreshes BEFORE the v11.0.0 CHANGELOG
 # entry mentions either feature. The CHANGELOG entry itself ships in
@@ -48,13 +45,13 @@ _V11_0_0_PV01_DP4_REFERENCE: Path = Path(
 )
 
 
-_V11_0_0_PV01_DP4_SECTION_HEADING: str = "### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)"
+_V11_0_0_PV01_DP4_SECTION_HEADING: str = "### 3.2 Checklist contract"
 
 
-_V11_0_0_PV01_DP4_EXPLORE_CONVENTION: str = "[EXPLORE]"
+_V11_0_0_PV01_DP4_EXPLORE_CONVENTION: str = "Each item needs:"
 
 
-_V11_0_0_PV01_DP4_REVISABLE_CONVENTION: str = "[REVISABLE:"
+_V11_0_0_PV01_DP4_REVISABLE_CONVENTION: str = "MUST NOT become an execution sequence"
 
 
 def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
@@ -71,9 +68,8 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
       5-section structure per `.local/research/v11.0.0_patches/D-P-2.md`
       §2 (telegraph history / root-cause / A-1-vs-Soul classification /
       threshold calibration / recommendation).
-    * D-P-4: `references/plan-mode-enforcement.md` adds §3.2 with the
-      `[EXPLORE]` + `[REVISABLE: <stage-id>]` annotation conventions
-      (uses existing schema fields only — zero schema additions).
+    * D-P-4: the current `references/plan-mode-enforcement.md` §3.2
+      preserves checklist fields while rejecting executable seed order.
     """
     # D-P-2: analysis artifact exists + 5-section structure present.
     dp2_path = _w18_research_artifact_path(project_root, _V11_0_0_PV01_DP2_ANALYSIS)
@@ -96,7 +92,7 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
         "is analysis-only per source line 124)."
     )
 
-    # D-P-4: §3.2 sub-section present in plan-mode-enforcement.md.
+    # D-P-4 lineage: current §3.2 checklist contract stays discoverable.
     dp4_path = project_root / _V11_0_0_PV01_DP4_REFERENCE
     assert dp4_path.is_file(), (
         f"W-18 v11.0.0 PV-01 violation: D-P-4 reference missing at {_V11_0_0_PV01_DP4_REFERENCE}."
@@ -108,14 +104,12 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
         f"adds this sub-section to plan-mode-enforcement.md."
     )
     assert _V11_0_0_PV01_DP4_EXPLORE_CONVENTION in dp4_text, (
-        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.3 introduces the "
-        f"{_V11_0_0_PV01_DP4_EXPLORE_CONVENTION!r} OPT-IN convention; "
-        f"missing from the reference body."
+        f"W-18 current-contract violation: plan-mode §3.2 missing "
+        f"{_V11_0_0_PV01_DP4_EXPLORE_CONVENTION!r}."
     )
     assert _V11_0_0_PV01_DP4_REVISABLE_CONVENTION in dp4_text, (
-        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.4 introduces the "
-        f"{_V11_0_0_PV01_DP4_REVISABLE_CONVENTION!r} OPT-IN convention; "
-        f"missing from the reference body."
+        f"W-18 current-contract violation: plan-mode §3.2 missing "
+        f"{_V11_0_0_PV01_DP4_REVISABLE_CONVENTION!r}."
     )
     # Frontmatter version was bumped to 11.0.0 in same PR per D-P-4 §2 step 4.
     assert 'version: "11.0.0"' in dp4_text[:500], (
@@ -474,7 +468,9 @@ _V11_0_2_PV02_CASCADE_TESTS: Path = Path("tests/test_cascade_enforcement.py")
 
 
 # W-16 wholesale baseline regen (cycle-anchor for PV-03..PV-07).
-_V11_0_2_PV02_BASELINE: Path = Path("benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json")
+_V11_0_2_PV02_BASELINE: Path = Path(
+    "docs/cycle-archive/v15.2.0/evobench-baselines/v11.1.0_baseline.json"
+)
 
 
 # Decision memo (gitignored under .local/; presence-checked when local).
@@ -539,8 +535,8 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     * 5 NEW minimal-stub tests in `tests/test_cascade_enforcement.py`
       (4 active + 1 `pytest.skip` PV-04 telegraph; the full ≥10-test
       surface lands at PV-05 G-TEST-1).
-    * NEW `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json`
-      (W-16 wholesale baseline regen at v11.1.0 cycle-start).
+    * Archived `v11.1.0_baseline.json` evidence from the W-16 wholesale
+      regen at v11.1.0 cycle-start.
     * SKILL.md Quick Action Decision sub-table cites the
       `CASCADE_REQUIRED` verdict literal in the Standard + Complex rows.
     * Decision memo at `.local/research/v11.1.0_pv02_decision.md`
@@ -623,9 +619,8 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         f"missing at {_V11_0_2_PV02_BASELINE}. v11.1.0 cycle-start "
         f"MUST regenerate the wholesale baseline per W-16."
     )
-    # Schema sanity: top-level keys are scenario names, each entry has
-    # the canonical fields per BASELINE_FIELDS in
-    # benchmarks/devolaflow_context/generate_baseline.py.
+    # Historical schema sanity: top-level keys are scenario names and each
+    # entry retains the retired baseline record fields.
     import json as _json
 
     baseline_data = _json.loads(baseline_path.read_text(encoding="utf-8"))
@@ -646,13 +641,10 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     ):
         assert required_field in sample_entry, (
             f"W-18 v11.0.2 PV-02 violation: v11.1.0_baseline.json entry "
-            f"missing required field {required_field!r} per "
-            f"benchmarks/devolaflow_context/generate_baseline.py "
-            f"BASELINE_FIELDS."
+            f"missing archived record field {required_field!r}."
         )
 
-    # SKILL.md Quick Action Decision sub-table must cite CASCADE_REQUIRED
-    # in the Standard + Complex rows (T05 deliverable).
+    # SKILL.md must cite the current CASCADE_REQUIRED/default-3 contract.
     skill_text = (project_root / _V11_0_2_PV02_SKILL).read_text(encoding="utf-8")
     sub_table_match = re.search(
         r"## Quick Action Decision\n(.*?)(?:\n## |\Z)",
@@ -668,11 +660,12 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         "sub-table must cite the `CASCADE_REQUIRED` verdict literal in "
         "the Standard / Complex rows per T05 of the PV-02 closeout."
     )
-    assert "L0→L1→L2→L3 cascade" in sub_table, (
+    assert "L0 Project → L1 Wave → L2 Task" in sub_table, (
         "W-18 v11.0.2 PV-02 violation: SKILL.md Quick Action Decision "
-        "sub-table must cite the `L0→L1→L2→L3 cascade` chain per the "
+        "section must cite the current three-layer cascade chain per the "
         "operator-quotable verdict rule."
     )
+    assert "default 3" in sub_table
 
     # Decision memo — best-effort presence check (gitignored .local/;
     # the memo is required for the closeout but is not committed, so we
@@ -710,28 +703,14 @@ _V11_0_3_PV03_CHANGELOG: Path = Path("CHANGELOG.md")
 
 # SKILL.md positive surfaces — must appear post-edit.
 _V11_0_3_PV03_SKILL_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
-    "Cascade requirement (v11.1.0):",
-    "(SIMPLE/TRIVIAL, < 1 hour)",
-    "STANDARD+ MUST cascade per `cascade_requirement()`",
+    "CASCADE_REQUIRED",
+    "default 3",
+    "L0 Project → L1 Wave → L2 Task",
 )
 
 
 # SKILL.md negative surface — Layer collapse pattern wording REMOVED (G-CASCADE-1).
-_V11_0_3_PV03_SKILL_NEGATIVE_SUBSTRING: str = "Layer collapse pattern"
-
-
-# multi-stage-trace.md positive surfaces — must appear post-edit.
-_V11_0_3_PV03_MST_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
-    "WORKED CANONICAL pattern",
-    "v11.1.0 cascade-restoration cycle",
-    "**Cascade L0→L1→L2→L3**",
-)
-
-
-# multi-stage-trace.md negative surface — old "no L1 stage needed" wording REMOVED.
-_V11_0_3_PV03_MST_NEGATIVE_SUBSTRING: str = (
-    "L0 -> L3 with a per-task wave partition (no L1 stage needed)"
-)
+_V11_0_3_PV03_SKILL_NEGATIVE_SUBSTRING: str = "L0→L1→L2→L3 cascade"
 
 
 def test_v11_0_3_pv03_new_surfaces_have_coverage(project_root: Path) -> None:
@@ -741,25 +720,9 @@ def test_v11_0_3_pv03_new_surfaces_have_coverage(project_root: Path) -> None:
     entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
     CHANGELOG entry — this stanza closes that precondition.
 
-    Surfaces pinned:
-
-    * `workflow-system/agent/SKILL.md` line ~180 contains the literal
-      text ``Cascade requirement (v11.1.0):`` and the substring
-      ``Layer collapse pattern`` is ABSENT (G-CASCADE-1 negative lint
-      per cycle plan §3 PV-03 AC #1).
-    * SKILL.md lines ~105-107 (Simple task shortcut block) bind to
-      ``(SIMPLE/TRIVIAL, < 1 hour)`` and contain the explicit
-      ``STANDARD+ MUST cascade per `cascade_requirement()``` sentence
-      (G-CASCADE-1 positive lint per cycle plan §3 PV-03 AC #3).
-    * `workflow-system/agent/examples/multi-stage-trace.md`
-      §"Why this example exists" frames the example as the WORKED
-      CANONICAL pattern (G-CASCADE-2 positive lint).
-    * multi-stage-trace.md §"When NOT to use" rows 2 + 4 mandate
-      cascade for STANDARD+ via the substring
-      ``**Cascade L0→L1→L2→L3**`` and the verbatim
-      ``L0 -> L3 with a per-task wave partition (no L1 stage needed)``
-      is ABSENT (G-CASCADE-2 negative lint per cycle plan §3 PV-03
-      AC #4).
+    Current pin: SKILL publishes `CASCADE_REQUIRED`, default 3, and the
+    three-layer chain. The historical trace remains discoverable as a Tier-3
+    provenance example but no longer defines the active cascade.
     """
     skill_text = (project_root / _V11_0_3_PV03_SKILL).read_text(encoding="utf-8")
     for sub in _V11_0_3_PV03_SKILL_POSITIVE_SUBSTRINGS:
@@ -773,23 +736,8 @@ def test_v11_0_3_pv03_new_surfaces_have_coverage(project_root: Path) -> None:
         f"G-CASCADE-1 line 180 replacement is incomplete."
     )
 
-    mst_text = (project_root / _V11_0_3_PV03_MULTI_STAGE_TRACE).read_text(encoding="utf-8")
-    for sub in _V11_0_3_PV03_MST_POSITIVE_SUBSTRINGS:
-        assert sub in mst_text, (
-            f"W-18 v11.0.3 PV-03 violation: multi-stage-trace.md missing "
-            f"positive substring {sub!r} per G-CASCADE-2."
-        )
-    assert _V11_0_3_PV03_MST_NEGATIVE_SUBSTRING not in mst_text, (
-        f"W-18 v11.0.3 PV-03 violation: multi-stage-trace.md still "
-        f"contains the deprecated wording "
-        f"{_V11_0_3_PV03_MST_NEGATIVE_SUBSTRING!r}; G-CASCADE-2 row 2 "
-        f"revision is incomplete."
-    )
-    # Frontmatter last_updated freshness pin (PV-03 dated 2026-05-08).
-    assert 'last_updated: "2026-05-08"' in mst_text, (
-        "W-18 v11.0.3 PV-03 violation: multi-stage-trace.md frontmatter "
-        '`last_updated` must be `"2026-05-08"` per PV-03 close.'
-    )
+    assert (project_root / _V11_0_3_PV03_MULTI_STAGE_TRACE).is_file()
+    assert "examples/multi-stage-trace.md" in skill_text
 
 
 # G-PLAN-1 + G-PLAN-2 + schema NEST surfaces (v11.0.4 PV-04).
@@ -819,8 +767,9 @@ _V11_0_4_PV04_GATE_SCORER: Path = Path("src/devolaflow/gate/cascade.py")
 
 # plan-mode-enforcement.md positive surfaces — must appear post-edit.
 _V11_0_4_PV04_PLAN_MODE_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
-    "Cascade depth (STANDARD+)",
-    "Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans",
+    "`CASCADE_REQUIRED` three-layer contract",
+    "`gate.cascade_min_layers: 3` (default 3)",
+    "L0 Project → L1 Wave → L2 Task",
 )
 
 # PV-04 bumped plan-mode-enforcement.md's frontmatter to 2026-05-08. The
@@ -850,12 +799,8 @@ def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
 
     Surfaces pinned:
 
-    * ``workflow-system/agent/references/plan-mode-enforcement.md`` §4
-      gains item #10 with the literal text ``Cascade depth (STANDARD+)``
-      (G-PLAN-1 prompt-side enforcement per cycle plan §3 PV-04 W04).
-    * Same file §5.1 DO list gains the bullet
-      ``Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans``
-      (G-PLAN-1 §5.1 DO bullet).
+    * ``workflow-system/agent/references/plan-mode-enforcement.md`` publishes
+      the current `CASCADE_REQUIRED`, default-3, three-layer contract.
     * Same file frontmatter ``last_updated`` is at or after the PV-04
       bump date ``"2026-05-08"`` (monotonic floor — see
       ``_V11_0_4_PV04_PLAN_MODE_LAST_UPDATED_FLOOR``; the literal pin
@@ -1010,12 +955,23 @@ _V11_0_5_PV05_AUDIT_SCRIPT_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
 )
 
 
-# 4 NEW EvoBench scenarios under benchmarks/devolaflow_context/scenarios/.
-_V11_0_5_PV05_EVOBENCH_SCENARIOS: tuple[Path, ...] = (
-    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_standard.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_complex.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_simple.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_trivial.yaml"),
+# The built-in harness preserves the four retired cascade/collapse scenario
+# identities as explicit historical provenance.
+_V11_0_5_PV05_HARNESS_FIXTURES: tuple[tuple[Path, tuple[str, ...]], ...] = (
+    (
+        Path("tests/fixtures/harness/hierarchy_complex_cascade.yaml"),
+        (
+            "legacy-evobench:cascade_l0_l1_l2_l3_standard",
+            "legacy-evobench:cascade_l0_l1_l2_l3_complex",
+        ),
+    ),
+    (
+        Path("tests/fixtures/harness/hierarchy_trivial_collapse.yaml"),
+        (
+            "legacy-evobench:collapse_l0_l3_simple",
+            "legacy-evobench:collapse_l0_l3_trivial",
+        ),
+    ),
 )
 
 
@@ -1074,12 +1030,9 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
       returns 1 when ``total_dispatch > 0`` AND ``cascade_ratio < N``.
     * ``tests/test_audit_layer_usage.py`` 4 NEW tests pinning the strict
       flag + cascade_ratio field per G-AUDIT-1 acceptance criteria.
-    * ``benchmarks/devolaflow_context/scenarios/`` gains 4 NEW G-BENCH-1
-      cascade-vs-collapse scenario YAMLs (cascade_l0_l1_l2_l3_standard,
-      cascade_l0_l1_l2_l3_complex, collapse_l0_l3_simple,
-      collapse_l0_l3_trivial). Auto-discovered by ``discover_scenarios()``;
-      W-17 +0 NEW test functions (parametrize expansion over data per
-      W-17 carve-out).
+    * Two built-in harness fixtures preserve the four retired G-BENCH-1
+      cascade-vs-collapse scenario identities as ``legacy-evobench:``
+      provenance; W-17 adds no test function.
     * ``.rules/architecture.mdc`` gains §A-7 ("Cascade-Depth Invariant
       for Standard+ Dispatches") with 4 sub-rules (A-7.1 Conditional
       strict enforcement / A-7.2 Trivial waiver / A-7.3 Operator override
@@ -1107,8 +1060,8 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
       * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
       * S-10 hook-chain byte-id: 10/10 PASS unchanged
       * CP-4 gate suite: 108/108 PASS unchanged
-      * EvoBench: 36/36 PASS, max scenario drift 0.09pp (well under 5pp
-        W-4 SI-4 envelope)
+      * Historical EvoBench evidence is retained in the cycle archive;
+        live cascade/collapse contracts are carried by harness fixtures.
     """
     cascade_path = project_root / _V11_0_5_PV05_CASCADE_TESTS
     assert cascade_path.is_file(), (
@@ -1139,13 +1092,18 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
             f"{new_test!r} missing from tests/test_audit_layer_usage.py."
         )
 
-    for scenario_path in _V11_0_5_PV05_EVOBENCH_SCENARIOS:
-        full_path = project_root / scenario_path
+    for fixture_path, provenance in _V11_0_5_PV05_HARNESS_FIXTURES:
+        full_path = project_root / fixture_path
         assert full_path.is_file(), (
-            f"W-18 v11.0.5 PV-05 violation: NEW EvoBench scenario "
-            f"{scenario_path} missing per G-BENCH-1; cycle plan §3 "
-            f"PV-05 W02 T01_evobench_fixtures."
+            f"W-18 v11.0.5 PV-05 violation: harness fixture {fixture_path} "
+            f"missing for the retired G-BENCH-1 contract."
         )
+        fixture_text = full_path.read_text(encoding="utf-8")
+        for source in provenance:
+            assert source in fixture_text, (
+                f"W-18 v11.0.5 PV-05 violation: {fixture_path} lost "
+                f"historical provenance {source!r}."
+            )
 
     architecture_text = (project_root / _V11_0_5_PV05_ARCHITECTURE_RULES).read_text(
         encoding="utf-8"

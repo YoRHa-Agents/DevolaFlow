@@ -25,9 +25,8 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
         ``tier: suggest`` and ``defaults.auto_install`` is ``false``.
     (b) ``RuntimePluginSpec.tier`` parses (default ``suggest``), invalid
         values raise, and ``plugin_tier()`` resolves the live registry.
-    (c) The ensure→suggest template rename: NO live template carries an
-        ``ensure_plugins`` key; the six known dependency points carry
-        ``suggest_plugins`` with unchanged plugin values.
+    (c) Checklist seeds carry no executable plugin-install keys; plugin
+        workflow ownership remains explicit in runtime-plugins.yaml.
     (d) ``suggest_plugin_once`` one-time-per-session hint semantics.
     (e) The explicit opt-in call sites pass ``auto_install=True`` (the
         env-flag hooks + the ``devola-init --global`` bundling), so the
@@ -53,7 +52,7 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     assert 4 in _SUPPORTED_SCHEMA_VERSIONS
     assert frozenset({"require", "suggest"}) == _SUPPORTED_TIERS
     plugin_ids = [e["id"] for e in raw["plugins"]]
-    assert len(plugin_ids) >= 6
+    assert plugin_ids == ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
     for entry in raw["plugins"]:
         assert entry.get("tier") == "suggest", (
             f"B-6: plugin {entry.get('id')!r} must ship tier: suggest "
@@ -62,10 +61,10 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     assert raw["defaults"]["auto_install"] is False
 
     # ── (b) spec parse + tier lookup ──
-    spec = resolve_plugin("nines", raw)
+    spec = resolve_plugin("ui-pro", raw)
     assert spec.tier == "suggest"
     assert RuntimePluginSpec.__dataclass_fields__["tier"].default == "suggest"
-    assert plugin_tier("nines", registry_path=registry_path) == "suggest"
+    assert plugin_tier("ui-pro", registry_path=registry_path) == "suggest"
     # absent-key default (v1..v3 entries pass v4 unchanged)
     legacy = {
         "plugins": [
@@ -91,24 +90,29 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     # code-side default fallback mirrors the shipped registry value
     assert RegistryDefaults().auto_install is False
 
-    # ── (c) ensure→suggest rename across live templates ──
+    # ── (c) plugin ownership lives outside non-executable seeds ──
+    from devolaflow.template_engine.registry import TemplateRegistry
+
     template_dir = project_root / "workflow-system/agent/templates"
-    expected_suggest = {
-        "builtin/web-design.yaml": 3,
-        "builtin/nines-assisted.yaml": 1,
-        "builtin/self-update.yaml": 1,
-        "builtin/skill-optimization.yaml": 1,
-        "registry.yaml": 1,
-    }
-    for rel, count in expected_suggest.items():
-        text = (template_dir / rel).read_text(encoding="utf-8")
-        assert "ensure_plugins:" not in text, (
-            f"B-6 rename incomplete: {rel} still carries an ensure_plugins key"
-        )
-        assert text.count("suggest_plugins:") == count
+    registry = TemplateRegistry(template_dir)
     reg = yaml.safe_load((template_dir / "registry.yaml").read_text(encoding="utf-8"))
-    pv = next(c for c in reg["compositions"] if c["name"] == "product-verification")
-    assert pv["params"]["suggest_plugins"] == ["ui-pro"]
+    entries = reg["compositions"] + reg["templates"]
+    assert len(entries) == 23
+    for entry in entries:
+        seed_path = template_dir / entry["seed"]
+        text = seed_path.read_text(encoding="utf-8")
+        assert "ensure_plugins:" not in text
+        assert "suggest_plugins:" not in text
+        assert registry.load_seed(entry["name"]) is not None
+
+    expected_workflows = {
+        "si-chip": {"skill-optimization", "self-update", "nines-assisted"},
+        "ui-pro": {"product-verification", "web-design"},
+        "impeccable": {"web-design"},
+    }
+    by_id = {entry["id"]: entry for entry in raw["plugins"]}
+    for plugin_id, workflows in expected_workflows.items():
+        assert workflows <= set(by_id[plugin_id]["invoked_by_workflows"])
 
     # ── (d) one-time suggestion cache ──
     from devolaflow.plugins import loader

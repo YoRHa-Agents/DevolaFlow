@@ -64,13 +64,13 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install project (dev)
         run: pip install -e ".[dev]"
-      # OPT-2 (clean_repo PR-11): single-execution per Makefile v14.5.0 G-033 —
-      # the full run --ignores benchmarks; the named step below keeps W-4
-      # gate attribution. Local coverage delta verified against the 80% floor.
+      # Single-execution per Makefile v14.5.0 G-033: the coverage run excludes
+      # tests/harness because gate 5 runs that domain in the named step below.
+      # This preserves independent W-4 attribution without double execution.
       - name: Pytest with coverage
-        run: pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing --ignore=tests/test_benchmarks.py
-      - name: Run EvoBench benchmarks
-        run: python -m pytest tests/test_benchmarks.py -v
+        run: pytest tests/ -v --tb=short --ignore=tests/harness --cov=devolaflow --cov-report=term-missing
+      - name: Run built-in harness contracts (W-9 gate 5)
+        run: make test-harness
 
   validate:
     runs-on: ubuntu-latest

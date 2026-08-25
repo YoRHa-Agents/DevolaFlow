@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "15.2.0"
+version = "16.0.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -76,14 +76,9 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
 [tool.coverage.run]
 source = ["devolaflow"]
 omit = ["tests/*"]
-# v8.5.0 PV-05 (T8 NineS Hygiene A1 closure, path-a) — `parallel = false`
-# explicitly disables coverage.py's parallel mode so a NineS-spawned
-# `pytest --cov` invocation does NOT collect into a separate `.coverage.*`
-# data file that the host run subsequently fails to combine. Path (b)
-# (drop nested cov collection in `src/devolaflow/nines/scorer.py`) was
-# rejected because that module is a thin CLI wrapper and the cov call is
-# internal to the NineS binary — the host-side fix here is the safe one.
-# See .local/research/v9.0.0_pv05_design.md §2 for the full rationale.
+# Keep deterministic local coverage probes on one data file. Subprocess-driven
+# checks must not leave uncombined `.coverage.*` shards that change the reported
+# total between identical runs.
 parallel = false
 
 [tool.coverage.report]

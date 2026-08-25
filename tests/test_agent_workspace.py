@@ -54,6 +54,7 @@ from devolaflow.agent_workspace import (
     serialize_delta_spec,
 )
 from devolaflow.agent_workspace.handoff import make_envelope
+from devolaflow.agent_workspace.layers import LegacyLayerWarning
 from devolaflow.agent_workspace.lint import main as lint_main
 
 # ---------------------------------------------------------------------------
@@ -541,16 +542,28 @@ class TestHandoffEnvelope:
     def test_make_envelope_status_report(self):
         env = make_envelope(
             seq=2,
-            from_layer="L3",
-            to_layer="L2",
+            from_layer="L2",
+            to_layer="L1",
             change_id="add-foo",
             envelope_kind="StatusReport",
             payload={"task_id": "T01", "state": "completed"},
             created="2026-04-22T10:14:34Z",
         )
+        assert env.schema_version == 2
+        assert (env.from_layer, env.to_layer) == ("L2", "L1")
         assert env.envelope_kind == "StatusReport"
         assert env.report is not None
         assert env.dispatch is None
+        with pytest.raises(HandoffStoreError, match="unknown current layer token 'L3'"):
+            make_envelope(
+                seq=3,
+                from_layer="L3",
+                to_layer="L1",
+                change_id="add-foo",
+                envelope_kind="StatusReport",
+                payload={"task_id": "T02", "state": "completed"},
+                created="2026-04-22T10:14:35Z",
+            )
 
     def test_validate_self_handoff_rejected(self):
         with pytest.raises(HandoffStoreError) as exc_info:
@@ -598,18 +611,18 @@ class TestHandoffEnvelope:
         env = make_envelope(
             seq=42,
             from_layer="L0",
-            to_layer="L3",
+            to_layer="L2",
             change_id="add-foo",
             envelope_kind="StatusReport",
             payload={"task_id": "T-42", "state": "completed"},
             created="2026-04-22T10:14:33Z",
         )
-        assert env.filename == "L0__L3__add-foo__0042.yaml"
+        assert env.filename == "L0__L2__add-foo__0042.yaml"
 
     def test_yaml_serialise_deserialise(self):
         env = make_envelope(
             seq=7,
-            from_layer="L3",
+            from_layer="L2",
             to_layer="L0",
             change_id="add-foo",
             envelope_kind="EscalationEvent",
@@ -678,14 +691,45 @@ class TestHandoffStore:
         envelopes = store.read_envelopes("add-foo")
         assert [e.seq for e in envelopes] == [1, 2, 3]
 
-    def test_read_envelopes_filters_by_change_id(self, workspace: Path):
+    def test_read_envelopes_filters_by_change_id(
+        self, workspace: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "devolaflow.agent_workspace.layers._warned_legacy_tokens",
+            set(),
+        )
         store = HandoffStore(repo_root=workspace)
         store.write_envelope(self._make(1, change_id="add-foo"))
-        store.write_envelope(self._make(1, change_id="add-bar"))
+        legacy_path = store.handoff_root / "L3__L2__add-bar__0001.yaml"
+        legacy_path.write_text(
+            "schema_version: 1\n"
+            "seq: 1\n"
+            "from_layer: L3\n"
+            "to_layer: L2\n"
+            "change_id: add-bar\n"
+            'created: "2026-04-22T10:14:33Z"\n'
+            "envelope_kind: StatusReport\n"
+            "report:\n"
+            "  task_id: T01\n"
+            "  state: completed\n",
+            encoding="utf-8",
+        )
+        legacy_body = legacy_path.read_bytes()
+
         foo = store.read_envelopes("add-foo")
-        bar = store.read_envelopes("add-bar")
+        with pytest.warns(LegacyLayerWarning, match="schema-v1") as caught:
+            bar = store.read_envelopes("add-bar")
+
         assert len(foo) == 1 and foo[0].change_id == "add-foo"
         assert len(bar) == 1 and bar[0].change_id == "add-bar"
+        assert len(caught) == 2
+        assert (bar[0].from_layer, bar[0].to_layer) == ("L3", "L2")
+        assert (bar[0].normalized_from_layer, bar[0].normalized_to_layer) == ("L2", "L1")
+        assert bar[0].filename == legacy_path.name
+        assert legacy_path.read_bytes() == legacy_body
+        with pytest.raises(HandoffStoreError, match="schema-v1 envelopes are read-only"):
+            store.write_envelope(bar[0])
+        assert legacy_path.read_bytes() == legacy_body
 
     def test_read_envelopes_detects_filename_seq_mismatch(self, workspace: Path):
         store = HandoffStore(repo_root=workspace)

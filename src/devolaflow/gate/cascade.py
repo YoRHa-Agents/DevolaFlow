@@ -36,6 +36,12 @@ from typing import Any
 # ``.local/research/v12.0.0_gap_analysis.md`` §9 R-12).
 logger = logging.getLogger(__name__)
 
+# M2-W1-B — the simplified execution hierarchy has three observable layers:
+# L0 project orchestration → L1 Wave → L2 Task.  Four remains accepted only as
+# a legacy declaration and is interpreted as the new effective minimum.
+_CASCADE_MIN_LAYERS_DEFAULT = 3
+_CASCADE_MIN_LAYERS_LEGACY = 4
+
 
 class CascadeViolationError(Exception):
     """Raised by :func:`validate_cascade_gate_fields` on cascade-depth violations.
@@ -120,9 +126,11 @@ def validate_cascade_gate_fields(
     :func:`devolaflow.feedback.populate_cascade_gate_fields` helper):
 
     * ``cascade_required: bool`` — when True, the dispatch was authored
-      under STANDARD/COMPLEX complexity and the L3 receiver knows the
-      chain MUST traverse L0 → L1 → L2 → L3 per Architecture rule A-7.
-    * ``cascade_min_layers: int`` — minimum layer depth (default 4).
+      under STANDARD/COMPLEX complexity and the L2 Task receiver knows the
+      chain MUST traverse L0 → L1 Wave → L2 Task per Architecture rule A-7.
+    * ``cascade_min_layers: int`` — minimum layer depth (default 3).
+      Legacy payloads declaring ``4`` are accepted with a warning and
+      validated against an effective minimum of ``3`` without mutation.
 
     Validation order (FIRST violation raises; the validator does NOT
     accumulate violations per v12.0.0 PV-02 spec):
@@ -140,10 +148,13 @@ def validate_cascade_gate_fields(
     4. ``cascade_min_layers`` not ``int >= 1`` (None / str / float /
        bool / 0 / negative) → raises :class:`CascadeViolationError`
        ("cascade_min_layers must be int >= 1, got <repr>").
-    5. ``actual_layers is not None`` AND ``actual_layers <
-       cascade_min_layers`` → raises :class:`CascadeViolationError`
+    5. A legacy ``cascade_min_layers == 4`` declaration emits a warning
+       and resolves to an effective minimum of ``3``. Other valid
+       explicit minima retain their declared semantics.
+    6. ``actual_layers is not None`` AND ``actual_layers <
+       effective_min_layers`` → raises :class:`CascadeViolationError`
        ("cascade depth violation: actual_layers=<n> <
-       cascade_min_layers=<n>").
+       cascade_min_layers=<effective-n>").
 
     Args:
       gate_block: the dispatch's ``gate`` sub-dict, or ``None`` when
@@ -153,7 +164,7 @@ def validate_cascade_gate_fields(
       actual_layers: optional observed layer depth in the dispatch
         chain. When ``None``, the validator checks schema correctness
         only (sub-field types) without verifying actual depth. When
-        an int, the depth check (rule 5 above) fires.
+        an int, the depth check (rule 6 above) fires.
 
     Returns:
       ``None`` on every passing path. The return-type change from
@@ -200,10 +211,25 @@ def validate_cascade_gate_fields(
         logger.warning(msg)
         raise CascadeViolationError(msg)
 
-    if actual_layers is not None and actual_layers < cascade_min_layers:
+    effective_min_layers = cascade_min_layers
+    legacy_suffix = ""
+    if cascade_min_layers == _CASCADE_MIN_LAYERS_LEGACY:
+        effective_min_layers = _CASCADE_MIN_LAYERS_DEFAULT
+        legacy_suffix = (
+            f" (declared cascade_min_layers={_CASCADE_MIN_LAYERS_LEGACY}; "
+            f"compatibility effective minimum={_CASCADE_MIN_LAYERS_DEFAULT})"
+        )
+        logger.warning(
+            "A-7 legacy cascade_min_layers=%d interpreted as effective "
+            "cascade_min_layers=%d (L0→L1 Wave→L2 Task); input payload unchanged",
+            _CASCADE_MIN_LAYERS_LEGACY,
+            _CASCADE_MIN_LAYERS_DEFAULT,
+        )
+
+    if actual_layers is not None and actual_layers < effective_min_layers:
         msg = (
             f"A-7 cascade depth violation: actual_layers={actual_layers} "
-            f"< cascade_min_layers={cascade_min_layers}"
+            f"< cascade_min_layers={effective_min_layers}{legacy_suffix}"
         )
         logger.warning(msg)
         raise CascadeViolationError(msg)
@@ -222,7 +248,7 @@ def validate_cascade_gate_fields(
 # allowlist entry
 # ``"devolaflow.gate.cascade:validate_cascade_gate_fields"`` in
 # ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` because the
-# in-repo production-call wiring (an L0/L1/L2 dispatcher build path
+# in-repo production-call wiring (an L0/L1 Wave dispatcher build path
 # that invokes the validator) is itself a v12.0.0+ deliverable. NOT a
 # domain-SSOT registry symbol per A-5.2 — pure function with zero
 # module-level state. Source: ``.rules/architecture.mdc`` §A-7.1
@@ -274,7 +300,7 @@ def validate_intra_task_convergence_fields(
     v14.4.0 (G-005 NEST slice) — type checks for the two NEST sub-fields
     populated by :func:`devolaflow.feedback.populate_intra_task_convergence`:
 
-    * ``intra_task_convergence: bool`` — when True, the L3 receiver MUST
+    * ``intra_task_convergence: bool`` — when True, the L2 Task receiver MUST
       run the ``references/execution-protocol.md`` §15 self-verify
       gen→verify→refine loop before its first StatusReport.
     * ``intra_task_max_rounds: int >= 1`` — the §15.4 bounded self-fix
@@ -342,7 +368,7 @@ def validate_intra_task_convergence_fields(
 # ---------------------------------------------------------------------------
 # v11.1.0 (PV-04 / W02) — Cascade-gate field population helper
 #
-# Module-level helper that L0/L1/L2 dispatchers may call BEFORE handing
+# Module-level helper that L0/L1 Wave dispatchers may call BEFORE handing
 # a base dispatch to ``ProposalGenerator.generate_round_dispatch``. The
 # helper conditionally populates the v11.1.0 PV-04 W01 NEST sub-fields
 # under the existing ``gate`` block (per the schema-side wiring in
@@ -350,8 +376,8 @@ def validate_intra_task_convergence_fields(
 #
 # * ``gate.cascade_required: bool`` — true when complexity is
 #   STANDARD/COMPLEX per ``cascade_requirement(complexity)``;
-# * ``gate.cascade_min_layers: int`` — defaults to 4 (the canonical
-#   L0 → L1 → L2 → L3 minimum) when cascade is required.
+# * ``gate.cascade_min_layers: int`` — defaults to 3 (the canonical
+#   L0 → L1 Wave → L2 Task minimum) when cascade is required.
 #
 # Per Soul Rule S-10: this helper is OPT-IN. Callers that do NOT pass
 # the base dispatch through this helper produce dispatches byte-identical
@@ -379,7 +405,7 @@ def validate_intra_task_convergence_fields(
 # axes (``model_tier`` / ``task_count`` / ``parallel_independence``
 # / ``persistent_state_needed``) are kw-only and OPTIONAL — when ANY
 # of the three required axes is omitted (``None``), the helper defaults
-# to ``"INLINE"`` (Pattern 1 — single L3 dispatch via the ``Task``
+# to ``"INLINE"`` (Pattern 1 — single L2 Task dispatch via the ``Task``
 # tool) per the L1 PV-04 prompt §6 graceful-degradation contract.
 # When ALL three are supplied, the helper invokes
 # :func:`devolaflow.skills.subagent_pattern.select_pattern` and writes
@@ -407,7 +433,7 @@ def populate_cascade_gate_fields(
 ) -> dict[str, Any]:
     """Conditionally populate gate cascade + subagent-pattern NEST sub-fields.
 
-    v11.1.0 PV-04 — opt-in helper for L0/L1/L2 dispatchers building a
+    v11.1.0 PV-04 — opt-in helper for L0/L1 Wave dispatchers building a
     dispatch payload with explicit complexity. Returns a new dict
     (deep copy of *base_dispatch*) with the cascade sub-fields populated
     under the existing ``gate`` block when complexity is STANDARD/COMPLEX
@@ -449,11 +475,11 @@ def populate_cascade_gate_fields(
         ``select_pattern`` is invoked to derive
         ``gate.subagent_pattern``. ``None`` (default) → caller did not
         opt in; subagent_pattern sub-field is OMITTED.
-      task_count: optional positive int — number of L3 tasks the wave
+      task_count: optional positive int — number of L2 Tasks the wave
         will dispatch. Required (with ``model_tier`` and
         ``parallel_independence``) for ``select_pattern``. Must be
         ``>= 1`` per :func:`devolaflow.skills.subagent_pattern.validate_inputs`.
-      parallel_independence: optional bool — true when the L3 tasks
+      parallel_independence: optional bool — true when the L2 Tasks
         own DISJOINT files and can run in parallel without
         cross-coordination. Required (with ``model_tier`` and
         ``task_count``) for ``select_pattern``.
@@ -491,7 +517,7 @@ def populate_cascade_gate_fields(
         if not isinstance(gate_block, dict):
             dispatch["gate"] = {}
         dispatch["gate"]["cascade_required"] = True
-        dispatch["gate"]["cascade_min_layers"] = 4
+        dispatch["gate"]["cascade_min_layers"] = _CASCADE_MIN_LAYERS_DEFAULT
 
     # v12.0.0 PV-04 — subagent_pattern NEST population.
     #
@@ -528,7 +554,7 @@ def populate_cascade_gate_fields(
             )
         else:
             # Graceful-degradation: any required axis is None → INLINE
-            # (Pattern 1, single L3 via Task tool). Per the L1 PV-04
+            # (Pattern 1, single L2 Task via Task tool). Per the L1 PV-04
             # prompt §6: "default to INLINE if any axis is unknown".
             subagent_verdict = "INLINE"
 
@@ -560,14 +586,14 @@ def populate_cascade_gate_fields(
 # v14.4.0 (G-005 NEST slice) — Intra-task-convergence gate field population
 #
 # Module-level helper mirroring the v11.1.0 PV-04 cascade precedent
-# (``populate_cascade_gate_fields`` above): L0/L1/L2 dispatchers MAY call
+# (``populate_cascade_gate_fields`` above): L0/L1 Wave dispatchers MAY call
 # it BEFORE handing a base dispatch to
 # ``ProposalGenerator.generate_round_dispatch``. The helper conditionally
 # populates the v14.4.0 NEST sub-fields under the existing ``gate`` block
 # (schema-side wiring in ``schemas/lean-dispatch.yaml``):
 #
 # * ``gate.intra_task_convergence: bool`` — true when the warrant rule
-#   fires; the L3 receiver MUST run the execution-protocol §15
+#   fires; the L2 Task receiver MUST run the execution-protocol §15
 #   self-verify gen→verify→refine loop before its first StatusReport;
 # * ``gate.intra_task_max_rounds: int`` — defaults to
 #   :data:`INTRA_TASK_MAX_ROUNDS_DEFAULT` (2 — mirrors §15.4's max-2
@@ -606,7 +632,7 @@ def populate_intra_task_convergence(
 ) -> dict[str, Any]:
     """Conditionally populate the gate intra-task-convergence NEST sub-fields.
 
-    v14.4.0 (G-005 NEST slice) — opt-in helper for L0/L1/L2 dispatchers,
+    v14.4.0 (G-005 NEST slice) — opt-in helper for L0/L1 Wave dispatchers,
     mirroring :func:`populate_cascade_gate_fields` (the v11.1.0 PV-04
     cascade precedent): deep-copy, never mutates *base_dispatch*,
     returns the copy unchanged when the warrant rule does not fire.

@@ -257,8 +257,8 @@ class LLMClient:
         Always returns an :class:`LLMResponse` — never raises. On any
         failure, the response's ``error`` field carries one of
         :data:`FAILURE_MODES` and a structured log entry is emitted via
-        :meth:`_log_failure` so downstream auditors (Stage B EvoBench
-        rollup, SI-4 regression analysis) can attribute the cause.
+        :meth:`_log_failure` so downstream harness and SI-4 auditors can
+        attribute the cause.
 
         Caller responsibilities (handled by
         :func:`devolaflow.compressor._invoke_stage_b_llm`):

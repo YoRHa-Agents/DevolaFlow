@@ -50,26 +50,6 @@ def suggest_plugin_once(plugin_id: str) -> str | None:
     )
 
 
-# Emergency-only fallback used when ``plugins.yaml`` cannot be located.
-# The derived capability view lives at ``workflow-system/agent/plugins.yaml``
-# (registration SSOT: ``knowledge/runtime-plugins.yaml`` per A-5 / G-021);
-# this stub exists solely so NineS detection remains functional in degraded
-# installs that are missing the YAML file. Keep it intentionally minimal.
-_EMERGENCY_NINES_STUB: dict[str, Any] = {
-    "name": "nines",
-    "description": "Multi-vertex evaluation and research system (emergency stub)",
-    "cli_binary": "nines",
-    "version_command": "nines --version",
-    "version_regex": r"version\s+(\d+\.\d+\.\d+\S*)",
-    "install_methods": {
-        "pip": "uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
-    },
-    "role": "research_and_iteration",
-    "repo_url": "https://github.com/YoRHa-Agents/NineS",
-    "min_version": "1.0.0",
-}
-
-
 def _dict_to_spec(data: dict[str, Any]) -> PluginSpec:
     """Build a ``PluginSpec`` from a normalized plugin definition mapping."""
     return PluginSpec(
@@ -141,10 +121,9 @@ def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginReg
     ``workflow-system/agent/plugins.yaml`` relative to the installed package
     and the current working directory. That file is the DERIVED view of the
     A-5 SSOT owner ``knowledge/runtime-plugins.yaml`` (G-021) — membership
-    and IDs mirror the owner. If the YAML is absent, the registry is
-    populated with a minimal NineS emergency stub and a warning is logged —
-    this keeps NineS detection functional in degraded installs but makes the
-    missing YAML visible in logs.
+    and IDs mirror the owner. If the YAML is absent, a warning is logged and
+    an empty registry is returned; missing metadata must never invent a
+    partially registered plugin.
     """
     registry = PluginRegistry()
 
@@ -161,10 +140,9 @@ def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginReg
             registry.register(spec)
     else:
         log.warning(
-            "plugins.yaml not found; falling back to emergency NineS stub. "
+            "plugins.yaml not found; returning an empty plugin registry. "
             "Ship workflow-system/agent/plugins.yaml alongside the package "
             "to restore the full plugin catalog."
         )
-        registry.register(_dict_to_spec(_EMERGENCY_NINES_STUB))
 
     return registry

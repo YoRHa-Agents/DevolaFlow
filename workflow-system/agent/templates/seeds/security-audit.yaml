@@ -1,0 +1,44 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: security-audit
+  version: "1.0.0"
+  description: "Seed for threat modeling, scanning, and remediation."
+  category: composite
+  intent_keywords: [security, audit, vulnerability, CVE, scan]
+  source:
+    kind: composition
+    name: security-audit
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: threat-model
+    title_template: "Threat model"
+    source_stages:
+      - {id: threat_model, primitive: research}
+    assertions:
+      - key: boundaries-covered
+        statement_template: "Every in-scope trust boundary has an owner and documented abuse paths"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: scan-analysis
+    title_template: "Security scan and codegraph analysis"
+    source_stages:
+      - {id: scan, primitive: analyze}
+      - {id: analyze, primitive: analyze}
+    assertions:
+      - key: attack-surface-covered
+        statement_template: "Approved scans and codegraph-assisted attack-surface analysis report zero untriaged critical findings"
+        suggested_priority: P0
+        verify: {mode: metric, template: "untriaged_critical_findings == 0"}
+  - key: remediation
+    title_template: "Remediation and verification"
+    source_stages:
+      - {id: remediate, primitive: implement}
+      - {id: verify, primitive: validate}
+    assertions:
+      - key: criticals-resolved
+        statement_template: "Every confirmed critical finding is remediated or explicitly accepted by the user"
+        suggested_priority: P0
+        verify: {mode: metric, template: "open_critical_findings == 0"}

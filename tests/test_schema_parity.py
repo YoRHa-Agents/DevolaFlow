@@ -108,6 +108,7 @@ REINFORCEMENT_RULE_ITEM_MAPPING: dict[str, str] = {
     "severity": "sev",
     "mandate": "mandate",
     "file": "file",
+    "tier": "tier",
 }
 
 # Verbose-only fields: present in task-dispatch.schema.yaml with no lean
@@ -126,7 +127,7 @@ def test_reinforcement_fields_parity(verbose_doc, lean_doc) -> None:
     verbose_keys = set(reinforcement_v["children"].keys())
 
     lean_example_reinforce = lean_doc["lean_example"]["reinforce"]
-    lean_spec_reinforce = lean_doc["lean_format_spec"]["rules"]["reinforce"]
+    lean_spec_reinforce = lean_doc["lean_format_spec"]["reinforce"]
     lean_keys = set(lean_example_reinforce.keys()) | set(lean_spec_reinforce["fields"].keys())
 
     for v_key, l_key in REINFORCEMENT_MAPPING.items():
@@ -166,7 +167,8 @@ def test_reinforcement_fields_parity(verbose_doc, lean_doc) -> None:
     rule_item_v = reinforcement_v["children"]["rules"]["item_fields"]
     rule_v_keys = set(rule_item_v.keys())
     first_lean_rule = lean_example_reinforce["rules"][0]
-    rule_l_keys = set(first_lean_rule.keys())
+    lean_rule_spec = lean_spec_reinforce["fields"]["rules"]["per_entry"]
+    rule_l_keys = set(first_lean_rule.keys()) | set(lean_rule_spec.keys())
 
     for v_key, l_key in REINFORCEMENT_RULE_ITEM_MAPPING.items():
         assert v_key in rule_v_keys, (

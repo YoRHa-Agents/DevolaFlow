@@ -1,120 +1,84 @@
 ---
 title: "Customization Guide"
-description: "Creating custom workflow templates and derived configurations."
+description: "Creating non-executable checklist seeds and derived configurations."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Customization Guide
 
-Creating custom workflow templates and derived configurations.
+Creating non-executable checklist seeds and derived configurations.
 
-## Creating Custom Workflow Templates
+## Creating Checklist Seeds
 
-Workflow templates are YAML files in `workflow-system/agent/templates/builtin/`. Each template follows the schema defined in `schemas/workflow-template.schema.yaml`.
+Checklist seeds are YAML files under `workflow-system/agent/templates/seeds/`. They follow `schemas/checklist-seed.schema.yaml` and preserve domain decomposition knowledge without creating another executable runtime.
 
-### Template Structure
+The only executable template is `workflow-system/agent/templates/builtin/change-driven.yaml`. A custom seed is materialized into that shared checklist-round runtime.
 
-```yaml
-schema_version: "1.0"
-
-metadata:
-  name: my-workflow          # unique kebab-case id
-  version: "1.0.0"
-  display_name: "My Workflow"
-  description: "What this workflow does"
-  category: build            # discover | shape | build | deliver | composite
-  applicable_scenarios:
-    - "When to recommend this workflow"
-  tags: [keyword1, keyword2]
-
-stages:
-  - id: stage_id
-    primitive: implement     # one of 13 primitives
-    alias: friendly-name     # optional display name
-    description: "What this stage does"
-    team: implement          # research | design | implement | test | review
-    duration_class: medium   # quick | medium | long
-    config:
-      test_strategy: tdd
-    input_mapping:
-      tasks: "previous_stage.output"
-
-composition:
-  compose: sequence
-  stages:
-    - stage: stage_id
-    - compose: loop
-      ref: my_loop
-
-loops:
-  - name: my_loop
-    body_stages: [stage_a, stage_b]
-    until: "stage_b.pass_rate == 1.0"
-    max_iterations: 3
-    on_exhaustion: escalate
-
-gates:
-  - name: quality_gate
-    position: "after:stage_id"
-    criteria:
-      - field: stage_id.metric
-        operator: ">="
-        value: 0.80
-    on_pass: "next"
-    on_fail:
-      action: loop_back
-      target: stage_id
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
-```
-
-### Example: Custom "Code Review Only" Template
+### Seed Structure
 
 ```yaml
 schema_version: "1.0"
-
+kind: checklist-seed
 metadata:
   name: code-review
   version: "1.0.0"
-  display_name: "Code Review Only"
-  description: "Standalone code review without implementation."
-  category: verify
-  applicable_scenarios:
-    - "Reviewing a PR or code submission"
-  tags: [review, quality, check]
+  description: "Seed for standalone code review evidence."
+  category: composite
+  intent_keywords: [review, quality, pull-request]
+  source:
+    kind: composition
+    name: code-review
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "3.0"
 
-stages:
-  - id: review
-    primitive: review
-    description: "Review code for quality, security, and style"
-    team: review
-    duration_class: medium
-    config:
-      review_type: code
-      pass_threshold: 0.80
+placeholders:
+  review_command:
+    description: "Repository-approved bounded review command."
+    required: true
+    example: "ruff check src/ tests/"
 
-composition:
-  compose: sequence
-  stages:
-    - stage: review
-
-loops: []
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
+partitions:
+  - key: review
+    title_template: "Code review"
+    source_stages:                 # provenance only; never execution order
+      - {id: review, primitive: review}
+    assertions:
+      - key: findings-resolved
+        statement_template: "Every blocker and critical review finding is resolved"
+        suggested_priority: P0
+        verify:
+          mode: metric
+          template: "open_blocker_count == 0 and open_critical_count == 0"
+      - key: checks-pass
+        statement_template: "The approved static review command passes"
+        suggested_priority: P1
+        verify:
+          mode: command
+          template: "{{ review_command }}"
 ```
+
+### What a Seed May Express
+
+- Intent keywords and optional scenarios
+- User-facing checklist partitions
+- Measurable assertion templates, each no longer than 25 rendered words
+- Suggested P0/P1/P2 priorities that the user can change
+- Verification by bounded command, metric, or manual user check
+- `source_stages` entries containing only historical source IDs and one of 14 primitive labels
+
+### What a Seed Must Not Express
+
+A seed is not a runtime DAG. Top-level `stages`, `composition`, `loops`, and `gates` are forbidden, as are runtime fields such as `team`, `duration_class`, `input_mapping`, and `skip_condition`. Seed order is presentation-only.
+
+Checkboxes, evidence paths, round numbers, checked-by metadata, and runtime dependencies are also absent. They are assigned only when L0 materializes the seed into a user-confirmed change checklist.
+
+## Registering a Seed
+
+Add one registry entry with a `seed:` path and no executable `path:`. The `change-driven` entry is the only one allowed to declare `path: builtin/change-driven.yaml`.
 
 ## Custom Context Profiles
 
@@ -125,29 +89,13 @@ Edit `workflow-system/agent/context_profiles.yaml` to add profiles for new task 
 - **supplementary**: Included only if space remains
 - **skip**: Never included for this task type
 
-## Deriving Templates
-
-Use the `extends` field to inherit from a builtin template and override specific stages:
-
-```yaml
-metadata:
-  name: my-enhanced-hotfix
-  extends: hotfix
-
-stages:
-  - id: notify
-    primitive: release
-    alias: notify
-    description: "Send Slack notification after fix"
-```
-
 ## Validating Changes
 
 After customizing, always verify:
 
 ```bash
-validate-template --all                # templates are valid
+validate-template --all                # 23 seeds + one runtime are valid
 python -m pytest tests/ -q             # all tests pass
-python -m benchmarks.devolaflow_context.runner --scenario all  # no regressions
+python -m pytest tests/harness/ -v       # harness contracts pass
 build-skill --all                      # adapters build successfully
 ```

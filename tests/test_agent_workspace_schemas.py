@@ -1,7 +1,8 @@
-"""Schema validation tests for the v8.2.4 agent-workspace YAML schemas.
+"""Schema validation tests for the agent-workspace YAML schema registry.
 
-Covers the 10 files in `schemas/agent-workspace/` (1 index + 9 artifact schemas)
-introduced in v8.3.0 PV-04 to govern `.local/.agent/` and `.local/memory/specs/`.
+Covers the 13 files in `schemas/agent-workspace/` (1 index + 12 artifact
+schemas). The v8.3.0 PV-04 contracts remain covered alongside the v16.0.0 M1
+checklist/stage/preflight additions and the goal/status v2 contracts.
 
 Test scope (per .local/research/v8.3.0_patch_plan.md §v8.2.4 AC-1..AC-10):
 
@@ -15,8 +16,8 @@ Test scope (per .local/research/v8.3.0_patch_plan.md §v8.2.4 AC-1..AC-10):
         starting 1) and the discriminated `envelope_kind` union (TaskDispatch
         / StatusReport / EscalationEvent) — verified against three fixture
         envelopes plus a multi-block negative case.
-* AC-5: change-status.yaml enforces FSM state values (PROPOSED, IN_PROGRESS,
-        VERIFYING, ARCHIVED, ESCALATED) — invalid state value rejected.
+* AC-5: change-status.yaml v2 enforces FSM state values, the three-layer owner
+        enum, checklist-round fields, and read compatibility for v1 instances.
 * AC-6: Token budgets are encoded per artifact (soft + hard) and the budget
         block exists for every per-artifact schema.
 
@@ -36,14 +37,17 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = REPO_ROOT / "schemas" / "agent-workspace"
 
-# Per .local/research/v8.3.0_patch_plan.md §v8.2.4 — 10 files total (1 index +
-# 9 artifact schemas). The schema ids match the basename minus `.yaml`.
+# The registry contains 13 files total (1 index + 12 artifact schemas). The
+# schema ids match the basename minus `.yaml`.
 EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "__init__.yaml",
     SCHEMA_DIR / "change-goal.yaml",
     SCHEMA_DIR / "change-acceptance.yaml",
     SCHEMA_DIR / "change-spec.yaml",
     SCHEMA_DIR / "change-tasks.yaml",
+    SCHEMA_DIR / "change-checklist.yaml",
+    SCHEMA_DIR / "change-stage.yaml",
+    SCHEMA_DIR / "change-preflight.yaml",
     SCHEMA_DIR / "change-status.yaml",
     SCHEMA_DIR / "owned-files.yaml",
     SCHEMA_DIR / "handoff-envelope.yaml",
@@ -55,13 +59,29 @@ EXPECTED_SCHEMA_FILES: list[Path] = [
 # carry token_budget + governing_rules + instance_path_template.
 ARTIFACT_SCHEMA_FILES: list[Path] = [p for p in EXPECTED_SCHEMA_FILES if p.name != "__init__.yaml"]
 
+EXPECTED_SCHEMA_VERSIONS: dict[str, int] = {
+    path.stem: 2 if path.stem in {"change-goal", "change-status", "handoff-envelope"} else 1
+    for path in EXPECTED_SCHEMA_FILES
+}
+
+V16_ARTIFACT_SCHEMA_NAMES = {
+    "change-goal",
+    "change-checklist",
+    "change-stage",
+    "change-preflight",
+    "change-status",
+}
+
 # Per Rule C-9 — verbatim soft / hard token budgets keyed by schema_name.
 EXPECTED_TOKEN_BUDGETS: dict[str, tuple[int, int]] = {
     "change-goal": (200, 400),
     "change-acceptance": (400, 800),
     "change-spec": (1500, 3000),
     "change-tasks": (800, 1500),
-    "change-status": (100, 200),
+    "change-checklist": (1200, 2400),
+    "change-stage": (400, 800),
+    "change-preflight": (600, 1200),
+    "change-status": (150, 300),
     "owned-files": (50, 100),
     "handoff-envelope": (600, 1200),
     "agent-config": (400, 800),
@@ -84,6 +104,19 @@ EXPECTED_FSM_TRANSITIONS: dict[str, list[str]] = {
     "VERIFYING": ["IN_PROGRESS", "ARCHIVED"],
     "ARCHIVED": [],
     "ESCALATED": [],
+}
+
+LEGACY_STATUS_REQUIRED_FIELDS = {
+    "schema_version",
+    "change_id",
+    "state",
+    "percent_complete",
+    "owner_layer",
+    "owner_session_id",
+    "last_updated",
+    "last_handoff_seq",
+    "gate_score",
+    "verify_pass",
 }
 
 # Three handoff envelope_kind discriminator values — must match
@@ -112,9 +145,20 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def _parse_markdown_example(raw: str) -> tuple[dict[str, Any], str]:
+    """Parse a schema's Markdown-with-YAML-frontmatter worked example."""
+    parts = raw.strip().split("---", 2)
+    if len(parts) != 3 or parts[0] != "":
+        raise AssertionError("example must start with YAML frontmatter delimited by `---`")
+    frontmatter = yaml.safe_load(parts[1])
+    if not isinstance(frontmatter, dict):
+        raise AssertionError("example frontmatter must parse to a mapping")
+    return frontmatter, parts[2].strip()
+
+
 @pytest.fixture(scope="module")
 def schemas() -> dict[str, dict[str, Any]]:
-    """All 10 schemas, keyed by schema_name."""
+    """All 13 schemas, keyed by schema_name."""
     out: dict[str, dict[str, Any]] = {}
     for path in EXPECTED_SCHEMA_FILES:
         doc = _load_yaml(path)
@@ -128,7 +172,7 @@ def index_schema(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 # =============================================================================
-# AC-1 — All 10 schemas exist + safe_load + canonical convention
+# AC-1 — All 13 schemas exist + safe_load + canonical convention
 # =============================================================================
 
 
@@ -156,35 +200,36 @@ def test_schema_carries_canonical_metadata(schema_path: Path) -> None:
 
 
 @pytest.mark.parametrize("schema_path", EXPECTED_SCHEMA_FILES, ids=lambda p: p.name)
-def test_schema_version_pinned_to_one(schema_path: Path) -> None:
-    """schema_version starts at 1 for every file in this PV (no incompatible bumps yet)."""
+def test_schema_versions_match_registry_generation(schema_path: Path) -> None:
+    """Goal/status/handoff are v2; the index and additive schemas remain v1."""
     doc = _load_yaml(schema_path)
-    assert doc["schema_version"] == 1, (
-        f"{schema_path.name} schema_version != 1 (this is the v8.2.4 baseline;"
-        " bump only on incompatible change)"
+    expected = EXPECTED_SCHEMA_VERSIONS[schema_path.stem]
+    assert doc["schema_version"] == expected, (
+        f"{schema_path.name} schema_version drift — expected {expected}, "
+        f"got {doc['schema_version']}"
     )
 
 
 def test_no_unexpected_files_in_schema_dir() -> None:
-    """The schemas/agent-workspace/ dir contains exactly the 10 expected files."""
+    """The schema directory contains exactly the 13 expected YAML files."""
     actual = sorted(p.name for p in SCHEMA_DIR.iterdir() if p.is_file())
     expected = sorted(p.name for p in EXPECTED_SCHEMA_FILES)
     assert actual == expected, f"schemas/agent-workspace/ drift — expected {expected}, got {actual}"
 
 
 def test_schema_dir_has_no_subdirs() -> None:
-    """v8.2.4 ships flat directory — subdirs would imply unannounced sub-schemas."""
+    """The registry remains flat; subdirectories would be unindexed schemas."""
     subdirs = [p for p in SCHEMA_DIR.iterdir() if p.is_dir()]
     assert subdirs == [], f"schemas/agent-workspace/ has unexpected subdirs: {subdirs}"
 
 
 # =============================================================================
-# Index schema — declares the 9 artifact schemas
+# Index schema — declares the 12 artifact schemas
 # =============================================================================
 
 
-def test_index_lists_all_nine_artifact_schemas(index_schema: dict[str, Any]) -> None:
-    """__init__.yaml `schemas` list enumerates all 9 artifact schemas."""
+def test_index_lists_all_twelve_artifact_schemas(index_schema: dict[str, Any]) -> None:
+    """__init__.yaml `schemas` list enumerates all 12 artifact schemas."""
     listed_ids = sorted(s["id"] for s in index_schema["schemas"])
     expected_ids = sorted(p.stem for p in ARTIFACT_SCHEMA_FILES)
     assert listed_ids == expected_ids, f"index drift — expected {expected_ids}, got {listed_ids}"
@@ -312,27 +357,36 @@ def test_change_status_state_transitions_match_design(
 def test_change_status_required_fields_complete(
     schemas: dict[str, dict[str, Any]],
 ) -> None:
-    """All 10 fields from design.md §2.5 are required at the instance top level."""
-    required = set(schemas["change-status"]["instance_top_level_required"])
-    expected = {
-        "schema_version",
-        "change_id",
-        "state",
-        "percent_complete",
-        "owner_layer",
-        "owner_session_id",
-        "last_updated",
-        "last_handoff_seq",
-        "gate_score",
-        "verify_pass",
+    """v2 requires the legacy fields plus four checklist-round progress fields."""
+    doc = schemas["change-status"]
+    required = set(doc["instance_top_level_required"])
+    expected = LEGACY_STATUS_REQUIRED_FIELDS | {
+        "checklist_checked",
+        "checklist_total",
+        "current_round",
+        "next_blockers",
     }
     assert required == expected, f"change-status required fields drift — {required ^ expected}"
+    assert doc["fields"]["schema_version"]["enum"] == [2]
+    assert doc["fields"]["checklist_checked"]["minimum"] == 0
+    assert doc["fields"]["checklist_total"]["minimum"] == 1
+    assert doc["fields"]["current_round"]["minimum"] == 0
+    assert doc["fields"]["next_blockers"]["max_items"] == 3
 
 
 def test_change_status_owner_layer_enum() -> None:
-    """owner_layer is constrained to L0..L3."""
+    """v2 owner_layer is constrained to the three-layer L0..L2 model."""
     doc = _load_yaml(SCHEMA_DIR / "change-status.yaml")
-    assert sorted(doc["fields"]["owner_layer"]["enum"]) == ["L0", "L1", "L2", "L3"]
+    assert sorted(doc["fields"]["owner_layer"]["enum"]) == ["L0", "L1", "L2"]
+    legacy = doc["compatibility"]["schema_version_1"]
+    assert legacy["accepted"] is True
+    assert legacy["owner_layer_mapping"] == {
+        "L0": "L0",
+        "L1": "L0",
+        "L2": "L1",
+        "L3": "L2",
+    }
+    assert legacy["history_rewrite"] == "forbidden"
 
 
 def test_change_status_terminal_states_have_empty_allowed_next() -> None:
@@ -344,10 +398,23 @@ def test_change_status_terminal_states_have_empty_allowed_next() -> None:
 
 
 def _validate_status_instance(instance: dict[str, Any]) -> list[str]:
-    """Lightweight instance validator using the change-status schema."""
+    """Lightweight v2 validator with the declared v1 compatibility window."""
     schema = _load_yaml(SCHEMA_DIR / "change-status.yaml")
     errors: list[str] = []
-    required = schema["instance_top_level_required"]
+    version = instance.get("schema_version")
+    if version == 1:
+        compatibility = schema["compatibility"]["schema_version_1"]
+        if not compatibility["accepted"]:
+            errors.append("schema_version 1 is not accepted")
+        required = LEGACY_STATUS_REQUIRED_FIELDS
+        owner_layers = set(compatibility["owner_layer_mapping"])
+    elif version == schema["schema_version"]:
+        required = set(schema["instance_top_level_required"])
+        owner_layers = set(schema["fields"]["owner_layer"]["enum"])
+    else:
+        required = set(schema["instance_top_level_required"])
+        owner_layers = set(schema["fields"]["owner_layer"]["enum"])
+        errors.append(f"unsupported schema_version: {version!r}")
     for key in required:
         if key not in instance:
             errors.append(f"missing required field: {key}")
@@ -359,13 +426,24 @@ def _validate_status_instance(instance: dict[str, Any]) -> list[str]:
     if pct is not None and not (0 <= pct <= 100):
         errors.append(f"percent_complete {pct} not in [0, 100]")
     layer = instance.get("owner_layer")
-    if layer is not None and layer not in ["L0", "L1", "L2", "L3"]:
-        errors.append(f"owner_layer {layer!r} not in [L0..L3]")
+    if layer is not None and layer not in owner_layers:
+        errors.append(f"owner_layer {layer!r} not in {sorted(owner_layers)}")
+    if version == 2:
+        checked = instance.get("checklist_checked")
+        total = instance.get("checklist_total")
+        if checked is not None and total is not None and not (0 <= checked <= total):
+            errors.append(f"checklist_checked {checked} not in [0, {total}]")
+        current_round = instance.get("current_round")
+        if current_round is not None and current_round < 0:
+            errors.append(f"current_round {current_round} must be >= 0")
+        blockers = instance.get("next_blockers")
+        if blockers is not None and (not isinstance(blockers, list) or len(blockers) > 3):
+            errors.append("next_blockers must be a list with at most 3 entries")
     return errors
 
 
 def test_status_fixture_valid_minimal_passes() -> None:
-    """AC-5: minimal valid STATUS.yaml fixture passes validation."""
+    """AC-5: a legacy v1 STATUS.yaml remains valid during the compatibility window."""
     instance = {
         "schema_version": 1,
         "change_id": "add-dark-mode",
@@ -417,7 +495,7 @@ def test_status_fixture_missing_required_rejected() -> None:
 
 
 def test_status_fixture_invalid_owner_layer_rejected() -> None:
-    """owner_layer must be L0..L3; L4 is rejected."""
+    """Legacy owner_layer accepts L0..L3 but still rejects L4."""
     instance = {
         "schema_version": 1,
         "change_id": "add-dark-mode",
@@ -648,6 +726,21 @@ def _validate_envelope(env: dict[str, Any]) -> list[str]:
     for key in doc["instance_top_level_required"]:
         if key not in env:
             errors.append(f"missing required field: {key}")
+    version = env.get("schema_version")
+    if version == 1:
+        allowed_layers = {"L0", "L1", "L2", "L3"}
+    elif version == doc["schema_version"]:
+        allowed_layers = set(doc["fields"]["from_layer"]["enum"])
+    else:
+        allowed_layers = set(doc["fields"]["from_layer"]["enum"])
+        errors.append(f"unsupported schema_version: {version!r}")
+    for field in ("from_layer", "to_layer"):
+        layer = env.get(field)
+        if layer is not None and layer not in allowed_layers:
+            errors.append(
+                f"{field} {layer!r} is invalid for schema_version {version!r}; "
+                f"expected one of {sorted(allowed_layers)}"
+            )
     if env.get("envelope_kind") not in doc["fields"]["envelope_kind"]["enum"]:
         errors.append(f"invalid envelope_kind: {env.get('envelope_kind')!r}")
     if env.get("from_layer") == env.get("to_layer") and env.get("from_layer") is not None:
@@ -669,10 +762,10 @@ def _validate_envelope(env: dict[str, Any]) -> list[str]:
 def test_envelope_task_dispatch_valid_passes() -> None:
     """AC-4: minimal valid TaskDispatch envelope passes validation."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
-        "to_layer": "L2",
+        "to_layer": "L1",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T10:14:33Z",
         "envelope_kind": "TaskDispatch",
@@ -688,12 +781,12 @@ def test_envelope_task_dispatch_valid_passes() -> None:
 
 
 def test_envelope_status_report_valid_passes() -> None:
-    """AC-4: minimal valid StatusReport envelope passes validation."""
+    """AC-4: v2 rejects L3 while an explicit legacy-v1 report remains readable."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 4,
-        "from_layer": "L3",
-        "to_layer": "L2",
+        "from_layer": "L2",
+        "to_layer": "L1",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T11:02:18Z",
         "envelope_kind": "StatusReport",
@@ -702,13 +795,20 @@ def test_envelope_status_report_valid_passes() -> None:
     errors = _validate_envelope(env)
     assert not errors, f"valid StatusReport rejected: {errors}"
 
+    invalid_v2 = {**env, "from_layer": "L3"}
+    assert any("from_layer" in error for error in _validate_envelope(invalid_v2))
+
+    legacy_v1 = {**env, "schema_version": 1, "from_layer": "L3", "to_layer": "L2"}
+    legacy_errors = _validate_envelope(legacy_v1)
+    assert not legacy_errors, f"explicit legacy-v1 StatusReport rejected: {legacy_errors}"
+
 
 def test_envelope_escalation_event_valid_passes() -> None:
     """AC-4: minimal valid EscalationEvent envelope passes validation."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 7,
-        "from_layer": "L3",
+        "from_layer": "L2",
         "to_layer": "L0",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T11:48:09Z",
@@ -726,7 +826,7 @@ def test_envelope_escalation_event_valid_passes() -> None:
 def test_envelope_invalid_kind_rejected() -> None:
     """AC-4: invalid envelope_kind is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -741,7 +841,7 @@ def test_envelope_invalid_kind_rejected() -> None:
 def test_envelope_missing_variant_block_rejected() -> None:
     """AC-4: TaskDispatch envelope without `dispatch:` block is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -757,7 +857,7 @@ def test_envelope_missing_variant_block_rejected() -> None:
 def test_envelope_multiple_variant_blocks_rejected() -> None:
     """AC-4: envelope with TWO variant blocks (dispatch AND report) is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -779,7 +879,7 @@ def test_envelope_multiple_variant_blocks_rejected() -> None:
 def test_envelope_self_handoff_rejected() -> None:
     """AC-4: envelope with from_layer == to_layer is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L2",
         "to_layer": "L2",  # same layer — invalid
@@ -800,7 +900,7 @@ def test_envelope_self_handoff_rejected() -> None:
 def test_envelope_seq_zero_rejected() -> None:
     """AC-4: seq=0 is rejected (counter starts at 1)."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 0,  # invalid — must be >= 1
         "from_layer": "L0",
         "to_layer": "L2",
@@ -837,6 +937,146 @@ def test_change_goal_intent_class_enum_complete() -> None:
     assert sorted(enum) == sorted(
         ["feature", "bugfix", "refactor", "migration", "spike", "docs", "ops"]
     )
+
+
+def test_change_goal_v2_numbered_contract_and_legacy_compatibility() -> None:
+    """Goal v2 links contiguous G<n> goals to matching checklist partitions."""
+    doc = _load_yaml(SCHEMA_DIR / "change-goal.yaml")
+    assert doc["schema_version"] == 2
+    assert set(doc["frontmatter"]["required"]) == {
+        "id",
+        "created",
+        "priority",
+        "intent_class",
+        "goals_count",
+    }
+    goals = doc["body"]["goal_entries"]
+    assert goals["unique_ids"] is True
+    assert goals["ordered_sequentially_from"] == 1
+    assert goals["link_id_must_equal_entry_id"] is True
+    assert goals["count_field"] == "goals_count"
+
+    frontmatter, body = _parse_markdown_example(doc["example"])
+    links = re.findall(r"^- G(\d+): .+ → checklist\.md ## G(\d+)$", body, re.MULTILINE)
+    assert len(links) == frontmatter["goals_count"]
+    assert all(goal_id == link_id for goal_id, link_id in links)
+
+    legacy = doc["compatibility"]["schema_version_1"]
+    assert "does not contain checklist.md" in legacy["detection"]
+    assert "v1 contract" in legacy["behavior"]
+    assert legacy["history_rewrite"] == "forbidden"
+
+
+@pytest.mark.parametrize(
+    ("schema_name", "required_frontmatter", "required_headings"),
+    [
+        (
+            "change-checklist",
+            {
+                "parent",
+                "schema_version",
+                "total_items",
+                "checked",
+                "priority_dist",
+                "reverted_open",
+            },
+            ["# Checklist"],
+        ),
+        (
+            "change-stage",
+            {"parent", "schema_version", "current_round", "max_rounds", "capacity_per_round"},
+            [
+                "# Stage — Round Control",
+                "## Priority Settings",
+                "## Round History",
+                "## Next Round Plan",
+            ],
+        ),
+        (
+            "change-preflight",
+            {
+                "parent",
+                "schema_version",
+                "authorized_at",
+                "snapshot_round",
+                "config_inherited_from",
+                "project_config_hash",
+            },
+            [
+                "# Preflight",
+                "## 0. Project Configuration",
+                "## 1. Stop Cards",
+                "## 2. Authorization Record",
+                "## 3. Permitted Stops",
+                "## 4. Progress Snapshot",
+            ],
+        ),
+    ],
+)
+def test_v16_new_artifact_schema_contracts(
+    schemas: dict[str, dict[str, Any]],
+    schema_name: str,
+    required_frontmatter: set[str],
+    required_headings: list[str],
+) -> None:
+    """The three additive schemas encode their core checklist-round contracts."""
+    doc = schemas[schema_name]
+    assert doc["schema_version"] == 1
+    assert set(doc["frontmatter"]["required"]) == required_frontmatter
+    assert [section["heading"] for section in doc["body"]["required_sections"]] == required_headings
+
+    if schema_name == "change-checklist":
+        assert doc["frontmatter"]["fields"]["total_items"]["maximum"] == 60
+        assert doc["body"]["item_metadata"]["verify"]["required"] is True
+        assert doc["reversion_contract"]["allowed_actors"] == ["user"]
+        assert doc["reversion_contract"]["forbidden_actors"] == ["L0", "L1", "L2"]
+    elif schema_name == "change-stage":
+        assert doc["frontmatter"]["fields"]["capacity_per_round"]["maximum"] == 5
+        assert [item["criterion"] for item in doc["selection_algorithm"]["order"]] == [
+            "reverted_open",
+            "priority",
+            "dependencies",
+            "checklist_order",
+        ]
+        assert doc["bounded_execution"]["stagnation"]["window_rounds"] == 2
+    else:
+        assert len(doc["section_0_project_configuration"]["config_sections"]) == 8
+        assert doc["authorization_coupling"]["signer"] == "user"
+        assert doc["section_3_permitted_stops"]["exact_item_count"] == 4
+
+
+@pytest.mark.parametrize(
+    "schema_name",
+    ["change-checklist", "change-stage", "change-preflight"],
+)
+def test_v16_new_schema_examples_match_declared_structure(
+    schemas: dict[str, dict[str, Any]], schema_name: str
+) -> None:
+    """Each new worked example parses and includes its declared frontmatter/body."""
+    doc = schemas[schema_name]
+    frontmatter, body = _parse_markdown_example(doc["example"])
+    assert set(doc["frontmatter"]["required"]) <= set(frontmatter)
+    assert frontmatter["schema_version"] == doc["schema_version"]
+    for section in doc["body"]["required_sections"]:
+        assert re.search(section["pattern"], body, re.MULTILINE), (
+            f"{schema_name} example missing {section['heading']!r}"
+        )
+
+
+@pytest.mark.parametrize("schema_name", ["change-acceptance", "change-tasks"])
+def test_legacy_schema_deprecation_contract(
+    index_schema: dict[str, Any],
+    schemas: dict[str, dict[str, Any]],
+    schema_name: str,
+) -> None:
+    """Legacy artifacts stay indexed for v16 read compatibility through v17."""
+    doc = schemas[schema_name]
+    entry = next(item for item in index_schema["schemas"] if item["id"] == schema_name)
+    for metadata in (doc, entry):
+        assert metadata["deprecated_since"] == "16.0.0"
+        assert metadata["replacement"] == "change-checklist"
+        assert metadata["removal_target"] == "17.0.0"
+    assert "read-only validation" in doc["deprecation_summary"]
 
 
 def test_change_acceptance_quality_section_mandates_ruff() -> None:
@@ -945,11 +1185,16 @@ def test_artifact_schema_no_absolute_paths(schema_path: Path) -> None:
 
 @pytest.mark.parametrize("schema_path", ARTIFACT_SCHEMA_FILES, ids=lambda p: p.name)
 def test_artifact_schema_design_reference_format(schema_path: Path) -> None:
-    """design_reference is a relative path into .local/research/ (S-2 / SF-5)."""
+    """design_reference points to the applicable legacy or v16 design artifact."""
     doc = _load_yaml(schema_path)
     ref = doc["design_reference"]
-    assert ref.startswith(".local/research/v8.3.0_design.md"), (
-        f"{schema_path.name} design_reference must point at v8.3.0_design.md (got {ref!r})"
+    expected = (
+        ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md"
+        if doc["schema_name"] in V16_ARTIFACT_SCHEMA_NAMES
+        else ".local/research/v8.3.0_design.md"
+    )
+    assert ref.startswith(expected), (
+        f"{schema_path.name} design_reference must point at {expected} (got {ref!r})"
     )
 
 
@@ -1038,7 +1283,7 @@ def _index_declared_schema_count() -> int:
     `schemas/agent-workspace/__init__.yaml` states "every schema listed here
     MUST exist as a file in this directory"; deriving the count from it (per
     v14.2.1 G-028) means a legitimate addition updates ONE registry instead
-    of breaking hardcoded `== 10` / `== 9` pins.
+    of breaking stale hardcoded count pins.
     """
     index = _load_yaml(SCHEMA_DIR / "__init__.yaml")
     return len(index["schemas"])

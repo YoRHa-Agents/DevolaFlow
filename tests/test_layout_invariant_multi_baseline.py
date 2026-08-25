@@ -50,13 +50,11 @@ Each test renders the canonical payload via
 byte-compares against the golden YAML under
 ``benchmarks/devolaflow_context/baselines/``.
 
-The v7.0.0 + v7.3.0 baselines reuse the existing fixtures from
-``tests/test_benchmarks.py::TestLayoutInvariantBaseline``; the
-v8.0.0 P-08 + v8.3.0 PV-05 + v8.4.0 baselines use new fixtures committed
-in PV-02. The v8.0.0 P-10 baseline is verified PREFIX-wise against the
-v8.3.0 PV-05 baseline (the v8.0.0 P-10 payload would be a prefix of the
-v8.3.0 PV-05 baseline minus ``change_context``); a dedicated golden
-would be redundant given the prefix-property byte test below.
+This module is the sole live owner of all ten layout-witness constructors.
+The v8.0.0 P-10 baseline is verified PREFIX-wise against the v8.3.0 PV-05
+baseline (the v8.0.0 P-10 payload would be a prefix of the v8.3.0 PV-05
+baseline minus ``change_context``); a dedicated golden would be redundant
+given the prefix-property byte test below.
 
 Closes B-02 from ``.local/research/v9.0.0_gap_analysis.md`` §5.2.
 """
@@ -80,9 +78,8 @@ from devolaflow.compressor import (
 
 BASELINES_DIR = Path(__file__).parent.parent / "benchmarks/devolaflow_context/baselines"
 
-# Canonical payload constructors (kept here so a future renumber of the
-# fixtures in test_benchmarks.py does NOT silently break this module).
-# The v7.0.0 + v7.3.0 constructors mirror the existing fixtures verbatim.
+# Canonical payload constructors. The v7.0.0 + v7.3.0 constructors preserve
+# the original witness payloads verbatim.
 
 
 def _v7_0_0_payload() -> dict:

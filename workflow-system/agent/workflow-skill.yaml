@@ -8,14 +8,14 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "15.2.0"
+  version: "16.0.0"
   description: >
-    Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
-    with gate mechanisms, convergence loops, and context-isolated task delegation.
-    Use when the user requests implementation of a feature, bug fix, refactoring,
-    migration, or any multi-step development workflow. Triggers on: "implement",
-    "build", "create feature", "fix bug", "refactor", "migrate", "full pipeline",
-    "hotfix", "add capability".
+    Orchestrate checklist-round software work using a 3-layer Project → Wave →
+    Task hierarchy, evidence-backed completion, bounded reinforcement, and
+    context-isolated task delegation. Use when the user requests implementation
+    of a feature, bug fix, refactoring, migration, or any multi-step development
+    workflow. Triggers on: "implement", "build", "create feature", "fix bug",
+    "refactor", "migrate", "full pipeline", "hotfix", "add capability".
 
 activation:
   policy: "intent"                        # always | intent | path_match
@@ -54,16 +54,16 @@ content:
       severity: "hard"
       principle: "P1"
       text: >
-        Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly.
-        Only Task Agents execute actual work — writing code, running tests,
-        authoring documents, performing reviews.
+        Dispatcher agents (Project, Wave) MUST NOT perform work directly.
+        Only L2 Task Agents execute actual work — writing code, running tests,
+        authoring documents, and performing reviews.
 
     - id: "minimal-context"
       severity: "hard"
       principle: "P2"
       text: >
         Each agent layer receives only the context it needs.
-        Project ~3K tokens, Stage ~5K, Wave ~4K, Task ~8K.
+        L0 Project ~5K tokens, L1 Wave ~5K, L2 Task ~8K.
 
     - id: "structured-messages"
       severity: "hard"
@@ -79,7 +79,7 @@ content:
       text: >
         Every loop has a max_iterations ceiling. Every failure triggers a
         classified response (retry / escalate / abort). No infinite loops.
-        Escalation always moves upward: Task → Wave → Stage → Project → Human.
+        Escalation always moves upward: Task → Wave → Project → Human.
 
     - id: "artifacts-as-contracts"
       severity: "hard"
@@ -98,80 +98,95 @@ content:
     entry_file: "SKILL.md"
     max_lines: 500
     sections:
+      - id: "version-update"
+        title: "Version & Update"
+        content_source: "SKILL.md#version--update"
+        lines: 17
+
+      - id: "workspace-engagement"
+        title: "Workspace Engagement"
+        content_source: "SKILL.md#workspace-engagement"
+        lines: 17
+
       - id: "quick-action"
         title: "Quick Action Decision"
         content_source: "SKILL.md#quick-action-decision"
-        lines: 12
+        lines: 11
 
-      - id: "purpose"
-        title: "Purpose & Scope"
-        content_source: "SKILL.md#purpose--scope"
-        lines: 12
+      - id: "mode-awareness"
+        title: "Mode Awareness"
+        content_source: "SKILL.md#mode-awareness"
+        lines: 46
 
       - id: "quick-start"
         title: "Quick Start — Workflow Selection"
         content_source: "SKILL.md#quick-start--workflow-selection"
-        lines: 30
+        lines: 35
 
-      - id: "hierarchy-summary"
-        title: "4-Layer Agent Hierarchy (Summary)"
-        content_source: "SKILL.md#4-layer-agent-hierarchy-summary"
-        lines: 40
+      - id: "hierarchy"
+        title: "3-Layer Agent Hierarchy"
+        content_source: "SKILL.md#3-layer-agent-hierarchy"
+        lines: 14
 
-      - id: "stage-index"
-        title: "Stage Primitives Index"
-        content_source: "SKILL.md#stage-primitives-index"
-        lines: 50
+      - id: "wave-coordination"
+        title: "Wave Coordination Modes"
+        content_source: "SKILL.md#wave-coordination-modes"
+        lines: 14
 
-      - id: "gate-summary"
-        title: "Gate Mechanism (Summary)"
-        content_source: "SKILL.md#gate-mechanism-summary"
+      - id: "stage-primitives"
+        title: "Stage Primitives Index (Seed Provenance)"
+        content_source: "SKILL.md#stage-primitives-index-seed-provenance"
+        lines: 16
+
+      - id: "gate"
+        title: "Gate Mechanism"
+        content_source: "SKILL.md#gate-mechanism"
         lines: 25
 
       - id: "team-index"
         title: "AgentTeam Quick Reference"
         content_source: "SKILL.md#agentteam-quick-reference"
-        lines: 30
+        lines: 12
 
-      - id: "context-summary"
+      - id: "context-isolation"
         title: "Context Isolation"
         content_source: "SKILL.md#context-isolation"
-        lines: 20
+        lines: 11
+
+      - id: "hang-prevention"
+        title: "Subagent Hang Prevention"
+        content_source: "SKILL.md#subagent-hang-prevention"
+        lines: 8
 
       - id: "dispatch-report"
         title: "Dispatch & Report Protocol"
         content_source: "SKILL.md#dispatch--report-protocol"
-        lines: 30
+        lines: 13
+
+      - id: "lifecycle-hooks"
+        title: "Lifecycle Hooks"
+        content_source: "SKILL.md#lifecycle-hooks"
+        lines: 13
 
       - id: "repo-modes"
         title: "Repo Mode Detection"
         content_source: "SKILL.md#repo-mode-detection"
-        lines: 20
+        lines: 11
 
       - id: "reference-nav"
         title: "Reference Navigation Guide"
         content_source: "SKILL.md#reference-navigation-guide"
-        lines: 40
-
-      - id: "dispatcher-rules"
-        title: "Rules for Dispatchers"
-        content_source: "SKILL.md#rules-for-dispatchers"
-        lines: 30
-
-      - id: "convergence"
-        title: "Convergence Loop (Summary)"
-        content_source: "SKILL.md#convergence-loop-summary"
-        lines: 15
+        lines: 32
 
       - id: "task-quality-score"
-        title: "Task Quality Score"
-        content_source: "SKILL.md#task-quality-score"
-        lines: 30
+        title: "Task Quality Score (L0 ONLY)"
+        content_source: "SKILL.md#task-quality-score-l0-only"
+        lines: 6
 
-      - id: "template-ref"
-        title: "Template Quick-Reference"
-        content_source: "SKILL.md#template-quick-reference"
-        lines: 20
+      - id: "operational-learnings"
+        title: "Operational Learnings"
+        content_source: "SKILL.md#operational-learnings"
+        lines: 5
 
   # ─────────────────────────────────────────────────────────────────
   # References: Tier 2 domain reference files (~200-500 lines each).
@@ -181,21 +196,21 @@ content:
     - id: "agent-hierarchy"
       file: "references/agent-hierarchy.md"
       design_source: "design_agent_hierarchy.md"
-      load_when: "Setting up or debugging the layer hierarchy, understanding delegation rules"
+      load_when: "Setting up the L0 Project → L1 Wave → L2 Task hierarchy or debugging evidence flow"
       tier: 2
       estimated_lines: 400
 
     - id: "meta-framework"
       file: "references/meta-framework.md"
       design_source: "design_meta_framework.md"
-      load_when: "Understanding stage primitives, composition operators, template schema"
+      load_when: "Selecting registry-v3 checklist seeds or the sole change-driven runtime"
       tier: 2
       estimated_lines: 350
 
     - id: "decomposition-gate"
       file: "references/decomposition-gate.md"
       design_source: "design_decomposition_gate.md"
-      load_when: "Decomposing stages into waves/tasks, configuring gate checks"
+      load_when: "Partitioning checklist rounds into waves/tasks or evaluating evidence gates"
       tier: 2
       estimated_lines: 400
 
@@ -209,7 +224,7 @@ content:
     - id: "execution-protocol"
       file: "references/execution-protocol.md"
       design_source: "design_execution_protocol.md"
-      load_when: "Pre-decision checklists, checkpoints, exception handling, human breakpoints"
+      load_when: "Running preflight, checkpoints, bounded checklist rounds, or exception handling"
       tier: 2
       estimated_lines: 350
 
@@ -223,7 +238,7 @@ content:
     - id: "team-roles"
       file: "references/team-roles.md"
       design_source: "design_agent_hierarchy.md §4"
-      load_when: "Configuring task agents, understanding team capabilities and constraints"
+      load_when: "Configuring L2 Task specializations and evidence expectations"
       tier: 2
       estimated_lines: 350
 
@@ -274,84 +289,57 @@ content:
 
     - id: "knowledge-index"
       file: "knowledge/index.md"
-      description: "Knowledge page catalog with selective loading hints for L3 task agents"
+      description: "Knowledge page catalog with selective loading hints for L2 Task agents"
       tier: 3
 
   # ─────────────────────────────────────────────────────────────────
-  # Templates: the workflow-type surface (YAML definitions + compositions).
-  # Registry + 23 builtin templates was the v14.x layout; v15.0.0 Phase B
-  # (v15-ADR-002) keeps 7 survivor YAMLs on disk and re-expresses the
-  # other 16 as named compositions in templates/registry.yaml
-  # `compositions:` — all 23 type names still resolve via
-  # TemplateRegistry.load_template(<name>) (alias guarantee >= 1 MAJOR).
+  # Templates: registry v3 exposes 23 declarative checklist seeds and one
+  # executable runtime. Seeds retain decomposition knowledge but carry no DAG
+  # semantics. `change-driven` is both a seed name and the sole runtime name.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
       file: "templates/registry.yaml"
-      description: "Template discovery registry (schema v2.0) with priority order: custom > derived > builtin; also carries the 16-entry compositions manifest"
+      schema_version: "3.0"
+      description: "Seed and runtime discovery registry; 23 seeds + one executable runtime"
 
-    builtin:
-      - id: "migration"
-        file: "templates/builtin/migration.yaml"
-        stages: ["assessment", "plan", "implement", "validate", "cutover"]
-        description: "System/version migration with validation"
+    seeds:
+      - {id: "hotfix", file: "templates/seeds/hotfix.yaml"}
+      - {id: "research-only", file: "templates/seeds/research-only.yaml"}
+      - {id: "design-only", file: "templates/seeds/design-only.yaml"}
+      - {id: "documentation-only", file: "templates/seeds/documentation-only.yaml"}
+      - {id: "spike-poc", file: "templates/seeds/spike-poc.yaml"}
+      - {id: "refactoring", file: "templates/seeds/refactoring.yaml"}
+      - {id: "feature-enhancement", file: "templates/seeds/feature-enhancement.yaml"}
+      - {id: "full-pipeline", file: "templates/seeds/full-pipeline.yaml"}
+      - {id: "performance-optimization", file: "templates/seeds/performance-optimization.yaml"}
+      - {id: "security-audit", file: "templates/seeds/security-audit.yaml"}
+      - {id: "research-design-review-refine", file: "templates/seeds/research-design-review-refine.yaml"}
+      - {id: "dependency-setup", file: "templates/seeds/dependency-setup.yaml"}
+      - {id: "onboarding", file: "templates/seeds/onboarding.yaml"}
+      - {id: "demo-showcase", file: "templates/seeds/demo-showcase.yaml"}
+      - {id: "product-verification", file: "templates/seeds/product-verification.yaml"}
+      - {id: "entropy-cleanup", file: "templates/seeds/entropy-cleanup.yaml"}
+      - {id: "migration", file: "templates/seeds/migration.yaml"}
+      - {id: "skill-optimization", file: "templates/seeds/skill-optimization.yaml"}
+      - {id: "self-update", file: "templates/seeds/self-update.yaml"}
+      - {id: "nines-assisted", file: "templates/seeds/nines-assisted.yaml"}
+      - {id: "repo-init", file: "templates/seeds/repo-init.yaml"}
+      - {id: "change-driven", file: "templates/seeds/change-driven.yaml"}
+      - {id: "web-design", file: "templates/seeds/web-design.yaml"}
 
-      - id: "skill-optimization"
-        file: "templates/builtin/skill-optimization.yaml"
-        stages: ["survey", "profile", "optimize", "benchmark", "iterate", "document"]
-        description: "Agent skill optimization with context profiling and benchmarking"
+    runtime:
+      id: "change-driven"
+      file: "templates/builtin/change-driven.yaml"
+      description: "Sole executable propose → preflight → checklist-round loop → archive lifecycle"
 
-      - id: "self-update"
-        file: "templates/builtin/self-update.yaml"
-        stages: ["check-refs", "research-updates", "decompose", "integrate", "test", "evaluate"]
-        description: "Self-referential skill and workflow update with validation"
-
-      - id: nines-assisted
-        file: "templates/builtin/nines-assisted.yaml"
-        tags: ["nines", "research", "iteration", "skill-optimization"]
-
-      - id: "repo-init"
-        file: "templates/builtin/repo-init.yaml"
-        stages: ["analyze", "scaffold", "compile", "verify"]
-        description: "Initialize repo workspace (.local/) and governance rules; depth via mode: minimal | standard | deep"
-
-      - id: "change-driven"
-        file: "templates/builtin/change-driven.yaml"
-        stages: ["propose", "apply", "verify", "archive"]
-        description: "OpenSpec-style in-flight change folder lifecycle — scaffold .local/.agent/active/<id>/ with goal+acceptance+spec+tasks+STATUS+owned_files, loop apply/verify until tasks ticked, archive with auto-generated REPORT.md and propose delta merge to source-of-truth (NOT auto-apply); mode: lite | full"
-
-      - id: "web-design"
-        file: "templates/builtin/web-design.yaml"
-        stages: ["design", "implement", "refine", "verify"]
-        description: "Polished frontend design — ui-pro DESIGNS the system, impeccable REFINES + VERIFIES it (refine ↔ verify convergence loop gated by the no-LLM `impeccable detect` anti-pattern scan)"
-
-    # 16 named compositions (the former builtin yamls, collapsed at
-    # v15.0.0 Phase B per v15-ADR-002) — each is a survivor template +
-    # parameter overrides declared in templates/registry.yaml
-    # `compositions:`. Every id resolves via
-    # TemplateRegistry.load_template(<id>) with a deprecation WARNING;
-    # hard alias removal lands no earlier than v16.0.0.
-    compositions:
-      file: "templates/registry.yaml"
-      manifest_key: "compositions"
-      description: "Named compositions: base survivor + params (expression / stages / gate carried verbatim from the deleted yamls)"
-      ids:
-        - "hotfix"
-        - "research-only"
-        - "design-only"
-        - "documentation-only"
-        - "spike-poc"
-        - "refactoring"
-        - "feature-enhancement"
-        - "full-pipeline"
-        - "performance-optimization"
-        - "security-audit"
-        - "research-design-review-refine"
-        - "dependency-setup"
-        - "onboarding"
-        - "demo-showcase"
-        - "product-verification"
-        - "entropy-cleanup"
+    artifacts:
+      - id: "project-status"
+        file: "templates/project-status.yaml"
+        description: "L0 checklist-round status and evidence dashboard"
+      - id: "wave-plan"
+        file: "templates/wave-plan.md"
+        description: "L0/L1 wave dispatch, conflict, reinforcement, and evidence contract"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.
@@ -422,6 +410,11 @@ content:
       file: "../../schemas/workflow-template.schema.yaml"
       design_source: "design_meta_framework.md §4.1"
       description: "WorkflowTemplate YAML instance shape (documentation schema for templates/builtin/*.yaml)"
+
+    - id: "checklist-seed"
+      file: "../../schemas/checklist-seed.schema.yaml"
+      design_source: "checklist_iteration_design.md §10.2 / ADR-8"
+      description: "Declarative checklist-seed shape for non-executable decomposition knowledge"
 
 # ═══════════════════════════════════════════════════════════════════
 # Adapters: Per-tool output configuration.
@@ -589,39 +582,114 @@ manifest:
       type: "knowledge"
       design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
-  # v15.0.0 Phase B (v15-ADR-002): registry + the 7 survivor YAMLs. The 16
-  # former builtin yamls live on as named compositions INSIDE registry.yaml
-  # (no standalone files to inventory).
+  # Registry v3 inventory: one registry, 23 checklist seeds, one executable
+  # runtime, and two operator-facing checklist-round artifact templates.
   templates:
     - path: "templates/registry.yaml"
       tier: 3
       type: "template-registry"
       design_source: "design_meta_framework.md §5"
-    - path: "templates/builtin/migration.yaml"
+    - path: "templates/seeds/hotfix.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/skill-optimization.yaml"
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/research-only.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/self-update.yaml"
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/design-only.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/nines-assisted.yaml"
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/documentation-only.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/repo-init.yaml"
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/spike-poc.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/refactoring.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/feature-enhancement.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/full-pipeline.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/performance-optimization.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/security-audit.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/research-design-review-refine.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/dependency-setup.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/onboarding.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/demo-showcase.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/product-verification.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/entropy-cleanup.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/migration.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/skill-optimization.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/self-update.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/nines-assisted.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/repo-init.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/change-driven.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/web-design.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
     - path: "templates/builtin/change-driven.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/web-design.yaml"
+      type: "workflow-runtime"
+      design_source: "checklist_iteration_design.md §3.2"
+    - path: "templates/project-status.yaml"
       tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
+      type: "artifact-template"
+      design_source: "checklist_iteration_design.md §§3.2,5"
+    - path: "templates/wave-plan.md"
+      tier: 3
+      type: "artifact-template"
+      design_source: "checklist_iteration_design.md §§3.2,8.5"

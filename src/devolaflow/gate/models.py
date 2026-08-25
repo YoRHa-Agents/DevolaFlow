@@ -630,10 +630,10 @@ class ArtifactSnapshot:
 # ─────────────────────────────────────────────────────────────────────────────
 # v8.0.0 (P-09) — Overcomplexity Detector
 #
-# Wraps a NineS subprocess (https://github.com/YoRHa-Agents/NineS) plus a
-# tier-aware verdict matrix to flag changes that exceed the complexity
-# budget for the declared ``task_complexity`` (Karpathy "Simplicity First"
-# per upstream tweet analysis ``v7.8`` §4.13).
+# Combines deterministic local Python-path inspection with a tier-aware
+# verdict matrix to flag changes that exceed the complexity budget for the
+# declared ``task_complexity`` (Karpathy "Simplicity First" per upstream
+# tweet analysis ``v7.8`` §4.13).
 #
 # Three verdict paths (per ``patch_plan §3 P-09 AC #1-#3``):
 #
@@ -644,9 +644,9 @@ class ArtifactSnapshot:
 #                 complexity > 10). Inject a "may be overcomplicated"
 #                 ReinforcementRule but do NOT block.
 #     CRITICAL  — at least one *hard* invariant broken: cyclomatic
-#                 complexity > 15, OR NineS surfaces an ERROR-severity
-#                 finding. Decreases composite_score and flips the
-#                 verdict to ITERATE per ``patch_plan §3 P-09``.
+#                 complexity > 15, OR an injected ERROR-severity finding.
+#                 Decreases composite_score and flips the verdict to ITERATE
+#                 per ``patch_plan §3 P-09``.
 #
 # ``ComplexitySignals`` is the immutable per-task capture fed into
 # :meth:`devolaflow.gate.complexity_detector.ComplexityDetector.evaluate`
@@ -675,7 +675,7 @@ class ComplexityVerdict(StrEnum):
     - ``WARNING`` — at least one *soft* ceiling crossed; reinforcement
       injected, gate stays ``PASS``.
     - ``CRITICAL`` — at least one *hard* invariant broken (cc > 15 OR
-      NineS ERROR finding); composite_score reduced + ITERATE.
+      an injected error finding); composite_score reduced + ITERATE.
     """
 
     OK = "OK"
@@ -683,7 +683,7 @@ class ComplexityVerdict(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ComplexitySignals:
     """Per-task signal bundle consumed by :class:`ComplexityDetector`.
 
@@ -716,13 +716,16 @@ class ComplexitySignals:
         solution. ``5.0`` for a ``complex`` tier task triggers WARNING
         (per ``patch_plan §3 P-09 AC #3``). ``0.0`` is treated as
         "unknown / not measured" and skipped from the ratio check.
-    nines_error_findings:
-        Count of ERROR-severity findings surfaced by NineS deep
-        analysis. Any value ``> 0`` triggers CRITICAL.
-    nines_warn_findings:
-        Count of WARN-severity findings surfaced by NineS. Used to
-        elevate WARNING evidence but does NOT trigger CRITICAL on its
-        own (the ``cc > 15`` / ERROR finding paths handle that).
+    error_findings:
+        Count of injected ERROR-severity findings. Any value ``> 0``
+        triggers CRITICAL. Local path inspection leaves this at ``0``.
+    warning_findings:
+        Count of injected WARN-severity findings. Used to elevate WARNING
+        evidence but does NOT trigger CRITICAL on its own.
+
+    ``nines_error_findings`` and ``nines_warn_findings`` remain accepted
+    constructor keywords and read-only properties as deprecated compatibility
+    aliases for the neutral fields.
     """
 
     lines_changed: int = 0
@@ -731,8 +734,46 @@ class ComplexitySignals:
     nesting_depth_max: int = 0
     cyclomatic_complexity: int = 0
     ratio_to_minimal: float = 0.0
-    nines_error_findings: int = 0
-    nines_warn_findings: int = 0
+    error_findings: int = 0
+    warning_findings: int = 0
+
+    def __init__(
+        self,
+        lines_changed: int = 0,
+        files_touched: int = 0,
+        new_abstractions: int = 0,
+        nesting_depth_max: int = 0,
+        cyclomatic_complexity: int = 0,
+        ratio_to_minimal: float = 0.0,
+        nines_error_findings: int = 0,
+        nines_warn_findings: int = 0,
+        *,
+        error_findings: int | None = None,
+        warning_findings: int | None = None,
+    ) -> None:
+        """Build signals while accepting deprecated finding-field aliases."""
+        if error_findings is None:
+            error_findings = nines_error_findings
+        elif nines_error_findings not in (0, error_findings):
+            raise ValueError(
+                "error_findings and nines_error_findings must match when both are supplied"
+            )
+        if warning_findings is None:
+            warning_findings = nines_warn_findings
+        elif nines_warn_findings not in (0, warning_findings):
+            raise ValueError(
+                "warning_findings and nines_warn_findings must match when both are supplied"
+            )
+
+        object.__setattr__(self, "lines_changed", lines_changed)
+        object.__setattr__(self, "files_touched", files_touched)
+        object.__setattr__(self, "new_abstractions", new_abstractions)
+        object.__setattr__(self, "nesting_depth_max", nesting_depth_max)
+        object.__setattr__(self, "cyclomatic_complexity", cyclomatic_complexity)
+        object.__setattr__(self, "ratio_to_minimal", ratio_to_minimal)
+        object.__setattr__(self, "error_findings", error_findings)
+        object.__setattr__(self, "warning_findings", warning_findings)
+        self.__post_init__()
 
     def __post_init__(self) -> None:
         if self.lines_changed < 0:
@@ -749,10 +790,20 @@ class ComplexitySignals:
             )
         if self.ratio_to_minimal < 0.0:
             raise ValueError(f"ratio_to_minimal must be >= 0.0 (got {self.ratio_to_minimal})")
-        if self.nines_error_findings < 0:
-            raise ValueError(f"nines_error_findings must be >= 0 (got {self.nines_error_findings})")
-        if self.nines_warn_findings < 0:
-            raise ValueError(f"nines_warn_findings must be >= 0 (got {self.nines_warn_findings})")
+        if self.error_findings < 0:
+            raise ValueError(f"error_findings must be >= 0 (got {self.error_findings})")
+        if self.warning_findings < 0:
+            raise ValueError(f"warning_findings must be >= 0 (got {self.warning_findings})")
+
+    @property
+    def nines_error_findings(self) -> int:
+        """Deprecated alias for :attr:`error_findings`."""
+        return self.error_findings
+
+    @property
+    def nines_warn_findings(self) -> int:
+        """Deprecated alias for :attr:`warning_findings`."""
+        return self.warning_findings
 
 
 # ─────────────────────────────────────────────────────────────────────────────

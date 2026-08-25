@@ -16,7 +16,6 @@ drift is detected; the per-PR run always uses the committed fixtures.
 
 External canonical URLs (S-7 compliance):
     * DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-    * NineS: https://github.com/YoRHa-Agents/NineS
     * Si-Chip: https://github.com/YoRHa-Agents/Si-Chip
     * RTK: https://github.com/rtk-ai/rtk
     * ui-pro: https://github.com/YoRHa-Agents/ui-pro

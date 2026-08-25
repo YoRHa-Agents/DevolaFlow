@@ -47,7 +47,7 @@ def test_is_plugin_stale_returns_true_when_log_path_is_missing(
     assert not missing_log.exists()
     assert (
         is_plugin_stale(
-            "nines",
+            "ui-pro",
             threshold_hours=24,
             log_path=missing_log,
         )
@@ -91,12 +91,12 @@ def test_is_plugin_stale_returns_true_when_log_has_other_plugins_only(
 
     mixed_log = tmp_path / "plugin_install.log"
     ts = datetime.now(UTC).isoformat()
-    # nines event exists, but this test asks about si-chip.
+    # ui-pro event exists, but this test asks about si-chip.
     mixed_log.write_text(
         json.dumps(
             {
                 "ts": ts,
-                "plugin_id": "nines",
+                "plugin_id": "ui-pro",
                 "event": "plugin_installed",
                 "details": {"version": "3.3.0"},
             }
@@ -141,7 +141,7 @@ def test_refresh_all_triggers_upgrade_attempt_for_every_plugin_on_fresh_log(
 
     outcomes = refresh_all(force=False, log_path=fresh_log)
 
-    registered_ids = {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+    registered_ids = {"ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
     attempted_ids = set(attempt_record)
     missed = registered_ids - attempted_ids
     assert not missed, (

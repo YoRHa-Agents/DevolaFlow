@@ -5,11 +5,7 @@
 #              devolaflow.plugins.installer.upgrade_plugin()       (v9.4.0 PV-04)
 #              devolaflow.plugins.installer.refresh_all()          (v9.4.0 PV-04)
 #              devolaflow.cli::plugins_cmd                         (v9.4.0 PV-04)
-# Design refs: .local/research/v8.3.0_design.md §6.2 (v1 schema, nines + ui-pro)
-#              .local/research/v8.4.0_rtk_nines_analysis.md §5 (v2 schema bump,
-#              curl_install_script backend, rtk entry, mandatory rtk gain
-#              distinguish-cmd per RTK INSTALL.md collision warning)
-#              .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (v2 closure)
+# Design refs: .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (v2 closure)
 #              .local/research/v9.4.0_gap_analysis.md §3.2 D-P-4 + D-P-5
 #              (v9.4.0 PV-04 daily-upgrade surface — THIS bump)
 # Ownership:   THIS file is the single A-5 SSOT owner of plugin
@@ -72,9 +68,8 @@
 # Invariants:
 #   - All paths relative to repo root (S-2).
 #   - External resources referenced by their canonical GitHub URL (S-7).
-#   - No local clone paths hardcoded (S-7). RTK reference clone at
-#     /home/agent/reference/rtk is a runtime SI-2 NineS analysis path; NOT
-#     hardcoded here per S-7.
+#   - No local clone paths hardcoded (S-7). Runtime SI-2 analysis paths stay
+#     outside this registry.
 #   - last_checked is NOT a stored field — it is RECONSTRUCTED at runtime
 #     from .local/memory/plugin_install.log (the canonical JSONL audit
 #     trail). v9.4.0 PV-04 deliberately avoids adding a second write
@@ -93,29 +88,6 @@ last_updated: "2026-08-20"
 # gap_analysis.md §3.1 D-P-3 + cycle plan §3 PV-01.
 
 plugins:
-  # Issue #152 (2026-08-19) — the `nines` distribution is NOT published on
-  # PyPI (`pip install nines` → "from versions: none"), so install/upgrade
-  # go straight to the canonical GitHub source per S-7. The derived view
-  # (plugins.yaml install_methods.pip) already carried the git+ source; this
-  # aligns the A-5 owner with it. Distribution name inside the repo's
-  # pyproject.toml IS `nines` (console script `nines`), so `package:` and
-  # the `pip uninstall -y nines` teardown path are unchanged. NOTE: NineS
-  # requires Python >= 3.12 per its pyproject.
-  - id: nines
-    tier: suggest
-    backend: pip
-    package: nines
-    install_cmd: "pip install --upgrade \"git+https://github.com/YoRHa-Agents/NineS\""
-    upgrade_cmd: "pip install --upgrade \"git+https://github.com/YoRHa-Agents/NineS\""
-    version_check_cmd: "nines --version"
-    min_version: "3.0.0"
-    expected_sha256: null
-    canonical_url: "https://github.com/YoRHa-Agents/NineS"
-    local_fallback_path: null
-    invoked_by_workflows:
-      - nines-assisted
-      - skill-optimization
-
   - id: ui-pro
     tier: suggest
     backend: npm_then_init
@@ -194,7 +166,7 @@ plugins:
     package: si-chip
     install_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
     upgrade_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
-    version_check_cmd: "python -c 'import sys; sys.path.insert(0, \"src\"); from devolaflow.si_chip_bridge import find_si_chip_install; from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version; install=find_si_chip_install(); v=read_installed_si_chip_version(install) if install else None; print(f\"si-chip/{v}\") if v else sys.exit(1)'"
+    version_check_cmd: "python3 -c 'import sys; sys.path.insert(0, \"src\"); from devolaflow.si_chip_bridge import find_si_chip_install; from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version; install=find_si_chip_install(); v=read_installed_si_chip_version(install) if install else None; print(f\"si-chip/{v}\") if v else sys.exit(1)'"
     min_version: "0.4.0"
     expected_sha256: null
     canonical_url: "https://github.com/YoRHa-Agents/Si-Chip"
@@ -224,17 +196,18 @@ plugins:
   # target refreshes the integration files in place.
   #
   # The PROJECT-LOCAL index creation (``codegraph init <project_root>``
-  # → creates ``.codegraph/codegraph.db``) runs separately at workflow
-  # scaffold time per PV-04 (see
-  # ``workflow-system/agent/templates/builtin/repo-init.yaml`` ::
-  # ``scaffold.config.codegraph_init`` sub-step). Splitting installer-
-  # phase agent integration from per-workflow project-index creation
+  # → creates ``.codegraph/codegraph.db``) runs separately when L0
+  # materializes the repo-init scaffold assertion per PV-04 (see
+  # ``workflow-system/agent/templates/seeds/repo-init.yaml`` historical
+  # ``scaffold.config.codegraph_init`` provenance). Splitting installer-
+  # phase agent integration from per-change project-index creation
   # mirrors the upstream codegraph install vs. init separation and keeps
   # ensure_plugin() free of project-state side-effects (R5 strict).
   #
-  # invoked_by_workflows lists the 4 analyze-stage templates wired in
-  # PV-04 (repo-init, onboarding, security-audit, product-verification).
-  # The 2 stage_affinity workflows from plugins.yaml (refactoring,
+  # invoked_by_workflows retains the 4 intent names whose seeds carry
+  # analyze-primitive provenance from PV-04 (repo-init, onboarding,
+  # security-audit, product-verification). The 2 stage_affinity intents
+  # from plugins.yaml (refactoring,
   # performance-optimization) are NOT wired in PV-04 — they are forward-
   # compat declarations for v12.6.0+ pickup.
   - id: codegraph
@@ -261,7 +234,7 @@ plugins:
 
   # v13.0.0 — Impeccable design-refinement skill + anti-pattern detector.
   # Spec source-of-truth: https://github.com/pbakaus/impeccable
-  # 6th plugin; pairs with ui-pro (ui_tooling) on the new `web-design`
+  # 5th plugin; pairs with ui-pro (ui_tooling) on the new `web-design`
   # workflow: ui-pro DESIGNS (style / palette / typography / design-system),
   # impeccable REFINES (/impeccable polish, critique, typeset, arrange,
   # animate) and VERIFIES (the no-LLM `impeccable detect` anti-pattern scan,

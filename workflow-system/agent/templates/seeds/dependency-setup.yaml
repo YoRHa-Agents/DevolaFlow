@@ -1,0 +1,35 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: dependency-setup
+  version: "1.0.0"
+  description: "Seed for bounded environment and tooling setup."
+  category: build
+  intent_keywords: [setup, install, dependency, environment, tooling, configuration]
+  source:
+    kind: composition
+    name: dependency-setup
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: setup-plan
+    title_template: "Dependency research and plan"
+    source_stages:
+      - {id: research, primitive: research}
+      - {id: plan, primitive: plan}
+    assertions:
+      - key: compatibility-known
+        statement_template: "Versions, platform constraints, permissions, and rollback steps are documented"
+        suggested_priority: P1
+        verify: {mode: manual}
+  - key: configuration
+    title_template: "Configuration and verification"
+    source_stages:
+      - {id: configure, primitive: implement}
+      - {id: verify, primitive: test}
+    assertions:
+      - key: setup-reproducible
+        statement_template: "The configured environment is reproducible and passes its approved smoke verification"
+        suggested_priority: P0
+        verify: {mode: metric, template: "setup_smoke_failures == 0"}

@@ -1,0 +1,87 @@
+schema_version: 1
+id: long_context_retrieval
+provenance:
+  - legacy-evobench:long_context_repo_qa
+feature_tags:
+  - retrieval_priority
+  - long_context
+dispatch:
+  hdr:
+    id: harness-long-context
+    parent: harness-root
+    layer: wave
+    timeout: 900
+  task:
+    id: LR-01
+    type: research
+    title: Retrieve repository contract evidence
+  goal: Answer one repository question from prioritized sources without unrelated context drift.
+  pred:
+    - ref: AGENTS.md
+      key_facts:
+        - Soul rules are immutable.
+        - Agent-facing paths are relative.
+      summary_mode: extractive
+      summary_max_tokens: 200
+    - ref: schemas/lean-dispatch.yaml
+      key_facts:
+        - Top-level dispatch order is canonical.
+        - Structured criteria are optional but testable.
+      summary_mode: extractive
+      summary_max_tokens: 200
+    - ref: workflow-system/agent/references/context-isolation.md
+      key_facts:
+        - Each task starts with fresh context.
+        - Share contracts instead of conversation history.
+      summary_mode: extractive
+      summary_max_tokens: 200
+  files:
+    - src/devolaflow/task_adaptive_selector.py
+    - tests/test_task_adaptive_selector.py
+  rules:
+    strategy: standard
+    lang: python
+    focus:
+      - retrieval
+      - context-isolation
+  shared: Critical contracts outrank broad repository background.
+  accept:
+    - Answer cites the highest-priority repository contract.
+    - Unrelated sections do not enter the task context.
+  gate:
+    blockers: 0
+    retries: 1
+    token_budget:
+      max_tokens: 8000
+      warn_at: 0.8
+      break_at: 1.0
+  acceptance_criteria_v2:
+    - id: LR-AC-1
+      description: Context selector retrieval tests pass.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_task_adaptive_selector.py -q --no-cov
+    - id: LR-AC-2
+      description: Answer cites the highest-priority repository contract.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_task_adaptive_selector.py::TestG037TimeoutClassResolution::test_w6_timeout_knobs_do_not_displace_critical_sections -q --no-cov
+    - id: LR-AC-3
+      description: Unrelated sections do not enter the task context.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_task_adaptive_selector.py::TestSelectContext::test_skipped_sections_reported -q --no-cov
+expected:
+  guard_ids:
+    - LR-AC-1
+    - LR-AC-2
+    - LR-AC-3
+  report_required_keys:
+    - hdr
+    - state
+    - artifacts
+    - ac_results
+    - diff_stats
+  report_forbidden_keys:
+    - quality_score
+  required_literals:
+    - source priority
+    - fresh context
+  fold_sensitive: false

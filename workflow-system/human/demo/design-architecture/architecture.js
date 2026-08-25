@@ -1,5 +1,17 @@
 // DevolaFlow Framework Architecture Data
-// Maps every skill file to its design source, tier, and associated workflows
+// Maps current agent surfaces to their tier and runtime role.
+
+const reference = (id, purpose, triggers) => ({
+  id,
+  path: `workflow-system/agent/references/${id}.md`,
+  tier: 2,
+  tokenEstimate: 2500,
+  purpose,
+  designSource: "Current agent contract",
+  designSections: "Load the named reference only when its trigger applies.",
+  triggers,
+  relatedWorkflows: ["all 23 checklist seeds; sole change-driven runtime"],
+});
 
 const FRAMEWORK = {
   // ─── Tier 1: Entry Point ───────────────────────────────────────
@@ -7,103 +19,49 @@ const FRAMEWORK = {
     id: "SKILL.md",
     path: "workflow-system/agent/SKILL.md",
     tier: 1,
-    lines: 429,
-    tokenEstimate: 3100,
-    purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains compact section summaries with pointers to Tier-2 references. v9.0.0 PV-01 (v8.4.1) compressed PLAN MODE + Reinforcement Rules detail into references/plan-mode-enforcement.md; the v14.5.0 G-019 IA pass demoted Template Quick-Reference to references/meta-framework.md and tightened the ceremony sections (492 → 429 lines).",
-    designSource: "design_delivery_architecture.md §3.4",
+    lines: 425,
+    tokenEstimate: 6000,
+    purpose: "Tier-1 checklist-round entry point: 23 non-executable seeds, one change-driven runtime, and a three-layer Project → Wave → Task hierarchy.",
+    designSource: "workflow-system/agent/SKILL.md",
     sections: [
-      "Version & Update", "Quick Action Decision", "Mode Awareness",
-      "Overview", "Execution Model", "Stages", "Constraints Checklist",
-      "Invariants", "Quick Start — Workflow Selection", "4-Layer Agent Hierarchy",
-      "Stage Primitives Index", "Gate Mechanism", "AgentTeam Quick Reference",
-      "Context Isolation", "Dispatch & Report Protocol", "Lifecycle Hooks",
-      "Repo Mode Detection", "Reference Navigation Guide", "Task Quality Score"
+      "Version & Update", "Workspace Engagement", "Quick Action Decision",
+      "Mode Awareness", "Quick Start — Workflow Selection",
+      "Repo-Init Pre-Dispatch Contract", "3-Layer Agent Hierarchy",
+      "Seed Provenance Labels", "Gate Mechanism", "AgentTeam Quick Reference",
+      "Context Isolation", "Subagent Hang Prevention",
+      "Dispatch & Report Protocol", "Lifecycle Hooks", "Repo Mode Detection",
+      "Reference Navigation Guide", "Task Quality Score"
     ],
     triggers: ["implement feature", "build from scratch", "fix bug", "refactor code", "migrate system", "full pipeline", "hotfix", "workflow orchestration"],
   },
 
   // ─── Tier 2: Domain References ─────────────────────────────────
   references: [
-    {
-      id: "agent-hierarchy",
-      path: "workflow-system/agent/references/agent-hierarchy.md",
-      tier: 2, tokenEstimate: 3200,
-      purpose: "4-layer hierarchy with full specs, delegation rules, per-layer MUST/MUST NOT, context budgets, message flow.",
-      designSource: "design_agent_hierarchy.md",
-      designSections: "§2 (4-Layer Hierarchy), §3 (Communication Protocol), §6 (Context Isolation), §7 (Delegation Examples)",
-      triggers: ["setting up agent hierarchy", "debugging delegation", "understanding layer roles"],
-      relatedWorkflows: ["all — defines the execution model for every workflow"],
-    },
-    {
-      id: "meta-framework",
-      path: "workflow-system/agent/references/meta-framework.md",
-      tier: 2, tokenEstimate: 4500,
-      purpose: "13 stage primitives with I/O contracts, dependency lattice, 5 composition operators, BNF grammar, composition patterns.",
-      designSource: "design_meta_framework.md",
-      designSections: "§2 (Primitives), §3 (Composability), §4 (Template Schema), §5 (Registry), §6 (Auto-Recommendation)",
-      triggers: ["understanding stage primitives", "designing workflow composition", "template authoring"],
-      relatedWorkflows: ["all — defines what stages exist and how they compose"],
-    },
-    {
-      id: "decomposition-gate",
-      path: "workflow-system/agent/references/decomposition-gate.md",
-      tier: 2, tokenEstimate: 4200,
-      purpose: "Stage/Wave/Task decomposition rules, gate quality mechanism (composite score, profiles, convergence), failure handling chain.",
-      designSource: "design_decomposition_gate.md",
-      designSections: "§2 (Stage Rules), §3 (Wave Rules), §4 (Task Rules), §5 (Gate Mechanism), §6 (Dependency Matrix), §7 (Failure Chain)",
-      triggers: ["decomposing work into stages/waves/tasks", "evaluating gate quality", "handling failures"],
-      relatedWorkflows: ["full-pipeline", "feature-enhancement", "refactoring", "migration", "security-audit"],
-    },
-    {
-      id: "repo-modes",
-      path: "workflow-system/agent/references/repo-modes.md",
-      tier: 2, tokenEstimate: 3000,
-      purpose: "3 repository modes (local/github/other-git), feature matrix, detection logic, CI/CD pipeline templates.",
-      designSource: "design_repo_modes.md",
-      designSections: "§1 (Mode Definitions), §2 (Feature Matrix), §3 (Detection Logic), §4 (Pipeline Templates)",
-      triggers: ["detecting repository mode", "configuring mode-specific features", "setting up CI/CD"],
-      relatedWorkflows: ["all — determines release/deploy behavior per mode"],
-    },
-    {
-      id: "execution-protocol",
-      path: "workflow-system/agent/references/execution-protocol.md",
-      tier: 2, tokenEstimate: 3800,
-      purpose: "Pre-decision phase, checkpoint/resume mechanism, exception severity classification, human intervention breakpoints.",
-      designSource: "design_execution_protocol.md",
-      designSections: "§2 (Pre-Decision), §3 (Information Collection), §4 (Checkpoint/Resume), §5 (Exception Classification), §6 (Human Breakpoints), §7 (Execution Log)",
-      triggers: ["running pre-decision phase", "checkpoint management", "handling exceptions", "resuming workflow"],
-      relatedWorkflows: ["full-pipeline", "feature-enhancement — pre-decision is universal"],
-    },
-    {
-      id: "message-schemas",
-      path: "workflow-system/agent/references/message-schemas.md",
-      tier: 2, tokenEstimate: 3500,
-      purpose: "Full YAML schemas for TaskDispatch, StatusReport, ExceptionEscalation with field docs and examples.",
-      designSource: "design_agent_hierarchy.md §3",
-      designSections: "§3.1 (TaskDispatch), §3.2 (StatusReport), §3.3 (ExceptionEscalation)",
-      triggers: ["constructing dispatch messages", "parsing status reports", "handling escalations"],
-      relatedWorkflows: ["all — messages are the inter-layer communication protocol"],
-    },
-    {
-      id: "team-roles",
-      path: "workflow-system/agent/references/team-roles.md",
-      tier: 2, tokenEstimate: 4500,
-      purpose: "5 AgentTeam specifications (Research/Design/Implement/Test/Review) with I/O contracts, quality criteria, handoff protocol.",
-      designSource: "design_agent_hierarchy.md §4-§5",
-      designSections: "§4.1 (Research), §4.2 (Design), §4.3 (Implement), §4.4 (Test), §4.5 (Review), §5 (Handoff Protocol)",
-      triggers: ["configuring task agents", "understanding team capabilities", "setting up handoff protocols"],
-      relatedWorkflows: ["all — teams are assigned to stages via the workflow template"],
-    },
-    {
-      id: "context-isolation",
-      path: "workflow-system/agent/references/context-isolation.md",
-      tier: 2, tokenEstimate: 2800,
-      purpose: "Context isolation principles, injection template, what must NOT leak between agents, budget management by layer.",
-      designSource: "design_agent_hierarchy.md §6",
-      designSections: "§6.1 (Principles), §6.2 (Isolated Windows), §6.3 (Injection Template), §6.4 (Leak Prevention), §6.5 (Budget Management)",
-      triggers: ["setting up context injection", "debugging context leaks", "configuring agent budgets"],
-      relatedWorkflows: ["all — context isolation is a cross-cutting invariant"],
-    },
+    reference("agent-hierarchy", "Three-layer Project → Wave → Task responsibilities and escalation.", ["delegating work", "checking layer boundaries"]),
+    reference("agent-workspace", "Active-change folders, handoffs, archive, and ownership.", ["opening or resuming a change"]),
+    reference("artifact-quality", "L2 evidence rubric; numeric scoring remains L0-only.", ["building or checking task evidence"]),
+    reference("behavioral-guidelines", "Task behavior primitives and evidence attestations.", ["dispatching implementation or review"]),
+    reference("codegraph", "Suggest-tier indexed discovery and degraded behavior.", ["exploring symbols or impact"]),
+    reference("compression-pipeline", "Context compression and preservation rules.", ["building a bounded dispatch"]),
+    reference("context-isolation", "5K/5K/8K budgets and leak prevention.", ["isolating task context"]),
+    reference("decomposition-gate", "Checklist round, wave, task, convergence, and evidence gates.", ["partitioning or gating work"]),
+    reference("degraded-mode", "Explicit fallback when optional capabilities are absent.", ["handling missing tools"]),
+    reference("domain-awareness", "Glossary, contexts, and ADR decision boundaries.", ["resolving domain language"]),
+    reference("env-flags", "Canonical runtime-flag inventory and reuse-first checks.", ["adding or inspecting a flag"]),
+    reference("evaluator-rosetta", "Cross-walk among evaluator outputs.", ["interpreting evaluation evidence"]),
+    reference("execution-protocol", "Preflight, checkpoints, failures, and bounded execution.", ["running or resuming work"]),
+    reference("grill-mode", "One-question-at-a-time plan stress testing.", ["challenging a plan"]),
+    reference("human-surface", "Human-authored input and generated output contracts.", ["reading or writing human surfaces"]),
+    reference("impeccable", "Visual-quality refinement and verification.", ["polishing user-facing design"]),
+    reference("message-schemas", "Typed TaskDispatch, StatusReport, and escalation fields.", ["constructing inter-layer messages"]),
+    reference("meta-framework", "Registry-v3 checklist seeds and sole runtime selection.", ["selecting a seed"]),
+    reference("plan-mode-enforcement", "Goal, checklist, preflight, and approval contract.", ["planning before implementation"]),
+    reference("repo-modes", "Repository capability detection and behavior.", ["detecting repository mode"]),
+    reference("shell-proxy", "Shell routing and allowlist behavior.", ["routing bounded shell commands"]),
+    reference("subagent-patterns", "Inline, fan-out, and forward-only pool selection.", ["choosing delegation topology"]),
+    reference("task-quality-score", "L0-only, user-requested post-workflow request scoring.", ["scoring the completed request"]),
+    reference("team-roles", "L2 research, design, implementation, test, and review roles.", ["assigning task specialization"]),
+    reference("troubleshooting", "Installation and workflow failure diagnostics.", ["diagnosing a failure"]),
   ],
 
   // ─── Tier 3: On-Demand (Examples, Knowledge, Schemas) ─────────
@@ -112,67 +70,118 @@ const FRAMEWORK = {
       id: "full-pipeline-trace",
       path: "workflow-system/agent/examples/full-pipeline-trace.md",
       tier: 3, tokenEstimate: 4500,
-      purpose: "Complete delegation chain walkthrough: 18 agents, 7 stages, all 6 message types.",
-      designSource: "design_agent_hierarchy.md §7.1",
+      purpose: "Checklist-round full-pipeline evidence walkthrough.",
+      designSource: "Current execution example",
       relatedWorkflows: ["full-pipeline"],
     },
     {
       id: "hotfix-trace",
       path: "workflow-system/agent/examples/hotfix-trace.md",
       tier: 3, tokenEstimate: 2200,
-      purpose: "Minimal 4-stage hotfix workflow trace: 5 agents, rapid triage-to-release.",
-      designSource: "design_agent_hierarchy.md §7.2",
+      purpose: "Concise hotfix checklist and evidence walkthrough.",
+      designSource: "Current execution example",
       relatedWorkflows: ["hotfix"],
+    },
+    {
+      id: "multi-stage-trace",
+      path: "workflow-system/agent/examples/multi-stage-trace.md",
+      tier: 3, tokenEstimate: 3500,
+      purpose: "Historical staged trace retained for provenance; not a current runtime.",
+      designSource: "Historical compatibility example",
+      relatedWorkflows: ["provenance only"],
     },
     {
       id: "convergence-loop-trace",
       path: "workflow-system/agent/examples/convergence-loop-trace.md",
       tier: 3, tokenEstimate: 3500,
-      purpose: "8-phase convergence round with 2-round example, gate scoring, stagnation detection.",
-      designSource: "design_agent_hierarchy.md Appendix C, design_decomposition_gate.md §5",
-      relatedWorkflows: ["full-pipeline", "refactoring", "migration", "security-audit", "feature-enhancement"],
+      purpose: "Bounded convergence, evidence, and stagnation walkthrough.",
+      designSource: "Current execution example",
+      relatedWorkflows: ["implementation-class checklist items"],
     },
   ],
 
   knowledge: [
     {
+      id: "index",
+      path: "workflow-system/agent/knowledge/index.md",
+      tier: 3, tokenEstimate: 500,
+      purpose: "On-demand knowledge catalog.",
+      designSource: "Knowledge navigation",
+      relatedWorkflows: ["all"],
+    },
+    {
+      id: "interview-protocol",
+      path: "workflow-system/agent/knowledge/interview-protocol.md",
+      tier: 3, tokenEstimate: 1200,
+      purpose: "Bounded interview prompts and termination.",
+      designSource: "Planning support",
+      relatedWorkflows: ["plan and grill modes"],
+    },
+    {
       id: "code-rules-mapping",
       path: "workflow-system/agent/knowledge/code-rules-mapping.md",
       tier: 3, tokenEstimate: 2800,
-      purpose: "How code rules load per-language/per-task during implement and review stages.",
+      purpose: "How code rules load per language and task.",
       designSource: "code-rules system integration",
-      relatedWorkflows: ["full-pipeline", "hotfix", "refactoring", "feature-enhancement"],
+      relatedWorkflows: ["implementation and review tasks"],
     },
     {
       id: "principle-mapping",
       path: "workflow-system/agent/knowledge/principle-mapping.md",
       tier: 3, tokenEstimate: 2600,
-      purpose: "SOLID/TDD/Clean Architecture/DDD mapped to workflow stages and gate dimensions.",
+      purpose: "Engineering principles mapped to checklist assertions and gate evidence.",
       designSource: "Software engineering principles",
-      relatedWorkflows: ["full-pipeline", "feature-enhancement"],
+      relatedWorkflows: ["implementation-class checklist items"],
+    },
+    {
+      id: "reference-dependencies",
+      path: "workflow-system/agent/knowledge/reference-dependencies.yaml",
+      tier: 3, tokenEstimate: 800,
+      purpose: "Machine-readable reference dependency map.",
+      designSource: "Knowledge navigation",
+      relatedWorkflows: ["all"],
+    },
+    {
+      id: "runtime-plugins",
+      path: "workflow-system/agent/knowledge/runtime-plugins.yaml",
+      tier: 3, tokenEstimate: 900,
+      purpose: "Canonical runtime plugin registration data.",
+      designSource: "Plugin registry",
+      relatedWorkflows: ["plugin-assisted tasks"],
     },
   ],
 
-  // ─── Templates ─────────────────────────────────────────────────
-  templates: [
-    { id: "full-pipeline", stages: 8, category: "composite", gateType: "convergence", designSource: "design_meta_framework.md §7.2" },
-    { id: "hotfix", stages: 4, category: "build", gateType: "standard", designSource: "design_meta_framework.md §4.4 Ex2" },
-    { id: "research-only", stages: 3, category: "discover", gateType: "standard", designSource: "design_meta_framework.md §4.4 Ex1" },
-    { id: "research-design-review-refine", stages: 5, category: "composite", gateType: "convergence", designSource: "design_meta_framework.md §7.1" },
-    { id: "design-only", stages: 3, category: "shape", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "refactoring", stages: 5, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "migration", stages: 5, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "spike-poc", stages: 3, category: "discover", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "documentation-only", stages: 3, category: "deliver", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "security-audit", stages: 5, category: "verify", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "feature-enhancement", stages: 7, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "demo-showcase", stages: 6, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "performance-optimization", stages: 5, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "dependency-setup", stages: 4, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "onboarding", stages: 4, category: "discover", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "skill-optimization", stages: 5, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
-    { id: "self-update", stages: 6, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+  // ─── Checklist seeds + sole runtime ────────────────────────────
+  seeds: [
+    { id: "hotfix", category: "build", focus: "triage, minimal fix, focused checks" },
+    { id: "research-only", category: "discover", focus: "sources, comparison, report" },
+    { id: "design-only", category: "shape", focus: "research, decisions, review" },
+    { id: "documentation-only", category: "deliver", focus: "survey, authoring, review" },
+    { id: "spike-poc", category: "discover", focus: "bounded prototype and verdict" },
+    { id: "refactoring", category: "build", focus: "scope, regression safety, review" },
+    { id: "feature-enhancement", category: "composite", focus: "design, implementation, release evidence" },
+    { id: "full-pipeline", category: "composite", focus: "end-to-end delivery assertions" },
+    { id: "performance-optimization", category: "build", focus: "profile, optimize, benchmark" },
+    { id: "security-audit", category: "composite", focus: "threat model, scan, remediation" },
+    { id: "research-design-review-refine", category: "composite", focus: "research, design, review, refinement" },
+    { id: "dependency-setup", category: "build", focus: "setup and bounded verification" },
+    { id: "onboarding", category: "discover", focus: "analysis, docs, setup" },
+    { id: "demo-showcase", category: "composite", focus: "story, build, visual evidence" },
+    { id: "product-verification", category: "composite", focus: "visual, interaction, accessibility, UAT" },
+    { id: "entropy-cleanup", category: "control", focus: "scan, proposal, cleanup evidence" },
+    { id: "migration", category: "build", focus: "migration, cutover, rollback readiness" },
+    { id: "skill-optimization", category: "composite", focus: "measure, harness-evaluate, optimize" },
+    { id: "self-update", category: "control", focus: "research, integration, evaluation" },
+    { id: "nines-assisted", category: "composite", focus: "opaque historical compatibility ID; built-in harness evidence" },
+    { id: "repo-init", category: "discover", focus: "canonical scaffold assertions" },
+    { id: "change-driven", category: "composite", focus: "checklist knowledge plus runtime name" },
+    { id: "web-design", category: "composite", focus: "design, implementation, deterministic checks" },
   ],
+  runtime: {
+    id: "change-driven",
+    path: "workflow-system/agent/templates/builtin/change-driven.yaml",
+    purpose: "Sole executable checklist-round lifecycle runtime.",
+  },
 
   // ─── Adapters ──────────────────────────────────────────────────
   adapters: [
@@ -189,10 +198,10 @@ const FRAMEWORK = {
     { id: "wp2", file: "wp2_local_patterns.md", lines: 610, purpose: "13 local plan pattern analysis" },
     { id: "wp3", file: "wp3_workflow_types.md", lines: 993, purpose: "10 workflow type catalog" },
     { id: "synthesis", file: "research_synthesis_report.md", lines: 374, purpose: "10 key findings, framework scoring matrix" },
-    { id: "hierarchy", file: "design_agent_hierarchy.md", lines: 1512, purpose: "4-layer hierarchy, 5 teams, communication, context isolation" },
+    { id: "hierarchy", file: "design_agent_hierarchy.md", lines: 1512, purpose: "Historical hierarchy research; current contract is Project → Wave → Task" },
     { id: "decomposition", file: "design_decomposition_gate.md", lines: 1859, purpose: "Decomposition rules, gate mechanism, failure handling" },
     { id: "execution", file: "design_execution_protocol.md", lines: 1613, purpose: "Pre-decision, checkpoint/resume, exception classification" },
-    { id: "meta", file: "design_meta_framework.md", lines: 2132, purpose: "13 primitives, 5 operators, template schema, registry, auto-recommendation" },
+    { id: "meta", file: "design_meta_framework.md", lines: 2132, purpose: "Historical taxonomy source; current registry exposes non-executable seeds" },
     { id: "repo", file: "design_repo_modes.md", lines: 838, purpose: "3 repo modes, feature matrix, CI/CD templates" },
     { id: "delivery", file: "design_delivery_architecture.md", lines: 975, purpose: "4-tool comparison, multi-level index, adapter pipeline, MVP spec" },
     { id: "dual", file: "design_dual_system.md", lines: 1097, purpose: "Agent/Human dual system, sync pipeline, VSCode plugin roadmap" },
@@ -202,7 +211,7 @@ const FRAMEWORK = {
 // ─── Rendering ─────────────────────────────────────────────────────
 
 const TIER_COLORS = { 1: "#9B4444", 2: "#B8860B", 3: "#5B7553" };
-const TIER_LABELS = { 1: "Tier 1 — Entry (always loaded)", 2: "Tier 2 — Reference (per-stage)", 3: "Tier 3 — On-Demand" };
+const TIER_LABELS = { 1: "Tier 1 — Entry (always loaded)", 2: "Tier 2 — Reference (per need)", 3: "Tier 3 — On-Demand" };
 const CAT_COLORS = { discover: "#B8860B", shape: "#C49A3C", build: "#5B7553", verify: "#D4A843", deliver: "#9B4444", composite: "#495057", control: "#6c757d" };
 
 function renderFrameworkOverview() {
@@ -224,10 +233,11 @@ graph TB
 
   subgraph agent ["Agent Skill System"]
     skill["SKILL.md (Tier 1)"]
-    refs["8 References (Tier 2)"]
-    examples["3 Examples (Tier 3)"]
-    knowledge["2 Knowledge (Tier 3)"]
-    templates["17 Templates (YAML)"]
+    refs["25 References (Tier 2)"]
+    examples["4 Examples (Tier 3)"]
+    knowledge["6 Knowledge (Tier 3)"]
+    seeds["23 Non-Executable Seeds"]
+    runtime["1 Runtime: change-driven"]
     schemas["7 Schemas"]
   end
 
@@ -271,7 +281,8 @@ graph TB
   skill --> en
   refs --> en
   en --> zh
-  templates --> demo
+  seeds --> runtime
+  runtime --> demo
 </pre>`;
   if (window.mermaid) window.mermaid.run({ nodes: [el.querySelector(".mermaid")] });
 }
@@ -317,8 +328,9 @@ function renderSkillFileList() {
 
   html += `<h3 class="tier-heading">Tier 3 — Knowledge <span class="count">${FRAMEWORK.knowledge.length} files</span></h3>`;
   FRAMEWORK.knowledge.forEach(k => {
+    const fileName = k.path.split("/").pop();
     html += `<div class="file-card tier3" data-file="${k.id}">
-      <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span><strong>${k.id}.md</strong><span class="token-badge">${k.tokenEstimate} tok</span></div>
+      <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span><strong>${fileName}</strong><span class="token-badge">${k.tokenEstimate} tok</span></div>
       <p class="file-purpose">${k.purpose}</p>
       <div class="file-workflows">Workflows: <em>${k.relatedWorkflows.join(", ")}</em></div>
     </div>`;
@@ -329,19 +341,22 @@ function renderSkillFileList() {
 
 function renderTemplateList() {
   const el = document.getElementById("template-list");
-  let html = `<div class="template-grid">`;
-  FRAMEWORK.templates.forEach(t => {
-    const color = CAT_COLORS[t.category] || "#666";
+  let html = `<div class="template-card">
+    <div class="template-header"><span class="cat-badge" style="background:${CAT_COLORS.control}">runtime</span><strong>${FRAMEWORK.runtime.id}</strong></div>
+    <p>${FRAMEWORK.runtime.purpose}</p>
+    <div class="template-design">${FRAMEWORK.runtime.path}</div>
+  </div><div class="template-grid">`;
+  FRAMEWORK.seeds.forEach(seed => {
+    const color = CAT_COLORS[seed.category] || "#666";
     html += `<div class="template-card">
       <div class="template-header">
-        <span class="cat-badge" style="background:${color}">${t.category}</span>
-        <strong>${t.id}</strong>
+        <span class="cat-badge" style="background:${color}">${seed.category}</span>
+        <strong>${seed.id}</strong>
       </div>
       <div class="template-meta">
-        <span>${t.stages} stages</span>
-        <span>gate: ${t.gateType}</span>
+        <span>non-executable seed</span>
       </div>
-      <div class="template-design">Design: ${t.designSource}</div>
+      <div class="template-design">${seed.focus}</div>
     </div>`;
   });
   html += `</div>`;
@@ -383,7 +398,7 @@ function renderTokenBudget() {
   el.innerHTML = `
     <div class="budget-breakdown">
       <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[1]}">T1</span> Entry: <strong>${tier1}</strong> tokens (always loaded)</div>
-      <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[2]}">T2</span> References: <strong>${tier2}</strong> tokens total (1-2 loaded per stage)</div>
+      <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[2]}">T2</span> References: <strong>${tier2}</strong> tokens total (loaded per need)</div>
       <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span> On-Demand: <strong>${tier3}</strong> tokens total (loaded when needed)</div>
       <div class="budget-total">Total knowledge base: <strong>${total}</strong> tokens across ${1 + FRAMEWORK.references.length + FRAMEWORK.examples.length + FRAMEWORK.knowledge.length} files</div>
     </div>
@@ -406,7 +421,25 @@ function showTab(tabId) {
   }
 }
 
+function syncPageCopy() {
+  const seedTab = document.querySelector('[data-tab="tab-templates"]');
+  const seedPanel = document.getElementById("tab-templates");
+  const skillPanel = document.getElementById("tab-skills");
+  const designPanel = document.getElementById("tab-design");
+
+  seedTab.textContent = "Checklist Seeds + Runtime";
+  seedPanel.querySelector("h2").textContent = "23 Non-Executable Seeds + One Runtime";
+  seedPanel.querySelector("p").textContent =
+    "Seeds retain decomposition knowledge and provenance only. change-driven is the sole executable checklist-round runtime.";
+  skillPanel.querySelector("p").textContent =
+    "Tier 1 is always loaded; the exact 25-reference Tier 2 catalog loads per need; Tier 3 knowledge and examples load on demand.";
+  designPanel.querySelector("h2").textContent = "Design Documents (Historical Sources)";
+  designPanel.querySelector("p").textContent =
+    "Historical research remains traceable here; current behavior is defined by the agent contracts and registry-v3 runtime surfaces.";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  syncPageCopy();
   renderSkillFileList();
   renderTemplateList();
   renderAdapterList();

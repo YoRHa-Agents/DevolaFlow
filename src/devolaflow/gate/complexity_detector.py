@@ -1,4 +1,4 @@
-"""Overcomplexity detector — wraps NineS subprocess with tier-aware verdicts.
+"""Deterministic local complexity inspection with tier-aware verdicts.
 
 v8.0.0 (P-09) — implements primitive 4.13 from
 ``.local/research/tweet_analysis_harness_engineering_v7.8.md`` §4.13 and
@@ -26,31 +26,33 @@ Verdict       When
               Inject a "may be overcomplicated" reinforcement rule
               but do NOT block.
 ``CRITICAL``  at least one *hard* invariant broken: cyclomatic
-              complexity > 15, OR NineS surfaces an ERROR-severity
-              finding. Decreases composite_score and flips the
+              complexity > 15, OR an injected ERROR-severity finding.
+              Decreases composite_score and flips the
               verdict to ITERATE per ``patch_plan §3 P-09``.
 ============  ===================================================
 
-``wrap_nines_complexity(target_path)`` shells out to ``nines`` (see
-https://github.com/YoRHa-Agents/NineS), parses the JSON report, and
-returns the resulting :class:`ComplexitySignals`. When the binary is
-unavailable the wrapper returns a conservative MOCK signal that
-deliberately keeps the verdict at OK so the gate never silently fails
-just because NineS is missing (S-5 — log + explicit fallback path,
-never silent error).
+``inspect_complexity_path(target_path)`` walks Python files in stable
+lexicographic order and derives LOC, file, class, block-nesting, and
+cyclomatic-complexity measurements with the standard-library AST parser.
+The ratio to a hypothetical minimal implementation is not measurable from
+path inspection, so it is always the explicit sentinel ``0.0``.
 
 Honors S-5 (No Silent Failures): every classifier branch returns one of
-the three verdicts (never ``None``). The NineS subprocess wrapper logs
-both success and fallback paths via :mod:`logging`.
+the three verdicts (never ``None``). Missing, unreadable, or unparsable
+paths return a logged result with ``mode="degraded"`` rather than failing
+silently.
+
+The historical ``NinesWrapResult``, ``wrap_nines_complexity``,
+``NINES_*``, and ``nines_*`` surfaces remain deprecated compatibility
+aliases. They never resolve or execute an external binary.
 """
 
 from __future__ import annotations
 
-import json
+import ast
 import logging
 import os
-import shutil
-import subprocess
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -181,38 +183,40 @@ WARN_REASON_ABSTRACTIONS: str = "new_abstractions"
 WARN_REASON_NESTING: str = "nesting_depth_max"
 WARN_REASON_RATIO: str = "ratio_to_minimal"
 WARN_REASON_CC: str = "cyclomatic_complexity"
-WARN_REASON_NINES_WARN: str = "nines_warn_findings"
+WARN_REASON_WARNING_FINDINGS: str = "warning_findings"
+# Deprecated compatibility alias.
+WARN_REASON_NINES_WARN: str = WARN_REASON_WARNING_FINDINGS
 
 
 # Critical reasons (non-tier-dependent — apply across all tiers).
 CRITICAL_REASON_CC: str = "cyclomatic_complexity"
-CRITICAL_REASON_NINES_ERROR: str = "nines_error_findings"
+CRITICAL_REASON_ERROR_FINDINGS: str = "error_findings"
+# Deprecated compatibility alias.
+CRITICAL_REASON_NINES_ERROR: str = CRITICAL_REASON_ERROR_FINDINGS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# NineS subprocess wrapper
+# Deterministic local path inspection
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-# Default executable name. Resolved via :func:`shutil.which`; missing
-# binary → MOCK fallback (logged at WARNING).
+# Deprecated compatibility constant. Local inspection never resolves or
+# executes this value.
 NINES_BINARY: str = "nines"
 
-# Subprocess timeout in seconds. NineS deep analysis can be slow on
-# large repos; 120s is conservative but bounded so a hung subprocess
-# never blocks the gate forever (P4 bounded retry).
-NINES_TIMEOUT_SECONDS: int = 120
+# The local inspection is synchronous and performs no subprocess call. This
+# neutral name is canonical; the historical NineS name remains an alias so
+# existing call signatures and imports continue to work.
+COMPLEXITY_INSPECTION_TIMEOUT_SECONDS: int = 120
+NINES_TIMEOUT_SECONDS: int = COMPLEXITY_INSPECTION_TIMEOUT_SECONDS
 
 
-def _conservative_mock_signals() -> ComplexitySignals:
-    """Return a deliberately-low-complexity ``ComplexitySignals``.
+def _zero_complexity_signals() -> ComplexitySignals:
+    """Return explicit zero measurements for a degraded inspection.
 
-    Used by :func:`wrap_nines_complexity` when ``nines`` is unavailable
-    (binary missing, subprocess error, JSON parse failure). The fields
-    sit comfortably inside the strictest tier budget (``trivial``) so
-    :meth:`ComplexityDetector.evaluate` returns ``OK`` regardless of
-    tier — the gate must never block solely because NineS is missing
-    (S-5 — explicit conservative fallback, logged at WARNING).
+    The ratio remains ``0.0`` because a minimal viable implementation cannot
+    be inferred from a filesystem path. Inspection failures are represented
+    on :class:`ComplexityProbeResult`, not fabricated as code findings.
     """
     return ComplexitySignals(
         lines_changed=0,
@@ -221,273 +225,246 @@ def _conservative_mock_signals() -> ComplexitySignals:
         nesting_depth_max=0,
         cyclomatic_complexity=0,
         ratio_to_minimal=0.0,
-        nines_error_findings=0,
-        nines_warn_findings=0,
+        error_findings=0,
+        warning_findings=0,
     )
 
 
 @dataclass(frozen=True)
-class NinesWrapResult:
-    """Bundle returned by :func:`wrap_nines_complexity`.
+class ComplexityProbeResult:
+    """Bundle returned by :func:`inspect_complexity_path`.
 
-    Carries the parsed :class:`ComplexitySignals` AND a ``mode`` flag
-    (``"live"`` / ``"mock"``) so callers can differentiate a real NineS
-    run from a fallback. The ``rationale`` is human-readable and shows
-    up in :class:`ComplexityDetector` audit logs.
+    ``mode`` is ``"local"`` when every discovered Python file was measured
+    and ``"degraded"`` when path discovery, reading, or parsing failed.
+    ``errors`` keeps every failure explicit while ``inspected_files`` exposes
+    the stable processing order.
     """
 
     signals: ComplexitySignals
-    mode: str  # "live" | "mock"
+    mode: str  # "local" | "degraded"
     rationale: str
     raw_findings: tuple[dict[str, object], ...] = field(default_factory=tuple)
+    inspected_files: tuple[str, ...] = field(default_factory=tuple)
+    errors: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def is_degraded(self) -> bool:
+        """Return whether any requested measurement was unavailable."""
+        return self.mode in {"degraded", "mock"}
 
     @property
     def is_mock(self) -> bool:
-        """``True`` iff the wrapper fell back to the conservative mock."""
-        return self.mode == "mock"
+        """Deprecated alias for :attr:`is_degraded`."""
+        return self.is_degraded
 
 
-def _resolve_nines_binary(binary: str | None) -> str | None:
-    """Return the absolute path to ``binary`` or ``None`` if unavailable.
-
-    Defaults to :data:`NINES_BINARY` when ``binary`` is ``None``. Uses
-    :func:`shutil.which` so a binary on ``PATH`` resolves the same way
-    as a manual shell invocation.
-    """
-    name = binary or NINES_BINARY
-    return shutil.which(name)
+# Deprecated class alias. Identity is intentional for compatibility.
+NinesWrapResult = ComplexityProbeResult
 
 
-def _parse_nines_payload(payload: dict[str, object]) -> ComplexitySignals:
-    """Extract a :class:`ComplexitySignals` from a parsed NineS report.
+_FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+_NESTING_NODES = (
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.With,
+    ast.AsyncWith,
+    ast.Try,
+    ast.TryStar,
+    ast.Match,
+)
 
-    Accepts the canonical ``analyze`` shape:
 
-    .. code-block:: json
-
-        {
-          "findings": [
-            {"severity": "error", "metric": "cyclomatic", "value": 22, ...},
-            {"severity": "warn",  "metric": "cyclomatic", "value": 15, ...}
-          ],
-          "summary": {"total_lines": 1234, "total_files": 5, ...}
-        }
-
-    Missing keys default to ``0`` / ``[]`` so a partial NineS payload
-    still yields a valid :class:`ComplexitySignals`. Any negative
-    integers in the payload are clamped to ``0`` (the dataclass will
-    raise on construction otherwise — clamping keeps the wrapper
-    forward-compatible with future NineS schema tweaks).
-    """
-    findings = payload.get("findings") or []
-    if not isinstance(findings, list):
-        findings = []
-    summary = payload.get("summary") or {}
-    if not isinstance(summary, dict):
-        summary = {}
-
-    error_count = 0
-    warn_count = 0
-    max_cc = 0
-    for finding in findings:
-        if not isinstance(finding, dict):
+def _owned_ast_nodes(root: ast.AST) -> Iterator[ast.AST]:
+    """Yield descendants of ``root`` without entering nested functions."""
+    stack = list(reversed(list(ast.iter_child_nodes(root))))
+    while stack:
+        node = stack.pop()
+        if isinstance(node, _FUNCTION_NODES):
             continue
-        sev = str(finding.get("severity", "")).lower()
-        if sev == "error":
-            error_count += 1
-        elif sev == "warn":
-            warn_count += 1
-        metric = str(finding.get("metric", "")).lower()
-        if metric in {"cyclomatic", "cyclomatic_complexity", "cc"}:
-            value = finding.get("value", 0)
-            try:
-                cc_value = int(value)
-            except (TypeError, ValueError):
-                cc_value = 0
-            if cc_value > max_cc:
-                max_cc = cc_value
+        yield node
+        stack.extend(reversed(list(ast.iter_child_nodes(node))))
 
-    lines_changed = max(0, int(summary.get("total_lines", 0) or 0))
-    files_touched = max(0, int(summary.get("total_files", 0) or 0))
-    new_abstractions = max(0, int(summary.get("new_classes", 0) or 0))
-    nesting_depth_max = max(0, int(summary.get("max_nesting_depth", 0) or 0))
-    ratio_to_minimal = max(0.0, float(summary.get("ratio_to_minimal", 0.0) or 0.0))
 
-    return ComplexitySignals(
-        lines_changed=lines_changed,
-        files_touched=files_touched,
-        new_abstractions=new_abstractions,
-        nesting_depth_max=nesting_depth_max,
-        cyclomatic_complexity=max_cc,
-        ratio_to_minimal=ratio_to_minimal,
-        nines_error_findings=error_count,
-        nines_warn_findings=warn_count,
+def _function_cyclomatic_complexity(function: ast.AST) -> int:
+    """Compute deterministic McCabe-style complexity for one function."""
+    complexity = 1
+    for node in _owned_ast_nodes(function):
+        if isinstance(
+            node,
+            (
+                ast.If,
+                ast.While,
+                ast.For,
+                ast.AsyncFor,
+                ast.ExceptHandler,
+                ast.IfExp,
+                ast.Assert,
+            ),
+        ):
+            complexity += 1
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            complexity += len(node.items)
+        elif isinstance(node, ast.BoolOp):
+            complexity += max(0, len(node.values) - 1)
+        elif isinstance(node, ast.comprehension):
+            complexity += len(node.ifs)
+        elif isinstance(node, ast.Match):
+            complexity += max(0, len(node.cases) - 1)
+    return complexity
+
+
+def _function_nesting_depth(function: ast.AST) -> int:
+    """Return maximum control-flow nesting below one function."""
+
+    def visit(node: ast.AST, depth: int) -> int:
+        if node is not function and isinstance(node, _FUNCTION_NODES):
+            return depth
+        child_depth = depth + 1 if isinstance(node, _NESTING_NODES) else depth
+        return max(
+            [child_depth, *(visit(child, child_depth) for child in ast.iter_child_nodes(node))]
+        )
+
+    return visit(function, 0)
+
+
+def _discover_python_files(target: Path) -> tuple[list[Path], list[str]]:
+    """Return sorted Python files and explicit path-discovery errors."""
+    try:
+        if not target.exists():
+            return [], [f"path does not exist: {target}"]
+        if target.is_file():
+            if target.suffix != ".py":
+                return [], [f"path is not a Python file: {target}"]
+            return [target], []
+        if not target.is_dir():
+            return [], [f"path is neither a file nor directory: {target}"]
+    except OSError as exc:
+        return [], [f"cannot inspect path {target}: {type(exc).__name__}: {exc}"]
+
+    files: list[Path] = []
+    errors: list[str] = []
+
+    def onerror(exc: OSError) -> None:
+        errors.append(f"cannot traverse {exc.filename or target}: {type(exc).__name__}: {exc}")
+
+    for root, directories, filenames in os.walk(target, topdown=True, onerror=onerror):
+        directories.sort()
+        for filename in sorted(filenames):
+            if filename.endswith(".py"):
+                files.append(Path(root) / filename)
+    return sorted(files, key=lambda path: path.as_posix()), errors
+
+
+def _measure_python_file(path: Path) -> tuple[int, int, int, int]:
+    """Return ``(loc, class_count, max_nesting, max_cc)`` for ``path``."""
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    functions = [node for node in ast.walk(tree) if isinstance(node, _FUNCTION_NODES)]
+    return (
+        len(source.splitlines()),
+        sum(1 for node in ast.walk(tree) if isinstance(node, ast.ClassDef)),
+        max((_function_nesting_depth(function) for function in functions), default=0),
+        max((_function_cyclomatic_complexity(function) for function in functions), default=0),
     )
 
 
-def wrap_nines_complexity(
+def inspect_complexity_path(
     target_path: str | Path,
     *,
     binary: str | None = None,
     timeout: int = NINES_TIMEOUT_SECONDS,
     runner: object | None = None,
-) -> NinesWrapResult:
-    """Run NineS deep analysis on ``target_path`` and return signals.
-
-    Shells out to ``nines analyze --target-path <target_path> --depth deep
-    --keypoints -f json``. When the binary is not on ``PATH`` (or the
-    subprocess fails for any reason — non-zero exit, JSON parse error,
-    timeout), the wrapper falls back to :func:`_conservative_mock_signals`
-    and logs at WARNING (S-5 — no silent failure).
+) -> ComplexityProbeResult:
+    """Inspect Python sources under ``target_path`` without external tools.
 
     Parameters
     ----------
     target_path:
-        Directory or file passed to ``nines analyze --target-path``.
+        Python file or directory inspected recursively in sorted path order.
     binary:
-        Optional override for the ``nines`` executable name (defaults
-        to :data:`NINES_BINARY`). Resolved via :func:`shutil.which`.
+        Deprecated compatibility argument. Ignored; no binary is resolved.
     timeout:
-        Subprocess timeout in seconds (default
-        :data:`NINES_TIMEOUT_SECONDS`).
+        Deprecated compatibility argument. Ignored; no subprocess runs.
     runner:
-        Optional callable replacing :func:`subprocess.run`. Used by
-        the test suite to inject deterministic mocks without monkey-
-        patching :mod:`subprocess`. When provided, MUST return an
-        object with ``returncode``, ``stdout`` and ``stderr``
-        attributes (mirroring :class:`subprocess.CompletedProcess`).
+        Deprecated compatibility argument. Never invoked.
 
     Returns
     -------
-    NinesWrapResult
-        Carries the parsed signals plus a ``mode`` flag (``"live"`` /
-        ``"mock"``) and a human-readable rationale.
+    ComplexityProbeResult
+        Local measurements, stable file order, and explicit degraded errors.
     """
-    resolved = _resolve_nines_binary(binary)
-    if resolved is None and runner is None:
-        logger.warning(
-            "NineS binary %r not on PATH; falling back to conservative MOCK signals "
-            "(target_path=%s)",
-            binary or NINES_BINARY,
-            target_path,
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(
-                f"NineS binary {(binary or NINES_BINARY)!r} not found on PATH; "
-                "conservative MOCK signals returned (verdict will be OK)."
-            ),
-        )
-
-    cmd = [
-        resolved or (binary or NINES_BINARY),
-        "-f",
-        "json",
-        "analyze",
-        "--target-path",
-        str(target_path),
-        "--depth",
-        "deep",
-        "--keypoints",
-    ]
-    invoke = runner if runner is not None else subprocess.run
-    try:
-        result = invoke(  # type: ignore[operator]
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except FileNotFoundError as exc:
-        logger.warning(
-            "NineS subprocess raised FileNotFoundError (%s); MOCK fallback engaged.",
-            exc,
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(f"NineS subprocess failed: {exc}; conservative MOCK signals returned."),
-        )
-    except subprocess.TimeoutExpired as exc:
-        logger.warning(
-            "NineS subprocess timed out after %ds (%s); MOCK fallback engaged.",
+    if binary is not None or timeout != NINES_TIMEOUT_SECONDS or runner is not None:
+        logger.debug(
+            "Deprecated external-probe arguments ignored: binary=%r timeout=%r runner=%s",
+            binary,
             timeout,
-            exc,
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(f"NineS subprocess timed out: {exc}; conservative MOCK signals returned."),
-        )
-    except OSError as exc:
-        logger.warning(
-            "NineS subprocess raised OSError (%s); MOCK fallback engaged.",
-            exc,
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(f"NineS subprocess error: {exc}; conservative MOCK signals returned."),
+            type(runner).__name__ if runner is not None else None,
         )
 
-    if getattr(result, "returncode", 1) != 0:
-        logger.warning(
-            "NineS subprocess returned non-zero exit %s; MOCK fallback engaged. stderr=%r",
-            getattr(result, "returncode", "?"),
-            getattr(result, "stderr", "")[:200],
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(
-                f"NineS subprocess exited non-zero ({getattr(result, 'returncode', '?')}); "
-                "conservative MOCK signals returned."
-            ),
-        )
+    target = Path(target_path)
+    files, errors = _discover_python_files(target)
+    total_loc = 0
+    total_classes = 0
+    max_nesting = 0
+    max_cc = 0
 
-    stdout = getattr(result, "stdout", "") or ""
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        logger.warning(
-            "NineS stdout is not valid JSON (%s); MOCK fallback engaged. stdout=%r",
-            exc,
-            stdout[:200],
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(f"NineS JSON parse error: {exc}; conservative MOCK signals returned."),
-        )
+    for path in files:
+        try:
+            loc, class_count, nesting, cc = _measure_python_file(path)
+        except (OSError, UnicodeError, SyntaxError) as exc:
+            error = f"cannot measure {path}: {type(exc).__name__}: {exc}"
+            errors.append(error)
+            logger.warning("Complexity path inspection degraded: %s", error)
+            continue
+        total_loc += loc
+        total_classes += class_count
+        max_nesting = max(max_nesting, nesting)
+        max_cc = max(max_cc, cc)
 
-    if not isinstance(payload, dict):
-        logger.warning(
-            "NineS payload is not a dict (got %s); MOCK fallback engaged.",
-            type(payload).__name__,
-        )
-        return NinesWrapResult(
-            signals=_conservative_mock_signals(),
-            mode="mock",
-            rationale=(
-                f"NineS payload type {type(payload).__name__}; conservative MOCK signals returned."
-            ),
-        )
+    if errors:
+        for error in errors:
+            if not error.startswith("cannot measure "):
+                logger.warning("Complexity path inspection degraded: %s", error)
 
-    signals = _parse_nines_payload(payload)
-    raw_findings = payload.get("findings") or []
-    if not isinstance(raw_findings, list):
-        raw_findings = []
-    return NinesWrapResult(
-        signals=signals,
-        mode="live",
-        rationale=(
-            f"NineS deep analysis succeeded: max_cc={signals.cyclomatic_complexity}, "
-            f"errors={signals.nines_error_findings}, warns={signals.nines_warn_findings}."
-        ),
-        raw_findings=tuple(f for f in raw_findings if isinstance(f, dict)),
+    signals = ComplexitySignals(
+        lines_changed=total_loc,
+        files_touched=len(files),
+        new_abstractions=total_classes,
+        nesting_depth_max=max_nesting,
+        cyclomatic_complexity=max_cc,
+        ratio_to_minimal=0.0,
+        error_findings=0,
+        warning_findings=0,
     )
+    mode = "degraded" if errors else "local"
+    rationale = (
+        f"Local Python inspection {mode}: files={signals.files_touched}, "
+        f"loc={signals.lines_changed}, classes={signals.new_abstractions}, "
+        f"max_nesting={signals.nesting_depth_max}, "
+        f"max_cc={signals.cyclomatic_complexity}, "
+        "ratio_to_minimal=0.0 (unmeasurable)"
+    )
+    if errors:
+        rationale += f", errors={len(errors)}."
+    else:
+        rationale += "."
+    return ComplexityProbeResult(
+        signals=signals,
+        mode=mode,
+        rationale=rationale,
+        inspected_files=tuple(path.as_posix() for path in files),
+        errors=tuple(errors),
+    )
+
+
+# Deprecated function alias. It intentionally resolves to the local inspector
+# and therefore can never execute a binary.
+wrap_nines_complexity = inspect_complexity_path
+
+# Private legacy helper retained for source-compatible tests and callers.
+_conservative_mock_signals = _zero_complexity_signals
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -624,19 +601,23 @@ class ComplexityDetector:
         timeout: int = NINES_TIMEOUT_SECONDS,
         runner: object | None = None,
     ) -> ComplexityEvaluation:
-        """Convenience: wrap NineS on ``target_path`` then :meth:`evaluate`.
+        """Convenience: inspect ``target_path`` locally then :meth:`evaluate`.
 
-        Equivalent to ``self.evaluate(wrap_nines_complexity(target_path).signals,
+        Equivalent to ``self.evaluate(inspect_complexity_path(target_path).signals,
         task_complexity)`` but keeps a single call-site for tests and
-        downstream gate scorer integration. The MOCK fallback is
-        transparent — the resulting :class:`ComplexityEvaluation` will
-        return ``OK`` whenever NineS is unavailable (per S-5 fallback).
+        downstream gate scorer integration. Deprecated external-probe
+        arguments are accepted but ignored.
         """
-        wrap = wrap_nines_complexity(target_path, binary=binary, timeout=timeout, runner=runner)
-        return self.evaluate(wrap.signals, task_complexity)
+        probe = inspect_complexity_path(
+            target_path,
+            binary=binary,
+            timeout=timeout,
+            runner=runner,
+        )
+        return self.evaluate(probe.signals, task_complexity)
 
     # ------------------------------------------------------------------
-    # Internal helpers — kept tiny to honour C-1 / NineS cc ceilings.
+    # Internal helpers — kept tiny to honour C-1 complexity ceilings.
     # ------------------------------------------------------------------
 
     def _resolve_tier(self, task_complexity: TaskComplexityTier | str) -> str:
@@ -663,7 +644,7 @@ class ComplexityDetector:
         reasons: list[str] = []
         if signals.cyclomatic_complexity > self.critical_cc_threshold:
             reasons.append(CRITICAL_REASON_CC)
-        if signals.nines_error_findings > 0:
+        if signals.error_findings > 0:
             reasons.append(CRITICAL_REASON_NINES_ERROR)
         return reasons
 
@@ -686,7 +667,7 @@ class ComplexityDetector:
             reasons.append(WARN_REASON_RATIO)
         if signals.cyclomatic_complexity > self.warning_cc_threshold:
             reasons.append(WARN_REASON_CC)
-        if signals.nines_warn_findings > 0:
+        if signals.warning_findings > 0:
             reasons.append(WARN_REASON_NINES_WARN)
         return reasons
 
@@ -700,7 +681,7 @@ class ComplexityDetector:
         if CRITICAL_REASON_CC in reasons:
             parts.append(f"cc={signals.cyclomatic_complexity} > {self.critical_cc_threshold}")
         if CRITICAL_REASON_NINES_ERROR in reasons:
-            parts.append(f"nines_errors={signals.nines_error_findings}")
+            parts.append(f"errors={signals.error_findings}")
         return f"CRITICAL — {', '.join(parts)} (reasons={reasons})."
 
     def _format_warning_rationale(
@@ -727,16 +708,19 @@ class ComplexityDetector:
         if WARN_REASON_CC in reasons:
             parts.append(f"cc={signals.cyclomatic_complexity} > {self.warning_cc_threshold}")
         if WARN_REASON_NINES_WARN in reasons:
-            parts.append(f"nines_warns={signals.nines_warn_findings}")
+            parts.append(f"warnings={signals.warning_findings}")
         return f"WARNING (tier={tier!r}) — {', '.join(parts)}."
 
 
 __all__ = [
     "CRITICAL_CC_THRESHOLD",
+    "CRITICAL_REASON_ERROR_FINDINGS",
     "CRITICAL_REASON_CC",
     "CRITICAL_REASON_NINES_ERROR",
+    "COMPLEXITY_INSPECTION_TIMEOUT_SECONDS",
     "ComplexityDetector",
     "ComplexityEvaluation",
+    "ComplexityProbeResult",
     "NINES_BINARY",
     "NINES_TIMEOUT_SECONDS",
     "NinesWrapResult",
@@ -749,6 +733,8 @@ __all__ = [
     "WARN_REASON_NESTING",
     "WARN_REASON_NINES_WARN",
     "WARN_REASON_RATIO",
+    "WARN_REASON_WARNING_FINDINGS",
     "WARNING_CC_THRESHOLD",
+    "inspect_complexity_path",
     "wrap_nines_complexity",
 ]

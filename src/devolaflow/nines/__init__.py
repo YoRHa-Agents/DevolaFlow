@@ -1,8 +1,8 @@
-"""NineS integration — research, analysis, and skill-iteration.
+"""Deprecated NineS compatibility API.
 
-Provides detector, CLI wrappers, research utilities, and advisor
-bridges to the NineS CLI.  All imports are safe when NineS is not
-installed; functions return graceful fallback values.
+This package remains importable in DevolaFlow v16 so existing callers can
+migrate away from the legacy integration. It is scheduled for removal in
+v17.
 
 Primary research API:
     :func:`collect_research`, :func:`analyze_target`,
@@ -12,6 +12,8 @@ Primary research API:
 Scorer API:
     :func:`nines_dimension_scores`.
 """
+
+import warnings
 
 from devolaflow.nines._cli import run_nines_cli
 from devolaflow.nines.advisor import (
@@ -48,6 +50,12 @@ from devolaflow.nines.scorer import (
     nines_dimension_scores,
     run_nines_analyze,
     run_nines_eval,
+)
+
+warnings.warn(
+    "devolaflow.nines is deprecated in v16 and scheduled for removal in v17",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

@@ -12,7 +12,8 @@
 #   - what project-specific `context` to inject into all artifacts
 #   - what per-artifact `rules` (token budget, format hints) to apply
 #   - what `mode` (lite | full) controls pre-commit gate strictness
-#   - whether plugins (nines, ui-pro) auto-install on demand (`plugin_runtime`)
+#   - whether current plugins (codegraph, si-chip, ui-pro) are only suggested
+#     or explicitly auto-installed on demand (`plugin_runtime`)
 #
 # Format: pure YAML. No frontmatter. No prose body.
 # -----------------------------------------------------------------------------
@@ -20,7 +21,7 @@
 design_reference: .local/research/v8.3.0_design.md §2.8
 schema_name: agent-config
 schema_version: 1
-last_updated: "2026-04-22"
+last_updated: "2026-08-25"
 governing_rules: [C-9]
 
 instance_path_template: ".local/.agent/config.yaml"
@@ -98,17 +99,18 @@ fields:
     description: |
       Pre-commit gate strictness selector.
       lite — single-author, low-risk. Pre-commit runs steps 1–3 only (tests / lint / format).
-      full — multi-author or high-risk. Pre-commit runs all 6 steps per W-9 SI-10
-      (tests / lint / format / version / benchmarks / cursor-skill check).
+      full — multi-author or high-risk. Pre-commit runs all 7 steps per W-9 SI-10
+      (core tests / lint / format / version / harness / cursor-skill /
+      iteration-delta gate).
 
   plugin_runtime:
     type: object
-    description: "Per-project plugin runtime overrides for v8.2.1's installer."
+    description: "Per-project overrides for the current probe-and-suggest plugin runtime."
     children:
       auto_install:
         type: bool
-        default: true
-        description: "When true, missing plugins auto-install on demand. When false, missing plugins raise PluginVersionMismatch (loud per S-5)."
+        default: false
+        description: "When false, missing plugins are probed and suggested without network mutation. When explicitly true, eligible missing plugins auto-install on demand."
       prefer_local_fallback:
         type: bool
         default: true
@@ -120,7 +122,7 @@ invariants:
   - "MUST be re-read at every L0 boot — agents MUST NOT cache config across sessions."
   - "Editing this file MUST be done as an explicit change (i.e. through /devola:propose) to keep the rules-coverage report accurate."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
-  - "External tool URLs (e.g. NineS, ui-pro) MUST be canonical GitHub URLs (S-7 / SF-6)."
+  - "External plugin URLs (e.g. Codegraph, Si-Chip, ui-pro) MUST be canonical GitHub URLs (S-7 / SF-6)."
 
 example: |
   schema_version: 1
@@ -128,7 +130,7 @@ example: |
   context: |
     Tech stack: Python 3.11+, pytest, ruff format, ruff lint.
     Conventions: relative paths only; canonical URLs for external tools;
-    80% coverage floor; SI-10 6/6 PASS before every commit.
+    80% coverage floor; SI-10 7/7 PASS before every commit.
   rules:
     goal:
       - "Stay under 200 tokens"
@@ -142,5 +144,5 @@ example: |
       - "Each task must be < 30 min and own ≤ 6 files"
   mode: lite
   plugin_runtime:
-    auto_install: true
+    auto_install: false
     prefer_local_fallback: true

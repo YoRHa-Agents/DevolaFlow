@@ -8,21 +8,18 @@ by the deprecation aggregator (external citations per C-7 / A-5.1).
 Since clean_repo Phase C1-3 (D4 hybrid design) this module also owns
 the baselines-directory listing lint: the immutable Tier-A witness pin
 (``_TIER_A_WITNESSES``, moved verbatim from
-``tests/ghost/test_features_v14_5.py``) and the DERIVED Tier-B JSON
-expectation (``_tier_b_window`` + ``_TEST_LOADED_KEEPS``).
+``tests/ghost/test_features_v14_5.py``) and the retired EvoBench archive
+listing pin.
 """
 
 from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
 
-from benchmarks.devolaflow_context.runner import _BASELINE_PATTERN, _newest_baseline_path
-from devolaflow import __version__
 from tests.ghost._helpers import _read
 
 # ── Category F: reference links (already SF-4 compliant — pin) ─────
@@ -158,7 +155,7 @@ _SF4_REFERENCE_SET = frozenset(
         "subagent-patterns.md",
         # v12.3.0 PV-03 — Task Quality Score extraction (21st SF-4
         # canonical). Tier 3 on-demand reference loaded only at workflow
-        # CLOSE (after the last stage gate PASSES); full extracted rubric
+        # CLOSE after checklist/archive readiness; full extracted rubric
         # (4-dimension scoring matrix + 📊 output template + v12.3.0
         # PV-02 version-literal footer) moved here from SKILL.md to free
         # ~120 tokens of per-dispatch execution-loop context per
@@ -221,9 +218,9 @@ _SF4_REFERENCE_SET = frozenset(
         # tests/test_no_ghost_features.py::test_v14_0_0_human_surface_symbols.
         "human-surface.md",
         # v14.3.0 — artifact-quality evidence rubric (25th SF-4 canonical).
-        # Tier 2 Large-tier reference: the EVIDENCE-ONLY rubric for the L3
+        # Tier 2 Large-tier reference: the EVIDENCE-ONLY rubric for the L2
         # task artifact itself per v15-ADR-007 (closes G-004 / F-P1-2 from
-        # the v14.2.0 SI-1 gap analysis §2.1). §1 doctrine (L3 MUST NOT
+        # the v14.2.0 SI-1 gap analysis §2.1). §1 doctrine (L2 MUST NOT
         # compute or report numeric quality scores — evidence only; the
         # reject_subagent_quality_score hook stays the runtime guard),
         # §2 four excellence dimensions (correctness / minimal diff / test
@@ -231,8 +228,8 @@ _SF4_REFERENCE_SET = frozenset(
         # BG-003, C-3), §3 dimension → lean-report transport map
         # (self_check / ac_results / diff_stats / metrics.*), §4 ordered
         # self-verify checklist, §5 failure honesty. Pairs with
-        # references/execution-protocol.md §15 "L3 Self-Verify" (G-005
-        # protocol slice) and references/task-quality-score.md (the L0-only
+        # references/decomposition-gate.md §5.2 intra-task convergence and
+        # references/task-quality-score.md (the L0-only
         # OPERATOR-REQUEST rubric — the two never overlap). Numeric scoring
         # stays L0-side and lands v15.0.0 per the v15-ADR-007 phase split.
         "artifact-quality.md",
@@ -307,6 +304,38 @@ def test_reference_skill_md_tier2_parity(project_root: Path) -> None:
         f"_SF4_REFERENCE_SET — missing rows: {sorted(missing_in_nav)}, "
         f"extra rows: {sorted(extra_in_nav)}. Canonical SF-4 set has "
         f"{len(canonical_set)} entries; SKILL.md Tier-2 nav has {len(nav_set)}."
+    )
+
+    skill = _read(project_root / "workflow-system/agent/SKILL.md")
+    knowledge_on_disk = {
+        path.relative_to(project_root / "workflow-system/agent").as_posix()
+        for path in (project_root / "workflow-system/agent/knowledge").iterdir()
+        if path.is_file() and path.suffix in {".md", ".yaml"}
+    }
+    knowledge_in_nav = set(re.findall(r"`(knowledge/[a-z][a-z0-9-]*\.(?:md|yaml))`", skill))
+    assert knowledge_in_nav == knowledge_on_disk, (
+        f"SKILL.md Tier-3 knowledge navigation drifted — missing: "
+        f"{sorted(knowledge_on_disk - knowledge_in_nav)}, extra: "
+        f"{sorted(knowledge_in_nav - knowledge_on_disk)}"
+    )
+
+    architecture = _read(
+        project_root / "workflow-system/human/demo/design-architecture/architecture.js"
+    )
+    architecture_refs = {
+        f"{name}.md" for name in re.findall(r'reference\("([a-z][a-z0-9-]*)"', architecture)
+    }
+    assert architecture_refs == canonical_set, (
+        "architecture.js Tier-2 reference inventory drifted from _SF4_REFERENCE_SET"
+    )
+    architecture_knowledge = set(
+        re.findall(
+            r'path:\s*"workflow-system/agent/(knowledge/[a-z][a-z0-9-]*\.(?:md|yaml))"',
+            architecture,
+        )
+    )
+    assert architecture_knowledge == knowledge_on_disk, (
+        "architecture.js Tier-3 knowledge inventory drifted from disk"
     )
 
 
@@ -453,30 +482,14 @@ def test_registry_yaml_at_canonical_path(
     )
 
 
-# ── A-2.4 baseline tiering — Tier-A pin + DERIVED Tier-B window ─────────
-# clean_repo Phase C1-3 (decision D4, hybrid design). The baselines-
-# directory listing lint migrated here from the frozen v14.5 cycle stanza
-# (tests/ghost/test_features_v14_5.py::test_v14_5_0_baseline_tiering_registered
-# part (a)) per v15-ADR-001 domain-lint placement. Split of authority:
-#
-# * Tier-A (the 10 layout_invariant_v*.yaml byte-witnesses) stays a
-#   HAND-FROZEN strict pin — per A-2.4 the pin IS the governance body;
-#   deriving or weakening it is a release blocker.
-# * Tier-B (the v*_baseline.json rolling window) is DERIVED from
-#   ``devolaflow.__version__`` + the on-disk filename version ordering,
-#   UNIONed with the ``_TEST_LOADED_KEEPS`` reader registry and the
-#   ``_newest_baseline_path`` pin. The set assertion stays STRICT
-#   EQUALITY (never ⊇) so the lint keeps its anti-bloat teeth.
-#
-# Net effect: future W-16 wholesale regens and A-2.4 Tier-C archival
-# sweeps (git mv to docs/cycle-archive/<cycle>/baselines/) require ZERO
-# test edits; only rewiring a historical JSON's reader requires dropping
-# its _TEST_LOADED_KEEPS entry.
+# ── A-2.4 witness-only baseline directory + retired EvoBench archive ────
+# The ten layout witnesses remain immutable and at their historical paths.
+# All retired EvoBench JSON evidence lives in one v15.2.0 cycle archive.
 
 # The 10 Tier-A byte-witnesses (IMMUTABLE per A-2.4 tiered retention /
 # v15-ADR-005 G-014) — moved VERBATIM from tests/ghost/test_features_v14_5.py
 # at clean_repo Phase C1-3; pruning or relocating ANY of these is a
-# release blocker. NOT derived — do not fold into _tier_b_window.
+# release blocker.
 _TIER_A_WITNESSES: frozenset[str] = frozenset(
     {
         "layout_invariant_v7.0.0.yaml",
@@ -492,234 +505,49 @@ _TIER_A_WITNESSES: frozenset[str] = frozenset(
     }
 )
 
-
-# Historical baseline JSONs still LOADED (or existence-pinned) by in-repo
-# tests/tooling — kept outside the Tier-B window for as long as their
-# readers stand. Each entry maps to its verified reader files (located
-# via `rg --fixed-strings <name>` at authoring time); the lint below
-# asserts every listed reader still cites the file, so a rewired reader
-# surfaces as a stale entry to delete rather than silent dead weight.
-_TEST_LOADED_KEEPS: dict[str, tuple[str, ...]] = {
-    # Legacy fallback baseline: runner.py::FALLBACK_BASELINE_NAME + 4
-    # direct loads in the benchmark suite (generate_baseline.py cites it
-    # only as provenance prose — not a reader).
-    "v2.1.0_baseline.json": (
-        "tests/test_benchmarks.py",
-        "benchmarks/devolaflow_context/runner.py",
-    ),
-    # v9.1.x W-16 regen artifact, existence-pinned by the v9.1 stanza.
-    "v9.2.0_baseline.json": ("tests/ghost/test_features_v9_1.py",),
-    # v9.3.0 PV artifacts: baseline existence-pinned by the v9.3 stanza;
-    # the latency JSON is schema-validated by the dispatch-latency suite.
-    "v9.3.0_baseline.json": ("tests/ghost/test_features_v9_3.py",),
-    "v9.3.0_latency.json": (
-        "tests/test_dispatch_latency.py",
-        "tests/ghost/test_features_v9_3.py",
-    ),
-    # v9.7.0 PV artifacts: same split as v9.3.0.
-    "v9.7.0_baseline.json": ("tests/ghost/test_features_v9_7.py",),
-    "v9.7.0_latency.json": (
-        "tests/test_dispatch_latency.py",
-        "tests/ghost/test_features_v9_7.py",
-    ),
-    "v9.7.0_latency_intermediate.json": ("tests/ghost/test_features_v9_7.py",),
-    # W-16 regen artifacts existence-pinned by their cycle stanzas.
-    "v10.2.0_baseline.json": ("tests/ghost/test_features_v10_2.py",),
-    "v11.1.0_baseline.json": ("tests/ghost/test_features_v11_0.py",),
-}
+_ARCHIVED_EVOBENCH_FILES: frozenset[str] = frozenset(
+    {
+        "optimization_history.json",
+        "v2.1.0_baseline.json",
+        "v9.2.0_baseline.json",
+        "v9.3.0_baseline.json",
+        "v9.3.0_latency.json",
+        "v9.7.0_baseline.json",
+        "v9.7.0_latency.json",
+        "v9.7.0_latency_intermediate.json",
+        "v10.2.0_baseline.json",
+        "v11.1.0_baseline.json",
+        "v14.5.0_baseline.json",
+        "v15.0.0_baseline.json",
+        "v15.1.0_baseline.json",
+        "v16.0.0_baseline.json",
+    }
+)
 
 
-# A-2.4 Tier B: "current + previous 2 cycles" (W-16's comparison window).
-_TIER_B_CYCLE_COUNT = 3
-
-
-def _baseline_cycle(name: str) -> tuple[int, int] | None:
-    """Return the (MAJOR, MINOR) cycle of a ``v*_baseline.json`` name, else None.
-
-    Delegates filename recognition to the benchmark runner's
-    ``_BASELINE_PATTERN`` (the convention owner per A-5 spirit) so the
-    window can never disagree with what ``_newest_baseline_path`` /
-    ``load_baseline`` consider a baseline file. Non-baseline JSONs
-    (e.g. ``v9.3.0_latency.json``) return None and never enter the window.
-    """
-    m = _BASELINE_PATTERN.match(name)
-    if m is None:
-        return None
-    parts = tuple(int(p) for p in m.group("ver").split("."))
-    padded = parts + (0, 0)
-    return (padded[0], padded[1])
-
-
-def _tier_b_window(current_version: str, json_names: Iterable[str]) -> frozenset[str]:
-    """Derive the A-2.4 Tier-B rolling window from ``__version__`` + on-disk names.
-
-    Returns the ``v*_baseline.json`` names whose (MAJOR, MINOR) cycle is
-    among the ``_TIER_B_CYCLE_COUNT`` most recent DISTINCT cycles present
-    in *json_names* and not newer than the cycle of *current_version* —
-    i.e. "current + previous 2 MINOR/MAJOR cycles AS PRESENT ON DISK"
-    (the cycle sequence is derived by version-sorting the on-disk
-    filenames, so gaps between cycles slide over naturally and a cycle
-    whose W-16 regen has not landed yet simply is not counted).
-
-    Names that post-date the current cycle are EXCLUDED so a stray
-    future-dated file is flagged by the strict-equality assertion
-    instead of silently widening the window.
-    """
-    version_parts = current_version.split(".")
-    current_cycle = (int(version_parts[0]), int(version_parts[1]))
-    by_cycle: dict[tuple[int, int], set[str]] = {}
-    for name in json_names:
-        cycle = _baseline_cycle(name)
-        if cycle is None or cycle > current_cycle:
-            continue
-        by_cycle.setdefault(cycle, set()).add(name)
-    window_cycles = sorted(by_cycle)[-_TIER_B_CYCLE_COUNT:]
-    return frozenset(name for cycle in window_cycles for name in by_cycle[cycle])
-
-
-def test_baselines_dir_matches_tier_a_pin_and_derived_tier_b(project_root: Path) -> None:
-    """A-2.4: baselines/ holds EXACTLY the Tier-A pin + the derived Tier-B set.
-
-    The living successor of the v14.5 stanza's part (a) — see the module-
-    section comment above for the D4 hybrid design. Three legs:
-
-    1. Tier-A yaml witnesses: strict equality against the hand-frozen
-       ``_TIER_A_WITNESSES`` (IMMUTABLE — never derived).
-    2. ``_TEST_LOADED_KEEPS`` liveness: every registered reader file must
-       still cite its JSON; a rewired reader means the keeps entry (and,
-       once out-of-window, the file) is due for Tier-C archival.
-    3. JSON strict equality: on-disk == window(__version__) ∪ keeps ∪
-       {newest per ``_newest_baseline_path``} — never a superset check.
-    """
+def test_baselines_dir_matches_strict_tier_a_pin_and_archive(project_root: Path) -> None:
+    """A-2.4: live baselines are witness-only; retired JSON stays archived."""
     baselines_dir = project_root / "benchmarks/devolaflow_context/baselines"
     yaml_names = {p.name for p in baselines_dir.glob("*.yaml")}
     json_names = {p.name for p in baselines_dir.glob("*.json")}
 
-    # --- (1) Tier-A strict pin (hand-frozen, NOT derived) -------------------
+    assert len(_TIER_A_WITNESSES) == 10, (
+        "A-2.4 retirement settlement pins exactly ten historical Tier-A witnesses"
+    )
     assert yaml_names == set(_TIER_A_WITNESSES), (
         f"A-2.4 violation: Tier-A witness set drifted — "
         f"missing {sorted(set(_TIER_A_WITNESSES) - yaml_names)}, "
         f"unexpected {sorted(yaml_names - set(_TIER_A_WITNESSES))}. "
         "Tier-A goldens are IMMUTABLE per A-2.4 (v15-ADR-005)."
     )
-
-    # --- (2) keeps-registry liveness ----------------------------------------
-    for name, readers in sorted(_TEST_LOADED_KEEPS.items()):
-        for reader in readers:
-            reader_path = project_root / reader
-            assert reader_path.is_file(), (
-                f"_TEST_LOADED_KEEPS stale: registered reader {reader!r} for "
-                f"{name!r} no longer exists — update the registry entry."
-            )
-            assert name in reader_path.read_text(encoding="utf-8"), (
-                f"_TEST_LOADED_KEEPS stale: {reader!r} no longer cites {name!r} "
-                f"— the reader was rewired; drop the entry (and archive the "
-                f"JSON via git mv to docs/cycle-archive/<cycle>/baselines/ if "
-                f"it is also out of the Tier-B window)."
-            )
-
-    # --- (3) derived Tier-B expectation, strict equality ---------------------
-    window = _tier_b_window(__version__, json_names)
-    newest = _newest_baseline_path(baselines_dir)
-    expected = set(window) | set(_TEST_LOADED_KEEPS) | ({newest.name} if newest else set())
-    assert json_names == expected, (
-        f"A-2.4 violation: kept baseline-JSON set drifted — "
-        f"missing {sorted(expected - json_names)}, "
-        f"unexpected {sorted(json_names - expected)}. "
-        f"Expected = Tier-B window {sorted(window)} (derived from "
-        f"__version__={__version__!r} + on-disk cycle ordering) ∪ "
-        f"_TEST_LOADED_KEEPS ∪ newest. W-16 regen artifacts enter the window "
-        f"automatically; Tier-C archival goes through git mv to "
-        f"docs/cycle-archive/<cycle>/baselines/; a JSON a test still loads "
-        f"must be registered in _TEST_LOADED_KEEPS with its reader."
+    assert not json_names, (
+        "Retired EvoBench JSON must not return to the witness-only baselines "
+        f"directory; found {sorted(json_names)}."
     )
-
-
-# On-disk shape at authoring time (clean_repo PR-6, __version__ == 15.0.0):
-# used by the comparison cases below as the realistic fixture.
-_C1_3_ON_DISK_JSONS: tuple[str, ...] = (
-    "v2.1.0_baseline.json",
-    "v9.2.0_baseline.json",
-    "v9.3.0_baseline.json",
-    "v9.3.0_latency.json",
-    "v9.7.0_baseline.json",
-    "v9.7.0_latency.json",
-    "v9.7.0_latency_intermediate.json",
-    "v10.2.0_baseline.json",
-    "v11.1.0_baseline.json",
-    "v14.3.0_baseline.json",
-    "v14.5.0_baseline.json",
-    "v15.0.0_baseline.json",
-)
-
-
-@pytest.mark.parametrize(
-    ("current_version", "on_disk", "expected"),
-    [
-        pytest.param(
-            "15.0.0",
-            _C1_3_ON_DISK_JSONS,
-            {"v15.0.0_baseline.json", "v14.5.0_baseline.json", "v14.3.0_baseline.json"},
-            id="live-shape-v15.0.0-window-is-current-plus-2",
-        ),
-        pytest.param(
-            "16.0.0",
-            _C1_3_ON_DISK_JSONS,
-            {"v15.0.0_baseline.json", "v14.5.0_baseline.json", "v14.3.0_baseline.json"},
-            id="major-bump-before-w16-regen-window-holds",
-        ),
-        pytest.param(
-            "15.0.0",
-            ("v15.0.0_baseline.json", "v14.5.0_baseline.json"),
-            {"v15.0.0_baseline.json", "v14.5.0_baseline.json"},
-            id="fewer-than-3-cycles-on-disk-returns-all",
-        ),
-        pytest.param(
-            "15.0.0",
-            ("v15.0.0_baseline.json", "v9.3.0_latency.json", "notes.json"),
-            {"v15.0.0_baseline.json"},
-            id="non-baseline-json-names-never-enter-window",
-        ),
-        pytest.param(
-            "15.0.0",
-            ("v15.0.0_baseline.json", "v14.5.0_baseline.json", "v99.9.9_baseline.json"),
-            {"v15.0.0_baseline.json", "v14.5.0_baseline.json"},
-            id="future-dated-baseline-excluded-from-window",
-        ),
-        pytest.param(
-            "15.0.0",
-            ("v15.0.0_baseline.json", "v14.5.0_baseline.json", "v14.5.1_baseline.json"),
-            {"v15.0.0_baseline.json", "v14.5.0_baseline.json", "v14.5.1_baseline.json"},
-            id="same-minor-cycle-patch-siblings-share-one-window-slot",
-        ),
-    ],
-)
-def test_tier_b_window_derivation(
-    current_version: str, on_disk: tuple[str, ...], expected: set[str]
-) -> None:
-    """D4 comparison unit tests: window math across MINOR/MAJOR boundaries.
-
-    Pure-function cases against ``_tier_b_window`` (no disk IO) — the
-    anti-"lint 放空" control demanded by the C1-3 spec: the window
-    derivation itself is pinned by hand-computed expectations so a bug
-    in the derivation cannot silently hollow out the strict-equality lint.
-    """
-    assert _tier_b_window(current_version, on_disk) == frozenset(expected)
-
-
-def test_tier_b_window_slides_at_v16_without_frozenset_edit() -> None:
-    """Simulated future sweep: the window slides at v16.0.0 with ZERO test edits.
-
-    Scenario: v16.0.0 becomes current, hypothetical v15.x W-16 regen
-    JSONs exist on disk. The derived window must slide to the 3 newest
-    on-disk cycles (16.0 / 15.4 / 15.0) — v14.5.0 / v14.3.0 fall out and
-    become exactly the Tier-C sweep candidates — while no frozenset in
-    this repository needs editing (the whole point of D4).
-    """
-    future_disk = _C1_3_ON_DISK_JSONS + ("v15.4.0_baseline.json", "v16.0.0_baseline.json")
-    window = _tier_b_window("16.0.0", future_disk)
-    assert window == frozenset(
-        {"v16.0.0_baseline.json", "v15.4.0_baseline.json", "v15.0.0_baseline.json"}
+    archive_dir = project_root / "docs/cycle-archive/v15.2.0/evobench-baselines"
+    archived_names = {p.name for p in archive_dir.glob("*.json")}
+    assert archived_names == set(_ARCHIVED_EVOBENCH_FILES), (
+        "Retired EvoBench archive set drifted — "
+        f"missing {sorted(set(_ARCHIVED_EVOBENCH_FILES) - archived_names)}, "
+        f"unexpected {sorted(archived_names - set(_ARCHIVED_EVOBENCH_FILES))}."
     )
-    # The names that just slid out are exactly the next Tier-C archival set.
-    assert {"v14.5.0_baseline.json", "v14.3.0_baseline.json"}.isdisjoint(window)

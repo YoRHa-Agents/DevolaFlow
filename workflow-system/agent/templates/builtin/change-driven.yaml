@@ -2,55 +2,40 @@ schema_version: "1.0"
 
 metadata:
   name: change-driven
-  version: "1.0.0"
-  display_name: "Change-Driven Workflow (OpenSpec-inspired)"
+  version: "2.0.0"
+  display_name: "Checklist-Round Change Lifecycle"
   description: >
-    Lifecycle workflow for in-flight changes managed via `.local/.agent/active/<id>/`
-    and archived to `.local/.agent/archive/<date>-<id>/`. Maps to OpenSpec's
-    OPSX flow (propose → apply → verify → archive). Adopted in DevolaFlow v8.3.0
-    per `.local/research/v8.3.0_design.md` §1.3.
+    Sole executable runtime for signed-preflight, evidence-backed checklist
+    rounds and guarded archive.
   category: composite
   applicable_scenarios:
-    - "Author a single in-flight change with structured artifacts"
-    - "Per-change, lightweight planning + impl + archive cycle"
-    - "OpenSpec-style spec-driven work inside DevolaFlow"
-  tags: [change, propose, apply, archive, lifecycle, agent-workspace]
+    - "Run an in-flight change from proposal through evidence-backed archive"
+    - "Execute any historical workflow mode through its checklist seed"
+  tags: [change, propose, preflight, round, archive, lifecycle, agent-workspace]
 
 stages:
   - id: propose
     primitive: design
-    alias: change-propose
-    description: "Scaffold .local/.agent/active/<id>/ with goal+acceptance+spec+tasks+STATUS+owned_files"
+    description: "Anchor goal and checklist contracts with the user"
     team: design
     duration_class: quick
-    config:
-      mode: "{{ .config.mode | default('lite') }}"
-
-  - id: apply
+  - id: preflight
+    primitive: validate
+    description: "Verify signed project configuration and blocker preauthorization"
+    team: review
+    duration_class: quick
+  - id: round
     primitive: implement
-    alias: change-apply
-    description: "Loop L3 dispatches until tasks.md all checkboxes ticked"
+    description: "Run one bounded checklist evidence round"
     team: implement
     duration_class: medium
     config:
-      max_iterations: 5
+      runtime_limit_source: "stage.md.max_rounds"
+      absolute_max_iterations: 62
       on_stagnation: escalate
-    input_mapping:
-      tasks: "propose.tasks_md"
-
-  - id: verify
-    primitive: verify
-    alias: change-verify
-    description: "Run AC checklist; gate composite must PASS per W-3"
-    team: test
-    duration_class: medium
-    config:
-      gate_profile: "{{ .config.mode == 'full' ? 'standard' : 'relaxed' }}"
-
   - id: archive
     primitive: deploy
-    alias: change-archive
-    description: "Move active → archive; auto-generate REPORT.md; consolidate per-change learnings to global memory; PROPOSE delta merge to source-of-truth (NOT auto-apply)"
+    description: "Archive only after checklist, evidence, and quality gates pass"
     team: implement
     duration_class: quick
 
@@ -58,31 +43,57 @@ composition:
   compose: sequence
   stages:
     - stage: propose
+    - stage: preflight
     - compose: loop
-      ref: apply_verify_loop
+      ref: checklist_round_loop
     - stage: archive
 
 loops:
-  - name: apply_verify_loop
-    body_stages: [apply, verify]
-    until: "verify.pass_rate == 1.0 AND verify.gate_score >= verify.threshold"
-    max_iterations: 5
+  - name: checklist_round_loop
+    body_stages: [round]
+    until: "checklist.checked == checklist.total_items AND checklist.reverted_open == 0"
+    max_iterations: 62
     on_exhaustion: escalate
 
 gates:
+  - name: preflight_gate
+    position: "after:preflight"
+    criteria:
+      - field: preflight.authorized_at
+        operator: "!="
+        value: null
+      - field: preflight.authorization_hash_valid
+        operator: "=="
+        value: true
+      - field: preflight.project_config_hash_matches
+        operator: "=="
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: escalate
+      target: preflight
+    require_human_override: true
+    auto_insert: true
   - name: archive_gate
     position: "before:archive"
     criteria:
-      - field: verify.pass_rate
+      - field: checklist.checked
         operator: "=="
-        value: 1.0
-      - field: verify.gate_score
+        value: checklist.total_items
+      - field: checklist.reverted_open
+        operator: "=="
+        value: 0
+      - field: archive.evidence_references_valid
+        operator: "=="
+        value: true
+      - field: archive.composite_score
         operator: ">="
-        value: 8.5
+        value: "{{ .config.mode == 'full' ? 9.0 : 8.5 }}"
     on_pass: "next"
     on_fail:
       action: escalate
     require_human_override: true
+    auto_insert: true
 
 environment_modes:
   local:
@@ -95,6 +106,4 @@ parameters:
     type: enum
     default: lite
     choices: [lite, full]
-    description: >
-      lite — single-author, low-risk; pre-commit gate runs steps 1–3 (tests/lint/format)
-      full — multi-author or high-risk; pre-commit gate runs all 6 steps per W-9 SI-10
+    description: "lite requires 8.5 archive quality; full requires 9.0"

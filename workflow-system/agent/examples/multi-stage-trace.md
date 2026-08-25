@@ -1,243 +1,176 @@
 ---
 id: "agent/examples/multi-stage-trace"
-version: "1.0.0"
+version: "2.0.0"
 purpose: >
-  Worked walkthrough showing WHEN the L1 Stage Agent and L2 Wave Agent
-  are necessary in DevolaFlow's 4-layer hierarchy. The v10.5.0 PV-01
-  D-A-1 audit (`scripts/audit_layer_usage.py`) shows that most v9.x
-  and v10.x cycles collapse L0->L3 in practice; this example documents
-  the COUNTER-CASE — a multi-team analyze stage with cross-stage
-  artifact merging where the standalone L1 + L2 layers genuinely earn
-  their cost.
+  Standard/Complex walkthrough showing when multiple bounded waves are needed
+  in the current Project → Wave → Task hierarchy. The filename is retained
+  for link compatibility; stage agents are not part of the current runtime.
 triggers:
-  - "deciding whether L1 + L2 layers are necessary"
-  - "multi-team / cross-subsystem analyze stage"
+  - "deciding whether multiple waves are necessary"
+  - "cross-subsystem analysis"
   - "knowledge-graph merging across subsystems"
-  - "Standard / Complex tier with > 3 disjoint subsystems"
+  - "Standard or Complex task with disjoint subsystems"
 tier: 3
-token_estimate: 5500
-last_updated: "2026-05-08"
+token_estimate: 2200
+last_updated: "2026-08-25"
 ---
 
-# Multi-Stage Trace — When L1 Stage Agent + L2 Wave Agent Earn Their Keep
+# Multi-Wave Trace for Cross-Subsystem Analysis
 
-> Companion to `references/agent-hierarchy.md` and the
-> `examples/full-pipeline-trace.md` walkthrough. Cross-references the
-> `meta-framework.md` §2.2.1 Multi-team codebase analysis pattern.
+> The historical filename remains `multi-stage-trace.md` so existing links do
+> not break. Current execution has no Stage Agent.
 
-## Why this example exists
+## Historical Compatibility Note
 
-The v10.5.0 PV-01 D-A-1 audit
-(`docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md`)
-measured how often the L1 Stage Agent and L2 Wave Agent were
-dispatched as the primary target across `.local/research/v9.*.0_*.md`
-and `v10.*.0_*.md` cycle docs. The headline finding was that 5 of
-6 PVs in v10.2.0 were dispatched as `Dispatch type: Wave` but each
-collapsed to L0 → single L3 in practice — leading the v10.5.0 PV-01
-advisory to mark L1+L2 as "only-when-needed" at the Standard tier.
+The v10.5.0 layer-usage audit documented a four-layer
+Project → Stage → Wave → Task model and frequent L0-to-leaf collapse. Those
+terms are archived semantics, not current instructions. The current required
+STANDARD/COMPLEX cascade is:
 
-The v11.1.0 cascade-restoration cycle (per the user feedback at
-`.local/feedbacks/feedback_for_v11.0.0.md`) reverses that advisory:
-**for STANDARD/COMPLEX complexity, the full L0 → L1 → L2 → L3
-cascade is REQUIRED** per `cascade_requirement(complexity)`
-(`src/devolaflow/skills/change_activation.py`). The example below
-is therefore the WORKED CANONICAL pattern operators apply on every
-STANDARD+ task, not the counter-case to a default.
-
-L0→L3 collapse is reserved for SIMPLE/TRIVIAL tier per
-`cascade_requirement()` returning `"CASCADE_OPTIONAL"`.
-
-## The scenario — multi-team codebase analysis
-
-Setup: a 6-subsystem repo (frontend + backend-api + backend-jobs +
-infra + docs + cli). The user asks "where are the bottlenecks across
-the whole stack — frontend rendering, backend latency, cron-job
-scheduling, deploy lead time"?
-
-This is a Standard-tier task by the SKILL.md classifier
-(`change_activation.classify_complexity(files_count=~30,
-loc_estimate=~0, is_cross_cutting=True)` -> `STANDARD`). Per the
-advisory wording added in v10.5.0, an operator might be tempted to
-collapse L0 -> L3 with a single all-encompassing analyze prompt. This
-example shows why that collapse is the wrong call here.
-
-## Why a single L3 analyze fails this scenario
-
-A single L3 Task Agent dispatched with "analyze the bottlenecks
-across the whole stack" runs into 3 hard limits:
-
-1. **Token budget**: each subsystem is ~ 30-50 KLOC. Loading them
-   all into one L3 context blows past the ~8K token L3 budget per
-   `references/agent-hierarchy.md`. The L3 must either skip
-   subsystems or summarize aggressively, losing fidelity.
-2. **Parallelism wasted**: subsystems are independent. A linear
-   single-L3 walk of all 6 subsystems takes 6x as long as 6
-   parallel L3 analyses.
-3. **No artifact discipline**: the single L3's output is one big
-   prose blob — there's no per-subsystem knowledge-graph artifact
-   the downstream Design / Implement stages can consume per
-   `meta-framework.md` §P5 Artifacts as Contracts.
-
-## Why L0 -> L1 -> L2 -> L3 succeeds
-
-The 4-layer chain decomposes the problem into shape that fits each
-layer's budget:
-
+```text
+L0 Project → L1 Wave → L2 Task
 ```
+
+Simple/trivial work may use a single bounded Task when the applicable
+complexity contract allows it.
+
+## Scenario
+
+A repository has six stable subsystems: frontend, API, jobs, infrastructure,
+documentation, and CLI. The user asks for bottleneck analysis across the
+whole stack and one merged knowledge graph.
+
+This is STANDARD+ because it is cross-cutting and spans many files. L0 selects
+the `research-only` checklist seed for decomposition knowledge and the sole
+`change-driven` runtime for execution.
+
+## Materialized Checklist
+
+```markdown
+### G1: Produce evidence for every subsystem
+- [ ] C-G1.1 (P0) Frontend bottlenecks have source-linked evidence.
+- [ ] C-G1.2 (P0) API bottlenecks have source-linked evidence.
+- [ ] C-G1.3 (P0) Job bottlenecks have source-linked evidence.
+- [ ] C-G1.4 (P1) Infrastructure bottlenecks have source-linked evidence.
+- [ ] C-G1.5 (P1) Documentation bottlenecks have source-linked evidence.
+- [ ] C-G1.6 (P1) CLI bottlenecks have source-linked evidence.
+
+### G2: Produce one consistent cross-system model
+- [ ] C-G2.1 (P0) One merged graph deduplicates nodes and preserves source links.
+      depends: [C-G1.1, C-G1.2, C-G1.3, C-G1.4, C-G1.5, C-G1.6]
+```
+
+The seed's `source_stages` may include historical analyze/merge labels. Their
+order is presentation-only; the explicit `depends` field above creates the
+actual execution constraint.
+
+## Why One Task Is Insufficient
+
+1. One Task would exceed the ~8K context budget when loading six subsystem
+   contracts.
+2. Independent subsystem analyses would lose available parallelism.
+3. One prose result would hide per-subsystem evidence and weaken P5 artifact
+   contracts.
+4. The merged graph depends on all six source graphs, so analysis and merge
+   cannot safely share one parallel wave.
+
+## Round Plan
+
+L0 partitions the selected items into three waves:
+
+| Wave | Tasks | Purpose |
+|---|---:|---|
+| `R01_W01` | 3 | frontend, API, jobs analyses |
+| `R01_W02` | 3 | infrastructure, docs, CLI analyses |
+| `R01_W03` | 1 | merge six source graphs |
+
+This is within 5 tasks per wave and 7 waves per round.
+
+## Delegation Trace
+
+```text
+[L0 Project Agent · ~5K]
+  Reads: goal.md, checklist.md, preflight.md, current stage.md
+  Selects: C-G1.1..C-G2.1
+  Partitions: R01_W01, R01_W02, R01_W03
+  Dispatches one bounded wave at a time
+
+      │
+      ▼
+
+[L1 Wave Agent · ~5K · R01_W01]
+  Validates: three independent items, disjoint writable paths
+  Dispatches:
+    ├─ [L2 Task · ~8K] frontend → evidence/frontend-graph.json
+    ├─ [L2 Task · ~8K] API      → evidence/api-graph.json
+    └─ [L2 Task · ~8K] jobs     → evidence/jobs-graph.json
+  Aggregates StatusReports → WaveReport
+
+[L1 Wave Agent · ~5K · R01_W02]
+  Dispatches:
+    ├─ [L2 Task · ~8K] infra → evidence/infra-graph.json
+    ├─ [L2 Task · ~8K] docs  → evidence/docs-graph.json
+    └─ [L2 Task · ~8K] CLI   → evidence/cli-graph.json
+  Aggregates StatusReports → WaveReport
+
 [L0 Project Agent]
-  Receives: "analyze bottlenecks across the whole stack"
-  Reads: SKILL.md + references/meta-framework.md + repo manifest
-  Decides: this needs the analyze primitive with multi-team merge
-  Dispatches: 1x L1 Stage Agent for the analyze stage
+  Verifies C-G1.1..C-G1.6 evidence and records eligible marks
+  Confirms C-G2.1 dependencies are satisfied
 
-      |
-      v
+[L1 Wave Agent · ~5K · R01_W03]
+  Dispatches one L2 merge Task
+  Read-only: six source graphs
+  Writable: evidence/knowledge-graph.json
+  Aggregates merge evidence → WaveReport
 
-[L1 Stage Agent — analyze stage]
-  Receives: stage definition + 6 subsystem boundaries
-  Reads: meta-framework.md §2.2.1 (multi-team analyze pattern)
-  Decides: parallelize across 6 subsystems then merge
-  Dispatches: 1x L2 Wave Agent for the parallel-analyze wave
-                + 1x L2 Wave Agent for the merge wave (sequential)
-
-      |
-      v
-
-[L2 Wave Agent — parallel-analyze wave]
-  Receives: 6 disjoint subsystem targets
-  Decides: max 5 tasks per wave (P3 wave constraint),
-           split into 2 waves of 3 + 3
-  Dispatches: 6x L3 Task Agent in 2 parallel waves
-
-      |    |    |    |    |    |
-      v    v    v    v    v    v
-
-  [L3]  [L3]  [L3]  [L3]  [L3]  [L3]
-  fe    api   jobs  infra docs  cli
-
-  Each L3 Task Agent:
-    Owned files: <subsystem>/  + tests/<subsystem>/
-    Read-only:   the rest
-    Output:      <subsystem>-knowledge-graph.json artifact
-                 (frozen-shape per the Phase 0 step 4 pattern from
-                  https://github.com/Lum1104/Understand-Anything)
-
-      |    |    |    |    |    |
-      v    v    v    v    v    v
-
-[L2 Wave Agent — merge wave]
-  Receives: 6 per-subsystem knowledge graphs
-  Decides: dispatch a single L3 for the merge (no parallelism here)
-  Dispatches: 1x L3 Task Agent
-
-      |
-      v
-
-[L3 Task Agent — merge]
-  Owned files: knowledge-graph.json
-  Read-only:  6 per-subsystem graphs
-  Output:     one merged knowledge-graph.json with deduplicated
-              nodes + edges (the upstream tool ships a 70-line
-              merge-subdomain-graphs.py reference implementation)
-
-      |
-      v
-
-[L1 Stage Agent — gate]
-  Reads: knowledge-graph.json + per-subsystem graphs
-  Runs:  gate composite check (>= 85, zero blockers)
-  Reports up to L0
-
-      |
-      v
-
-[L0 Project Agent — final report]
-  Composite gate passed
-  Reports to user with the merged knowledge-graph.json artifact
-  Task Quality Score: append
+[L0 Project Agent]
+  Verifies merged graph and configured check
+  Marks C-G2.1
+  Records round PASS and checkpoint in stage.md
 ```
 
-## Counting the work — why 4 layers is justified
+Tasks never exchange conversation state. The merge Task receives artifact
+references and bounded key facts through its TaskDispatch.
 
-Layer-by-layer cost:
+## Ownership Map
 
-| Layer | Dispatches | Token cost | Wall-clock | Justification |
-|------|-----------|------------|-----------|----------------|
-| L0 | 1 (workflow selection) | ~3K | < 1 min | Selects analyze + multi-team merge pattern |
-| L1 Stage | 1 (analyze stage) | ~5K | < 1 min | Sequences parallel-analyze -> merge -> gate |
-| L2 Wave x 2 | 2 (parallel + merge) | ~4K each | < 1 min each | Wave constraints: 5 tasks max per wave; cross-task conflict checks |
-| L3 Task x 7 | 6 parallel + 1 merge | ~8K each | 5-15 min each | Each subsystem analysis fits L3 budget |
+| Task | Writable scope | Read-only scope |
+|---|---|---|
+| subsystem analysis | one subsystem evidence file | corresponding subsystem source |
+| merge | `evidence/knowledge-graph.json` | six subsystem graph artifacts |
 
-Total dispatch overhead: **~33K tokens** across L0/L1/L2 layers. Versus
-a single-L3 collapse that would need to load the entire stack into
-one ~8K context — a 4x token-budget violation per layer. The 4-layer
-chain trades **one-time dispatch overhead** for **massive context
-isolation per L3** — every subsystem analysis is pristine, and the
-merge stage consumes 6 well-defined artifacts rather than a single
-"the whole stack" blob.
+No two Tasks in the same wave share a writable file.
 
-## When does this pattern apply?
+## Failure Example
 
-Per `meta-framework.md` §2.2.1, the multi-team analyze pattern fires
-when:
+If the API analysis times out:
 
-1. `len(targets) >= 3`, AND
-2. The targets are themselves **logical subsystems with stable
-   boundaries** (a frontend / backend split is stable; "this 3-file
-   region of one module" is not).
+```text
+L2 reports TimeoutError evidence
+  → L1 classifies and reports the failed Task
+    → L0 applies the bounded retry or escalates
+      → Human decides if the dependency cannot be resolved
+```
 
-In v10.x cycle docs, the audit found 0 such patterns — every cycle
-in v9.x..v10.x was either:
+The merge wave remains blocked until `C-G1.2` is checked. L0 does not infer a
+workaround from seed order.
 
-- Single-team (refactor / hotfix / feature-enhancement),
-- Or a documentation-only walk (research-only / migration-plan), or
-- A cycle-rollup retrospective (W-7 / SI-8) — which is itself a
-  single-stage analyze.
+## Cost and Benefit
 
-That is why the audit recommended marking L1 + L2 "only-when-needed"
-at the Standard tier — but "only-when-needed" carries the support
-set: when an operator does encounter a multi-team analyze stage, the
-4-layer chain SHOULD fire.
+| Layer | Budget | Responsibility |
+|---|---:|---|
+| L0 Project | ~5K | checklist selection, wave partition, evidence adjudication |
+| L1 Wave | ~5K | dependency/ownership validation, parallel dispatch, aggregation |
+| L2 Task | ~8K each | one subsystem analysis or one merge |
 
-## When NOT to use this pattern
+The extra dispatches buy bounded context, parallel work, explicit evidence,
+and deterministic dependency handling.
 
-Patterns that look multi-stage but are actually single-team in
-disguise:
+## Cross-References
 
-| Symptom | What's actually happening | Right answer |
-|--------|---------------------------|---------------|
-| 1. ≤3-file paired source+test edit + spec doc | 1 author, 1 task | Single L3 (TRIVIAL/SIMPLE tier; `cascade_requirement` returns `CASCADE_OPTIONAL`) |
-| 2. Refactor across 8 modules in 1 package | Multi-file STANDARD+ scope | **Cascade L0→L1→L2→L3** (8 files = STANDARD per classifier; `cascade_requirement` returns `CASCADE_REQUIRED`); L1 Stage decomposes into per-package waves |
-| 3. Bug investigation across ≤3 subsystems | 1 hypothesis test, not 3 parallel analyses | Single L3 trace + diagnose IFF SIMPLE-tier; STANDARD+ (cross-cutting investigation across many subsystems) **MUST cascade** |
-| 4. "Audit X across the codebase" | STANDARD+ scope read-only walk | **Cascade L0→L1→L2→L3** when the audit spans STANDARD+ scope; the v10.5.1 audit itself was a single-L3 walk that produced 0 useful dispatch-line measurements per its own summary — that experience is the empirical case for cascading STANDARD+ audits |
-
-## Cross-references
-
-- `references/agent-hierarchy.md` §"4-Layer Agent Hierarchy" —
-  canonical layer definitions + token budgets.
-- `references/meta-framework.md` §2.2.1 — multi-team codebase
-  analysis pattern (the upstream `understand-anything/skills/
-  understand` Phase 0 step 4 reference).
-- `examples/full-pipeline-trace.md` — single-team full-pipeline
-  walkthrough (the contrast case).
-- `examples/hotfix-trace.md` — single-team minimal-ceremony
-  walkthrough (the SIMPLE-tier collapse case).
-- `scripts/audit_layer_usage.py` — the v10.5.0 PV-01 audit that
-  produced the empirical evidence.
-- `docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md` — the audit's
-  output (gitignored; re-run via `make audit-layers` per the
-  v10.5.0 Makefile target).
-
-## Notes for future authors
-
-If you find a real-world multi-team scenario in the DevolaFlow
-codebase or in a downstream project, append a 1-paragraph case study
-under "## Real-world cases" below. The audit will pick up the new
-mention on the next run and the SKILL.md advisory wording can be
-re-evaluated based on the empirical support.
-
-## Real-world cases
-
-(none yet — v10.5.0 PV-01 ships with the synthetic 6-subsystem
-walkthrough above. The audit's recommendation is data-driven on the
-current corpus; future cycles may surface concrete cases.)
+- `references/agent-hierarchy.md` — current three-layer contracts.
+- `references/decomposition-gate.md` — round/wave/task limits and evidence gate.
+- `references/meta-framework.md` — seed provenance and sole runtime.
+- `examples/full-pipeline-trace.md` — end-to-end checklist materialization.
+- `docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md` —
+  explicitly historical four-layer audit evidence.

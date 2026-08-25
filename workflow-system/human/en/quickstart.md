@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Quick Start Guide
@@ -71,11 +71,11 @@ Fix the login timeout bug — users report 500 errors after 30 seconds of inacti
 ```
 
 What happens behind the scenes:
-1. DevolaFlow detects **hotfix** intent from "fix" + "bug"
-2. **Triage stage**: Agent analyzes the bug, identifies root cause
-3. **Fix stage**: Agent implements a minimal targeted fix
-4. **Test stage**: Agent runs focused tests on affected code
-5. **Release stage**: Agent prepares the patch for deployment
+1. DevolaFlow matches the **hotfix checklist seed** from "fix" + "bug"
+2. L0 anchors the goal, materialized checklist, and signed preflight with you
+3. L0 picks the highest-priority checklist items and groups them into a wave
+4. L1 Wave dispatches isolated L2 Tasks for diagnosis, remediation, and evidence
+5. L0 verifies the evidence, checks completed assertions, and opens another bounded round if needed
 
 ### Example: Build a New Feature (Full Pipeline)
 
@@ -84,13 +84,12 @@ Implement a user notification system with email and in-app channels
 ```
 
 What happens:
-1. DevolaFlow selects **full-pipeline** workflow (8 stages)
-2. **Design**: Architecture for notification system
-3. **Plan**: Break into waves and tasks with dependencies
-4. **Implement**: Write code with TDD (target 80% coverage)
-5. **Review → Test → Refine**: Convergence loop until quality passes
-6. **Gate**: Composite score must reach ≥85 with zero blockers
-7. **Release**: Package and tag
+1. DevolaFlow selects the **full-pipeline checklist seed**
+2. The seed's historical primitive provenance helps materialize measurable design, implementation, review, test, and release assertions; it does not prescribe execution order
+3. You confirm the checklist priorities and preflight decisions
+4. L0 runs bounded checklist rounds through L1 Waves and isolated L2 Tasks
+5. Each checked item carries evidence; unresolved blockers remain open
+6. The archive gate requires the checklist contract to pass before source truth changes
 
 Example: Quick Research (No Code)
 
@@ -99,12 +98,12 @@ Research the best approach for real-time notifications — compare WebSocket vs 
 ```
 
 What happens:
-1. DevolaFlow selects **research-only** workflow
-2. Agent produces a structured comparison report, no code written
+1. DevolaFlow selects the **research-only checklist seed**
+2. The materialized checklist asks for a structured, evidenced comparison, no code written
 
 ## Step 4: Explore More
 
-See all 23 workflow types:[Workflow Types](workflow-types.md)Understand the architecture:[Architecture Overview](architecture-overview.md)Set up for your specific tool:[Integration Guide](integration-guide.md)Customize workflows:[Customization Guide](customization-guide.md)
+See all 23 checklist seeds:[Checklist Seed Catalog](workflow-types.md)Understand the architecture:[Architecture Overview](architecture-overview.md)Set up for your specific tool:[Integration Guide](integration-guide.md)Customize workflows:[Customization Guide](customization-guide.md)
 
 ## Checking for Updates
 

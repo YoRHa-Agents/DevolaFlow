@@ -11,7 +11,7 @@
  * Behaviour falls back gracefully under prefers-reduced-motion:
  *   • shared/styles.css collapses animation-duration to 0.01ms (auto-snap);
  *   • the cascade is also short-circuited explicitly so reduced-motion users
- *     see all four layers immediately even if IntersectionObserver hasn't fired.
+ *     see all three layers immediately even if IntersectionObserver hasn't fired.
  */
 (function () {
   'use strict';

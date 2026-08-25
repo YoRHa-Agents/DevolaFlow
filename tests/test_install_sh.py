@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,7 +55,7 @@ def _run_install_sh(target: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 
     env = os.environ.copy()
     env["HOME"] = str(cwd)
-    env["PATH"] = f"{bin_dir}:{env.get('PATH', '/usr/bin:/bin')}"
+    env["PATH"] = f"{bin_dir}:{Path(sys.executable).parent}:{env.get('PATH', '/usr/bin:/bin')}"
     env.pop("CODEX_HOME", None)
 
     return subprocess.run(

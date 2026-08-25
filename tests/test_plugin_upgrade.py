@@ -46,10 +46,8 @@ from devolaflow.plugins.installer import (
 )
 
 # Resolved from the canonical registry (not a hand-pinned literal) so the
-# mock-subprocess keys below track the registry's upgrade command — e.g. the
-# issue #152 fix that repointed nines from the phantom PyPI name to
-# `git+https://github.com/YoRHa-Agents/NineS` required no edits here.
-_NINES_UPGRADE_CMD: str = resolve_plugin("nines", load_registry()).upgrade_cmd
+# mock-subprocess keys below track the registry's upgrade command.
+_UI_PRO_UPGRADE_CMD: str = resolve_plugin("ui-pro", load_registry()).upgrade_cmd
 
 # ---------------------------------------------------------------------------
 # §1 — Schema v3 + canonical registry shape
@@ -186,7 +184,7 @@ class TestReadLastChecked:
     """Parse plugin_install.log and return the most-recent timestamp per plugin."""
 
     def test_returns_none_when_log_missing(self, tmp_path: Path) -> None:
-        assert read_last_checked("nines", log_path=tmp_path / "missing.log") is None
+        assert read_last_checked("ui-pro", log_path=tmp_path / "missing.log") is None
 
     def test_returns_most_recent_for_plugin(self, tmp_path: Path) -> None:
         log = tmp_path / "plugin_install.log"
@@ -195,17 +193,17 @@ class TestReadLastChecked:
         _write_log_lines(
             log,
             [
-                {"ts": ts_old, "plugin_id": "nines", "event": "plugin_installed", "details": {}},
+                {"ts": ts_old, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}},
                 {
                     "ts": ts_new,
-                    "plugin_id": "nines",
+                    "plugin_id": "ui-pro",
                     "event": "plugin_already_installed",
                     "details": {},
                 },
-                {"ts": ts_new, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}},
+                {"ts": ts_new, "plugin_id": "rtk", "event": "plugin_installed", "details": {}},
             ],
         )
-        result = read_last_checked("nines", log_path=log)
+        result = read_last_checked("ui-pro", log_path=log)
         assert result is not None
         assert result == datetime.fromisoformat(ts_new)
 
@@ -216,16 +214,16 @@ class TestReadLastChecked:
         _write_log_lines(
             log,
             [
-                {"ts": ts, "plugin_id": "nines", "event": "plugin_install_failed", "details": {}},
+                {"ts": ts, "plugin_id": "ui-pro", "event": "plugin_install_failed", "details": {}},
                 {
                     "ts": ts,
-                    "plugin_id": "nines",
+                    "plugin_id": "ui-pro",
                     "event": "plugin_install_distinguish_failed_postinstall",
                     "details": {},
                 },
             ],
         )
-        assert read_last_checked("nines", log_path=log) is None
+        assert read_last_checked("ui-pro", log_path=log) is None
 
     def test_skips_malformed_lines(self, tmp_path: Path) -> None:
         log = tmp_path / "plugin_install.log"
@@ -234,7 +232,7 @@ class TestReadLastChecked:
             fh.write("not-json-at-all\n")
             fh.write(
                 json.dumps(
-                    {"ts": "garbage-timestamp", "plugin_id": "nines", "event": "plugin_installed"}
+                    {"ts": "garbage-timestamp", "plugin_id": "ui-pro", "event": "plugin_installed"}
                 )
                 + "\n"
             )
@@ -242,13 +240,13 @@ class TestReadLastChecked:
                 json.dumps(
                     {
                         "ts": "2026-05-01T10:00:00+00:00",
-                        "plugin_id": "nines",
+                        "plugin_id": "ui-pro",
                         "event": "plugin_installed",
                     }
                 )
                 + "\n"
             )
-        result = read_last_checked("nines", log_path=log)
+        result = read_last_checked("ui-pro", log_path=log)
         assert result is not None
         assert result.year == 2026 and result.month == 5
 
@@ -257,16 +255,16 @@ class TestReadLastChecked:
         ts = "2026-05-01T10:00:00+00:00"
         _write_log_lines(
             log,
-            [{"ts": ts, "plugin_id": "nines", "event": "plugin_upgraded", "details": {}}],
+            [{"ts": ts, "plugin_id": "ui-pro", "event": "plugin_upgraded", "details": {}}],
         )
-        assert read_last_checked("nines", log_path=log) == datetime.fromisoformat(ts)
+        assert read_last_checked("ui-pro", log_path=log) == datetime.fromisoformat(ts)
 
 
 # ---------------------------------------------------------------------------
 # §3.5 — _parse_log_event_timestamp helper extraction (v10.2.4 PV-05 round 2)
 # ---------------------------------------------------------------------------
 #
-# Closes NineS PV-03 finding CC-a5d310-0003 (cyclomatic complexity 15 in
+# Closes the PV-03 finding CC-a5d310-0003 (cyclomatic complexity 15 in
 # `read_last_checked`). The helper consolidates the 8-branch per-line
 # parsing logic so the parent function's complexity drops to ~6. Tests
 # below pin the helper's contract directly (independent of the parent's
@@ -291,12 +289,12 @@ class TestParseLogEventTimestamp:
         line = json.dumps(
             {
                 "ts": "2026-05-01T10:00:00+00:00",
-                "plugin_id": "nines",
+                "plugin_id": "ui-pro",
                 "event": "plugin_installed",
                 "details": {},
             }
         )
-        result = _parse_log_event_timestamp(line, "nines", _LAST_CHECKED_SUCCESSFUL_EVENTS)
+        result = _parse_log_event_timestamp(line, "ui-pro", _LAST_CHECKED_SUCCESSFUL_EVENTS)
         assert result == datetime.fromisoformat("2026-05-01T10:00:00+00:00")
 
     def test_helper_returns_none_for_nonmatching_plugin(self) -> None:
@@ -313,7 +311,7 @@ class TestParseLogEventTimestamp:
                 "event": "plugin_installed",
             }
         )
-        assert _parse_log_event_timestamp(line, "nines", _LAST_CHECKED_SUCCESSFUL_EVENTS) is None
+        assert _parse_log_event_timestamp(line, "rtk", _LAST_CHECKED_SUCCESSFUL_EVENTS) is None
 
     def test_helper_returns_none_for_defensive_inputs(self) -> None:
         """All defensive branches return None without raising."""
@@ -331,23 +329,23 @@ class TestParseLogEventTimestamp:
             json.dumps(
                 {
                     "ts": "2026-05-01T10:00:00+00:00",
-                    "plugin_id": "nines",
+                    "plugin_id": "ui-pro",
                     "event": "plugin_install_failed",
                 }
             ),
             json.dumps(
                 {
                     "ts": "garbage-timestamp",
-                    "plugin_id": "nines",
+                    "plugin_id": "ui-pro",
                     "event": "plugin_installed",
                 }
             ),
-            json.dumps({"ts": "", "plugin_id": "nines", "event": "plugin_installed"}),
-            json.dumps({"ts": 1714521600, "plugin_id": "nines", "event": "plugin_installed"}),
-            json.dumps({"plugin_id": "nines", "event": "plugin_installed"}),
+            json.dumps({"ts": "", "plugin_id": "ui-pro", "event": "plugin_installed"}),
+            json.dumps({"ts": 1714521600, "plugin_id": "ui-pro", "event": "plugin_installed"}),
+            json.dumps({"plugin_id": "ui-pro", "event": "plugin_installed"}),
         ]
         for line in cases:
-            assert _parse_log_event_timestamp(line, "nines", events) is None, (
+            assert _parse_log_event_timestamp(line, "ui-pro", events) is None, (
                 f"v10.2.4 PV-05 helper contract violation: input {line!r} should "
                 f"have returned None (no raise) but did not."
             )
@@ -376,7 +374,7 @@ class TestIsPluginStale:
 
     def test_no_record_is_stale(self, tmp_path: Path) -> None:
         assert (
-            is_plugin_stale("nines", threshold_hours=24, log_path=tmp_path / "missing.log") is True
+            is_plugin_stale("ui-pro", threshold_hours=24, log_path=tmp_path / "missing.log") is True
         )
 
     def test_recent_check_is_fresh(self, tmp_path: Path) -> None:
@@ -384,18 +382,18 @@ class TestIsPluginStale:
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         _write_log_lines(
             log,
-            [{"ts": recent_ts, "plugin_id": "nines", "event": "plugin_installed", "details": {}}],
+            [{"ts": recent_ts, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}}],
         )
-        assert is_plugin_stale("nines", threshold_hours=24, log_path=log) is False
+        assert is_plugin_stale("ui-pro", threshold_hours=24, log_path=log) is False
 
     def test_old_check_is_stale(self, tmp_path: Path) -> None:
         log = tmp_path / "plugin_install.log"
         old_ts = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
         _write_log_lines(
             log,
-            [{"ts": old_ts, "plugin_id": "nines", "event": "plugin_installed", "details": {}}],
+            [{"ts": old_ts, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}}],
         )
-        assert is_plugin_stale("nines", threshold_hours=24, log_path=log) is True
+        assert is_plugin_stale("ui-pro", threshold_hours=24, log_path=log) is True
 
     def test_now_arg_overrides_clock(self, tmp_path: Path) -> None:
         """Test seam: pin the staleness reference time."""
@@ -403,12 +401,12 @@ class TestIsPluginStale:
         ts_str = "2026-05-01T00:00:00+00:00"
         _write_log_lines(
             log,
-            [{"ts": ts_str, "plugin_id": "nines", "event": "plugin_installed", "details": {}}],
+            [{"ts": ts_str, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}}],
         )
         # 23 hours later → fresh
         assert (
             is_plugin_stale(
-                "nines",
+                "ui-pro",
                 threshold_hours=24,
                 log_path=log,
                 now=datetime(2026, 5, 1, 23, 0, 0, tzinfo=UTC),
@@ -418,7 +416,7 @@ class TestIsPluginStale:
         # 25 hours later → stale
         assert (
             is_plugin_stale(
-                "nines",
+                "ui-pro",
                 threshold_hours=24,
                 log_path=log,
                 now=datetime(2026, 5, 2, 1, 0, 0, tzinfo=UTC),
@@ -461,8 +459,8 @@ class TestUpgradePlugin:
 
     def test_upgrades_plugin_and_logs_event(self, tmp_path: Path, mock_subprocess: dict) -> None:
         log = tmp_path / "plugin_install.log"
-        result = upgrade_plugin("nines", log_path=log)
-        # Mock version probe returns 99.99.99 — above the 3.0.0 min_version
+        result = upgrade_plugin("ui-pro", log_path=log)
+        # Mock version probe returns 99.99.99 — above the minimum version
         assert result == "99.99.99"
         log_lines = log.read_text(encoding="utf-8").splitlines()
         assert len(log_lines) >= 1
@@ -474,36 +472,36 @@ class TestUpgradePlugin:
     ) -> None:
         """When upgrade_cmd is set, prefer it over install_cmd."""
         log = tmp_path / "plugin_install.log"
-        upgrade_plugin("nines", log_path=log)
-        # The canonical nines registry has upgrade_cmd == install_cmd, but
+        upgrade_plugin("ui-pro", log_path=log)
+        # The canonical ui-pro registry has an explicit upgrade command, and
         # the call recorder shows both the upgrade and the verify probe.
-        upgrade_calls = [c for c in mock_subprocess["calls"] if _NINES_UPGRADE_CMD in c]
+        upgrade_calls = [c for c in mock_subprocess["calls"] if _UI_PRO_UPGRADE_CMD in c]
         assert upgrade_calls, (
             f"upgrade_plugin must run the upgrade command; calls={mock_subprocess['calls']!r}"
         )
 
     def test_upgrade_failure_raises_loudly(self, tmp_path: Path, mock_subprocess: dict) -> None:
         """Exit code != 0 from upgrade_cmd raises PluginInstallError per S-5."""
-        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
-            args=["bash", "-c", _NINES_UPGRADE_CMD],
+        mock_subprocess["responses"][_UI_PRO_UPGRADE_CMD] = subprocess.CompletedProcess(
+            args=["bash", "-c", _UI_PRO_UPGRADE_CMD],
             returncode=1,
             stdout="",
             stderr="network unreachable",
         )
         log = tmp_path / "plugin_install.log"
         with pytest.raises(PluginInstallError, match="upgrade failed"):
-            upgrade_plugin("nines", log_path=log)
+            upgrade_plugin("ui-pro", log_path=log)
 
     def test_upgrade_failure_logs_failed_event(self, tmp_path: Path, mock_subprocess: dict) -> None:
-        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
-            args=["bash", "-c", _NINES_UPGRADE_CMD],
+        mock_subprocess["responses"][_UI_PRO_UPGRADE_CMD] = subprocess.CompletedProcess(
+            args=["bash", "-c", _UI_PRO_UPGRADE_CMD],
             returncode=1,
             stdout="",
             stderr="boom",
         )
         log = tmp_path / "plugin_install.log"
         with pytest.raises(PluginInstallError):
-            upgrade_plugin("nines", log_path=log)
+            upgrade_plugin("ui-pro", log_path=log)
         events = [
             json.loads(line)["event"] for line in log.read_text(encoding="utf-8").splitlines()
         ]
@@ -516,16 +514,13 @@ class TestRefreshAll:
     def test_refresh_skips_fresh_plugins(self, tmp_path: Path, mock_subprocess: dict) -> None:
         """When all plugins are fresh, refresh_all upgrades nothing.
 
-        v9.5.0 PV-01 baseline: 4 plugins (nines, ui-pro, rtk, si-chip).
-        v12.5.0 PV-05 D-1.1: 5 plugins (codegraph appended as the 5th).
-        v13.0.0: 6 plugins (impeccable appended as the 6th).
+        The active registry contains five plugins.
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         _write_log_lines(
             log,
             [
-                {"ts": recent_ts, "plugin_id": "nines", "event": "plugin_installed", "details": {}},
                 {
                     "ts": recent_ts,
                     "plugin_id": "ui-pro",
@@ -557,7 +552,6 @@ class TestRefreshAll:
         actions = {o.plugin_id: o.action for o in outcomes}
         assert all(action == "skipped_fresh" for action in actions.values())
         assert set(actions.keys()) == {
-            "nines",
             "ui-pro",
             "rtk",
             "si-chip",
@@ -570,17 +564,13 @@ class TestRefreshAll:
     ) -> None:
         """--force bypasses the staleness check.
 
-        v9.5.0 PV-01 baseline: 4 plugins (nines, ui-pro, rtk, si-chip).
-        v12.5.0 PV-05 D-1.1: 5 plugins (codegraph appended as the 5th).
-        v13.0.0: 6 plugins (impeccable appended as the 6th) — ``--force``
-        must upgrade all 6.
+        The active registry has five entries, so ``--force`` upgrades all five.
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         _write_log_lines(
             log,
             [
-                {"ts": recent_ts, "plugin_id": "nines", "event": "plugin_installed", "details": {}},
                 {
                     "ts": recent_ts,
                     "plugin_id": "ui-pro",
@@ -610,7 +600,7 @@ class TestRefreshAll:
         )
         outcomes = refresh_all(log_path=log, force=True)
         upgraded = [o for o in outcomes if o.action == "upgraded"]
-        assert len(upgraded) == 6, (
+        assert len(upgraded) == 5, (
             f"--force must upgrade ALL plugins regardless of staleness; "
             f"got upgraded={[o.plugin_id for o in upgraded]!r}"
         )
@@ -618,10 +608,10 @@ class TestRefreshAll:
     def test_refresh_only_filter_restricts_to_one_plugin(
         self, tmp_path: Path, mock_subprocess: dict
     ) -> None:
-        """`only=['nines']` restricts processing to the nines plugin."""
+        """`only=['ui-pro']` restricts processing to the ui-pro plugin."""
         log = tmp_path / "plugin_install.log"
-        outcomes = refresh_all(log_path=log, force=True, only=["nines"])
-        assert {o.plugin_id for o in outcomes} == {"nines"}
+        outcomes = refresh_all(log_path=log, force=True, only=["ui-pro"])
+        assert {o.plugin_id for o in outcomes} == {"ui-pro"}
 
     def test_refresh_unknown_plugin_in_only_returns_empty(
         self, tmp_path: Path, mock_subprocess: dict
@@ -635,18 +625,18 @@ class TestRefreshAll:
     ) -> None:
         """CI-safe: network failure on one plugin → outcome action='failed', no raise."""
         log = tmp_path / "plugin_install.log"
-        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
+        mock_subprocess["responses"][_UI_PRO_UPGRADE_CMD] = subprocess.CompletedProcess(
             args=["bash", "-c", "x"], returncode=1, stdout="", stderr="boom"
         )
-        outcomes = refresh_all(log_path=log, force=True, only=["nines"])
+        outcomes = refresh_all(log_path=log, force=True, only=["ui-pro"])
         assert len(outcomes) == 1
         assert outcomes[0].action == "failed"
-        assert outcomes[0].plugin_id == "nines"
+        assert outcomes[0].plugin_id == "ui-pro"
         assert "PluginInstallError" in (outcomes[0].error or "")
 
     def test_refresh_outcome_dataclass_fields(self) -> None:
-        outcome = RefreshOutcome(plugin_id="nines", action="upgraded", version="3.3.0")
-        assert outcome.plugin_id == "nines"
+        outcome = RefreshOutcome(plugin_id="ui-pro", action="upgraded", version="3.3.0")
+        assert outcome.plugin_id == "ui-pro"
         assert outcome.action == "upgraded"
         assert outcome.version == "3.3.0"
         assert outcome.reason is None
@@ -664,31 +654,31 @@ class TestListPlugins:
     def test_list_plugins_returns_one_row_per_plugin(
         self, tmp_path: Path, mock_subprocess: dict
     ) -> None:
-        """v9.5.0: 4 plugins; v12.5.0: 5 (codegraph); v13.0.0: 6 (impeccable)."""
+        """The active registry exposes one inspection row per plugin."""
         log = tmp_path / "plugin_install.log"
         rows = list_plugins(log_path=log)
         ids = {row["id"] for row in rows}
-        assert ids == {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+        assert ids == {"ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
 
     def test_list_plugins_carries_last_checked(self, tmp_path: Path, mock_subprocess: dict) -> None:
         log = tmp_path / "plugin_install.log"
         ts = "2026-05-01T10:00:00+00:00"
         _write_log_lines(
             log,
-            [{"ts": ts, "plugin_id": "nines", "event": "plugin_installed", "details": {}}],
+            [{"ts": ts, "plugin_id": "ui-pro", "event": "plugin_installed", "details": {}}],
         )
         rows = list_plugins(log_path=log)
-        nines_row = next(r for r in rows if r["id"] == "nines")
-        assert nines_row["last_checked"] == ts
         ui_pro_row = next(r for r in rows if r["id"] == "ui-pro")
-        assert ui_pro_row["last_checked"] is None
+        assert ui_pro_row["last_checked"] == ts
+        rtk_row = next(r for r in rows if r["id"] == "rtk")
+        assert rtk_row["last_checked"] is None
 
     def test_list_plugins_carries_invoked_workflows(
         self, tmp_path: Path, mock_subprocess: dict
     ) -> None:
         rows = list_plugins(log_path=tmp_path / "missing.log")
-        nines_row = next(r for r in rows if r["id"] == "nines")
-        assert "skill-optimization" in nines_row["invoked_by_workflows"]
+        si_chip_row = next(r for r in rows if r["id"] == "si-chip")
+        assert "skill-optimization" in si_chip_row["invoked_by_workflows"]
 
     def test_list_plugins_marks_explicit_upgrade_cmd(
         self, tmp_path: Path, mock_subprocess: dict
@@ -771,7 +761,7 @@ class TestPluginsCli:
         """gap analysis §6 AC-7: per-row failures → exit 1; no crash."""
         from devolaflow.cli import plugins_cmd
 
-        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
+        mock_subprocess["responses"][_UI_PRO_UPGRADE_CMD] = subprocess.CompletedProcess(
             args=["bash", "-c", "x"], returncode=1, stdout="", stderr="boom"
         )
         monkeypatch.chdir(tmp_path)
@@ -788,7 +778,7 @@ class TestPluginsCli:
         with (
             patch(
                 "sys.argv",
-                ["devolaflow-plugins", "refresh", "--force", "--plugin", "nines"],
+                ["devolaflow-plugins", "refresh", "--force", "--plugin", "ui-pro"],
             ),
             pytest.raises(SystemExit) as exc_info,
         ):

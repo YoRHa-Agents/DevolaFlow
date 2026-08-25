@@ -4,8 +4,8 @@ description: "工作流执行中的常见问题和解决方案。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 故障排查
@@ -61,30 +61,29 @@ Agent 试图一次完成所有事情
 
 SKILL.md 必须保持在 500 行以内（规则 SF-1）。运行 `build-skill --all` 验证。
 
-模板验证失败
+种子或运行时验证失败
 
 ```bash
 validate-template path/to/template.yaml
 ```
 
 常见原因：
-- 缺少必需字段（`schema_version`、`metadata`、`stages`、`composition`）
-- `composition` 中的阶段引用与 `stages[].id` 不匹配
-- 循环引用与 `loops[].name` 不匹配
-- 无效的原语名称（必须是 13 个原语之一）
+- 缺少种子必需字段（`schema_version`、`kind`、`metadata`、`placeholders`、`partitions`）
+- 种子包含顶层 `stages`、`composition`、`loops` 或 `gates` 等可执行 DAG 字段
+- `source_stages` 没有保留 ID 与 14 种来源原语之一
+- command 或 metric 验证没有有界 `template`
 
-## 基准测试问题
+## Harness 问题
 
-EvoBench 显示回退
+Harness 合约失败
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+python -m pytest tests/harness/ -v
 ```
 
-如果某个场景回退：
-1. 检查近期对 `context_profiles.yaml` 或 SKILL.md 段落边界的更改
-2. 审查特定场景的预期 vs 实际段落选择
-3. 修复后更新基线：`python -m benchmarks.devolaflow_context.runner --generate-baseline`
+1. 检查失败的 fixture、遥测、评估或 probe 合约
+2. 审查报告中的 schema、路径或 guard 不匹配
+3. 修复源合约；归档基线继续作为历史证据保留
 
 ## 获取帮助
 

@@ -4,7 +4,7 @@ version: "9.1.5"
 purpose: >
   Canonical inventory of every `DEVOLAFLOW_*` environment variable consumed
   by the runtime, the test fixtures, and the gate primitives. Pairs with
-  Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every L3 Task
+  Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every L2 Task
   Agent that proposes a new env-flag MUST consult this reference FIRST
   and prefer reuse of an existing flag whenever the data shape allows.
   v9.0.0 PV-06 (v8.5.1) moved the 5 v8.0.0 gate-primitive flags from §4
@@ -30,7 +30,7 @@ dependencies:
   - "agent/references/shell-proxy.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/plan-mode-enforcement.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Environment Flag Reference
@@ -148,9 +148,9 @@ count.
 | **Introduced** | v8.3.3 PV-03 |
 | **Default** | unset (= disabled) |
 | **Activation** | env value EXACTLY `"1"` AND `.local/memory/cases/index.yaml` exists AND yields a matching case |
-| **Effect** | `lookup_case(intent, env)` consults the cases index BEFORE the L0/L1 dispatcher re-derives workflow + stage decomposition from SKILL.md; cache-hit short-circuits ~3K tokens of planning context per matched route (~93% reduction per the v8.3.3 PV-03 retrospective) |
+| **Effect** | `lookup_case(intent, env)` consults the cases index before L0/L1 re-derives seed selection and checklist decomposition; a cache hit short-circuits ~3K tokens of planning context per matched route (~93% reduction in the historical v8.3.3 measurement) |
 | **Cache-miss path** | Returns `None` in O(1); caller falls through to the existing planner per cycle plan §6 R3 "cache-miss is the safe path" |
-| **R5 strict?** | YES — codified in `tests/test_memory_router.py::TestLookupCaseR5StrictOff` with `monkeypatch.setattr(Path, "read_text", watcher)` proving zero IO when off; the EvoBench scenario `memory_router_fastpath.yaml` codifies the dispatch-surface invariant (composite floor 90, actual 99.73 at v8.3.3 cut) |
+| **R5 strict?** | YES — codified in `tests/test_memory_router.py::TestLookupCaseR5StrictOff` with `monkeypatch.setattr(Path, "read_text", watcher)` proving zero IO when off. The built-in harness validates its active fixture corpus in `tests/harness/test_fixtures.py` and records aggregate telemetry through `src/devolaflow/harness/telemetry.py`; it has no active memory-router-specific composite assertion. |
 | **Reference** | `references/shell-proxy.md` §5 (memory-router fast-path) + §7 (R5 strict zero-overhead breakdown) |
 
 ### 2.5 `DEVOLAFLOW_AUTO_INSTALL` — RETIRED (never wired; removed v15.2.0 B-6)
@@ -173,7 +173,7 @@ count.
 | **Effect when active** | Downstream orchestrators auto-instantiate :class:`devolaflow.gate.budget.TokenBudgetBreaker` and pass it to :func:`devolaflow.gate.scorer.evaluate_gate` |
 | **R5 strict?** | YES — pure env-var read with NO file IO, NO subprocess, NO `shutil.which` lookup; codified in `tests/test_pv06_primitive_flip.py::test_loose_env_values_fall_back_to_profile_flag` |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_TOKEN_BUDGET_BREAKER=0` — preserves v8.5.0 pre-flip behaviour byte-identically |
-| **Reference** | `references/decomposition-gate.md` §11 row 1; `benchmarks/devolaflow_context/scenarios/token_budget_disabled.yaml` (composite ≥ 90 floor when opted out) |
+| **Reference** | `references/decomposition-gate.md` §11 row 1; `tests/test_pv06_primitive_flip.py` |
 
 ### 2.7 `DEVOLAFLOW_VERIFICATION_LADDER` — Theme T5 #2 default-on (STRICT/AUDIT)
 
@@ -186,7 +186,7 @@ count.
 | **Effect when active** | `evaluate_ladder` runs the full 6-rung short-circuit ladder; opt-out short-circuits to `evaluate_gate` byte-identically |
 | **R5 strict?** | YES — pure env-var read; no IO when opted out (the ladder simply delegates to the existing `evaluate_gate` codepath) |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_VERIFICATION_LADDER=0` |
-| **Reference** | `benchmarks/devolaflow_context/scenarios/verification_ladder_disabled.yaml` |
+| **Reference** | `tests/test_pv06_primitive_flip.py` |
 
 ### 2.8 `DEVOLAFLOW_GATE_RATCHET` — Theme T5 #3 default-on (STRICT/AUDIT)
 
@@ -199,7 +199,7 @@ count.
 | **Effect when active** | Downstream orchestrators instantiate :class:`devolaflow.gate.ratchet.MonotonicRatchet` and feed per-round scores to it (4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE machinery) |
 | **R5 strict?** | YES |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_GATE_RATCHET=0` |
-| **Reference** | `benchmarks/devolaflow_context/scenarios/ratchet_disabled.yaml` |
+| **Reference** | `tests/test_pv06_primitive_flip.py` |
 
 ### 2.9 `DEVOLAFLOW_COMPLEXITY_DETECTOR` — Theme T5 #4 default-on (STRICT/AUDIT)
 
@@ -210,9 +210,9 @@ count.
 | **Default** | unset → respect `profile.complexity_detector_enabled` (STRICT/AUDIT default ON) |
 | **Activation** | env value EXACTLY `"1"` → force ON; EXACTLY `"0"` → force OFF; otherwise profile flag wins |
 | **Effect when active** | Downstream orchestrators instantiate :class:`devolaflow.gate.complexity_detector.ComplexityDetector` and pair it with `profile.complexity_weight=0.10` so the gate composite reflects an overcomplexity penalty |
-| **R5 strict?** | YES — pure env-var read; the actual NineS subprocess + MOCK fallback only run when the gate scorer is invoked with `complexity_detector` set |
+| **R5 strict?** | YES — pure env-var read; detector work only runs when the gate scorer is invoked with `complexity_detector` set |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_COMPLEXITY_DETECTOR=0` |
-| **Reference** | `benchmarks/devolaflow_context/scenarios/complexity_detector_disabled.yaml` |
+| **Reference** | `tests/test_pv06_primitive_flip.py` |
 
 ### 2.10 `DEVOLAFLOW_AC_GEN` — Theme T5 #5 default-on (STRICT/AUDIT)
 
@@ -225,7 +225,7 @@ count.
 | **Effect when active** | The :class:`devolaflow.ac_generator.ACGenerator` synthesises structured `acceptance_criteria_v2` from the dispatch task description (11 deterministic patterns + 3-dim quality scoring); the legacy `acceptance_criteria: list[str]` alias remains the contract path so opt-out preserves v7.x byte-stable dispatch shape per R5 |
 | **R5 strict?** | YES |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_AC_GEN=0` |
-| **Reference** | `benchmarks/devolaflow_context/scenarios/ac_generator_disabled.yaml` |
+| **Reference** | `tests/test_pv06_primitive_flip.py` |
 
 ### 2.11 `DEVOLAFLOW_AGENTS_MD_SLICE` — v9.1.5 PV-05 default-on (per-task-type AGENTS.md slicing)
 
@@ -235,8 +235,8 @@ count.
 | **Introduced** | telegraphed v9.0.0 PV-07 ADR-007 D3; runtime read landed v9.1.5 PV-05 alongside the YAML default flip |
 | **Default** | unset → respect `meta.agents_md_slice.enabled` in `workflow-system/agent/context_profiles.yaml` (v9.1.5 canonical default: `true`) |
 | **Activation** | env value EXACTLY `"1"` → force opt-IN; EXACTLY `"0"` → force opt-OUT; otherwise YAML default wins |
-| **Effect when active** | `select_agents_md_slice(task_type)` filters the compiled AGENTS.md by per-task-type rule slice (Soul / Architecture / Conventions / Workflow / Style layer-prefix mapping in `meta.agents_md_slice.profiles`); typically reduces L3 dispatch cache prefix by 15-70% |
-| **Effect when opted out** | Returns AGENTS.md byte-identical to the v9.1.4 unsliced surface — preserves the cache prefix every L3 dispatcher keys on |
+| **Effect when active** | `select_agents_md_slice(task_type)` filters compiled AGENTS.md by per-task-type rule slice; typically reduces the L2 Task dispatch cache prefix by 15-70% |
+| **Effect when opted out** | Returns AGENTS.md byte-identical to the v9.1.4 unsliced surface — preserves the cache prefix Task dispatches key on |
 | **R5 strict?** | YES — pure dict.get with no IO; `references/env-flags.md` §6 conjunction contract pins literal-only matching (`"true"` / `"yes"` / `"on"` / `" 1 "` / `"01"` / `"0.0"` all fall through to YAML default) |
 | **Why default-on?** | The v9.0.0 MAJOR cycle telegraphed the slice in PV-07 ADR-007 D3 but kept it OFF until operators had time to adopt; v9.1.5 PV-05 flips the canonical default ON now that two cycles of ADR review + retrospective coverage have closed the migration gap. The opt-out env flag preserves byte-stable behaviour for operators who still need the v9.1.4 surface. |
 | **Opt-out path** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
@@ -318,7 +318,7 @@ count.
 | **Introduced** | v9.1.1 PV-01 (SKILL.md §"Workspace Engagement" surface); runtime read formalised by the A-6 classification surface (`classify_complexity` / `activation_verdict`) |
 | **Default** | unset (= disabled — no workspace scaffolding) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict per A-6.2 — any other value, including `"true"` / `"01"` / `""`, is default-OFF) |
-| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` before dispatching the first L1 stage; the same surface is REUSED by the v9.1.3 PV-03 `pre_handoff` hook, the `/devola:propose` slash command (opt-out via `--no-change` per A-6.3), AND the v14.3.0 `file_write` / `task_stop` runtime adapters (`lifecycle/runtime_wiring.py`) |
+| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` and materialize goal/checklist/preflight before dispatching the first L1 wave; the same surface is reused by `pre_handoff`, `/devola:propose`, and the `file_write` / `task_stop` runtime adapters |
 | **v15.0.0 strict graduation (G-038)** | With the flag set, the engaged `file_write` / `task_stop` adapters are STRICT by default — a violation raises `HookViolation` and BLOCKS the write / report emission (S-8 "mode: full" per v15-ADR-003 §Decision 3). Opt-out: pass `strict=False` to `fire_file_write` / `fire_task_stop` (S-8 "mode: lite" — the v14.3.0 warn + log behaviour). NO new env flag in either direction (W-20); flag absent → byte-identical zero-IO no-op, UNCHANGED by the strict flip |
 | **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py` + `tests/test_hook_runtime_wiring.py`) |
 | **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" + §"Lifecycle Hooks" (strict-since-v15.0.0 status) |
@@ -353,17 +353,7 @@ These flags are read ONLY by tests (`tests/`) and never by production
 code. They appear in this reference because operators sometimes set
 them in CI configs and need to know they have NO production effect.
 
-### 3.1 `DEVOLAFLOW_NINES_EDITABLE_PATH` — local NineS editable install path
-
-| Field | Value |
-|---|---|
-| **Owner** | `tests/test_plugins.py` (line 549, fixture only) |
-| **Default** | `/home/agent/workspace/NineS` |
-| **Effect** | When the plugin-install integration test runs, it uses this path as the local fallback for `pip install -e <path>` instead of fetching from PyPI |
-| **Production effect** | NONE — production paths use `pip install nines==<min_version>` per `runtime-plugins.yaml` |
-| **Per S-7** | This is a test-side override; the production reference file MUST NOT hardcode this path |
-
-### 3.2 `DEVOLAFLOW_PROBE_SCENARIO` — compression probe scenario selector
+### 3.1 `DEVOLAFLOW_PROBE_SCENARIO` — compression probe scenario selector
 
 | Field | Value |
 |---|---|
@@ -396,15 +386,15 @@ The 2 rows below remain forward-declared for a future cycle:
 **Why these stayed forward-declared in PV-06**: cycle-detector overlaps
 the legacy `accept` list semantically (the v7.x `accept` path already
 catches most cycle conditions); legibility-check is an additive scorer
-whose default-on impact requires its own EvoBench `_disabled.yaml`
-scenario set before flip. Both are tracked for the v9.x cycle's TBD
-"completion theme".
+whose default-on impact requires a dedicated built-in harness fixture and
+settled telemetry baseline before flip. Both are tracked for the v9.x
+cycle's TBD "completion theme".
 
 **Cross-reference**: the PV-06 flip plan + acceptance criteria + opt-out
 path live in `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
 The 5 promoted flags' R5 strict opt-out contract is pinned by
-`tests/test_pv06_primitive_flip.py` and verified end-to-end by the 5 new
-`benchmarks/devolaflow_context/scenarios/*_disabled.yaml` EvoBench scenarios.
+`tests/test_pv06_primitive_flip.py`; future default-flip evidence must use
+the built-in harness fixture corpus and aggregate telemetry.
 
 ## 5. Karpathy 4-primitive defaults (default-ON, no flag)
 
@@ -422,7 +412,7 @@ Operators who want to disable them adjust the per-profile
 
 **Why no env-flag?** The behavioral primitives are part of the
 **dispatch payload contract** — they ship at the per-task granularity,
-not the per-process granularity. An env-flag would force every L3 Task
+not the per-process granularity. An env-flag would force every L2 Task
 Agent in a process to share the same value; the dispatch field allows
 per-task tuning. See `references/behavioral-guidelines.md` for the full
 BG-001..BG-004 spec.
@@ -453,7 +443,7 @@ unset. The contract is verified at FOUR layers:
 | Unit  | `tests/test_shell_proxy_disabled_is_noop.py` | `monkeypatch.setattr(subprocess, 'run', ...)` watcher |
 | Unit  | `tests/test_memory_router.py::TestLookupCaseR5StrictOff` | `monkeypatch.setattr(Path, 'read_text', ...)` watcher |
 | Unit  | `tests/test_shell_proxy_commands.py::TestLoadR5StrictOff` | same Path.read_text watcher |
-| EvoBench | `benchmarks/devolaflow_context/scenarios/{shell_proxy_disabled,memory_router_fastpath,command_mapping_density}.yaml` | composite floor 90 vs `simple_implementation` baseline; actual ~99 |
+| Harness | `tests/harness/test_fixtures.py`; `src/devolaflow/harness/telemetry.py` | validates the active fixture corpus and records aggregate telemetry; no active per-flag composite claim |
 
 ## 6.A Activation-pattern taxonomy (G-023, v14.4.0)
 
@@ -483,7 +473,7 @@ strict design).
 
 ## 7. Adding a NEW env-flag — W-20 enforcement checklist
 
-Before authoring a NEW `DEVOLAFLOW_*` env-flag, an L3 Task Agent MUST
+Before authoring a NEW `DEVOLAFLOW_*` env-flag, an L2 Task Agent MUST
 walk the W-20 checklist:
 
 1. **Inventory check** — read this reference §2..§5 to confirm no
@@ -513,8 +503,8 @@ or document the orthogonality argument explicitly.
 > env flag. Codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (§2.12)
 > for opt-in runtime installation through `pre_plugin_invocation`. The
 > W-20 orthogonality test passed because codegraph shares the runtime-
-> installer activation surface with `nines` + `ui-pro` + `rtk` +
-> `si-chip` (the 4 v10.2.0 baseline plugins). Authoring a NEW
+> installer activation surface with `ui-pro` + `rtk` + `si-chip`.
+> Authoring a NEW
 > `DEVOLAFLOW_CODEGRAPH` flag would have conflated two activation
 > patterns that are already correctly distinguished by the
 > `runtime-plugins.yaml::plugins[id=codegraph].invoked_by_workflows`
@@ -589,8 +579,6 @@ NEW canonical names.
 * `references/behavioral-guidelines.md` — BG-001..BG-004 spec (cross-link from §5)
 * `AGENTS.md` §"W-20" — env-flag reuse vs new-flag policy (the rule this reference enforces)
 * `docs/cycle-archive/v9.0.0/design/v9.0.0_pv05_design.md` §1 — full PV-05 audit + decision rationale
-* `docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` D5 — ADR for AGENTS.md ceiling bump + W-rule batch
-
 ---
 
 > Maintenance contract — this reference is the **single source of

@@ -848,7 +848,7 @@ class TestSchemaInvariants:
     version 3; P-10 raised it to length 15 / version 4 by APPENDING
     ``acceptance_criteria_v2`` after ``behavioral_guidelines``. The
     v7.0.0 + v7.3.0 byte-baselines in
-    ``tests/test_benchmarks.py::TestLayoutInvariantBaseline`` prove
+    ``tests/test_layout_invariant_multi_baseline.py::TestMultiBaselineByteStability`` prove
     additivity across all three generations.
     """
 

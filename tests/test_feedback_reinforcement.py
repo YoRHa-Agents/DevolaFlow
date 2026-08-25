@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import copy
+from types import SimpleNamespace
+
 from devolaflow.feedback import ProposalGenerator
 from devolaflow.gate.models import Finding, GateVerdict
+from devolaflow.gate.reinforcement import merge_reinforcement_into_dispatch
 from devolaflow.task_adaptive_selector import apply_round_escalation
 
 
@@ -235,6 +239,110 @@ class TestGenerateRoundDispatch:
         assert "F-CR" in ids
         assert "F-MA" not in ids
         assert "F-MI" not in ids
+
+    def test_round_inputs_prepend_selected_reverts_with_one_stable_cap(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        base["change_context"] = {"change_id": "round-reinforcement"}
+        before = copy.deepcopy(base)
+        checklist = SimpleNamespace(
+            items=(
+                SimpleNamespace(
+                    item_id="C-G1.1",
+                    assertion="first assertion",
+                    verify="pytest first",
+                    checked=False,
+                    reverted_reason='Keep  "first reason" verbatim',
+                ),
+                SimpleNamespace(
+                    item_id="C-G1.2",
+                    assertion="second assertion",
+                    verify="pytest second",
+                    checked=False,
+                    reverted_reason="second reason -> exact",
+                ),
+            )
+        )
+        selection = SimpleNamespace(
+            selected=(
+                SimpleNamespace(item_id="C-G1.1", priority="P0", reverted=True),
+                SimpleNamespace(item_id="C-G1.2", priority="P1", reverted=True),
+            )
+        )
+        findings = [
+            Finding(
+                finding_id="R-C-G1.1-002",
+                severity="blocker",
+                category="duplicate",
+                location="",
+                description="gate duplicate must lose to selected revert",
+            ),
+            *[
+                Finding(
+                    finding_id=f"F-G{index}",
+                    severity="critical",
+                    category="quality",
+                    location=f"src/{index}.py",
+                    description=f"gate issue {index}",
+                )
+                for index in range(1, 5)
+            ],
+        ]
+
+        result = gen.generate_round_dispatch(
+            base,
+            self._verdict(findings, score=65.0),
+            2,
+            90.0,
+            "major",
+            checklist=checklist,
+            selection=selection,
+            round_n=2,
+        )
+
+        reinforcement = result["context"]["applicable_rules"]["reinforcement"]
+        assert [rule["id"] for rule in reinforcement["rules"]] == [
+            "R-C-G1.1-002",
+            "R-C-G1.2-002",
+            "F-G1",
+            "F-G2",
+            "F-G3",
+        ]
+        assert [rule["mandate"] for rule in reinforcement["rules"][:2]] == [
+            'Keep  "first reason" verbatim',
+            "second reason -> exact",
+        ]
+        assert all(rule["severity"] == "blocker" for rule in reinforcement["rules"][:2])
+        assert reinforcement["prior_score"] == 65.0
+        assert reinforcement["target_score"] == 90.0
+        assert result["change_context"]["round_context"] == {
+            "round_n": 2,
+            "reverted_ids": ["C-G1.1", "C-G1.2"],
+        }
+        assert base == before
+
+    def test_legacy_positional_gate_only_serialization_is_unchanged(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        verdict = self._verdict(
+            [
+                Finding(
+                    finding_id="F-POS",
+                    severity="critical",
+                    category="quality",
+                    location="src/foo.py",
+                    description="preserve positional API",
+                )
+            ],
+            score=66.0,
+        )
+        block = gen.generate_reinforcement(verdict, 2, 91.0, "critical")
+        assert block is not None
+        expected = merge_reinforcement_into_dispatch(copy.deepcopy(base), block)
+
+        result = gen.generate_round_dispatch(base, verdict, 2, 91.0, "critical")
+
+        assert result == expected
 
 
 class TestRoundEscalation:

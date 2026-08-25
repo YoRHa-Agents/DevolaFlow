@@ -2,20 +2,20 @@
 
 DevolaFlow's wrapper around the upstream `colbymchenry/codegraph`
 npm-distributed CLI (`@colbymchenry/codegraph@>=0.9.3`). Provides a
-subprocess-mediated Python surface that L0/L1/L2 dispatchers + L3 task
+subprocess-mediated Python surface that L0/L1 dispatchers and L2 task
 agents can invoke for symbol search, context building, impact analysis,
 caller traces, and test-affected detection.
 
 Upstream: https://github.com/colbymchenry/codegraph
 
-Per the v12.5.0 PV-03 D-1.1 design, the package mirrors the structure of
-:mod:`devolaflow.nines`:
+Per the v12.5.0 PV-03 D-1.1 design, the package separates the subprocess
+wrapper from the public researcher API:
 
 * :mod:`devolaflow.codegraph._cli` — thin subprocess wrapper around the
   ``codegraph`` CLI binary; raises :exc:`CodegraphUnavailableError` when
   the binary is missing / fails / produces unparseable output.
 * :mod:`devolaflow.codegraph.researcher` — public researcher API that
-  callers (L0/L1/L2 planning, L3 task review, gate scoring) invoke. Each
+  callers (L0/L1 planning, L2 task review, gate scoring) invoke. Each
   helper catches :exc:`CodegraphUnavailableError` and returns an empty
   sentinel result so callers can transparently fall back to
   :mod:`devolaflow`'s built-in Read/Glob/Grep planning paths.

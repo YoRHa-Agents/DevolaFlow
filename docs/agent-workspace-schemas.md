@@ -209,4 +209,3 @@ git check-ignore -v .local/memory/operational.jsonl    # rule does NOT start wit
 - `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md` §2.1 C-002, §2.3 M-003, M-005 — gap context.
 - DevolaFlow source: `https://github.com/YoRHa-Agents/DevolaFlow`
 - OpenSpec source: `https://github.com/Fission-AI/OpenSpec`
-- NineS source: `https://github.com/YoRHa-Agents/NineS`

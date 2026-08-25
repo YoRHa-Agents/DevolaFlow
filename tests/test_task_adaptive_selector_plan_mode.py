@@ -76,21 +76,19 @@ def test_apply_plan_mode_overrides_preserves_byte_stable_keys() -> None:
     # Pre-existing key from the input profile MUST survive the merge —
     # plan-mode overrides only ADD/OVERWRITE plan-relevant section keys.
     assert priorities["foo"] == "important"
-    # The 5 plan-mode section overrides per ``_PLAN_MODE_OVERRIDES``
-    # ``section_priority_overrides`` (verbatim per
-    # ``src/devolaflow/task_adaptive_selector.py`` lines 69-75).
-    assert priorities["agent_hierarchy"] == "critical"
-    assert priorities["decomposition_gate"] == "critical"
+    # The 5 plan-mode overrides use current context-profile section anchors.
+    assert priorities["hierarchy_table"] == "critical"
+    assert priorities["gate_mechanism"] == "critical"
     assert priorities["rationalization_prevention"] == "critical"
     assert priorities["convergence_loop"] == "important"
-    assert priorities["execution_protocol"] == "supplementary"
+    assert priorities["agent_mode_protocol"] == "supplementary"
 
 
 def test_apply_plan_mode_overrides_does_not_mutate_input_profile() -> None:
     """The helper returns a new dict and leaves the input deep-equal to its pre-call state."""
     profile = {
         "token_budget": 6000,
-        "section_priorities": {"foo": "important", "execution_protocol": "important"},
+        "section_priorities": {"foo": "important", "agent_mode_protocol": "important"},
         "model_hint": "balanced",
         "compression_intensity": "standard",
     }
@@ -99,16 +97,17 @@ def test_apply_plan_mode_overrides_does_not_mutate_input_profile() -> None:
     assert profile == control
 
 
-def test_plan_mode_constraints_checklist_item_10_present() -> None:
-    """``plan-mode-enforcement.md`` §4 item #10 carries the ``Cascade depth (STANDARD+)`` header."""
+def test_plan_mode_constraints_gate_is_checklist_round_aware() -> None:
+    """The plan gate pins bounded rounds and prevents seed-as-DAG regression."""
     text = _PLAN_MODE_DOC_PATH.read_text(encoding="utf-8")
-    assert "Cascade depth (STANDARD+)" in text
+    assert "Every loop has a maximum." in text
+    assert "No seed field is treated as an executable instruction." in text
 
 
-def test_plan_mode_do_list_cites_cascade_chain() -> None:
-    """``plan-mode-enforcement.md`` §5.1 DO list cites the L0→L1→L2→L3 cascade chain verbatim."""
+def test_plan_mode_escalation_cites_three_layer_chain() -> None:
+    """The escalation section cites the current three-layer chain verbatim."""
     text = _PLAN_MODE_DOC_PATH.read_text(encoding="utf-8")
-    assert "Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans" in text
+    assert "L2 Task → L1 Wave → L0 Project → Human" in text
 
 
 def test_plan_mode_overrides_block_does_not_inject_cascade_when_unrelated_caller() -> None:

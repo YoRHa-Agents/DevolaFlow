@@ -17,16 +17,18 @@ python -m pytest tests/ -q                    # run all tests
 ruff check src/ tests/                        # lint
 ruff format --check src/ tests/               # format check
 python -m pytest tests/test_version.py -v     # version consistency
-python -m pytest tests/test_benchmarks.py -v  # EvoBench benchmarks
+make test-harness                             # built-in harness contracts
 ```
 
 ## Project Structure
 
-- `src/devolaflow/` — Python package (gate, template_engine, nines, adapters)
+- `src/devolaflow/harness/` — current telemetry, evaluation, proposal, and model-probe source of truth
+- `src/devolaflow/nines/` — deprecated v16 compatibility only; scheduled for removal in v17
+- `src/devolaflow/` — remaining Python package domains (gate, template_engine, adapters)
 - `workflow-system/agent/` — SKILL.md, references, templates, context profiles
 - `workflow-system/human/` — Human docs (EN/ZH), demo pages
 - `tests/` — Pytest suite (`python -m pytest tests/ -q` prints the live count)
-- `benchmarks/` — EvoBench context density benchmarks
+- `benchmarks/devolaflow_context/baselines/` — immutable A-2.4 byte witnesses
 - `schemas/` — YAML message schemas
 - `scripts/` — Version bump, doc generation, install
 

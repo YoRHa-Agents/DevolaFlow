@@ -10,7 +10,7 @@ DevolaFlow uses a **trunk-based workflow** with short-lived feature branches mer
 
 ```
 Feature Branch ──PR──> main ──tag v*──> Release Workflow
-                                          ├── test (human-docs, drift, EvoBench, lint, pytest, validate, build-skill)
+                                          ├── test (human-docs, drift, harness, lint, pytest, validate, build-skill)
                                           ├── release (GitHub Release with auto-generated notes)
                                           └── deploy-pages (build _site/ → GitHub Pages)
 ```
@@ -27,13 +27,17 @@ Before starting a release, verify all quality gates pass:
 make release-preflight
 ```
 
-This runs: lint → test → validate-templates → build-skill → sync-human-docs → check-drift.
+This preserves the seven W-9 gates in order: `test-core` → Ruff check → Ruff
+format → `test-version` → `test-harness` → `check-cursor-skill` →
+`iteration-delta-gate`. Release-only validation, adapter, documentation,
+compiler, and drift checks run afterward.
 
 Manual checks:
 - [ ] CHANGELOG.md has a section for the new version with correct date
 - [ ] All 16 version locations are consistent (use `python -m pytest tests/test_version.py -v`)
 - [ ] All adapter outputs build within budget
-- [ ] EvoBench benchmarks show no regressions: `python -m pytest tests/test_benchmarks.py -v`
+- [ ] Built-in harness contracts pass: `make test-harness`
+- [ ] The active W-16 harness baseline comparison has no threshold breach
 
 ### 2.2 Version Bump
 
@@ -70,7 +74,7 @@ git push origin main --tags
 ```
 
 Pushing the tag triggers `.github/workflows/release.yml`:
-1. **test** — regenerates human docs, checks drift, runs EvoBench benchmarks, runs lint, runs pytest with coverage, validates templates, and builds skill adapters
+1. **test** — regenerates human docs, checks drift, runs the built-in harness contracts, runs lint and the non-harness pytest suite with coverage, validates templates, and builds skill adapters
 2. **release** — creates GitHub Release with auto-generated notes (from PR titles since last tag)
 3. **deploy-pages** — builds site via `scripts/build-site.sh` and deploys to GitHub Pages
 
@@ -93,7 +97,7 @@ Triggers: push to `main`, PR to `main`.
 | Job | Steps |
 |-----|-------|
 | `check` | ruff format --check, ruff check |
-| `test` | pytest with coverage, EvoBench benchmarks |
+| `test` | non-harness pytest with coverage, `make test-harness` as the standalone W-9 gate 5 |
 | `validate` | validate-template --all, build-skill, check-drift |
 
 ### 3.2 Release Pipeline (`.github/workflows/release.yml`)
@@ -102,7 +106,7 @@ Triggers: push of tags matching `v*`.
 
 | Job | Steps | Depends On |
 |-----|-------|-----------|
-| `test` | sync-human-docs, check-drift, EvoBench, lint, pytest, validate-template, build-skill | — |
+| `test` | shared CI checks: lint, non-harness pytest with coverage, harness gate, validate-template, build-skill, drift checks | — |
 | `release` | GitHub Release (softprops/action-gh-release) | test |
 | `deploy-pages` | build-site.sh → upload → deploy | release |
 
@@ -207,7 +211,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/) with Semantic Versioning
 1. Every PR with user-visible changes must update CHANGELOG.md (rule CP-1)
 2. Version sections are ordered newest-first
 3. Dates use ISO 8601 (YYYY-MM-DD)
-4. Metrics section records test count, coverage, EvoBench scores, adapter status
+4. Metrics section records test count, coverage, harness evaluation evidence, adapter status
 
 ---
 

@@ -1,12 +1,13 @@
-"""Comprehensive tests for the v8.0.0 P-09 Overcomplexity Detector.
+"""Comprehensive tests for deterministic local complexity inspection.
 
 Covers the patch_plan §3 P-09 acceptance criteria:
 
 - ``ComplexityDetector.evaluate()`` correctly classifies the OK /
   WARNING / CRITICAL paths across the 4 task complexity tiers
   (trivial / simple / standard / complex).
-- ``wrap_nines_complexity()`` returns a conservative MOCK signal when
-  the ``nines`` binary is unavailable (per ``patch_plan §3 P-09 AC #4``).
+- ``inspect_complexity_path()`` measures sorted local Python files without
+  invoking an external binary.
+- Legacy NineS-named surfaces remain compatibility aliases only.
 - ``complexity_detector=None`` keeps :func:`evaluate_gate` byte-identical
   to pre-P-09 behaviour (``patch_plan §3 P-09 AC #6``).
 
@@ -16,10 +17,8 @@ Target: ≥ 90 % line coverage on
 
 from __future__ import annotations
 
-import json
 import logging
-import subprocess
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -32,18 +31,23 @@ from devolaflow.gate import (
     CheckResult,
     ComplexityDetector,
     ComplexityEvaluation,
+    ComplexityProbeResult,
     ComplexitySignals,
     ComplexityVerdict,
     GateInput,
     NinesWrapResult,
     evaluate_gate,
+    inspect_complexity_path,
     wrap_nines_complexity,
 )
 from devolaflow.gate.complexity_detector import (
+    COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
     CRITICAL_CC_THRESHOLD,
     CRITICAL_REASON_CC,
+    CRITICAL_REASON_ERROR_FINDINGS,
     CRITICAL_REASON_NINES_ERROR,
     NINES_BINARY,
+    NINES_TIMEOUT_SECONDS,
     TIER_BUDGETS,
     WARN_REASON_ABSTRACTIONS,
     WARN_REASON_CC,
@@ -52,11 +56,11 @@ from devolaflow.gate.complexity_detector import (
     WARN_REASON_NESTING,
     WARN_REASON_NINES_WARN,
     WARN_REASON_RATIO,
+    WARN_REASON_WARNING_FINDINGS,
     WARNING_CC_THRESHOLD,
     TierBudgets,
     _conservative_mock_signals,
-    _parse_nines_payload,
-    _resolve_nines_binary,
+    _zero_complexity_signals,
 )
 
 # ---------------------------------------------------------------------------
@@ -73,29 +77,22 @@ def _signals(**kwargs: Any) -> ComplexitySignals:
         "nesting_depth_max": 2,
         "cyclomatic_complexity": 5,
         "ratio_to_minimal": 1.0,
-        "nines_error_findings": 0,
-        "nines_warn_findings": 0,
+        "error_findings": 0,
+        "warning_findings": 0,
     }
     defaults.update(kwargs)
+    if "nines_error_findings" in kwargs:
+        defaults.pop("error_findings")
+    if "nines_warn_findings" in kwargs:
+        defaults.pop("warning_findings")
     return ComplexitySignals(**defaults)
 
 
-@dataclass
-class _FakeRunResult:
-    """Stand-in for :class:`subprocess.CompletedProcess` for runner mocks."""
-
-    returncode: int
-    stdout: str
-    stderr: str = ""
-
-
-def _make_runner(result: _FakeRunResult):
-    """Return a callable mimicking ``subprocess.run``'s positional signature."""
-
-    def runner(*_args: Any, **_kwargs: Any) -> _FakeRunResult:
-        return result
-
-    return runner
+def _write_python(path: Path, source: str) -> Path:
+    """Write one deterministic Python fixture and return its path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
+    return path
 
 
 def _gate_input_pass() -> GateInput:
@@ -308,8 +305,8 @@ class TestComplexitySignalsValidation:
             ("nesting_depth_max", -1),
             ("cyclomatic_complexity", -1),
             ("ratio_to_minimal", -0.1),
-            ("nines_error_findings", -1),
-            ("nines_warn_findings", -1),
+            ("error_findings", -1),
+            ("warning_findings", -1),
         ],
     )
     def test_negative_field_raises_value_error(self, field_name: str, bad_value: float) -> None:
@@ -321,6 +318,10 @@ class TestComplexitySignalsValidation:
         assert signals.lines_changed == 0
         assert signals.cyclomatic_complexity == 0
         assert signals.ratio_to_minimal == 0.0
+        assert signals.error_findings == 0
+        assert signals.warning_findings == 0
+        assert signals.nines_error_findings == signals.error_findings
+        assert signals.nines_warn_findings == signals.warning_findings
 
 
 # ===========================================================================
@@ -375,163 +376,192 @@ class TestDetectorConfig:
 
 
 # ===========================================================================
-# 9. wrap_nines_complexity — MOCK fallback (AC #4)
+# 9. Degraded local inspection
 # ===========================================================================
 
 
-class TestWrapNinesMockFallback:
-    """AC #4: when ``nines`` binary missing, return conservative MOCK."""
+class TestLocalInspectionDegraded:
+    """Missing and unsupported paths produce explicit logged degradation."""
 
-    def test_missing_binary_returns_mock(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_missing_path_returns_degraded(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         caplog.set_level(logging.WARNING)
-        result = wrap_nines_complexity("/tmp/some_path", binary="this_binary_does_not_exist_xyz")
-        assert result.is_mock is True
-        assert result.mode == "mock"
-        assert "MOCK" in result.rationale or "MOCK".lower() in result.rationale.lower()
-        # Conservative MOCK signals → all-zero
-        assert result.signals == _conservative_mock_signals()
-        # WARNING log emitted
-        assert any("MOCK" in rec.message or "binary" in rec.message for rec in caplog.records)
+        result = inspect_complexity_path(tmp_path / "missing")
+        assert result.is_degraded is True
+        assert result.mode == "degraded"
+        assert result.signals == _zero_complexity_signals()
+        assert result.errors and "does not exist" in result.errors[0]
+        assert any("degraded" in record.message for record in caplog.records)
 
-    def test_resolve_binary_returns_none_for_missing(self) -> None:
-        path = _resolve_nines_binary("definitely_not_a_real_binary_zzz")
-        assert path is None
+    def test_non_python_file_returns_degraded(self, tmp_path: Path) -> None:
+        target = tmp_path / "notes.txt"
+        target.write_text("not Python\n", encoding="utf-8")
+        result = inspect_complexity_path(target)
+        assert result.is_degraded is True
+        assert "not a Python file" in result.errors[0]
 
-    def test_resolve_binary_default_name(self) -> None:
-        # Whatever NINES_BINARY resolves to (likely None on test runner)
-        result = _resolve_nines_binary(None)
-        # No assertion on truthiness — both None and a real path are valid
-        assert result is None or isinstance(result, str)
+    def test_legacy_probe_names_are_identity_aliases(self) -> None:
+        assert wrap_nines_complexity is inspect_complexity_path
+        assert NinesWrapResult is ComplexityProbeResult
+        assert _conservative_mock_signals is _zero_complexity_signals
 
-    def test_mock_fallback_keeps_verdict_ok(self) -> None:
-        # AC #4 spirit: NineS unavailable should not cause spurious CRITICAL
-        result = wrap_nines_complexity("/tmp/x", binary="nope_zzz")
-        detector = ComplexityDetector()
-        evaluation = detector.evaluate(result.signals, "trivial")
+    def test_degraded_result_keeps_verdict_ok(self, tmp_path: Path) -> None:
+        result = wrap_nines_complexity(tmp_path / "missing", binary="ignored")
+        evaluation = ComplexityDetector().evaluate(result.signals, "trivial")
         assert evaluation.verdict is ComplexityVerdict.OK
 
 
 # ===========================================================================
-# 10. wrap_nines_complexity — runner injection (live path simulation)
+# 10. Deterministic local metrics and ignored legacy arguments
 # ===========================================================================
 
 
-class TestWrapNinesRunnerInjection:
-    def test_runner_success_parses_payload(self) -> None:
-        payload = {
-            "findings": [
-                {"severity": "warn", "metric": "cyclomatic", "value": 12},
-                {"severity": "warn", "metric": "cyclomatic", "value": 14},
-                {"severity": "error", "metric": "cyclomatic", "value": 22},
-            ],
-            "summary": {
-                "total_lines": 150,
-                "total_files": 3,
-                "new_classes": 2,
-                "max_nesting_depth": 3,
-                "ratio_to_minimal": 1.5,
-            },
-        }
-        runner = _make_runner(_FakeRunResult(returncode=0, stdout=json.dumps(payload)))
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.mode == "live"
-        assert result.signals.cyclomatic_complexity == 22  # max of [12, 14, 22]
-        assert result.signals.nines_error_findings == 1
-        assert result.signals.nines_warn_findings == 2
-        assert result.signals.lines_changed == 150
-        assert result.signals.files_touched == 3
+class TestLocalInspectionMetrics:
+    def test_directory_inspection_measures_sorted_python_files(self, tmp_path: Path) -> None:
+        _write_python(
+            tmp_path / "z.py",
+            "class Z:\n    pass\n",
+        )
+        _write_python(
+            tmp_path / "a.py",
+            "class A:\n"
+            "    def branch(self, value):\n"
+            "        if value:\n"
+            "            for item in range(value):\n"
+            "                if item:\n"
+            "                    return item\n"
+            "        return 0\n",
+        )
+        result = inspect_complexity_path(tmp_path)
+        assert result.mode == "local"
+        assert [Path(path).name for path in result.inspected_files] == ["a.py", "z.py"]
+        assert result.signals.lines_changed == 9
+        assert result.signals.files_touched == 2
         assert result.signals.new_abstractions == 2
-        assert len(result.raw_findings) == 3
+        assert result.signals.nesting_depth_max == 3
+        assert result.signals.cyclomatic_complexity == 4
 
-    def test_runner_non_zero_exit_falls_back_to_mock(
-        self, caplog: pytest.LogCaptureFixture
+    def test_single_python_file_is_supported(self, tmp_path: Path) -> None:
+        target = _write_python(tmp_path / "one.py", "def one():\n    return 1\n")
+        result = inspect_complexity_path(target)
+        assert result.mode == "local"
+        assert result.signals.files_touched == 1
+        assert result.signals.lines_changed == 2
+        assert result.inspected_files == (target.as_posix(),)
+
+    def test_ratio_is_explicitly_unmeasurable(self, tmp_path: Path) -> None:
+        _write_python(tmp_path / "one.py", "value = 1\n")
+        result = inspect_complexity_path(tmp_path)
+        assert result.signals.ratio_to_minimal == 0.0
+        assert "unmeasurable" in result.rationale
+
+    def test_legacy_runner_argument_is_never_called(self, tmp_path: Path) -> None:
+        _write_python(tmp_path / "one.py", "value = 1\n")
+        called = False
+
+        def runner(*_args: Any, **_kwargs: Any) -> None:
+            nonlocal called
+            called = True
+            raise AssertionError("legacy runner must never execute")
+
+        result = wrap_nines_complexity(tmp_path, runner=runner)
+        assert result.mode == "local"
+        assert called is False
+
+    def test_legacy_binary_and_timeout_arguments_are_ignored(self, tmp_path: Path) -> None:
+        _write_python(tmp_path / "one.py", "value = 1\n")
+        result = wrap_nines_complexity(
+            tmp_path,
+            binary="definitely-not-executable",
+            timeout=1,
+        )
+        assert result.mode == "local"
+        assert result.errors == ()
+
+    def test_syntax_error_is_explicitly_degraded(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
+        _write_python(tmp_path / "broken.py", "def broken(:\n")
         caplog.set_level(logging.WARNING)
-        runner = _make_runner(_FakeRunResult(returncode=2, stdout="", stderr="boom"))
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
-        assert "non-zero" in result.rationale or "exited" in result.rationale.lower()
+        result = inspect_complexity_path(tmp_path)
+        assert result.mode == "degraded"
+        assert result.errors and "SyntaxError" in result.errors[0]
+        assert any("cannot measure" in record.message for record in caplog.records)
 
-    def test_runner_invalid_json_falls_back_to_mock(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.WARNING)
-        runner = _make_runner(_FakeRunResult(returncode=0, stdout="not json"))
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
-        assert "JSON" in result.rationale.upper() or "parse" in result.rationale.lower()
-
-    def test_runner_non_dict_payload_falls_back(self) -> None:
-        runner = _make_runner(_FakeRunResult(returncode=0, stdout=json.dumps([1, 2, 3])))
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
-
-    def test_runner_timeout_falls_back(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.WARNING)
-
-        def runner(*args: Any, **kwargs: Any) -> _FakeRunResult:
-            raise subprocess.TimeoutExpired(cmd="nines", timeout=1)
-
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
-        assert "timed out" in result.rationale or "timeout" in result.rationale.lower()
-
-    def test_runner_oserror_falls_back(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.WARNING)
-
-        def runner(*args: Any, **kwargs: Any) -> _FakeRunResult:
-            raise OSError("perm denied")
-
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
-
-    def test_runner_filenotfound_falls_back(self) -> None:
-        def runner(*args: Any, **kwargs: Any) -> _FakeRunResult:
-            raise FileNotFoundError("no such bin")
-
-        result = wrap_nines_complexity("/tmp/x", binary="nines", runner=runner)
-        assert result.is_mock is True
+    def test_non_python_files_are_ignored_in_directory(self, tmp_path: Path) -> None:
+        _write_python(tmp_path / "kept.py", "value = 1\n")
+        (tmp_path / "ignored.json").write_text('{"value": 2}\n', encoding="utf-8")
+        result = inspect_complexity_path(tmp_path)
+        assert result.mode == "local"
+        assert [Path(path).name for path in result.inspected_files] == ["kept.py"]
+        assert result.signals.files_touched == 1
 
 
 # ===========================================================================
-# 11. _parse_nines_payload edge cases
+# 11. Local measurement edge cases
 # ===========================================================================
 
 
-class TestParseNinesPayload:
-    def test_empty_payload_yields_zero_signals(self) -> None:
-        signals = _parse_nines_payload({})
-        assert signals.cyclomatic_complexity == 0
-        assert signals.nines_error_findings == 0
-        assert signals.nines_warn_findings == 0
+class TestLocalMeasurementEdges:
+    def test_empty_directory_yields_zero_signals(self, tmp_path: Path) -> None:
+        result = inspect_complexity_path(tmp_path)
+        assert result.mode == "local"
+        assert result.signals == _zero_complexity_signals()
 
-    def test_findings_not_list_treated_as_empty(self) -> None:
-        signals = _parse_nines_payload({"findings": "not a list"})
-        assert signals.nines_error_findings == 0
+    def test_loc_counts_physical_source_lines(self, tmp_path: Path) -> None:
+        _write_python(tmp_path / "a.py", "first = 1\n\nthird = 3\n")
+        _write_python(tmp_path / "b.py", "only = 1\n")
+        assert inspect_complexity_path(tmp_path).signals.lines_changed == 4
 
-    def test_summary_not_dict_treated_as_empty(self) -> None:
-        signals = _parse_nines_payload({"summary": "not a dict"})
-        assert signals.lines_changed == 0
-
-    def test_unknown_severity_ignored(self) -> None:
-        signals = _parse_nines_payload(
-            {"findings": [{"severity": "info", "metric": "cc", "value": 8}]}
+    def test_class_count_includes_nested_classes(self, tmp_path: Path) -> None:
+        _write_python(
+            tmp_path / "classes.py",
+            "class Outer:\n    class Inner:\n        pass\n",
         )
-        assert signals.nines_error_findings == 0
-        assert signals.nines_warn_findings == 0
-        assert signals.cyclomatic_complexity == 8
+        assert inspect_complexity_path(tmp_path).signals.new_abstractions == 2
 
-    def test_non_dict_finding_skipped(self) -> None:
-        signals = _parse_nines_payload(
-            {"findings": ["not a dict", 42, {"severity": "error", "metric": "cc", "value": 20}]}
+    def test_max_control_flow_nesting_is_measured(self, tmp_path: Path) -> None:
+        _write_python(
+            tmp_path / "nested.py",
+            "def nested(items):\n"
+            "    for item in items:\n"
+            "        if item:\n"
+            "            while item:\n"
+            "                item -= 1\n",
         )
-        assert signals.nines_error_findings == 1
-        assert signals.cyclomatic_complexity == 20
+        assert inspect_complexity_path(tmp_path).signals.nesting_depth_max == 3
 
-    def test_unparseable_cc_value_defaults_to_zero(self) -> None:
-        signals = _parse_nines_payload(
-            {"findings": [{"severity": "warn", "metric": "cc", "value": "garbage"}]}
+    def test_max_cyclomatic_complexity_is_measured(self, tmp_path: Path) -> None:
+        _write_python(
+            tmp_path / "branch.py",
+            "def decide(left, right):\n"
+            "    if left and right:\n"
+            "        return True\n"
+            "    return False\n",
         )
-        assert signals.cyclomatic_complexity == 0
-        assert signals.nines_warn_findings == 1
+        assert inspect_complexity_path(tmp_path).signals.cyclomatic_complexity == 3
+
+    def test_unreadable_file_is_logged_degraded(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        target = _write_python(tmp_path / "blocked.py", "value = 1\n")
+        original_read_text = Path.read_text
+
+        def read_text(path: Path, *args: Any, **kwargs: Any) -> str:
+            if path == target:
+                raise PermissionError("blocked fixture")
+            return original_read_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", read_text)
+        caplog.set_level(logging.WARNING)
+        result = inspect_complexity_path(tmp_path)
+        assert result.mode == "degraded"
+        assert result.errors and "PermissionError" in result.errors[0]
+        assert any("blocked fixture" in record.message for record in caplog.records)
 
 
 # ===========================================================================
@@ -540,11 +570,15 @@ class TestParseNinesPayload:
 
 
 class TestEvaluatePath:
-    def test_evaluate_path_uses_wrapper(self) -> None:
+    def test_evaluate_path_uses_local_inspector(self, tmp_path: Path) -> None:
+        target = _write_python(tmp_path / "simple.py", "def simple():\n    return 1\n")
         detector = ComplexityDetector()
-        runner = _make_runner(_FakeRunResult(returncode=1, stdout=""))
-        result = detector.evaluate_path("/tmp/x", "trivial", binary="nines", runner=runner)
-        # Non-zero exit → MOCK fallback → all-zero signals → OK
+        result = detector.evaluate_path(
+            target,
+            "trivial",
+            binary="ignored",
+            runner=lambda *_args, **_kwargs: pytest.fail("runner executed"),
+        )
         assert result.verdict is ComplexityVerdict.OK
 
 
@@ -670,7 +704,10 @@ class TestEvaluateGateStrictIntegration:
         assert verdict.decision == "PASS"
         assert verdict.details["complexity"]["verdict"] == "OK"
         # Signals echoed back for audit logging
-        assert verdict.details["complexity"]["signals"]["cyclomatic_complexity"] == 5
+        details = verdict.details["complexity"]["signals"]
+        assert details["cyclomatic_complexity"] == 5
+        assert details["error_findings"] == details["nines_error_findings"] == 0
+        assert details["warning_findings"] == details["nines_warn_findings"] == 0
 
     def test_critical_reduces_composite_when_present(self) -> None:
         # Convergence path produces composite_score; CRITICAL should
@@ -706,19 +743,21 @@ class TestEvaluateGateStrictIntegration:
 
 
 # ===========================================================================
-# 16. NinesWrapResult dataclass surface
+# 16. ComplexityProbeResult and compatibility surface
 # ===========================================================================
 
 
 class TestNinesWrapResultSurface:
     def test_is_mock_property_live(self) -> None:
-        signals = _conservative_mock_signals()
-        result = NinesWrapResult(signals=signals, mode="live", rationale="ok")
+        signals = _zero_complexity_signals()
+        result = ComplexityProbeResult(signals=signals, mode="local", rationale="ok")
+        assert result.is_degraded is False
         assert result.is_mock is False
 
     def test_is_mock_property_mock(self) -> None:
-        signals = _conservative_mock_signals()
-        result = NinesWrapResult(signals=signals, mode="mock", rationale="fallback")
+        signals = _zero_complexity_signals()
+        result = NinesWrapResult(signals=signals, mode="degraded", rationale="fallback")
+        assert result.is_degraded is True
         assert result.is_mock is True
 
 
@@ -783,13 +822,17 @@ class TestIntegrationSmoke:
             ComplexityVerdict as PublicVerdict,
         )
         from devolaflow.gate import (
+            inspect_complexity_path as public_inspect,
+        )
+        from devolaflow.gate import (
             wrap_nines_complexity as public_wrap,
         )
 
         assert PublicDetector is ComplexityDetector
         assert PublicSignals is ComplexitySignals
         assert PublicVerdict is ComplexityVerdict
-        assert public_wrap is wrap_nines_complexity
+        assert public_inspect is inspect_complexity_path
+        assert public_wrap is public_inspect
 
     def test_round_trip_signals_to_verdict_to_evaluation(self) -> None:
         # Build, evaluate, inspect — happy path smoke test
@@ -808,6 +851,9 @@ class TestIntegrationSmoke:
 class TestNinesConstants:
     def test_default_binary_name(self) -> None:
         assert NINES_BINARY == "nines"
+        assert NINES_TIMEOUT_SECONDS == COMPLEXITY_INSPECTION_TIMEOUT_SECONDS
 
     def test_critical_threshold_higher_than_warning(self) -> None:
         assert CRITICAL_CC_THRESHOLD > WARNING_CC_THRESHOLD
+        assert CRITICAL_REASON_NINES_ERROR == CRITICAL_REASON_ERROR_FINDINGS
+        assert WARN_REASON_NINES_WARN == WARN_REASON_WARNING_FINDINGS

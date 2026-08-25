@@ -21,9 +21,9 @@ This script automates the realignment:
    whose START line is content (operator-defined sub-ranges like
    ``wave_task_constraints: "193-197"``) are LEFT ALONE — the script
    never overwrites a hand-crafted sub-range.
-4. Anchors whose ``lines: "N/A"`` value (external sections like
-   ``nines_advisor``) or whose START is line 1 (frontmatter — pre-first-header)
-   are also left untouched.
+4. Anchors whose ``lines: "N/A"`` value (external or retired compatibility
+   sections) or whose START is line 1 (frontmatter — pre-first-header) are
+   also left untouched.
 5. Idempotent: running the script twice on the same SKILL.md produces no
    change on the second run.
 
@@ -134,8 +134,8 @@ def parse_skill_md_headers(skill_md_path: Path) -> list[Header]:
 def parse_section_anchors(profiles_yaml_path: Path) -> dict[str, str]:
     """Return ``{anchor_name: "X-Y"}`` for every anchor in the ``sections:`` block.
 
-    Anchors with ``lines: "N/A"`` (external sections like ``nines_advisor``)
-    are included so the caller can decide to skip them deliberately rather
+    Anchors with ``lines: "N/A"`` (external or retired compatibility
+    sections) are included so the caller can skip them deliberately rather
     than silently dropping them.
     """
     if not profiles_yaml_path.is_file():

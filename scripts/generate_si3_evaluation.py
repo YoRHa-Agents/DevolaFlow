@@ -1,43 +1,33 @@
 #!/usr/bin/env python3
-"""v8.5.0 PV-05 (M-04 / C-04 closure) — generate SI-3 evaluation report skeleton.
+"""Generate the SI-3 report skeleton backed by the built-in harness.
 
-Emits a per-PV SI-3 evaluation report into ``.local/research/<version>_evaluation.md``
-with the **C-04 split** that separates the binding **Quality Gate** block
-(EvoBench-anchored, the W-3 / SI-3 ACCEPT verdict) from the advisory
-**Research Snapshot** block (NineS-anchored, informational only).
+Emits ``.local/research/v<version>_evaluation.md`` with one binding
+source of authority: ``python -m devolaflow.harness evaluate`` over the
+repository telemetry ledger. The deterministic evaluator owns the six
+W-3 dimensions, weighted composite, evidence completeness, and release
+verdict.
 
-Why split: the v8.4.x cycles surfaced a subtle conflation in the
-single-block format where NineS hygiene metrics (e.g. ``code_coverage:
-0.0`` from the upstream timeout artifact) leaked into the binding
-ACCEPT/REJECT verdict. The C-04 split makes the source-of-authority
-explicit:
+Verdict mapping is explicit:
 
-* **Quality Gate (binding)** — uses the W-3 / SI-3 6-dimension formula
-  (Code quality 0.20 + Architecture 0.20 + Tests 0.20 + Maintainability
-  0.15 + Compatibility 0.10 + Performance 0.15) anchored on the
-  EvoBench composite + the W-9 / SI-10 6-step verification harness.
-  Composite ≥ 8.5/10 → ACCEPT; below threshold → iterate or escalate.
-* **Research Snapshot (advisory)** — surfaces the latest NineS
-  self-eval metrics (capability_mean, hygiene_mean, per-metric
-  breakdown). NineS measurement timeouts / index staleness do NOT
-  block the gate — they are informational inputs to the W-1 / SI-1
-  planning gate of the NEXT cycle.
+* ``READY`` -> SI-3 ``ACCEPT``.
+* ``NOT_READY`` -> SI-3 ``REJECT`` and iterate.
+* ``INSUFFICIENT`` -> release ``BLOCKED``; resolve or escalate missing
+  evidence. There is no external-tool or manual fallback.
 
 Usage::
 
-    python scripts/generate_si3_evaluation.py 8.5.0
-    python scripts/generate_si3_evaluation.py 8.5.0 --pv PV-05 --cycle v9.0.0
+    python scripts/generate_si3_evaluation.py 16.0.0
+    python scripts/generate_si3_evaluation.py 16.0.0 --pv PV-05 --cycle v16.0.0
 
-The script writes a SKELETON — the L0 cycle-lead fills in the per-
-dimension scores + rationale before committing the file. The skeleton
-ensures every report has the C-04 split structure.
+The script writes a skeleton. The cycle lead copies machine evidence
+verbatim from the generated JSON and records any closure action.
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
@@ -53,154 +43,131 @@ def _find_root() -> Path:
 
 
 def _today() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return datetime.now(UTC).strftime("%Y-%m-%d")
 
 
 def render_skeleton(version: str, *, pv: str | None = None, cycle: str | None = None) -> str:
-    """Return the SI-3 evaluation report skeleton with C-04 split."""
+    """Return the SI-3 evaluation skeleton for the built-in harness."""
     pv_label = pv or "PV-NN"
-    cycle_label = cycle or "v9.0.0"
+    cycle_label = cycle or f"v{version}"
+    major_release = version.split(".")[1:] == ["0", "0"]
+    release_kind = "MAJOR" if major_release else "MINOR/PATCH"
+    threshold = "9.0" if major_release else "8.5"
 
     return f"""# {version} — SI-3 Evaluation Report
 
 > Per W-3 / SI-3 (`.rules/workflow.mdc` + `AGENTS.md` §W-3):
-> every pre-release requires a weighted-composite evaluation across 6
-> dimensions; threshold for ACCEPT is composite ≥ 8.5/10 (MINOR/PATCH)
-> or ≥ 9.0/10 (MAJOR). Below threshold → iterate (loop back to SI-1)
-> or escalate to human.
-> Cycle: {cycle_label} {pv_label} (PATCH/MINOR `v{version}`).
+> every pre-release requires the built-in harness evaluation across six
+> weighted dimensions. This {release_kind} release requires composite
+> ≥ {threshold}/10 with complete evidence.
+> Cycle: {cycle_label} {pv_label} (`v{version}`).
 > Date: {_today()}.
 
-## Part A — Quality Gate (EvoBench-anchored, BINDING)
+## Part A — Built-in Harness Evaluation (BINDING)
 
-> **C-04 split** (v8.5.0 PV-05 codification): Part A is the binding
-> ACCEPT/REJECT verdict. It uses ONLY EvoBench-anchored metrics + the
-> W-9 / SI-10 6-step CI harness. NineS measurements are advisory and
-> live in Part B. NineS measurement timeouts / index staleness MUST
-> NOT block the Part A verdict.
+Run the canonical evaluator from the repository root:
 
-### A.1 Composite Score (Weighted)
+```bash
+python -m devolaflow.harness evaluate \\
+  --ledger .local/telemetry/harness.jsonl \\
+  --repo . \\
+  --base HEAD~1 \\
+  --threshold {threshold} \\
+  --output .local/research/v{version}_harness_evaluation.json
+```
+
+The command exit code is part of the evidence: `0=READY`, `1=NOT_READY`,
+`2=INSUFFICIENT` or invalid input. Do not replace an unavailable signal
+with an estimate. Resolve the evidence gap or escalate before release.
+
+### A.1 Machine Verdict
+
+| JSON field | Verbatim value |
+|---|---|
+| `verdict` | TBD — `READY` / `NOT_READY` / `INSUFFICIENT` |
+| `composite` | TBD / 10 |
+| `threshold` | {threshold} |
+| `auto_fill_rate` | TBD |
+| `sampled_at` | TBD |
+
+**SI-3 disposition**: **TBD** — map `READY` to **ACCEPT**,
+`NOT_READY` to **REJECT / iterate**, and `INSUFFICIENT` to
+**BLOCKED / resolve or escalate**.
+
+### A.2 Six-Dimension Evidence
 
 | Dimension | Weight | Score | Weighted | Rationale |
 |-----------|--------|-------|----------|-----------|
-| **Code quality**            | 0.20 | TBD | TBD | TBD — ruff lint/format, complexity, error handling, S-5 compliance |
-| **Architecture rationality**| 0.20 | TBD | TBD | TBD — separation of concerns, layering, P1-P5 invariants, ADR coverage |
-| **Test adequacy**           | 0.20 | TBD | TBD | TBD — coverage ≥ 80%, edge cases, regression tests, R5 byte-identical |
-| **Maintainability**         | 0.15 | TBD | TBD | TBD — readability, documentation, naming, S-2 / SF-5 path discipline |
-| **Compatibility**           | 0.10 | TBD | TBD | TBD — schema versions, P6 cache layout, multi-baseline byte tests |
-| **Performance impact**      | 0.15 | TBD | TBD | TBD — EvoBench composite no >5% regression, latency budgets |
+| **Code quality** | 0.20 | TBD | TBD | `code_quality` |
+| **Architecture rationality** | 0.20 | TBD | TBD | `architecture_rationality` |
+| **Test adequacy** | 0.20 | TBD | TBD | `test_adequacy` |
+| **Maintainability** | 0.15 | TBD | TBD | `maintainability` |
+| **Compatibility** | 0.10 | TBD | TBD | `compatibility` |
+| **Performance impact** | 0.15 | TBD | TBD | `performance_impact` |
 
 **Composite (weighted sum)**: **TBD / 10**
 
-**Verdict**: **ACCEPT / REJECT** (≥ 8.5 threshold per SI-3 + W-3 — adjust to 9.0 for MAJOR).
+For every row, copy the matching `scores[*].metadata.subcomponents`
+envelope verbatim into the rationale evidence.
 
-### A.2 W-9 / SI-10 6-step CI verification harness
+**Verdict**: **TBD** (binding machine verdict from
+`.local/research/v{version}_harness_evaluation.json`).
+
+### A.3 Supporting Verification Evidence
 
 ```bash
-$ python -m pytest tests/ -q
-TBD passed, TBD skipped in TBDs
+$ make release-preflight
+TBD (exit code and final summary)
 
-$ ruff check src/ tests/
-TBD
-
-$ ruff format --check src/ tests/
-TBD
-
-$ python -m pytest tests/test_version.py -v
-TBD passed in TBDs
-
-$ python -m pytest tests/test_benchmarks.py -v
-TBD passed in TBDs
-
-$ make check-cursor-skill
-TBD (exit 0)
+$ make test-harness
+TBD (exit code and pass count)
 ```
 
-### A.3 Findings closure summary
+These commands support the machine report; they do not override its
+`verdict`. Record command, exit code, and stable result digest verbatim.
+
+### A.4 Findings Closure
 
 | Finding | Severity | Source | Closure | Verification |
 |---------|----------|--------|---------|--------------|
 | TBD | TBD | TBD | TBD | TBD |
 
-## Part B — Research Snapshot (NineS-anchored, ADVISORY)
+## Part B — Harness Telemetry and Trend (ADVISORY)
 
-> **C-04 split**: Part B is informational. NineS provides a
-> capability/hygiene measurement series across cycles; the snapshot
-> here is the input to the NEXT cycle's W-1 / SI-1 planning gate.
-> Below-threshold NineS metrics (e.g. `code_coverage: 0.0` from
-> upstream timeout) DO NOT block the Part A verdict — they feed the
-> A1..A4 hygiene closure plan tracked separately.
+Copy the built-in report's `harness_summary` and compare it with the
+active W-16 baseline. Trends inform the next W-1 / SI-1 planning round;
+they do not replace the Part A verdict.
 
-### B.1 NineS self-eval headline
-
-| Metric | Value | Trend vs prior cycle |
-|---|---|---|
-| **overall composite** | TBD | TBD |
-| capability_mean | TBD | TBD |
-| hygiene_mean | TBD | TBD |
-| group_means.capability | TBD | TBD |
-| group_means.hygiene | TBD | TBD |
-| weighted_overall | TBD | TBD |
-
-### B.2 Capability sub-scores
-
-| Metric | Value | Notes |
-|---|---|---|
-| scoring_accuracy | TBD | TBD |
-| eval_coverage | TBD | TBD |
-| scoring_reliability | TBD | TBD |
-| report_quality | TBD | TBD |
-| scorer_agreement | TBD | TBD |
-| source_coverage | TBD | TBD |
-| source_freshness | TBD | TBD |
-| change_detection | TBD | TBD |
-| data_completeness | TBD | TBD |
-| collection_throughput | TBD | TBD |
-| decomposition_coverage | TBD | TBD |
-| abstraction_quality | TBD | TBD |
-| code_review_accuracy | TBD | TBD |
-| index_recall | TBD | TBD (A3 closure target ≥ 0.85 post-PV-05) |
-| structure_recognition | TBD | TBD |
-| pipeline_latency | TBD | TBD |
-| sandbox_isolation | TBD | TBD |
-| convergence_rate | TBD | TBD |
-| cross_vertex_synergy | TBD | TBD |
-| agent_analysis_quality | TBD | TBD |
-
-### B.3 Hygiene sub-scores
-
-| Metric | Value | Notes |
-|---|---|---|
-| code_coverage | TBD | TBD (A1 closure target > 0 post-PV-05 cov-timeout bump) |
-| test_count | TBD | TBD (W-17 cap: ≤ +30 per PV; ≤ +150 per cycle) |
-| module_count | TBD | TBD |
-| docstring_coverage | TBD | TBD |
-| lint_cleanliness | TBD | TBD |
-
-### B.4 Hygiene closure status (A1-A4)
-
-| Closure | Target | Current | Status |
-|---|---|---|---|
-| **A1** code_coverage > 0 | upstream NineS bump 60→180s budget | TBD | TBD |
-| **A2** agent_overhead ≤ 40000 tokens | tests/test_agent_context_overhead.py | TBD | TBD |
-| **A3** index_recall > 0.85 | make nines-index-rebuild | TBD | TBD |
-| **A4** capability_mean ≥ 0.95 byte-stable | golden_test_set refresh | TBD | TBD |
+| Signal | Current | Baseline | Delta | Disposition |
+|---|---|---|---|---|
+| `tokens.budget_compliance_ratio` | TBD | TBD | TBD | TBD |
+| `tokens.p95_budget_utilization` | TBD | TBD | TBD | TBD |
+| `constraints.quantifiable_ratio` | TBD | TBD | TBD | TBD |
+| `constraints.advisory_folded_ratio` | TBD | TBD | TBD | TBD |
+| checklist completion trend | TBD | TBD | TBD | TBD |
+| reversion / blocker trend | TBD | TBD | TBD | TBD |
 
 ## Cross-references
 
-- `.local/research/{version}_nines.json` — raw NineS output (Part B source)
-- `.local/research/{version}_nines.md` — NineS summary (Part B source)
-- `.local/research/v9.0.0_implementation_plan.md` §<PV section> — runbook
-- `docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` — C-04 split ADR
+- `.local/research/v{version}_harness_evaluation.json` — binding machine evidence
+- `.local/telemetry/harness.jsonl` — append-only dispatch telemetry source
+- `.local/telemetry/baselines/harness_baseline_<cycle>.json` — W-16 comparison
+- `workflow-system/agent/references/evaluator-rosetta.md` — 6 × 9 signal cross-walk
 - `AGENTS.md` §W-3 — SI-3 ACCEPT threshold definition
-- `AGENTS.md` §W-9 — SI-10 6-step verification harness
+- `AGENTS.md` §W-2 — built-in evaluator and no-fallback contract
+- `AGENTS.md` §W-4 — harness regression guard
 - DevolaFlow canonical URL: https://github.com/YoRHa-Agents/DevolaFlow
-- NineS canonical URL: https://github.com/YoRHa-Agents/NineS
 """
 
 
-def emit(version: str, *, pv: str | None = None, cycle: str | None = None,
-         dry_run: bool = False, force: bool = False) -> int:
+def emit(
+    version: str,
+    *,
+    pv: str | None = None,
+    cycle: str | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+) -> int:
     root = _find_root()
     target = root / ".local" / "research" / f"v{version}_evaluation.md"
 
@@ -222,10 +189,14 @@ def emit(version: str, *, pv: str | None = None, cycle: str | None = None,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("version", help="version being evaluated (e.g. 8.5.0)")
+    parser.add_argument("version", help="version being evaluated (e.g. 16.0.0)")
     parser.add_argument("--pv", help="PV label (e.g. PV-05)", default=None)
-    parser.add_argument("--cycle", help="cycle label (e.g. v9.0.0)", default=None)
-    parser.add_argument("--dry-run", action="store_true", help="show planned write without emitting")
+    parser.add_argument("--cycle", help="cycle label (e.g. v16.0.0)", default=None)
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show planned write without emitting",
+    )
     parser.add_argument("--force", action="store_true", help="overwrite existing file")
     args = parser.parse_args()
 
@@ -233,8 +204,15 @@ def main() -> None:
         print(f"Error: '{args.version}' is not a valid semver (expected X.Y.Z)")
         raise SystemExit(1)
 
-    raise SystemExit(emit(args.version, pv=args.pv, cycle=args.cycle,
-                          dry_run=args.dry_run, force=args.force))
+    raise SystemExit(
+        emit(
+            args.version,
+            pv=args.pv,
+            cycle=args.cycle,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+    )
 
 
 if __name__ == "__main__":

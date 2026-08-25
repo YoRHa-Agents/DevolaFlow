@@ -230,8 +230,8 @@ class RatchetLogEntry:
     """One row in :class:`MonotonicRatchet.history`.
 
     Records the verdict produced for the round AND the score that
-    triggered it so downstream reporters / EvoBench scenarios can replay
-    the trajectory verbatim. Best-score rotation is captured by
+    triggered it so downstream reporters and built-in harness fixtures can
+    replay the trajectory verbatim. Best-score rotation is captured by
     :pyattr:`new_best`.
     """
 
@@ -358,7 +358,7 @@ class MonotonicRatchet:
 
     # ---------------------------------------------------------------------
     # Internal helpers — kept tiny so each function's cyclomatic
-    # complexity stays well under the C-1 / NineS ceiling.
+    # complexity stays well under the documented C-1 ceiling.
     # ---------------------------------------------------------------------
 
     def _validate_inputs(self, round_num: int, score: float) -> None:

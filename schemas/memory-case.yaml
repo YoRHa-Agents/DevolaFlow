@@ -5,7 +5,6 @@
 #   - .local/memory/cases/<case-id>.md           (per-case recipe markdown)
 # Design refs:
 #   - .local/research/v8.4.0_gap_analysis.md §2.1 M-001
-#   - .local/research/v8.4.0_rtk_nines_analysis.md §4.1 (single-source-of-truth)
 #   - cycle plan §3 PV-03 row + §6 R3 (cache-poisoning mitigation)
 # Patch slot: v8.3.3 (PV-03 — fast-path memory router)
 # Token budget (per recipe file): soft 800 / hard 1500 (per Rule C-9 spec slot)
@@ -42,7 +41,7 @@
 design_reference: .local/research/v8.4.0_gap_analysis.md §2.1 M-001
 schema_name: memory-case
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "2026-08-25"
 patch_slot: v8.3.3
 gap_ids: [M-001]
 governing_rules: [S-2, S-5, S-7, P5, C-9, R5]
@@ -188,72 +187,63 @@ invariants:
 examples:
   index_yaml: |
     schema_version: 1
-    last_updated: "2026-04-23"
+    last_updated: "2026-08-25"
     cases:
-      - case_id: rtk-plugin-entry
-        workflow_type: feature-implementation
-        task_type: implement
-        summary: "RTK plugin entry pattern — runtime-plugins.yaml row + curl_install_script backend (v8.3.1 PV-01)."
-        recipe_path: ".local/memory/cases/rtk-plugin-entry.md"
-        version_stamp: "8.3.3"
+      - case_id: codegraph-plugin-entry
+        workflow_type: repo-init
+        task_type: analyze
+        summary: "Current Codegraph plugin pattern — suggest-tier registry entry plus project-local index setup."
+        recipe_path: ".local/memory/cases/codegraph-plugin-entry.md"
+        version_stamp: "15.2.0"
         repo_signal: "DevolaFlow"
         ttl_days: 60
-        tags: [plugin, rtk, schema-v2]
+        tags: [plugin, codegraph, suggest-tier]
 
-      - case_id: shell-proxy-registry
-        workflow_type: feature-implementation
-        task_type: implement
-        summary: "shell_proxy registry pattern — Tier 1/Tier 2 whitelist + thin lifecycle delegator (v8.3.2 PV-02)."
-        recipe_path: ".local/memory/cases/shell-proxy-registry.md"
-        version_stamp: "8.3.3"
+      - case_id: built-in-harness-evaluation
+        workflow_type: skill-optimization
+        task_type: test
+        summary: "Built-in harness pattern — deterministic fixtures, local telemetry evaluation, and W-16 baseline comparison."
+        recipe_path: ".local/memory/cases/built-in-harness-evaluation.md"
+        version_stamp: "15.2.0"
         repo_signal: "DevolaFlow"
         ttl_days: 60
-        tags: [shell-proxy, rtk, lifecycle-hook, r5-strict]
-
-      - case_id: evobench-doc-coupling
-        workflow_type: version-bump
-        task_type: doc-consistency
-        summary: "EvoBench scenario coupling fix — README + demo HTML scenario count + baselines."
-        recipe_path: ".local/memory/cases/evobench-doc-coupling.md"
-        version_stamp: "8.3.3"
-        repo_signal: "DevolaFlow"
-        ttl_days: 30
-        tags: [evobench, doc-consistency, baselines]
+        tags: [harness, deterministic, w16]
 
   recipe_markdown: |
     ---
-    case_id: rtk-plugin-entry
-    workflow_type: feature-implementation
-    task_type: implement
-    summary: "RTK plugin entry pattern — runtime-plugins.yaml row + curl_install_script backend."
-    version_stamp: "8.3.3"
-    last_updated: "2026-04-23"
+    case_id: built-in-harness-evaluation
+    workflow_type: skill-optimization
+    task_type: test
+    summary: "Built-in harness pattern — deterministic fixtures plus local telemetry evaluation."
+    version_stamp: "15.2.0"
+    last_updated: "2026-08-25"
     ---
 
     ## Trigger
 
-    L0/L1 dispatch sees `(workflow_type=feature-implementation, task_type=implement)`
-    AND the predecessor artifact references `workflow-system/agent/knowledge/runtime-plugins.yaml`.
+    L0/L1 dispatch sees `(workflow_type=skill-optimization, task_type=test)`
+    AND the change touches harness modules, dispatch schemas, gate modules, or
+    context profiles covered by W-4.
 
     ## Dispatch shape
 
     Skeleton `lean-dispatch.yaml` block (positions 1-12 byte-stable per A-2):
 
     ```yaml
-    workflow_type: feature-implementation
-    stage: implement
+    workflow_type: skill-optimization
+    stage: test
     owned_files:
-      - workflow-system/agent/knowledge/runtime-plugins.yaml
-      - src/devolaflow/plugins/installer.py
-      - tests/test_plugins.py
+      - src/devolaflow/harness/
+      - tests/harness/
+      - tests/fixtures/harness/
     ```
 
     ## Predecessor refs
 
-    - `.local/research/v8.4.0_gap_analysis.md` §2.1 R-001 row
-    - `.local/research/v8.4.0_rtk_nines_analysis.md` §5 plugin recommendation
+    - `.local/telemetry/harness.jsonl`
+    - `.local/telemetry/baselines/harness_baseline_<cycle>.json`
 
     ## Gate hints
 
-    - SI-10 `pytest tests/test_plugins.py -v` MUST pass before commit
-    - SI-3 minor threshold 8.5; +9-test cap per cycle plan §4.1
+    - SI-10 `make test-harness` MUST pass before commit
+    - Compare the evaluation against the active W-16 harness baseline

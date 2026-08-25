@@ -19,14 +19,13 @@ from tests.ghost._helpers import _w18_research_artifact_path
 # v10.2.0 PV-01 NEW test files (D-P-1 / D-P-4 / D-P-6 closures).
 _V10_2_0_NEW_TEST_FILES: tuple[Path, ...] = (
     Path("tests/test_runtime_plugins_smoke.py"),
-    Path("tests/test_plugin_refresh_e2e.py"),
     Path("tests/test_plugin_refresh_first_run.py"),
 )
 
 
 # v10.2.0 PV-01 NEW baseline fixtures (W-16 wholesale regen + 10th multi-baseline pin).
 _V10_2_0_NEW_BASELINE_FILES: tuple[Path, ...] = (
-    Path("benchmarks/devolaflow_context/baselines/v10.2.0_baseline.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v10.2.0_baseline.json"),
     Path("benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml"),
 )
 
@@ -52,7 +51,7 @@ def test_v10_2_0_new_symbols_have_coverage(project_root: Path) -> None:
     """W-18 v10.2.0: every NEW v10.2.0 PV-01 surface has presence coverage.
 
     Discharges the W-18 precondition for the v10.2.0 cycle-start MINOR.
-    The CHANGELOG entry mentions the 3 new test files, the 2 new
+    The historical stanza retains the 2 active test files, the 2
     baseline fixtures, the `read_installed_si_chip_version` helper,
     and the D-P-3 si-chip `version_check_cmd` swap. Each needs a
     presence assertion here BEFORE the CHANGELOG mention is valid —
@@ -60,8 +59,8 @@ def test_v10_2_0_new_symbols_have_coverage(project_root: Path) -> None:
 
     v10.2.0 PV-01 pins:
 
-    1. **3 NEW test files** — every file in `_V10_2_0_NEW_TEST_FILES`
-       must exist on disk (D-P-1 / D-P-4 / D-P-6 closures).
+    1. **2 retained test files** — every file in `_V10_2_0_NEW_TEST_FILES`
+       must exist on disk (D-P-1 / D-P-4 closures).
     2. **2 NEW baseline fixtures** — `v10.2.0_baseline.json` (W-16
        wholesale regen) + `layout_invariant_v10.2.0.yaml` (10th multi-
        baseline pin).
@@ -88,11 +87,8 @@ def test_v10_2_0_new_symbols_have_coverage(project_root: Path) -> None:
         baseline_path = project_root / baseline_rel
         assert baseline_path.is_file(), (
             f"W-18 v10.2.0 violation: NEW baseline fixture {baseline_rel} "
-            f"missing. v10.2.0 PV-01 ships this baseline (W-16 wholesale "
-            f"regen + 10th multi-baseline pin); regenerate via "
-            f"`python -m benchmarks.devolaflow_context.generate_baseline "
-            f"--output <path>` (for the JSON) OR copy "
-            f"`layout_invariant_v9.7.0.yaml` (for the YAML witness)."
+            f"missing. Restore the archived W-16 evidence or immutable "
+            f"layout witness; do not regenerate retired EvoBench data."
         )
 
     resolver_path = project_root / _V10_2_0_INSTALL_RESOLVER_PATH
@@ -324,44 +320,8 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# W-18 v10.2.2 ghost-audit refresh — PV-03 PATCH (NineS deep-analysis +
-# Si-Chip eval adapter prototype).
+# W-18 v10.2.2 ghost-audit refresh — retained Si-Chip dogfood evidence.
 # ---------------------------------------------------------------------------
-
-# v10.2.2 PV-03 NEW script (D-N-1 closure: NineS-to-Si-Chip eval adapter).
-_V10_2_2_ADAPTER_SCRIPT: Path = Path("scripts/nines_to_sichip_eval_adapter.py")
-
-
-# v10.2.2 PV-03 NEW unit-test file pinning the adapter contract.
-_V10_2_2_ADAPTER_TEST: Path = Path("tests/test_nines_to_sichip_adapter.py")
-
-
-# v10.2.2 PV-03 D-N-1 — public symbols that MUST be defined in the adapter
-# (the 4 functions plus the CLI entry point form the operator-visible contract).
-_V10_2_2_ADAPTER_REQUIRED_SYMBOLS: tuple[str, ...] = (
-    "load_nines_json",
-    "validate_nines_shape",
-    "build_runs",
-    "build_baselines",
-    "write_runs_dir",
-    "write_baseline_dir",
-    "main",
-)
-
-
-# v10.2.2 PV-03 D-N-3 — three NineS deep-analysis JSON outputs (gitignored
-# content; path-presence is the operator-visible contract).
-_V10_2_2_NINES_JSON_PATHS: tuple[Path, ...] = (
-    Path(".local/research/v10.2.2_nines.json"),
-    Path(".local/research/v10.2.2_nines_plugins.json"),
-    Path(".local/research/v10.2.2_nines_lifecycle.json"),
-)
-
-
-# v10.2.2 PV-03 D-N-3 NineS synthesis (gitignored content; path-presence
-# contract).
-_V10_2_2_NINES_SYNTHESIS_DOC: Path = Path(".local/research/v10.2.2_nines.md")
-
 
 # v10.2.2 PV-03 dogfood pass #2 deliverable (gitignored content;
 # path-presence contract).
@@ -375,67 +335,14 @@ def test_v10_2_2_new_symbols_have_coverage(project_root: Path) -> None:
     """W-18 v10.2.2: every NEW v10.2.2 PV-03 surface has presence coverage.
 
     Discharges the W-18 precondition for the v10.2.2 PV-03 PATCH.
-    The CHANGELOG entry mentions the NineS-to-Si-Chip eval adapter
-    script + 7 public functions, the unit-test file, the 3 NineS
-    deep-analysis JSONs, the synthesis document, and the dogfood pass
-    #2 capture. Each needs a presence assertion here BEFORE the
-    CHANGELOG mention is valid — per W-18 refresh-before-document
-    sequencing.
+    The retired external adapter/probe surfaces are no longer live. This
+    historical stanza retains only:
 
-    v10.2.2 PV-03 pins:
-
-    1. **Adapter script** — `scripts/nines_to_sichip_eval_adapter.py`
-       exists and defines all 7 public symbols (`load_nines_json`,
-       `validate_nines_shape`, `build_runs`, `build_baselines`,
-       `write_runs_dir`, `write_baseline_dir`, `main`).
-    2. **Adapter unit-test file** —
-       `tests/test_nines_to_sichip_adapter.py` exists.
-    3. **3 NineS deep-analysis JSONs** — every path in
-       `_V10_2_2_NINES_JSON_PATHS` exists (D-N-3 closure;
-       `nines analyze --target-path src/devolaflow/{si_chip_bridge,plugins,lifecycle}`).
-    4. **NineS synthesis** — `.local/research/v10.2.2_nines.md` exists
-       (D-N-3 closure; per-package finding + agent-impact synthesis).
-    5. **Dogfood pass #2** — `.local/research/v10.2.2_dogfood_pass2.md`
+    1. **Dogfood pass #2** — `.local/research/v10.2.2_dogfood_pass2.md`
        exists (D-N-1 + D-S-1 closure; adapter outcome + per-file
        iteration_delta capture).
-    6. **CHANGELOG entry** — `## [10.2.2]` header is present.
+    2. **CHANGELOG entry** — `## [10.2.2]` header is present.
     """
-    import ast
-
-    adapter_path = project_root / _V10_2_2_ADAPTER_SCRIPT
-    assert adapter_path.is_file(), (
-        f"W-18 v10.2.2 violation: NEW adapter script {_V10_2_2_ADAPTER_SCRIPT} "
-        f"missing. v10.2.2 PV-03 D-N-1 ships this script per the cycle plan "
-        f"§3 PV-03; restore it or remove the CHANGELOG mention of D-N-1."
-    )
-    adapter_source = adapter_path.read_text(encoding="utf-8")
-    adapter_module = ast.parse(adapter_source)
-    adapter_defined = {
-        node.name
-        for node in ast.walk(adapter_module)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
-    }
-    for sym in _V10_2_2_ADAPTER_REQUIRED_SYMBOLS:
-        assert sym in adapter_defined, (
-            f"W-18 v10.2.2 violation: adapter script missing required public "
-            f"symbol {sym!r}; v10.2.2 PV-03 D-N-1 contract requires this "
-            f"symbol. Either restore it OR remove the CHANGELOG mention of "
-            f"D-N-1."
-        )
-
-    test_path = project_root / _V10_2_2_ADAPTER_TEST
-    assert test_path.is_file(), (
-        f"W-18 v10.2.2 violation: NEW adapter test file "
-        f"{_V10_2_2_ADAPTER_TEST} missing. v10.2.2 PV-03 D-N-1 ships ≥6 "
-        f"unit tests per the cycle plan AC #2; restore it or remove the "
-        f"CHANGELOG mention."
-    )
-
-    for json_path in _V10_2_2_NINES_JSON_PATHS:
-        _w18_research_artifact_path(project_root, json_path)
-
-    _w18_research_artifact_path(project_root, _V10_2_2_NINES_SYNTHESIS_DOC)
-
     _w18_research_artifact_path(project_root, _V10_2_2_DOGFOOD_PASS2_DOC)
 
     changelog_path = project_root / "CHANGELOG.md"
@@ -614,7 +521,7 @@ def test_v10_2_3_new_symbols_have_coverage(project_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 # v10.2.4 PV-05 round-2 mechanical extraction surface (CC=15→8 in
-# `read_last_checked` per NineS PV-03 finding CC-a5d310-0003).
+# `read_last_checked` per PV-03 finding CC-a5d310-0003).
 _V10_2_4_INSTALLER_FILE: Path = Path("src/devolaflow/plugins/installer.py")
 
 
@@ -701,7 +608,7 @@ def test_v10_2_4_new_symbols_have_coverage(project_root: Path) -> None:
             f"W-18 v10.2.4 violation: installer.py missing helper "
             f"{helper!r}; v10.2.4 PV-05 round-2 ships this helper as "
             f"part of the CC=15 → ≤10 reduction in `read_last_checked` "
-            f"per NineS PV-03 finding CC-a5d310-0003. Either restore "
+            f"per PV-03 finding CC-a5d310-0003. Either restore "
             f"the helper OR remove the CHANGELOG mention of the round-2 "
             f"installer.py extraction."
         )

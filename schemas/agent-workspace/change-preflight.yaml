@@ -1,0 +1,429 @@
+# -----------------------------------------------------------------------------
+# Schema: change-preflight
+# Target: .local/.agent/active/<change-id>/preflight.md
+# Design ref: checklist_iteration_design.md §6 and §9.2
+# Token budget: soft 600 / hard 1200 (Rule C-9)
+# -----------------------------------------------------------------------------
+# `preflight.md` is the sole pre-execution confirmation surface. Section 0
+# carries the eight project-configuration sections formerly collected by the
+# pre-decision checklist. Sections 1-3 enumerate, authorize, and close the set
+# of permitted execution stops. Section 4 is the latest round snapshot.
+# -----------------------------------------------------------------------------
+
+design_reference: ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §§6, 9.2"
+schema_name: change-preflight
+schema_version: 1
+last_updated: "2026-08-24"
+governing_rules: [S-2, S-5, P4, C-3, C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/preflight.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/preflight.md"
+project_config_mirror: ".local/project_config.yaml"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 600
+  hard: 1200
+  units: tokens
+  enforcement:
+    - lint: "python -m devolaflow.agent_workspace.lint <change-id>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required:
+    - parent
+    - schema_version
+    - authorized_at
+    - snapshot_round
+    - config_inherited_from
+    - project_config_hash
+  fields:
+    parent:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Parent change-id; MUST equal the active change folder name."
+    schema_version:
+      type: int
+      enum: [1]
+    authorized_at:
+      type: string
+      nullable: true
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      description: "User signature timestamp. Null means the loop MUST NOT start."
+    snapshot_round:
+      type: int
+      minimum: 0
+      description: "Round represented by Section 4; zero before the execution loop starts."
+    config_inherited_from:
+      type: string
+      nullable: true
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Most recent signed change supplying Section 0 values; null for the first configuration."
+    project_config_hash:
+      type: string
+      nullable: true
+      pattern: "^[0-9a-f]{64}$"
+      description: "SHA-256 of `.local/project_config.yaml` compiled from the signed Section 0."
+    authorization_hash:
+      type: string
+      nullable: true
+      pattern: "^[0-9a-f]{64}$"
+      description: "Self-contained SHA-256 seal for signed frontmatter identity fields and canonical Sections 0–3."
+
+authorization_coupling:
+  unsigned_state:
+    condition: "authorized_at == null"
+    effects:
+      - "The execution loop is blocked at the Preflight signature checkpoint (Skip=Never)."
+      - "project_config_hash MUST be null; an inherited no-drift Section 0 line may carry its expected prior hash until signing."
+      - "authorization_hash MUST be null or absent for a backward-compatible unsigned draft."
+  signed_state:
+    condition: "authorized_at != null"
+    required:
+      - "project_config_hash is a 64-character lowercase SHA-256 digest."
+      - "authorization_hash is a 64-character lowercase SHA-256 digest."
+      - "project_config_hash equals the SHA-256 of `.local/project_config.yaml`."
+      - "authorization_hash equals the authorization_seal digest defined below."
+      - "All eight Section 0 configuration sections are present or inherited without drift."
+      - "Every Section 1 card has exactly one user-signed Section 2 disposition."
+      - "Section 3 equals the closed four-item stop whitelist in this schema."
+      - "snapshot_round is aligned with stage.md and STATUS.yaml."
+  invalidation:
+    triggers:
+      - "Any confirmed Section 0 value changes."
+      - "Any Section 1 card is added, removed, or changed."
+      - "Any Section 2 authorization is added, removed, or changed."
+      - "The project_config mirror hash does not match project_config_hash."
+    action: "Atomically set authorized_at, project_config_hash, and authorization_hash to null; preserve config_inherited_from, snapshot_round, body bytes, and mirror bytes."
+  signer: user
+
+authorization_seal:
+  algorithm: sha256
+  metadata_encoding: "UTF-8 JSON with insertion order parent, schema_version, authorized_at, config_inherited_from, project_config_hash; ensure_ascii=false; separators=(',', ':'); no sorted keys."
+  payload: "<metadata-json> + LF + <canonical-sections-0-through-3>"
+  canonical_sections: "Exact canonical LF rendering from the `## 0. Project Configuration` heading through the final byte of the fourth Section 3 STOP line, with one empty line between sections and no trailing LF."
+  excluded:
+    - snapshot_round
+    - "Section 4 Progress Snapshot"
+  rationale: "Round snapshots may advance without invalidating the frozen project configuration and stop authorization."
+
+body:
+  required_sections:
+    - heading: "# Preflight"
+      pattern: "^# Preflight\\s*$"
+    - heading: "## 0. Project Configuration"
+      pattern: "^## 0\\. Project Configuration\\s*$"
+    - heading: "## 1. Stop Cards"
+      pattern: "^## 1\\. Stop Cards\\s*$"
+    - heading: "## 2. Authorization Record"
+      pattern: "^## 2\\. Authorization Record\\s*$"
+    - heading: "## 3. Permitted Stops"
+      pattern: "^## 3\\. Permitted Stops\\s*$"
+    - heading: "## 4. Progress Snapshot"
+      pattern: "^## 4\\. Progress Snapshot\\s*$"
+  canonical_order:
+    - "# Preflight"
+    - "## 0. Project Configuration"
+    - "## 1. Stop Cards"
+    - "## 2. Authorization Record"
+    - "## 3. Permitted Stops"
+    - "## 4. Progress Snapshot"
+
+section_0_project_configuration:
+  source_of_truth: "The user-signed values in this section."
+  compiled_mirror: ".local/project_config.yaml"
+  first_change: "L0 auto-detects and presents all eight sections for user confirmation."
+  later_change:
+    no_drift: "Collapse to one inherited-from line with the prior signature timestamp and matching hash."
+    drift: "Present only field-level deltas and preserve the user's confirmation verbatim."
+  decision_classes:
+    MANDATORY: "No safe default; user input is required."
+    DEFAULTED: "A documented default is selected unless the user changes it."
+    CONFIRM: "Auto-detected value requires user confirmation."
+  field_line_form: "- <field>: <value> | decision: MANDATORY|DEFAULTED|CONFIRM | source: <verbatim source>"
+  config_sections:
+    - id: project
+      heading: "### 0.1 Project"
+      required_fields: [name, purpose, scope_keywords, existing_codebase]
+      fields:
+        name: { type: string, decision: MANDATORY }
+        purpose: { type: string, decision: MANDATORY }
+        scope_keywords: { type: list, decision: DEFAULTED }
+        existing_codebase: { type: bool, decision: CONFIRM }
+    - id: tech_stack
+      heading: "### 0.2 Tech Stack"
+      required_fields: [primary_language, runtime_version, dependency_manifest]
+      fields:
+        primary_language: { type: string, decision: CONFIRM }
+        secondary_languages: { type: list, decision: DEFAULTED }
+        framework: { type: string, nullable: true, decision: CONFIRM }
+        build_system: { type: string, decision: CONFIRM }
+        dependency_manifest:
+          type: string
+          repo_relative: true
+          decision: CONFIRM
+        runtime_version: { type: string, decision: CONFIRM }
+        pinned_dependencies: { type: list, decision: DEFAULTED }
+        banned_dependencies: { type: list, decision: DEFAULTED }
+    - id: repository
+      heading: "### 0.3 Repository"
+      required_fields: [mode, default_branch, branching_strategy]
+      fields:
+        mode:
+          type: string
+          enum: [local, github, gitlab, other_git]
+          decision: CONFIRM
+        remote_url: { type: string, nullable: true, decision: CONFIRM }
+        default_branch: { type: string, decision: CONFIRM }
+        branching_strategy: { type: string, decision: CONFIRM }
+        features: { type: map, decision: DEFAULTED }
+    - id: localization
+      heading: "### 0.4 Localization"
+      required_fields: [primary_language, bilingual_output, doc_language, code_comments_language]
+      fields:
+        primary_language: { type: string, decision: CONFIRM }
+        secondary_language: { type: string, nullable: true, decision: DEFAULTED }
+        bilingual_output: { type: bool, decision: CONFIRM }
+        doc_language: { type: string, decision: CONFIRM }
+        code_comments_language: { type: string, decision: DEFAULTED }
+    - id: platforms
+      heading: "### 0.5 Platforms"
+      required_fields: [os, architectures]
+      fields:
+        os: { type: list, decision: CONFIRM }
+        architectures: { type: list, decision: CONFIRM }
+        additional_targets: { type: list, decision: DEFAULTED }
+        min_os_versions: { type: map, decision: DEFAULTED }
+    - id: quality
+      heading: "### 0.6 Quality"
+      required_fields: [coverage_target_pct, gate_profile, max_rounds]
+      fields:
+        coverage_target_pct: { type: int, minimum: 0, maximum: 100, decision: CONFIRM }
+        quality_score_threshold: { type: number, minimum: 0, maximum: 10, decision: CONFIRM }
+        lint_strictness: { type: string, decision: CONFIRM }
+        gate_profile:
+          type: string
+          enum: [minimal, standard, strict]
+          decision: CONFIRM
+        max_rounds: { type: int, minimum: 1, decision: CONFIRM }
+        security_review_required: { type: bool, decision: DEFAULTED }
+        harness_evaluation_required: { type: bool, decision: DEFAULTED }
+    - id: release
+      heading: "### 0.7 Release"
+      required_fields: [versioning, channels]
+      fields:
+        versioning: { type: string, decision: CONFIRM }
+        initial_version: { type: string, nullable: true, decision: DEFAULTED }
+        channels: { type: list, decision: CONFIRM }
+        publishing_targets: { type: list, decision: CONFIRM }
+        signing: { type: bool, decision: CONFIRM }
+        changelog_format: { type: string, decision: DEFAULTED }
+    - id: workflow
+      heading: "### 0.8 Workflow"
+      required_fields: [seed_mode, runtime_loop]
+      fields:
+        seed_mode:
+          type: string
+          description: "Checklist decomposition knowledge seed selected from project intent."
+          decision: CONFIRM
+        runtime_loop:
+          type: string
+          enum: [checklist_rounds]
+          default: checklist_rounds
+          decision: DEFAULTED
+        seed_overrides: { type: map, decision: CONFIRM }
+
+section_1_stop_cards:
+  format: markdown_table
+  header: "| ID | Category | Description | Checklist Items | Disposition |"
+  separator: "|---|---|---|---|---|"
+  exhaustive_scan_required: true
+  card_id_pattern: "^PF-(A|E|X|P)[1-9][0-9]*$"
+  card_categories:
+    human_touch:
+      id_prefix: PF-A
+      description: "User presence, physical action, or operation in a real environment."
+    environment_dependency:
+      id_prefix: PF-E
+      description: "Toolchain, runtime, service availability, or version prerequisite."
+    external_resource:
+      id_prefix: PF-X
+      description: "Network, API, third-party repository, license, or cost dependency."
+    permission_authorization:
+      id_prefix: PF-P
+      description: "Credential, sensitive write, publish, irreversible action, or scope authorization."
+  intervention_triggers:
+    - architecture_decision
+    - security_sensitive
+    - external_service_config
+    - irreversible_operation
+    - license_compliance
+    - cost_implication
+    - scope_expansion
+  required_card_fields:
+    id: { type: string, description: "Unique card id matching its category prefix." }
+    category:
+      type: string
+      enum: [human_touch, environment_dependency, external_resource, permission_authorization]
+    description: { type: string, description: "Concrete stop risk found during propose-time scanning." }
+    checklist_items:
+      type: list
+      item_pattern: "^C-G[1-9][0-9]*\\.[1-9][0-9]*$"
+      min_items: 1
+    disposition:
+      type: string
+      enum: [verified_pass, preauthorized, preauthorized_fallback, reserved_stop]
+  invariants:
+    - "Every foreseeable PAUSE or HUMAN_INTERVENE trigger is represented by a card before signing."
+    - "Every card references at least one existing checklist item."
+    - "A fallback disposition states the bounded fallback in the card description or authorization record."
+
+section_2_authorization_record:
+  record_pattern: "^- PF-(A|E|X|P)[1-9][0-9]*: (verified_pass|preauthorized|preauthorized_fallback|reserved_stop) at \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z — \".+\"$"
+  signer: user
+  quote_source: "User wording copied verbatim."
+  cardinality: "Exactly one current record per Section 1 card."
+  freeze_on_authorization: true
+
+section_3_permitted_stops:
+  closed: true
+  extension_allowed: false
+  exact_item_count: 4
+  items:
+    - id: STOP-1
+      condition: "A Section 1 card with disposition=reserved_stop is reached."
+    - id: STOP-2
+      condition: "The two-round stagnation rule fires or max_rounds is reached."
+    - id: STOP-3
+      condition: "A FULL_ROLLBACK exception reports state corruption or data loss."
+    - id: STOP-4
+      condition: "The user reopens an item and the verbatim reverted reason explicitly instructs a stop."
+      matching_rule: "Trim surrounding whitespace, then require the case-sensitive literal prefix `STOP:`."
+      non_matches: ["stop:", "STOP", "Please STOP:", "ordinary reversion text"]
+  behavior: "Execution MUST NOT pause for any condition outside this list; use its preauthorized path or escalate at the next bounded round boundary."
+
+section_4_progress_snapshot:
+  update_mode: replace
+  update_owner: L0
+  update_time: "At every round boundary and immediately before archive."
+  required_lines:
+    checked:
+      form: "- Checked: <checked>/<total> (P0: <x>/<y>, P1: <x>/<y>, P2: <x>/<y>)"
+      source: "checklist.md frontmatter and checked item metadata."
+    stop_cards:
+      form: "- Remaining stop cards: [<PF-id>...] | Reached this round: [<PF-id>...]"
+      source: "Sections 1 and 2 plus the closed round report."
+    estimated_rounds:
+      form: "- Estimated remaining rounds: <int>"
+      formula: "ceil((total - checked) / stage.capacity_per_round)"
+    blockers:
+      form: "- Current blockers: <none | ids and verbatim findings>"
+      source: "Round gate blockers and open reverted items."
+  alignment:
+    - "snapshot_round == stage.md frontmatter current_round."
+    - "snapshot_round == STATUS.yaml current_round."
+    - "Checked and priority counts equal checklist.md frontmatter and item states."
+    - "Every PF id exists in Section 1; every checklist id exists in checklist.md."
+    - "Estimated remaining rounds uses the current stage.md capacity_per_round."
+
+refresh_contract:
+  section_0:
+    first_change: "Draft all eight configuration sections, validate, obtain user confirmation, then compile the mirror."
+    inherited_no_drift: "Retain inherited values and record one collapsed hash-aligned line; no configuration interaction is required."
+    inherited_with_drift: "Show only deltas, obtain user confirmation, regenerate the mirror, and update the hash."
+  sections_1_and_2:
+    after_signature: frozen
+    edit_effect: "Invalidate authorized_at and require a new user signature."
+  section_3:
+    mode: schema_fixed
+    edit_allowed: false
+  section_4:
+    mode: latest_only
+    history_location: "stage.md"
+
+invariants:
+  - "Sections 0 through 4 occur exactly once and in canonical order."
+  - "Section 0 contains all eight project configuration sections or a hash-aligned inherited representation."
+  - "authorized_at is non-null only when the mirror hash matches and every stop card is signed."
+  - "A signed preflight carries an authorization_hash sealing frontmatter identity fields and Sections 0–3."
+  - "The loop MUST NOT start while authorized_at is null; the preflight checkpoint has Skip=Never."
+  - "The permitted-stop list is closed and contains exactly STOP-1 through STOP-4."
+  - "STOP-4 matches only when `reverted_reason.strip().startswith('STOP:')`; all other reopened reasons continue."
+  - "Sections 1 and 2 freeze after signing; any edit invalidates authorization."
+  - "Section 4 is overwritten at each round boundary and aligns with checklist.md, stage.md, and STATUS.yaml."
+  - "MUST NOT contain absolute filesystem paths."
+  - "The archived file is copied byte-identical after the archive gate passes."
+
+example: |
+  ---
+  parent: checklist-rounds
+  schema_version: 1
+  authorized_at: "2026-08-24T09:30:00Z"
+  snapshot_round: 1
+  config_inherited_from: null
+  project_config_hash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  authorization_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+  ---
+
+  # Preflight
+
+  ## 0. Project Configuration
+  ### 0.1 Project
+  - name: DevolaFlow | decision: MANDATORY | source: "user"
+  - purpose: Evidence-backed checklist rounds | decision: MANDATORY | source: "user"
+  - scope_keywords: [workflow, checklist] | decision: DEFAULTED | source: "goal.md"
+  - existing_codebase: true | decision: CONFIRM | source: "repository scan"
+
+  ### 0.2 Tech Stack
+  - primary_language: Python | decision: CONFIRM | source: "pyproject.toml"
+  - runtime_version: "3.11+" | decision: CONFIRM | source: "pyproject.toml"
+  - dependency_manifest: pyproject.toml | decision: CONFIRM | source: "repository scan"
+
+  ### 0.3 Repository
+  - mode: github | decision: CONFIRM | source: "git remote"
+  - default_branch: main | decision: CONFIRM | source: "git metadata"
+  - branching_strategy: feature branches | decision: CONFIRM | source: "governance rules"
+
+  ### 0.4 Localization
+  - primary_language: English | decision: CONFIRM | source: "repository scan"
+  - bilingual_output: true | decision: CONFIRM | source: "project docs"
+  - doc_language: English and Chinese | decision: CONFIRM | source: "project docs"
+  - code_comments_language: English | decision: DEFAULTED | source: "repository convention"
+
+  ### 0.5 Platforms
+  - os: [linux, macos, windows] | decision: CONFIRM | source: "CI configuration"
+  - architectures: [x86_64, arm64] | decision: CONFIRM | source: "CI configuration"
+
+  ### 0.6 Quality
+  - coverage_target_pct: 80 | decision: CONFIRM | source: "pyproject.toml"
+  - gate_profile: standard | decision: CONFIRM | source: "project configuration"
+  - max_rounds: 5 | decision: CONFIRM | source: "stage.md"
+
+  ### 0.7 Release
+  - versioning: semver | decision: CONFIRM | source: "project convention"
+  - channels: [release] | decision: CONFIRM | source: "project configuration"
+
+  ### 0.8 Workflow
+  - seed_mode: feature-enhancement | decision: CONFIRM | source: "change intent"
+  - runtime_loop: checklist_rounds | decision: DEFAULTED | source: "schema default"
+
+  ## 1. Stop Cards
+  | ID | Category | Description | Checklist Items | Disposition |
+  |---|---|---|---|---|
+  | PF-E1 | environment_dependency | If pytest is unavailable, use the signed environment repair path. | C-G1.1 | preauthorized_fallback |
+
+  ## 2. Authorization Record
+  - PF-E1: preauthorized_fallback at 2026-08-24T09:30:00Z — "Repair the environment once, then continue without asking again."
+
+  ## 3. Permitted Stops
+  1. STOP-1: A Section 1 card with disposition=reserved_stop is reached.
+  2. STOP-2: The two-round stagnation rule fires or max_rounds is reached.
+  3. STOP-3: A FULL_ROLLBACK exception reports state corruption or data loss.
+  4. STOP-4: The user reopens an item and the verbatim reverted reason explicitly instructs a stop.
+
+  ## 4. Progress Snapshot
+  - Checked: 1/3 (P0: 1/1, P1: 0/1, P2: 0/1)
+  - Remaining stop cards: [] | Reached this round: []
+  - Estimated remaining rounds: 1
+  - Current blockers: none

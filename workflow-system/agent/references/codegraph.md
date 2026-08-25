@@ -7,34 +7,36 @@ purpose: >
   AST → SQLite FTS5) shipped in v12.5.0 PV-03 D-1 as a tracked reference
   repo + fully wired plugin + Python wrapper. Covers the 9 MCP tools,
   CLI surface, workflow integration map, degraded-mode fallback, and
-  cache management for L0/L1/L2/L3 dispatchers + L3 task agents.
+  cache management for L0/L1 dispatchers and L2 Task agents.
 triggers:
-  - "repo-init scaffold stage installs codegraph index"
-  - "L3 needs related-symbol context for an unfamiliar function"
+  - "repo-init scaffold phase installs codegraph index"
+  - "L2 Task needs related-symbol context for an unfamiliar function"
   - "blast-radius / impact analysis before an edit"
   - "callers/callees lookup replacing Grep+Read pairs"
   - "framework route awareness across 14 frameworks"
   - "test-impact selection via codegraph affected"
 tier: 2
 token_estimate: 3000
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Codegraph Reference
 
-DevolaFlow's integration with `colbymchenry/codegraph` — a 100% local, MCP-first, pre-indexed code knowledge graph (tree-sitter AST → SQLite FTS5). v12.5.0 PV-03 D-1 ships codegraph as the primary deliverable: a tracked reference repo, fully wired plugin, and Python wrapper exposed to L0/L1/L2/L3 dispatchers.
+DevolaFlow's integration with `colbymchenry/codegraph` — a 100% local,
+MCP-first, pre-indexed code knowledge graph (tree-sitter AST → SQLite FTS5).
+The wrapper is available to L0/L1 planning and L2 Task execution.
 
 **Upstream**: <https://github.com/colbymchenry/codegraph> · npm: `@colbymchenry/codegraph@>=0.9.3`
 
-## §1 — What codegraph is + when L3 should use it
+## §1 — What codegraph is + when L2 should use it
 
 Codegraph indexes the project's source files into a SQLite FTS5 database stored locally at `.codegraph/codegraph.db` (gitignored, project-relative per S-2). The index is populated via tree-sitter parsers covering 19+ languages; auto-syncs on file events with a 2-second debounce. Files matching `.gitignore` and files larger than 1MB are skipped automatically.
 
 **Upstream-published benchmark (verbatim)**: across 7 codebases × 7 languages, codegraph delivers **35% cheaper API cost / 70% fewer tool calls / 59% fewer tokens / 49% faster** wall-clock per agent query, vs. the Read+Grep+Glob baseline.
 
-L3 task agents should reach for codegraph instead of Read/Glob/Grep when:
+L2 Task agents should reach for codegraph instead of Read/Glob/Grep when:
 
-| L3 use-case | Codegraph helper | Token-spend delta (est.) |
+| L2 use-case | Codegraph helper | Token-spend delta (est.) |
 |---|---|---|
 | "Find all callers of `process_payment`" | `codegraph callers process_payment` | -65% vs. `Grep "process_payment"` + Read each match |
 | "Show me the related code around `MerchantOnboarding`" | `codegraph context "MerchantOnboarding"` | -55% vs. multi-Read of related files |
@@ -42,21 +44,23 @@ L3 task agents should reach for codegraph instead of Read/Glob/Grep when:
 | "What's the project structure here?" | `codegraph files --format tree` | -60% vs. recursive `Glob "**/*.{py,ts,go}"` |
 | "Which tests should I run for these changed files?" | `codegraph affected --files <files>` | New capability — no manual equivalent |
 
-L0/L1/L2 dispatchers should reach for codegraph during planning when:
+L0/L1 planners and L2 Tasks should reach for codegraph when:
 
-* `analyze` stage of a workflow needs project-shape data (replaces fs scanning)
-* `scaffold` stage needs related-symbol seeds for `owned_files.txt`
+* a research/analyze checklist item needs project-shape data (replaces fs scanning)
+* a scaffold checklist item needs related-symbol seeds for `owned_files.txt`
 * Gate scoring needs blast-radius for code-review weight allocation
 
-L3 should NOT reach for codegraph when:
+L2 should NOT reach for codegraph when:
 
 * The .codegraph/ index is missing (CLI not installed or `codegraph init` never ran) — fall back to Read/Glob/Grep per §5 degraded-mode contract
 * The query is for a literal string that doesn't correspond to a symbol (e.g. arbitrary code comments) — Grep is faster
 * The file in question is gitignored or > 1MB — codegraph deliberately skips these
 
-## §2 — The 9 MCP tools (with L3 decision tree)
+## §2 — The 9 MCP tools (with L2 decision tree)
 
-Codegraph ships an MCP server with 9 tools. L3 agents running inside an MCP-aware host (Cursor, Claude Code, Codex CLI) invoke these directly; L3 agents running through DevolaFlow's Python wrapper (`devolaflow.codegraph.researcher`) get 5 of them as direct method calls (see §3).
+Codegraph ships an MCP server with 9 tools. L2 Tasks running inside an
+MCP-aware host invoke these directly; Tasks using
+`devolaflow.codegraph.researcher` get five direct wrapper calls (see §3).
 
 | Tool | When to use | Returns |
 |---|---|---|
@@ -70,7 +74,7 @@ Codegraph ships an MCP server with 9 tools. L3 agents running inside an MCP-awar
 | `codegraph_files` | "What's the project file structure?" | File-tree (flat list / tree format) |
 | `codegraph_status` | "Is the index healthy?" | Index health: db path + symbol count + last sync timestamp |
 
-**Decision tree for L3 (single-symbol query)**:
+**Decision tree for L2 (single-symbol query)**:
 
 ```
 "I need to know about <symbol>"
@@ -81,7 +85,7 @@ Codegraph ships an MCP server with 9 tools. L3 agents running inside an MCP-awar
     └── "What lives near it (siblings)?"     → codegraph_explore
 ```
 
-**Decision tree for L3 (multi-symbol / topic query)**:
+**Decision tree for L2 (multi-symbol / topic query)**:
 
 ```
 "I need to know about <topic>"
@@ -124,9 +128,13 @@ Most subcommands accept `--json` to force JSON output (machine-friendly); the de
 | Runtime registry (installer consumer) | `workflow-system/agent/knowledge/runtime-plugins.yaml` | `plugins[id=codegraph]` entry |
 | Reference tracking (W-2 / SI-2 reference review) | `workflow-system/agent/knowledge/reference-dependencies.yaml` | `active_tracking[id=codegraph]` entry (12th of 12) |
 
-### §4.2 — Workflow templates (per W-15 / CO-6 section relevance)
+### §4.2 — Checklist seeds and sole runtime
 
-| Workflow | Stage | Codegraph wiring |
+The named seeds retain the following historical primitive/config knowledge.
+L0 materializes only the needed checklist assertions; execution stays in
+`change-driven`.
+
+| Seed intent | Provenance primitive | Codegraph wiring |
 |---|---|---|
 | repo-init | analyze | `config.codegraph_commands` (status + files) |
 | repo-init | scaffold | `config.codegraph_init` (cmd + on_failure: warn + tier: suggest + execution: background + probe + markers) — **suggest-tier, backgrounded** per Track C-3 D-11: probe `command -v codegraph`; CLI absent → skip with ONE install hint; CLI present → background init + tri-state markers (see §4.6) |
@@ -137,7 +145,7 @@ Most subcommands accept `--json` to force JSON output (machine-friendly); the de
 
 ### §4.3 — Context profile
 
-`workflow-system/agent/context_profiles.yaml::meta.codegraph_integration` declares the 5 commands recipes (`repo_init`, `analyze`, `research`, `impact`, `affected`) + 6 capability triggers (`smart_context_building`, `full_text_search`, `impact_analysis`, `callers_callees_trace`, `file_structure_lookup`, `test_impact_selection`). The block is parallel to `meta.nines_integration` and `meta.ui_integration`.
+`workflow-system/agent/context_profiles.yaml::meta.codegraph_integration` declares the 5 commands recipes (`repo_init`, `analyze`, `research`, `impact`, `affected`) + 6 capability triggers (`smart_context_building`, `full_text_search`, `impact_analysis`, `callers_callees_trace`, `file_structure_lookup`, `test_impact_selection`). The block is parallel to the active `meta.ui_integration` and `meta.impeccable_integration` blocks.
 
 ### §4.4 — Python wrapper
 
@@ -157,7 +165,7 @@ The thin subprocess wrapper at `devolaflow.codegraph._cli.run_codegraph_cli` is 
 
 ### §4.5 — Env flag (per W-20 reuse-first)
 
-NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with `nines` + `ui-pro` + `rtk` + `si-chip` (the 4 existing v10.2.0 baseline plugins).
+NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with the other registered plugins. NineS is not a v16 runtime-plugin dependency; `devolaflow.nines` is deprecated compatibility only.
 
 Operators who want codegraph auto-installed AND don't want manual `npm install`:
 
@@ -189,11 +197,11 @@ no second probe), `mark_indexing()` /
 `absent | indexing | ready | failed`. Crash-leftover precedence:
 ready > failed > indexing (a finished index IS usable).
 
-Downstream consumer rule (analyze workflows + verify smoke):
+Downstream consumer rule (analyze Tasks + verify checklist checks):
 
 1. `ready` → use the index normally.
 2. `indexing` → bounded wait (≤30s) OR degrade to Read/Glob/Grep for this
-   step and retry next step; NEVER foreground-block on the init.
+   Task and retry in a later item; NEVER foreground-block on the init.
 3. `failed` / `absent` → degrade immediately per §5 with ONE WARN.
 
 The `.codegraph/` gitignore entry is owned by the deterministic scaffold
@@ -223,22 +231,30 @@ Each public helper in `devolaflow.codegraph.researcher`:
 2. Logs WARNING **once per process** (deduplicated via module-level sentinel `_DEGRADED_MODE_NOTIFIED`); subsequent calls log at DEBUG to preserve auditability without spam
 3. Returns the empty / sentinel result documented in §4.4
 
-The caller (L0/L1/L2/L3 dispatcher OR gate scorer) detects the empty result and falls back to the equivalent Read/Glob/Grep planning path.
+The caller (L0/L1 dispatcher, L2 Task, or gate scorer) detects the empty
+result and falls back to the equivalent Read/Glob/Grep path.
 
-### §5.3 — Repo-init scaffold step behaviour
+### §5.3 — Repo-init scaffold-item behaviour
 
-`workflow-system/agent/templates/builtin/repo-init.yaml::scaffold.config.codegraph_init` declares `on_failure: "warn"`. When the CLI is not on `$PATH` AND `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` is unset:
+`workflow-system/agent/templates/seeds/repo-init.yaml` preserves
+`scaffold.config.codegraph_init` provenance with `on_failure: "warn"`.
+When L0 materializes that checklist item and the CLI is not on `$PATH` while
+`DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` is unset:
 
-* Scaffold step emits a non-blocking WARN: `npm i -g @colbymchenry/codegraph` recommendation
-* Workflow CONTINUES — codegraph integration is opt-in for cost-conscious environments
+* The Task emits a non-blocking WARN: `npm i -g @colbymchenry/codegraph`
+  recommendation.
+* The checklist round continues — codegraph is optional.
 * Per S-5: WARN + continue, NOT silent fail
 
-### §5.4 — Verify step behaviour (mode=full only)
+### §5.4 — Verify-item behaviour (mode=full only)
 
-`workflow-system/agent/templates/builtin/repo-init.yaml::verify.config.codegraph_smoke` checks for `.codegraph/codegraph.db` presence with `on_missing: "warn"`. When the index is missing:
+The repo-init seed's `verify.config.codegraph_smoke` provenance supplies a
+check for `.codegraph/codegraph.db` with `on_missing: "warn"`. When L0
+materializes it and the index is missing:
 
-* Verify smoke emits a WARN
-* The verify suite as a whole still reports PASS — codegraph index absence is a degraded-mode signal, not a verification failure
+* The L2 verification evidence records a WARN.
+* The optional codegraph assertion does not fabricate an index PASS; the
+  surrounding round may continue with degraded fallback evidence.
 
 ### §5.5 — Gate scoring degraded behaviour
 
@@ -295,7 +311,7 @@ Wipe `.codegraph/` and re-run `codegraph init` when:
 * The index size grows beyond expected (likely a leaked large file)
 * `codegraph status` reports parser version drift across languages
 
-The wipe is harmless — the index rebuilds on the next workflow invocation.
+The wipe is harmless — the index rebuilds on the next authorized invocation.
 
 ---
 

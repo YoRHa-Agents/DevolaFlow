@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-collect SI-3 6-dimension objective metrics from CI tooling.
+"""Collect deterministic SI-3 objective metrics from repository-local tooling.
 
 Implements the v10.7.0 D-O-2 deliverable per
 `.local/research/v11.0.0_patches/D-O-2.md`. The script is the
@@ -12,18 +12,18 @@ script populates only the objective component; the subjective component
 lives in the per-dim deduction-rationale prose the L3 author writes
 after running the collector.
 
-Algorithm (per PDS §2.1):
+Algorithm:
 
-1. Run 6 toolchain probes (ruff check, ruff format --check, pytest --cov,
-   pytest test_layout_invariant_multi_baseline, pytest --collect-only,
-   git log) and capture each command's exit code + parsed metrics.
-2. Compute per-dim objective sub-component coverage:
-   * Code quality:           ruff_lint + ruff_format + max_cc + cov%
-   * Architecture:            multi_baseline_passes + ssot_registry
-   * Test adequacy:           coverage% + test_count
-   * Maintainability:         docstring% + ruff_format
-   * Compatibility:           multi_baseline_passes + new_env_flags
-   * Performance impact:      benchmark composite delta
+1. Run repository-local probes (ruff check, ruff format --check, pytest
+   coverage, the A-2 multi-baseline test, pytest collection, and a git diff
+   for the W-17 test-function delta).
+2. Map those measured results into the six SI-3 dimensions:
+   * Code quality:            ruff_lint + ruff_format + coverage%
+   * Architecture:            multi_baseline_passes
+   * Test adequacy:            coverage% + test_count + W-17 delta
+   * Maintainability:         ruff_format
+   * Compatibility:           multi_baseline_passes
+   * Performance impact:      multi_baseline_passes (deterministic proxy)
 3. Emit ``objective_metrics.yaml`` (machine-consumable; consumed by
    ``scripts/generate_si3_evaluation.py --metrics`` flag in a future
    PV) and a markdown summary preview.
@@ -38,11 +38,6 @@ the collector emits the dimension's sub-component as
 ``(unavailable: <reason>)`` in the score cell, and the L3 falls back
 to the manual TBD path for that cell only.
 
-External tool URLs (S-7 — never hard-code local paths):
-
-* DevolaFlow / EvoBench: https://github.com/YoRHa-Agents/DevolaFlow
-* radon (CC + raw measurement): https://radon.readthedocs.io/
-
 Public API:
 
 * :func:`collect_ruff_lint(repo_root)` -> SubcomponentResult
@@ -54,10 +49,10 @@ Public API:
 * :func:`compute_objective_score(metrics)` -> Si3ObjectiveScore
 * :func:`render_yaml(metrics)` -> str
 * :func:`render_markdown(score)` -> str
-* :func:`run(repo_root, *, output, baseline_cycle, skip_benchmarks)` -> int
+* :func:`run(repo_root, *, output, base_ref, skip_benchmarks)` -> int
 
 Entry point: ``python scripts/auto_collect_si3_metrics.py
-[--repo-root .] [--output PATH] [--baseline-cycle vX.Y.0]
+[--repo-root .] [--output PATH] [--base-ref REF]
 [--skip-benchmarks] [--mock-data]``
 
 Source: v10.7.0 D-O-2 — codified per
@@ -72,7 +67,7 @@ import re
 import shlex
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -196,13 +191,9 @@ def run_command(
 
 def collect_ruff_lint(repo_root: Path) -> SubcomponentResult:
     """Probe ``ruff check src/ tests/`` -> exit_code 0 means clean."""
-    rc, stdout, stderr = run_command(
-        ["ruff", "check", "src/", "tests/"], cwd=repo_root
-    )
+    rc, stdout, stderr = run_command(["ruff", "check", "src/", "tests/"], cwd=repo_root)
     if rc < 0:
-        return SubcomponentResult(
-            name="ruff_lint", available=False, error=stderr.strip()
-        )
+        return SubcomponentResult(name="ruff_lint", available=False, error=stderr.strip())
     return SubcomponentResult(
         name="ruff_lint",
         available=True,
@@ -213,13 +204,9 @@ def collect_ruff_lint(repo_root: Path) -> SubcomponentResult:
 
 def collect_ruff_format(repo_root: Path) -> SubcomponentResult:
     """Probe ``ruff format --check src/ tests/``."""
-    rc, stdout, stderr = run_command(
-        ["ruff", "format", "--check", "src/", "tests/"], cwd=repo_root
-    )
+    rc, stdout, stderr = run_command(["ruff", "format", "--check", "src/", "tests/"], cwd=repo_root)
     if rc < 0:
-        return SubcomponentResult(
-            name="ruff_format", available=False, error=stderr.strip()
-        )
+        return SubcomponentResult(name="ruff_format", available=False, error=stderr.strip())
     return SubcomponentResult(
         name="ruff_format",
         available=True,
@@ -239,9 +226,7 @@ def collect_test_count(repo_root: Path) -> SubcomponentResult:
         timeout=120,
     )
     if rc < 0:
-        return SubcomponentResult(
-            name="test_count", available=False, error=stderr.strip()
-        )
+        return SubcomponentResult(name="test_count", available=False, error=stderr.strip())
     match = _TEST_COUNT_RE.search(stdout)
     if match:
         return SubcomponentResult(
@@ -262,12 +247,7 @@ _COVERAGE_TOTAL_RE = re.compile(r"^TOTAL\s+\d+\s+\d+\s+(\d+)%", re.MULTILINE)
 
 
 def collect_coverage(repo_root: Path) -> SubcomponentResult:
-    """Probe ``pytest --cov=devolaflow`` -> TOTAL line parsed.
-
-    Per W-2 manual fallback: when NineS reports `code_coverage: 0.0`
-    (upstream timeout), this collector's local pytest invocation IS the
-    SI-3 authority.
-    """
+    """Probe local ``pytest --cov=devolaflow`` output and parse its TOTAL line."""
     rc, stdout, stderr = run_command(
         [
             "python",
@@ -283,9 +263,7 @@ def collect_coverage(repo_root: Path) -> SubcomponentResult:
         timeout=300,
     )
     if rc < 0:
-        return SubcomponentResult(
-            name="coverage_pct", available=False, error=stderr.strip()
-        )
+        return SubcomponentResult(name="coverage_pct", available=False, error=stderr.strip())
     # rc != 0 may mean test failure or coverage threshold breach — in
     # either case we still parse the TOTAL line if present.
     match = _COVERAGE_TOTAL_RE.search(stdout)
@@ -293,10 +271,7 @@ def collect_coverage(repo_root: Path) -> SubcomponentResult:
         return SubcomponentResult(
             name="coverage_pct",
             available=False,
-            error=(
-                "could not parse 'TOTAL ... NN%' from pytest --cov output "
-                f"(returncode={rc})"
-            ),
+            error=(f"could not parse 'TOTAL ... NN%' from pytest --cov output (returncode={rc})"),
             raw_text=stdout[-500:],
         )
     return SubcomponentResult(
@@ -322,9 +297,7 @@ def collect_multi_baseline_pass(repo_root: Path) -> SubcomponentResult:
         timeout=60,
     )
     if rc < 0:
-        return SubcomponentResult(
-            name="multi_baseline_pass", available=False, error=stderr.strip()
-        )
+        return SubcomponentResult(name="multi_baseline_pass", available=False, error=stderr.strip())
     passed = stdout.count(" PASSED")
     return SubcomponentResult(
         name="multi_baseline_pass",
@@ -427,9 +400,7 @@ def compute_objective_score(
         per_dim_scores[dim_name] = score
         total_subs += total
         available_subs += avail
-    composite = sum(
-        per_dim_scores[name] * weight for name, weight in DIMENSION_WEIGHTS.items()
-    )
+    composite = sum(per_dim_scores[name] * weight for name, weight in DIMENSION_WEIGHTS.items())
     auto_fill_rate = (available_subs / total_subs) if total_subs > 0 else 0.0
     return Si3ObjectiveScore(
         per_dim_scores=per_dim_scores,
@@ -468,9 +439,7 @@ def render_markdown(score: Si3ObjectiveScore) -> str:
     lines.append("# SI-3 Objective Auto-Collection Summary")
     lines.append("")
     lines.append(f"- Sampled at: `{score.sampled_at}`")
-    lines.append(
-        f"- Objective composite (weighted): **{score.composite_objective:.2f} / 10**"
-    )
+    lines.append(f"- Objective composite (weighted): **{score.composite_objective:.2f} / 10**")
     lines.append(f"- Auto-fill rate: **{score.auto_fill_rate:.1%}**")
     lines.append(
         f"- Weighting (per cycle plan §6 R-10): "
@@ -615,9 +584,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="emit a synthetic OK report without invoking real probes (for testing)",
     )
-    parser.add_argument(
-        "--json", action="store_true", help="emit JSON instead of markdown"
-    )
+    parser.add_argument("--json", action="store_true", help="emit JSON instead of markdown")
     args = parser.parse_args(argv)
     repo_root = args.repo_root or _resolve_repo_root()
     return run(

@@ -82,9 +82,8 @@
   list-style: none;
 }
 .layer-node[data-layer="L0"] { border-left-color: var(--accent); }
-.layer-node[data-layer="L1"] { border-left-color: var(--warning); }
-.layer-node[data-layer="L2"] { border-left-color: var(--success); }
-.layer-node[data-layer="L3"] { border-left-color: var(--secondary); }
+.layer-node[data-layer="L1"] { border-left-color: var(--success); }
+.layer-node[data-layer="L2"] { border-left-color: var(--secondary); }
 
 .layer-node:hover {
   transform: translateY(-1px);

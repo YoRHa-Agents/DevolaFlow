@@ -25,14 +25,6 @@ import pytest
 
 from tests.ghost._helpers import _load_yaml, _read
 
-# v8.3.0 PV-06 (v8.2.6) added the `change-driven` workflow template to the
-# registry + Python API surface. v8.2.9 closure: change-driven row added to
-# README + SKILL + workflow-skill.yaml + EN/ZH workflow-types guides in this
-# PV; the deferral set is now empty. Kept as a typed sentinel so future
-# deferrals can re-populate it without changing call-site shapes.
-_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset()
-
-
 # Files excluded from "consumer" search for dataclass-field ghost tests:
 # definition / parsing / inheritance-merge / static-validation. A real runtime
 # consumer must live in composer.py, runtime.py, dispatch wiring, etc.
@@ -40,13 +32,10 @@ _STRUCTURAL_FILES = {"models.py", "parser.py", "inheritance.py", "validator.py"}
 
 
 def _registry_names(project_root: Path) -> set[str]:
-    """Return the canonical workflow template names from the registry."""
+    """Return the registry-v3 checklist-seed names."""
     raw = _load_yaml(project_root / "workflow-system/agent/templates/registry.yaml")
-    return {entry["name"] for entry in raw["templates"]}
-
-
-def _builtin_template_files(project_root: Path) -> list[Path]:
-    return sorted((project_root / "workflow-system/agent/templates/builtin").glob("*.yaml"))
+    entries = (raw.get("compositions") or []) + (raw.get("templates") or [])
+    return {entry["name"] for entry in entries}
 
 
 # ── Category A: workflow templates ──────────────────────────────────
@@ -62,20 +51,7 @@ def _skill_workflow_selection_names(project_root: Path) -> set[str]:
 
 
 def _skill_quick_reference_names(project_root: Path) -> set[str]:
-    """Extract template names from the Template Quick-Reference table.
-
-    v10.5.0 PV-02 D-A-2 Phase A introduces ``(legacy)`` suffix
-    annotations on TIER-2 template rows (16 of 22 templates). The
-    canonical name is what's retained for registry comparison; the
-    ``(legacy)`` marker is stripped here.
-
-    v14.5.0 (G-019 / T6) — the table moved from SKILL.md §"Template
-    Quick-Reference" to references/meta-framework.md §4 "Template
-    Quick-Reference — Gate Types" (IA demotion pass per product review
-    F-P3-5: template info was triplicated; meta-framework.md is the
-    single owner surface). The G-A2 invariant is unchanged: every
-    registry workflow must appear in the quick-reference table.
-    """
+    """Extract seed names from meta-framework's compatibility table."""
     skill = _read(project_root / "workflow-system/agent/references/meta-framework.md")
     section = re.search(
         r"### Template Quick-Reference — Gate Types\n(.*?)(?:\n### |\n## |\Z)", skill, re.DOTALL
@@ -87,7 +63,6 @@ def _skill_quick_reference_names(project_root: Path) -> set[str]:
     for row in rows:
         cells = [c.strip() for c in row.split("|")]
         if len(cells) >= 2 and cells[1]:
-            # Strip v10.5.0 D-A-2 (legacy) suffix annotation.
             name = re.sub(r"\s*\(legacy\)\s*$", "", cells[1])
             names.add(name)
     return names
@@ -100,14 +75,9 @@ def test_skill_workflow_selection_covers_registry(project_root: Path) -> None:
     Workflow-Selection table per audit §3.A G-A1 evidence; xfail marker
     removed per the audit §6 strict=True contract.
 
-    Names in ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` are excluded — their
-    SKILL.md row is intentionally deferred to v8.2.9 per the v8.3.0 patch plan.
+    Under registry v3 this is exact seed-discoverability parity.
     """
-    missing = (
-        _registry_names(project_root)
-        - _skill_workflow_selection_names(project_root)
-        - _DEFERRED_DOC_TEMPLATES_V8_2_9
-    )
+    missing = _registry_names(project_root) - _skill_workflow_selection_names(project_root)
     assert not missing, f"Registry workflows missing from SKILL: {sorted(missing)}"
 
 
@@ -118,15 +88,10 @@ def test_skill_quick_reference_covers_registry(project_root: Path) -> None:
     added to the Template Quick-Reference table per audit §3.A G-A2
     evidence; xfail marker removed per the audit §6 strict=True contract.
 
-    Names in ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` are excluded — their
-    Quick-Reference row is intentionally deferred to v8.2.9 per the v8.3.0
-    patch plan.
+    Registry v3 preserves the historical heading for tooling, but every row
+    now means non-executable seed knowledge routed to checklist-round.
     """
-    missing = (
-        _registry_names(project_root)
-        - _skill_quick_reference_names(project_root)
-        - _DEFERRED_DOC_TEMPLATES_V8_2_9
-    )
+    missing = _registry_names(project_root) - _skill_quick_reference_names(project_root)
     assert not missing, f"Registry workflows missing from QuickRef: {sorted(missing)}"
 
 
@@ -145,7 +110,7 @@ def test_skill_workflow_names_match_registry_canonical_names(
     drift = {"documentation", "RDRR"} & skill_names
     assert not drift, (
         f"SKILL uses non-canonical names {sorted(drift)} that fail "
-        f"TemplateRegistry.load_template() exact-match"
+        f"TemplateRegistry.load_seed() exact-match"
     )
 
 
@@ -341,20 +306,22 @@ def test_skill_template_tier3_paths_exist(project_root: Path) -> None:
 
 
 def test_skill_knowledge_paths_exist(project_root: Path) -> None:
-    """G-H4/H5 (inverse): manifest-registered knowledge files must be in SKILL.
-
-    Closed by P-03 in v7.4.6 — `knowledge/code-rules-mapping.md` and
-    `knowledge/principle-mapping.md` rows added to SKILL.md Tier 3
-    references per audit §3.H G-H4/G-H5 evidence; xfail marker removed
-    per the audit §6 strict=True contract.
-    """
+    """G-H4/H5: SKILL knowledge navigation matches disk exactly."""
     skill = _read(project_root / "workflow-system/agent/SKILL.md")
     raw = _load_yaml(project_root / "workflow-system/agent/workflow-skill.yaml")
-    declared = {Path(k["file"]).name for k in raw["content"]["knowledge"]}
-    undiscovered = sorted(n for n in declared if n not in skill and Path(n).stem not in skill)
-    assert not undiscovered, (
-        f"Knowledge files declared in manifest but not in SKILL.md: {undiscovered}"
+    declared = {k["file"] for k in raw["content"]["knowledge"]}
+    knowledge_dir = project_root / "workflow-system/agent/knowledge"
+    on_disk = {
+        f"knowledge/{path.name}"
+        for path in knowledge_dir.iterdir()
+        if path.is_file() and path.suffix in {".md", ".yaml"}
+    }
+    cited = set(re.findall(r"`(knowledge/[a-z][a-z0-9-]*\.(?:md|yaml))`", skill))
+    assert cited == on_disk, (
+        f"SKILL knowledge navigation drifted — missing: {sorted(on_disk - cited)}, "
+        f"extra: {sorted(cited - on_disk)}"
     )
+    assert declared <= cited
 
 
 def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
@@ -395,16 +362,7 @@ def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
                 "until P-NN in v7.6.x lands the runtime enforcement",
             ),
         ),
-        pytest.param(
-            "input_mapping",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="G-I4: StageDefinition.input_mapping wiring DEFERRED "
-                "to v7.6.x per audit §9 Open Q1 + user 'mode_only' decision "
-                "for the v7.5.0 P-04 scope (mode-driven stage skip only; "
-                "dataflow input_mapping is a v7.6.x candidate)",
-            ),
-        ),
+        "input_mapping",
     ],
 )
 def test_dataclass_field_has_consumer(project_root: Path, field: str) -> None:
@@ -428,8 +386,8 @@ def test_dataclass_field_has_consumer(project_root: Path, field: str) -> None:
     decision — the xfail marker stays in place with the v7.6.x reservation
     reason until that runtime wiring lands.
 
-    G-I4 (``input_mapping``) explicitly carries the v7.6.x deferral reason
-    per the user's 'mode_only' scope decision recorded in audit §9 Open Q1.
+    G-I4 (``input_mapping``) is now consumed outside parser/model structure;
+    the former strict xfail was retired when that wiring landed.
     """
     src_dir = project_root / "src" / "devolaflow"
     py_files = [p for p in src_dir.rglob("*.py") if p.name not in _STRUCTURAL_FILES]
@@ -472,35 +430,15 @@ def test_init_creates_compile_config_template(project_root: Path, tmp_path: Path
 # ── Category K: stale documentation references (closed by P-02) ─────
 
 
-def _registry_composition_names(project_root: Path) -> set[str]:
-    """Return composition names from the v2.0 registry (v15-ADR-002)."""
-    raw = _load_yaml(project_root / "workflow-system/agent/templates/registry.yaml")
-    return {entry["name"] for entry in raw.get("compositions", [])}
-
-
 def test_readme_template_count_in_project_structure(project_root: Path) -> None:
-    """G-K1 pin: README project-structure template count matches the
-    workflow-type surface (modulo the v8.2.9 deferred set).
-
-    v15.0.0 (v15-ADR-002 Phase B): the surface = survivor yamls on disk
-    + named compositions in registry.yaml. The README line still says
-    "workflow template YAMLs" — rewording it to mention compositions is
-    the doc-sync slice's job (README is read-only for the template
-    slice); this pin guards count parity of the resolvable-name set.
-    """
+    """G-K1 pin: README names 23 seed files and one runtime."""
     readme = _read(project_root / "README.md")
-    actual = len(_builtin_template_files(project_root))
-    compositions = len(_registry_composition_names(project_root))
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
-    expected = actual + compositions - len(deferred_present)
-    stale = re.findall(r"#\s*(\d+)\s+workflow template YAMLs", readme)
-    assert stale, "README must contain the 'N workflow template YAMLs' line"
-    for s in stale:
-        assert int(s) == expected, (
-            f"README claims {s} templates, disk has {actual} + {compositions} "
-            f"compositions, expected claim {expected} (- {len(deferred_present)} "
-            f"deferred to v8.2.9) — G-K1 regressed"
-        )
+    seed_match = re.search(r"templates/seeds/\s+#\s+(\d+)\s+non-executable checklist seeds", readme)
+    assert seed_match, "README project structure must count checklist seeds"
+    seed_dir = project_root / "workflow-system/agent/templates/seeds"
+    disk_seeds = {path.stem for path in seed_dir.glob("*.yaml")}
+    assert int(seed_match.group(1)) == len(disk_seeds) == len(_registry_names(project_root))
+    assert "templates/builtin/" in readme and "sole change-driven runtime" in readme
 
 
 def test_readme_test_count_and_coverage_current(project_root: Path) -> None:
@@ -519,54 +457,27 @@ def test_readme_test_count_and_coverage_current(project_root: Path) -> None:
 
 
 def test_readme_workflow_type_count_bilingual(project_root: Path) -> None:
-    """G-K2/K3 pin: EN+ZH workflow-type guide rows agree with the
-    workflow-type surface (modulo the v8.2.9 deferred set).
-
-    v15.0.0 (v15-ADR-002 Phase B): "workflow types" = survivor yamls on
-    disk + named compositions (see the G-K1 note above).
-    """
+    """G-K2/K3 pin: EN+ZH guide rows agree on the seed count."""
     readme = _read(project_root / "README.md")
-    actual = len(_builtin_template_files(project_root)) + len(
-        _registry_composition_names(project_root)
-    )
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
-    expected = actual - len(deferred_present)
-    en = re.search(r"All\s+(\d+)\s+workflow types", readme)
-    assert en, "README EN guide must say 'All N workflow types'"
-    assert int(en.group(1)) == expected, (
-        f"README EN claims {en.group(1)} types, disk has {actual}, expected "
-        f"claim {expected} (= disk - {len(deferred_present)} deferred to v8.2.9) — "
-        f"G-K2 regressed"
-    )
-    zh = re.search(r"全部\s*(\d+)\s*种工作流类型", readme)
-    assert zh, "README ZH guide must say '全部 N 种工作流类型'"
-    assert int(zh.group(1)) == expected, (
-        f"README ZH claims {zh.group(1)} types, disk has {actual}, expected "
-        f"claim {expected} (= disk - {len(deferred_present)} deferred to v8.2.9) — "
-        f"G-K3 regressed (DS-3 bilingual drift)"
-    )
+    expected = len(_registry_names(project_root))
+    en = re.search(r"All\s+(\d+)\s+non-executable seeds", readme)
+    assert en, "README EN guide must state the non-executable seed count"
+    assert int(en.group(1)) == expected
+    zh = re.search(r"(\d+)\s*个非执行清单种子", readme)
+    assert zh, "README ZH guide must state the non-executable seed count"
+    assert int(zh.group(1)) == expected
 
 
 def test_workflow_skill_yaml_template_count_comment(project_root: Path) -> None:
-    """G-K10 pin: workflow-skill.yaml templates comment matches the
-    workflow-type surface (modulo the v8.2.9 deferred set).
-
-    v15.0.0 (v15-ADR-002 Phase B): the surface = survivor yamls on disk
-    + named compositions (see G-K1 note above; workflow-skill.yaml
-    rewording belongs to the doc-sync slice).
-    """
+    """G-K10 pin: workflow-skill.yaml comment reflects registry v3."""
     text = _read(project_root / "workflow-system/agent/workflow-skill.yaml")
-    actual = len(_builtin_template_files(project_root))
-    compositions = len(_registry_composition_names(project_root))
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
-    expected = actual + compositions - len(deferred_present)
-    match = re.search(r"#\s*Registry\s*\+\s*(\d+)\s+builtin\s+templates", text)
-    assert match, "workflow-skill.yaml must contain 'Registry + N builtin templates'"
-    assert int(match.group(1)) == expected, (
-        f"workflow-skill.yaml claims {match.group(1)} templates, disk has "
-        f"{actual} + {compositions} compositions, expected claim {expected} "
-        f"(- {len(deferred_present)} deferred to v8.2.9) — G-K10 regressed"
+    match = re.search(
+        r"#\s*Registry v3 inventory: one registry,\s*(\d+)\s+checklist seeds,"
+        r"\s*one executable",
+        text,
     )
+    assert match, "workflow-skill.yaml must state its registry-v3 inventory"
+    assert int(match.group(1)) == len(_registry_names(project_root))
 
 
 def test_claude_md_version_tracking_note(project_root: Path) -> None:

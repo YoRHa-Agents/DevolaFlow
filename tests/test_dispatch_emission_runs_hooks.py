@@ -46,6 +46,7 @@ PV-03 ``pre_plugin_invocation`` default is also byte-stable when
 from __future__ import annotations
 
 import copy
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -53,6 +54,7 @@ import pytest
 from devolaflow.feedback import ProposalGenerator
 from devolaflow.gate.models import Finding, GateVerdict
 from devolaflow.gate.reinforcement import merge_reinforcement_into_dispatch
+from devolaflow.harness import record_dispatch_telemetry
 from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     PRE_DISPATCH_EVENT,
@@ -60,6 +62,8 @@ from devolaflow.lifecycle import (
     PRE_PLUGIN_INVOCATION_EVENT,
     HookResult,
     clear_hooks,
+    list_handlers,
+    register_hook,
 )
 
 # ---------------------------------------------------------------------------
@@ -271,6 +275,67 @@ class TestHookInvocation:
                 f"by default, all other chain events permissive)"
             )
 
+    def test_complete_round_payload_reaches_each_hook_exactly_once(self) -> None:
+        gen = ProposalGenerator()
+        base = _base_dispatch()
+        base["change_context"] = {"change_id": "s10-round"}
+        checklist = SimpleNamespace(
+            items=(
+                SimpleNamespace(
+                    item_id="C-G1.1",
+                    assertion="round assertion",
+                    verify="pytest round",
+                    checked=False,
+                    reverted_reason="user reason verbatim",
+                ),
+            )
+        )
+        selection = SimpleNamespace(
+            selected=(SimpleNamespace(item_id="C-G1.1", priority="P0", reverted=True),)
+        )
+        calls, fake = self._make_call_recorder()
+
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            result = gen.generate_round_dispatch(
+                base,
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+                checklist=checklist,
+                selection=selection,
+                round_n=2,
+            )
+
+        events = [call[0] for call in calls]
+        assert events == [
+            PRE_DISPATCH_EVENT,
+            POST_DISPATCH_EVENT,
+            PRE_HANDOFF_EVENT,
+            PRE_PLUGIN_INVOCATION_EVENT,
+        ]
+        assert events.count(PRE_DISPATCH_EVENT) == 1
+        assert events.count(POST_DISPATCH_EVENT) == 1
+        assert all(call[1] == result for call in calls)
+        rules = result["context"]["applicable_rules"]["reinforcement"]["rules"]
+        assert [rule["id"] for rule in rules] == [
+            "R-C-G1.1-002",
+            "F-PV04-1",
+        ]
+        assert result["change_context"]["round_context"]["reverted_ids"] == ["C-G1.1"]
+
+    def test_partial_round_inputs_raise_before_any_hook(self) -> None:
+        gen = ProposalGenerator()
+        with (
+            patch("devolaflow.lifecycle.run_hooks") as run_hooks,
+            pytest.raises(ValueError, match="must be provided together"),
+        ):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                None,
+                round_num=2,
+                checklist=SimpleNamespace(items=()),
+            )
+        run_hooks.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # R5 strict byte-identical: dispatch payload unchanged when no extras register
@@ -287,19 +352,51 @@ class TestR5ByteIdentical:
     write to it.
     """
 
-    def test_round1_payload_unchanged(self) -> None:
+    def test_round1_payload_unchanged(self, tmp_path, monkeypatch, caplog) -> None:
         gen = ProposalGenerator()
         base = _base_dispatch()
+        base["hdr"] = {"id": "dispatch-byte-identity", "layer": "wave"}
+        base["change_context"] = {"change_id": "byte-identity"}
+        base["layer"] = "L2"
         control = copy.deepcopy(base)
-        actual = gen.generate_round_dispatch(
+        monkeypatch.chdir(tmp_path)
+        if record_dispatch_telemetry not in list_handlers(POST_DISPATCH_EVENT):
+            register_hook(POST_DISPATCH_EVENT, record_dispatch_telemetry)
+
+        inactive = gen.generate_round_dispatch(
             base,
             _verdict_with_findings([_blocker_finding()]),
             round_num=1,
         )
-        assert actual == control, (
+        assert inactive == control, (
             "round-1 pass-through must return a deep copy of base, byte-identical"
         )
-        assert actual is not base, "result must be a new object (deepcopy contract)"
+        assert inactive is not base, "result must be a new object (deepcopy contract)"
+
+        active = tmp_path / ".local" / ".agent" / "active" / "byte-identity"
+        active.mkdir(parents=True)
+        measured = gen.generate_round_dispatch(
+            base,
+            _verdict_with_findings([_blocker_finding()]),
+            round_num=1,
+        )
+        assert measured == control
+        assert (active / "harness.jsonl").is_file()
+
+        with (
+            patch(
+                "devolaflow.harness.telemetry.append_harness_record",
+                side_effect=OSError("telemetry disk failure"),
+            ),
+            caplog.at_level("WARNING", logger="devolaflow.harness.telemetry"),
+        ):
+            failed = gen.generate_round_dispatch(
+                base,
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=1,
+            )
+        assert failed == control
+        assert "telemetry disk failure" in caplog.text
 
     def test_no_findings_payload_unchanged(self) -> None:
         gen = ProposalGenerator()

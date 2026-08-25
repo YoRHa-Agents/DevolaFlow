@@ -4,8 +4,8 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Integration Guide
@@ -44,7 +44,7 @@ This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`
 
 How It Works in Cursor
 
-DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's workflow selection heuristics then activate based on your intent keywords.
+DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's seed-selection heuristics then activate from your intent keywords.
 
 ### Example Session: Building a Feature
 
@@ -57,14 +57,12 @@ Implement a REST API for user management with CRUD operations, JWT auth, and rol
 ```
 
 4. DevolaFlow activates and the agent:
-   - Selects `full-pipeline` workflow
-   - **Design stage**: Defines API endpoints, data models, auth flow
-   - **Plan stage**: Breaks into waves, auth module (Wave 1), CRUD endpoints (Wave 2), RBAC (Wave 3)
-   - **Implement stage**: Creates source files with tests via parallel task agents
-   - **Review stage**: Checks code quality, security, style
-   - **Test stage**: Runs unit + integration tests, measures coverage
-   - **Gate**: Verifies composite score ≥ 85, coverage ≥ 80%
-   - **Release stage**: Updates changelog, prepares commit
+   - Selects the `full-pipeline` checklist seed
+   - Materializes API design, implementation, review, test, and release assertions from provenance primitives
+   - Asks you to confirm checklist priorities and preflight decisions
+   - Runs bounded rounds: L0 Project picks items, L1 Wave dispatches parallel L2 Tasks
+   - Verifies evidence before checking each assertion
+   - Applies the archive gate before changing source truth
 
 ### Example Session: Hotfix
 
@@ -72,17 +70,13 @@ Implement a REST API for user management with CRUD operations, JWT auth, and rol
 Fix: the /api/users endpoint returns 500 when the email field contains unicode characters
 ```
 
-The agent selects `hotfix` and:
-1. **Triage**: Reads the endpoint code, identifies the encoding issue
-2. **Fix**: Adds proper unicode handling (minimal diff)
-3. **Test**: Runs focused tests on the affected endpoint
-4. **Release**: Prepares the patch
+The agent selects the `hotfix` seed, materializes diagnosis and remediation assertions, and runs them through the shared checklist-round runtime. Primitive labels such as analyze, implement, test, and release are provenance for the seed; L0 chooses actual round order from confirmed priorities and dependencies.
 
 ### Tips for Cursor
 
 **Attach the skill manually** for complex tasks: Type`@devola-flow` to explicitly reference the skill
 - **Use Plan mode** for architectural decisions: The agent will produce a structured plan instead of executing
-- **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's Wave→Task delegation
+- **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's L1 Wave → L2 Task delegation
 
 ## Claude Code, Detailed Setup
 
@@ -111,10 +105,10 @@ claude
 ```
 
 Claude Code will:
-1. Detect `full-pipeline` intent
-2. Use `Task` subagents for parallel implementation
-3. Follow the convergence loop for quality
-4. Report with a task quality score at the end
+1. Detect `full-pipeline` seed intent
+2. Anchor a measurable checklist and signed preflight
+3. Use L1 Wave coordination and L2 Tasks for isolated implementation
+4. Repeat bounded evidence-backed rounds until the archive gate passes or escalation is required
 
 Tips for Claude Code
 
@@ -144,7 +138,7 @@ In Copilot Chat:
 @workspace Refactor the payment processing module to use the strategy pattern
 ```
 
-Copilot follows the `refactoring` workflow: scope analysis → plan → implement → test → review.
+Copilot uses the `refactoring` seed's historical analyze/plan/implement/test/review primitives as provenance, materializes a checklist, and executes it through the shared round runtime.
 
 ## OpenAI Codex, Detailed Setup
 
@@ -161,7 +155,7 @@ This installs (per the `codex` profile in `workflow-system/agent/manifest.yaml`)
 
 How It Works in Codex
 
-Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's wave structure maps well to Codex's parallel execution model.
+Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's L1 Wave → L2 Task structure maps to Codex's parallel execution model.
 
 ## CI/CD Integration
 
@@ -173,12 +167,13 @@ Add DevolaFlow validation to your CI pipeline:
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
-    python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+    python -m pytest tests/harness/ -v
 ```
 
-## EvoBench in CI
+## Built-in harness in CI
 
-The benchmark suite detects context selection regressions. Add `--compare-baseline` to flag regressions > 5% against stored baselines. Generate new baselines after intentional optimizations with `--generate-baseline`.
+The harness suite validates fixture schemas, cache-layout compatibility,
+telemetry aggregation, evaluation, proposals, and bounded probe behavior.

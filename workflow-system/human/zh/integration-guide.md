@@ -4,8 +4,8 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 集成指南
@@ -24,7 +24,7 @@ source_version: "15.2.0"
 各工具的安装文件清单声明在 `workflow-system/agent/manifest.yaml`
 （安装清单的单一事实源）— 上表与其 `install_profiles` 段保持一致。
 
-## Cursor, 详细设置
+## Cursor — 详细设置
 
 ### 安装
 
@@ -43,7 +43,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 在 Cursor 中如何工作
 
-DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到代理上下文中。DevolaFlow 的工作流选择启发式规则根据你的意图关键词激活。
+DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到 Agent 上下文中。DevolaFlow 的种子选择启发式规则根据你的意图关键词激活。
 
 ### 示例会话：构建功能
 
@@ -56,20 +56,18 @@ DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提�
 ```
 
 4. DevolaFlow 激活，Agent 将：
-   - 选择 `full-pipeline` 工作流
-   - **设计阶段**：定义 API 端点、数据模型、认证流程
-   - **规划阶段**：分解为批次, 认证模块（批次 1）、CRUD 端点（批次 2）、RBAC（批次 3）
-   - **实现阶段**：通过并行任务代理创建源文件和测试
-   - **审查阶段**：检查代码质量、安全性、风格
-   - **测试阶段**：运行单元 + 集成测试，测量覆盖率
-   - **质量门**：验证复合评分 ≥ 85、覆盖率 ≥ 80%
-   - **发布阶段**：更新 changelog，准备提交
+   - 选择 `full-pipeline` 清单种子
+   - 从原语来源实体化 API 设计、实现、审查、测试和发布断言
+   - 请你确认清单优先级与 preflight 决策
+   - 运行有界轮次：L0 Project 取项，L1 Wave 向并行 L2 Task 分派任务
+   - 核验证据后才勾选断言
+   - 在变更源真相前执行 archive gate
 
 Cursor 使用技巧
 
 **手动附加 skill**：输入`@devola-flow` 显式引用
 - **使用 Plan 模式**：Agent 会生成结构化计划而不执行
-- **子代理支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 Wave→Task 委托
+- **子 Agent 支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 L1 Wave → L2 Task 委托
 
 ## Claude Code, 详细设置
 
@@ -98,10 +96,10 @@ claude
 ```
 
 Claude Code 将：
-1. 检测 `full-pipeline` 意图
-2. 使用 `Task` 子代理进行并行实现
-3. 遵循收敛循环确保质量
-4. 最后报告任务质量评分
+1. 检测 `full-pipeline` 种子意图
+2. 锚定可测清单与已签署的 preflight
+3. 使用 L1 Wave 协调和 L2 Task 隔离实现
+4. 重复有证据的有界轮次，直到 archive gate 通过或需要升级
 
 ## GitHub Copilot, 详细设置
 
@@ -140,7 +138,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
 ```

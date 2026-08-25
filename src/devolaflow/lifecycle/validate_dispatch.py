@@ -38,7 +38,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from devolaflow.agent_workspace.layers import (
+    CURRENT_HANDOFF_SCHEMA_VERSION,
+    LEGACY_HANDOFF_SCHEMA_VERSION,
+    normalize_hdr_layer,
+)
 from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
+from devolaflow.lifecycle.preflight_authorization import (
+    collect_preflight_authorization_violations,
+)
 
 EVENT = "pre_dispatch"
 
@@ -101,6 +109,8 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
 
     violations = _collect_accept_violations(payload)
     violations.extend(_collect_ac_v2_violations(payload))
+    violations.extend(_collect_hdr_layer_violations(payload))
+    violations.extend(collect_preflight_authorization_violations(payload))
     return violations
 
 
@@ -149,6 +159,41 @@ def _collect_accept_violations(payload: dict[str, Any]) -> list[HookViolation]:
             )
         ]
 
+    return []
+
+
+def _collect_hdr_layer_violations(payload: dict[str, Any]) -> list[HookViolation]:
+    """Validate ``hdr.layer`` without mutating the dispatch payload.
+
+    ``stage`` is the only retired header token and therefore carries
+    unambiguous legacy-v1 provenance.  Current ``project``/``wave`` values
+    are validated as v16.  The normalizer emits the once-per-context/token
+    legacy warning required by S-5.
+    """
+
+    hdr = payload.get("hdr")
+    if not isinstance(hdr, dict) or "layer" not in hdr:
+        return []
+
+    token = hdr["layer"]
+    schema_version = (
+        LEGACY_HANDOFF_SCHEMA_VERSION if token == "stage" else CURRENT_HANDOFF_SCHEMA_VERSION
+    )
+    try:
+        normalize_hdr_layer(
+            token,
+            schema_version=schema_version,
+            context="validate_dispatch.hdr.layer",
+        )
+    except ValueError as exc:
+        return [
+            HookViolation(
+                code="VD009",
+                message=f"invalid hdr.layer value: {exc}",
+                severity="error",
+                context={"hdr_layer": token},
+            )
+        ]
     return []
 
 

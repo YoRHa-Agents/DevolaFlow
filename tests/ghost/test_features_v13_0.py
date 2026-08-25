@@ -105,18 +105,32 @@ def test_v13_0_0_impeccable_registered(project_root: Path) -> None:
 
 
 def test_v13_0_0_web_design_workflow(project_root: Path) -> None:
-    """W-18 v13.0.0: web-design template exists + registered + wires both plugins."""
+    """W-18 v13.0.0: web-design seed + plugin ownership remain registered."""
+    from devolaflow.plugins.installer import load_registry, resolve_plugin
+    from devolaflow.template_engine.registry import TemplateRegistry
 
-    tpl_path = project_root / "workflow-system/agent/templates/builtin/web-design.yaml"
-    assert tpl_path.is_file(), "W-18 v13.0.0 violation: web-design.yaml missing — release blocker."
-    tpl = yaml.safe_load(tpl_path.read_text(encoding="utf-8"))
-    assert tpl["metadata"]["name"] == "web-design"
-    stage_by_id = {s["id"]: s for s in tpl["stages"]}
-    # v15.2.0 B-6 — key renamed ensure_plugins → suggest_plugins (probe
-    # semantics); the v13.0.0 plugin-pairing contract itself is unchanged.
-    assert stage_by_id["design"]["config"]["suggest_plugins"] == ["ui-pro"]
-    assert stage_by_id["refine"]["config"]["suggest_plugins"] == ["impeccable"]
-    assert stage_by_id["verify"]["config"]["suggest_plugins"] == ["impeccable"]
+    templates_root = project_root / "workflow-system/agent/templates"
+    seed = TemplateRegistry(templates_root).load_seed("web-design")
+    assert seed is not None
+    assert seed.metadata.name == "web-design"
+    assert seed.source_stage_sequence() == [
+        ("design", "design"),
+        ("implement", "implement"),
+        ("refine", "refine"),
+        ("verify", "verify"),
+    ]
+    assert not hasattr(seed, "composition")
+    statements = [
+        assertion.statement_template
+        for partition in seed.partitions
+        for assertion in partition.assertions
+    ]
+    assert any("ui-pro" in statement for statement in statements)
+    assert any("Impeccable" in statement for statement in statements)
+
+    plugins = load_registry(project_root / "workflow-system/agent/knowledge/runtime-plugins.yaml")
+    assert "web-design" in resolve_plugin("ui-pro", plugins).invoked_by_workflows
+    assert "web-design" in resolve_plugin("impeccable", plugins).invoked_by_workflows
 
     registry = yaml.safe_load(
         (project_root / "workflow-system/agent/templates/registry.yaml").read_text(encoding="utf-8")
@@ -125,6 +139,9 @@ def test_v13_0_0_web_design_workflow(project_root: Path) -> None:
     assert "web-design" in names, (
         "W-18 v13.0.0 violation: web-design missing from templates/registry.yaml."
     )
+    entry = next(e for e in registry["templates"] if e["name"] == "web-design")
+    assert entry["seed"] == "seeds/web-design.yaml"
+    assert "path" not in entry
     assert (project_root / "tests/test_template_web_design.py").is_file()
 
 

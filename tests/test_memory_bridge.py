@@ -4,9 +4,9 @@ Closes ``H-006`` from ``.local/research/v8.3.0_gap_analysis.md``. Covers:
 
 * :func:`consolidate_change_on_archive` — happy path, missing change,
   missing learnings.jsonl, dated-folder discovery, malformed JSONL.
-* :func:`hydrate_change_context` — all 7 keys, oversized truncation,
-  missing artifacts, STATUS.yaml parsing, owned_files parsing,
-  learnings parsing.
+* :func:`hydrate_change_context` — the exact 7-key legacy and 9-key checklist
+  payloads, layout-specific truncation budgets, evidence hydration, mixed
+  layout rejection, missing artifacts, and structured parsing.
 
 Per Rule W-9 / SI-10 step 1 — these tests must pass at coverage ≥ 80%
 on ``memory_bridge.py``.
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from devolaflow.agent_workspace import ChangeNotFoundError
+from devolaflow.agent_workspace import ChangeNotFoundError, ChangeStoreError
 from devolaflow.agent_workspace.memory_bridge import (
     TRUNCATION_SENTINEL,
     MemoryBridgeError,
@@ -87,6 +87,45 @@ def _make_active_folder(
         (folder / "owned_files.txt").write_text("\n".join(owned_files) + "\n", encoding="utf-8")
     if learnings is not None:
         _write_jsonl(folder / "learnings.jsonl", learnings)
+    return folder
+
+
+def _make_checklist_active_folder(
+    repo_root: Path,
+    change_id: str,
+    *,
+    goal: str | None = None,
+    checklist: str | None = None,
+    stage: str | None = None,
+    preflight: str | None = None,
+    spec: str | None = None,
+    status: dict | None = None,
+    owned_files: list[str] | None = None,
+    learnings: list[dict] | None = None,
+    evidence: dict[str, str] | None = None,
+) -> Path:
+    """Create a checklist-layout active folder with selected artifacts."""
+    folder = _make_active_folder(
+        repo_root,
+        change_id,
+        goal=goal,
+        spec=spec,
+        status=status,
+        owned_files=owned_files,
+        learnings=learnings,
+    )
+    for filename, text in (
+        ("checklist.md", checklist),
+        ("stage.md", stage),
+        ("preflight.md", preflight),
+    ):
+        if text is not None:
+            (folder / filename).write_text(text, encoding="utf-8")
+    if evidence is not None:
+        evidence_dir = folder / "evidence"
+        evidence_dir.mkdir()
+        for filename, text in evidence.items():
+            (evidence_dir / filename).write_text(text, encoding="utf-8")
     return folder
 
 
@@ -229,7 +268,7 @@ class TestConsolidateChangeOnArchive:
 
 
 class TestHydrateChangeContext:
-    """v8.2.8 — :func:`hydrate_change_context` artifact loader."""
+    """Dual-layout :func:`hydrate_change_context` artifact loader."""
 
     def test_returns_seven_keys(self, tmp_path: Path, monkeypatch) -> None:
         """Change with all 7 artifacts ⇒ dict with all 7 keys present."""
@@ -260,6 +299,95 @@ class TestHydrateChangeContext:
         assert set(result.keys()) == expected, (
             f"hydrate must return exactly the 7 canonical keys; got {set(result.keys())}"
         )
+
+    def test_checklist_returns_exact_nine_keys_and_verbatim_evidence(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Checklist hydration omits legacy keys and preserves ``evidence/*.txt``."""
+        monkeypatch.chdir(tmp_path)
+        _make_checklist_active_folder(
+            tmp_path,
+            "checklist-context",
+            goal="# Goal\nDo X",
+            checklist="# Checklist\n- [ ] C-G1.1 (P0) Do X",
+            stage="# Stage\nRound 1",
+            preflight="# Preflight\nUnsigned",
+            spec="# Spec\nDetails",
+            status={"schema_version": 2, "state": "IN_PROGRESS"},
+            owned_files=["src/foo.py", "tests/test_foo.py"],
+            learnings=[_learning_dict(key="checklist-learning")],
+            evidence={
+                "C-G1.1.txt": "命令: pytest\nPASS without trailing newline",
+                "ignored.log": "not canonical evidence",
+            },
+        )
+
+        result = hydrate_change_context("checklist-context")
+
+        expected = {
+            "goal",
+            "checklist",
+            "stage",
+            "preflight",
+            "spec",
+            "status",
+            "owned_files",
+            "learnings",
+            "evidence",
+        }
+        assert set(result) == expected
+        assert {"acceptance", "tasks"}.isdisjoint(result)
+        assert result["checklist"] == "# Checklist\n- [ ] C-G1.1 (P0) Do X"
+        assert result["stage"] == "# Stage\nRound 1"
+        assert result["preflight"] == "# Preflight\nUnsigned"
+        assert result["evidence"] == {"C-G1.1.txt": "命令: pytest\nPASS without trailing newline"}
+        assert len(result["learnings"]) == 1
+        assert result["learnings"][0].key == "checklist-learning"
+
+    def test_checklist_uses_v16_hydration_budgets(self, tmp_path: Path, monkeypatch) -> None:
+        """Checklist-only artifacts use their v16 C-9 hard ceilings."""
+        monkeypatch.chdir(tmp_path)
+        _make_checklist_active_folder(
+            tmp_path,
+            "checklist-budgets",
+            checklist="c" * (2400 * 4 + 64),
+            stage="s" * (800 * 4 + 64),
+            preflight="p" * (1200 * 4 + 64),
+            status={
+                "schema_version": 2,
+                "state": "IN_PROGRESS",
+                "notes": "x" * 900,
+            },
+        )
+
+        result = hydrate_change_context("checklist-budgets")
+
+        for key, hard_ceiling in (
+            ("checklist", 2400),
+            ("stage", 800),
+            ("preflight", 1200),
+        ):
+            assert TRUNCATION_SENTINEL in result[key]
+            assert len(result[key]) <= hard_ceiling * 4
+        assert "_truncated" not in result["status"], (
+            "schema-v2 STATUS uses the 300-token ceiling, not the legacy 200-token ceiling"
+        )
+
+    def test_checklist_mixed_with_legacy_marker_is_rejected(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Checklist plus tasks.md is INVALID_MIXED and never partially hydrated."""
+        monkeypatch.chdir(tmp_path)
+        folder = _make_checklist_active_folder(
+            tmp_path,
+            "mixed-context",
+            checklist="# Checklist\n",
+            status={"schema_version": 2, "state": "PROPOSED"},
+        )
+        (folder / "tasks.md").write_text("# Legacy tasks\n", encoding="utf-8")
+
+        with pytest.raises(ChangeStoreError, match="INVALID_MIXED"):
+            hydrate_change_context("mixed-context")
 
     def test_truncates_oversized_artifacts(self, tmp_path: Path, monkeypatch) -> None:
         """spec.md > 3000 tokens ⇒ truncated with sentinel."""

@@ -221,10 +221,9 @@ def test_evaluate_gate_signature_byte_identical() -> None:
 
     Pins the v12.4.0 PV-03 D-2 acceptance criterion (3) + the CO-2 / C-3
     "no API break" invariant: the public signature of ``evaluate_gate``
-    MUST remain literally identical to the pre-refactor form so all 101
-    ``tests/test_gate.py`` callers + the 36 ``tests/test_benchmarks.py``
-    scenarios + downstream consumers (W-3 SI-3 harness, PV-06 self-eval)
-    keep working without modification.
+    MUST remain literally identical to the pre-refactor form so the gate
+    callers and downstream W-3 harness consumers keep working without
+    modification.
 
     The signature is captured verbatim in
     :data:`_EVALUATE_GATE_SIGNATURE` and matched against a substring

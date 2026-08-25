@@ -34,8 +34,8 @@ _V12_3_0_PV02_REQUIRED_LITERALS: tuple[str, ...] = (
     "Session Banner Contract",
     "🌸 DevolaFlow",
     "workflow: <type> · mode:",
-    "complete · <stages> stages",
-    "feedback_for_v12.1.1.md",
+    "complete · <rounds> rounds · <waves> waves · <tasks> tasks",
+    "L1/L2 reports MUST NOT include them",
 )
 
 
@@ -112,10 +112,10 @@ _V12_3_0_PV03_REQUIRED_REF_LITERALS: tuple[str, ...] = (
 
 _V12_3_0_PV03_REQUIRED_SKILL_LITERALS: tuple[str, ...] = (
     "L0 ONLY",
-    "Subagents MUST NOT",
+    "subagents MUST NOT load, score, or emit this rubric",
     "references/task-quality-score.md",
-    "loads on-demand",
-    "v12.3.0 PV-03",
+    "rubric loads on-demand",
+    "DevolaFlow vX.Y.Z",
 )
 
 
@@ -130,10 +130,10 @@ def test_v12_3_0_quality_score_extracted_to_reference(project_root: Path) -> Non
       version-literal footer per v12.3.0 PV-02).
     * The SKILL.md stub preserves both v12.1.0 D-1 literals (`L0 ONLY`
       + `Subagents MUST NOT`) so the v12.1.0 W-18 stanza stays GREEN.
-    * The SKILL.md stub cross-links the new reference + cites the
-      v12.3.0 PV-03 closure rationale.
+    * The compact SKILL.md stub cross-links the reference, keeps the
+      L0-only/no-subagent-scoring boundary, and requires a versioned footer.
     * context_profiles.yaml `task_quality_score` anchor block declares
-      the post-collapse line range (478-480 stub region).
+      the current compact SKILL.md range (402-407).
 
     Coupled invariants:
     * SKILL.md stays ≤ 500 lines (C-4) — PV-03 nets ~-22 lines from
@@ -166,8 +166,8 @@ def test_v12_3_0_quality_score_extracted_to_reference(project_root: Path) -> Non
         assert literal in skill_text, (
             f"W-18 v12.3.0 PV-03 violation: {_V12_3_0_SKILL_FILE} stub missing "
             f"literal {literal!r}. The stub MUST preserve both v12.1.0 D-1 "
-            f"literals AND cross-link the new reference AND cite the v12.3.0 "
-            f"PV-03 closure rationale."
+            f"contracts, cross-link the reference, and preserve the versioned "
+            f"L0-only scoring footer."
         )
 
     profiles_path = project_root / _V12_3_0_PV03_CONTEXT_PROFILES
@@ -178,14 +178,11 @@ def test_v12_3_0_quality_score_extracted_to_reference(project_root: Path) -> Non
         f"anchor block. The line-anchor shift MUST be documented so future "
         f"PVs understand the post-collapse coordinates."
     )
-    assert 'lines: "424-427"' in profiles_text, (
+    assert 'lines: "402-407"' in profiles_text, (
         f"W-18 v12.3.0 PV-03 violation: {_V12_3_0_PV03_CONTEXT_PROFILES} missing "
-        f'the post-collapse `lines: "424-427"` anchor for task_quality_score '
-        f"(v12.3.0 PV-03 landed 480-482; re-anchored -1 by the v14.2.2 "
-        f"G-017/G-020 SKILL.md line shifts; re-anchored to the TRUE "
-        f"§'Task Quality Score (L0 ONLY)' header by the v14.5.0 G-019 IA "
-        f"demotion pass). The line-anchor update MUST land in the same PR "
-        f"as the SKILL.md restructure."
+        f'the current `lines: "402-407"` anchor for task_quality_score. '
+        f"The compact range MUST track §'Task Quality Score' and its L0-only body "
+        f"after the 3-layer SKILL.md restructure."
     )
 
 
@@ -225,7 +222,10 @@ _V12_3_0_PV04_EXEC_PROTOCOL: Path = Path("workflow-system/agent/references/execu
 _V12_3_0_PV04_W16_LITERAL: str = "v12.3.0 PV-04 clarification"
 
 
-_V12_3_0_PV04_GIT_STATUS_LITERAL: str = "Working-tree sanity check (v12.3.0 PV-04"
+_V12_3_0_PV04_TROUBLESHOOTING: Path = Path("workflow-system/agent/references/troubleshooting.md")
+
+
+_V12_3_0_PV04_GIT_STATUS_LITERAL: str = "Pre-existing working-tree corruption at cycle entry"
 
 
 _V12_3_0_PV04_EXEC_PROTOCOL_LITERAL: str = "Per-Task-Type Timeout Defaults Helper"
@@ -244,8 +244,8 @@ def test_v12_3_0_telegraph_pickup(project_root: Path) -> None:
     * AGENTS.md (compiled output of `make compile-rules`) also contains
       the v12.3.0 PV-04 W-16 clarification — verifies the compile
       pipeline ran post-edit.
-    * SKILL.md §"Repo-Init Pre-Dispatch Contract" contains the new
-      working-tree sanity check bullet.
+    * references/troubleshooting.md preserves the working-tree sanity
+      procedure after its v14.5.0 extraction from SKILL.md.
     * references/execution-protocol.md contains the new §14
       "Per-Task-Type Timeout Defaults Helper" discovery-hint section
       cross-linking the v12.2.0 PV-04 `default_timeout_for()` helper.
@@ -274,13 +274,14 @@ def test_v12_3_0_telegraph_pickup(project_root: Path) -> None:
             f".cursor/rules/repo-governance.mdc."
         )
 
-    skill_path = project_root / _V12_3_0_SKILL_FILE
-    skill_text = skill_path.read_text(encoding="utf-8")
-    assert _V12_3_0_PV04_GIT_STATUS_LITERAL in skill_text, (
-        f"W-18 v12.3.0 PV-04 violation: {_V12_3_0_SKILL_FILE} missing literal "
+    troubleshooting_path = project_root / _V12_3_0_PV04_TROUBLESHOOTING
+    troubleshooting_text = troubleshooting_path.read_text(encoding="utf-8")
+    assert _V12_3_0_PV04_GIT_STATUS_LITERAL in troubleshooting_text, (
+        f"W-18 v12.3.0 PV-04 violation: {_V12_3_0_PV04_TROUBLESHOOTING} "
+        f"missing literal "
         f"{_V12_3_0_PV04_GIT_STATUS_LITERAL!r}. The Working-tree sanity check "
-        f"bullet MUST land in §'Repo-Init Pre-Dispatch Contract' per the "
-        f"v12.2.0 retrospective §4.3 learning."
+        f"procedure MUST remain discoverable after its v14.5.0 extraction "
+        f"from SKILL.md."
     )
 
     exec_path = project_root / _V12_3_0_PV04_EXEC_PROTOCOL

@@ -216,13 +216,13 @@ def test_install_local_has_compile_rules_kwarg() -> None:
 #     surfaces in a consumer repo).
 #   * tests/test_workspace_context_scan.py — new test file pinning
 #     the scan_workspace() detection contract (6 tests).
-#   * benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json —
-#     W-16 wholesale baseline regen (cycle-start MINOR per W-16).
+#   * docs/cycle-archive/v15.2.0/evobench-baselines/v9.2.0_baseline.json —
+#     archived W-16 wholesale baseline evidence.
 
 _V9_1_1_NEW_FILES: tuple[str, ...] = (
     "src/devolaflow/workspace_context.py",
     "tests/test_workspace_context_scan.py",
-    "benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json",
+    "docs/cycle-archive/v15.2.0/evobench-baselines/v9.2.0_baseline.json",
 )
 
 

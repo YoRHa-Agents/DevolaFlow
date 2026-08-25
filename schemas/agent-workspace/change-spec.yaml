@@ -20,7 +20,7 @@
 design_reference: .local/research/v8.3.0_design.md §2.3
 schema_name: change-spec
 schema_version: 1
-last_updated: "2026-04-22"
+last_updated: "2026-08-25"
 governing_rules: [C-9, A-4]
 adopted_from: openspec
 external_reference: "https://github.com/Fission-AI/OpenSpec"
@@ -135,46 +135,45 @@ invariants:
   - "Source-of-truth at `.local/memory/specs/<delta_target>/spec.md` is updated ONLY at archive time AFTER the gate has PASSED (per A-4 / W-3 SI-3)."
   - "Mergeability check (v8.2.5 reporter module) MUST pass before delta merge into source-of-truth."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
-  - "External references (e.g. OpenSpec, NineS, ui-pro) MUST use canonical GitHub URLs (S-7 / SF-6)."
+  - "External references (e.g. OpenSpec, Codegraph, Si-Chip) MUST use canonical GitHub URLs (S-7 / SF-6)."
 
 # Worked example — illustrative only.
 example: |
   ---
-  parent: v8.3.0-pv04-agent-workspace-schemas
-  delta_target: agent_workspace
+  parent: v16.0.0-built-in-harness-fixtures
+  delta_target: harness
   delta_kind: lite
   ---
 
-  # Operation Spec for v8.3.0-pv04-agent-workspace-schemas
+  # Operation Spec for v16.0.0-built-in-harness-fixtures
 
   ## Purpose
-  Introduce 9 YAML schemas under schemas/agent-workspace/ that declare the
-  artifact contracts for `.local/.agent/active/`, `.local/.agent/handoff/`,
-  `.local/.agent/archive/`, and `.local/memory/specs/`. No Python code
-  consumes these schemas yet — that lands in v8.2.5.
+  Define deterministic built-in harness fixtures that validate dispatch
+  constraints and machine-verifiable acceptance criteria without requiring
+  an external evaluator.
 
   ## ADDED Requirements
 
-  ### Requirement: Per-artifact token budgets are declared in schema
-  The system MUST declare soft and hard token budgets in every per-artifact
-  schema (change-goal, change-acceptance, change-spec, change-tasks,
-  change-status, owned-files, handoff-envelope) per Rule C-9.
+  ### Requirement: Harness fixtures preserve dispatch contracts
+  The system MUST validate each YAML fixture against the canonical dispatch
+  layout and require every machine-verifiable acceptance criterion to have a
+  matching guard id.
 
-  #### Scenario: Loading a schema for budget enforcement
-  - GIVEN an active change at `.local/.agent/active/<id>/`
-  - WHEN `python -m devolaflow.agent_workspace.lint <id>` runs
-  - THEN each artifact's actual token count is compared against the schema's
-    `token_budget.soft` (warn) and `token_budget.hard` (fail) values.
+  #### Scenario: Loading deterministic harness fixtures
+  - GIVEN fixtures under `tests/fixtures/harness/`
+  - WHEN `make test-harness` runs
+  - THEN each fixture id, dispatch shape, guard set, and required report keys
+    are validated locally.
 
-  ### Requirement: Handoff envelopes carry a monotonic seq counter
-  The system MUST embed a `seq: <int>` field starting at 1 in every handoff
-  envelope. Once an envelope file exists at sequence N, the next message MUST
-  be authored at sequence N+1 — never overwrite (S-9).
+  ### Requirement: Harness evidence is archiveable
+  The system MUST route cycle harness evaluations and settled baselines into
+  the cycle archive's `harness/` directory while preserving historical
+  artifact routing.
 
   ## MODIFIED Requirements
 
-  (None — this PV is purely additive.)
+  (None — the fixture contract is additive.)
 
   ## REMOVED Requirements
 
-  (None — this PV is purely additive.)
+  (None — historical archive readers remain compatible.)

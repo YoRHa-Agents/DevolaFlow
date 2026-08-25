@@ -1,0 +1,48 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: product-verification
+  version: "1.0.0"
+  description: "Seed for user-facing product verification."
+  category: composite
+  intent_keywords: [verify, visual, acceptance, interaction, accessibility, uat, e2e, product, quality]
+  source:
+    kind: composition
+    name: product-verification
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: verification-design
+    title_template: "Verification preconditions and design"
+    source_stages:
+      - {id: precondition, primitive: implement}
+      - {id: analyze, primitive: analyze}
+      - {id: design_tests, primitive: design}
+    assertions:
+      - key: coverage-designed
+        statement_template: "Codegraph-informed flows cover visual, interaction, accessibility, and acceptance risks; ui-pro absence has an explicit degraded path"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: execution
+    title_template: "Test implementation and execution"
+    source_stages:
+      - {id: implement_tests, primitive: implement}
+      - {id: execute_dev_tests, primitive: test}
+      - {id: execute_verification, primitive: verify}
+    assertions:
+      - key: axes-pass
+        statement_template: "All four user-facing quality axes satisfy their approved thresholds"
+        suggested_priority: P0
+        verify: {mode: metric, template: "visual_pass and interaction_pass and accessibility_pass and acceptance_pass"}
+  - key: result-convergence
+    title_template: "Review, refinement, and validation"
+    source_stages:
+      - {id: review_results, primitive: review}
+      - {id: refine, primitive: refine}
+      - {id: validate, primitive: validate}
+    assertions:
+      - key: findings-closed
+        statement_template: "Verification findings are resolved and final readiness has zero blockers"
+        suggested_priority: P0
+        verify: {mode: metric, template: "verification_blockers == 0"}

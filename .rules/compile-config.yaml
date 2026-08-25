@@ -73,12 +73,12 @@ targets:
     # (97.6%); the bump leaves headroom for PV-06..PV-N additions and
     # mirrors the cursor-target ceiling so AGENTS.md-aware tools (Codex,
     # KimiCode, Cline, Roo) get the same rule corpus as Cursor users.
-    # Documented in docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md D5.
+    # Historical ADR-005 D5 documents the ceiling bump.
     #
     # v9.0.0 PV-07 (v9.0.0) — bumped 8000 → 12000 to absorb the W-21 Soul-set
     # freeze governance rule (~+30 LOC source). Pre-PV-07 utilization was
     # ~8180/8000 (over budget, dropped workflow layer). Bump preserves the
-    # full 4-layer corpus and gives ~46% headroom for v9.x sustaining
+    # full shared rule corpus and gives ~46% headroom for v9.x sustaining
     # additions per ADR-007 D5.
     #
     # v11.4.0 (this PV) — bumped 12000 → 14000 in lockstep with the cursor

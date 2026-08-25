@@ -2125,17 +2125,17 @@ class TestCompactDirectiveSchema:
         """The v7.3.0 dual-baseline byte-comparison MUST still pass after
         the schema edit (P-02 added only NESTED comments + a directive
         sub-key under pred[*], NOT a new top-level key)."""
-        from tests.test_benchmarks import TestLayoutInvariantBaseline
+        from tests.test_layout_invariant_multi_baseline import TestMultiBaselineByteStability
 
         # Re-run the v7.3.0 baseline comparison directly — if P-02 broke
         # the canonical layout this would fail.
-        TestLayoutInvariantBaseline().test_layout_invariant_baseline_v7_3_0()
+        TestMultiBaselineByteStability().test_v7_3_0_baseline_byte_identical()
 
     def test_v7_0_0_layout_baseline_still_byte_stable(self):
         """The v7.0.0 baseline byte-comparison MUST still pass."""
-        from tests.test_benchmarks import TestLayoutInvariantBaseline
+        from tests.test_layout_invariant_multi_baseline import TestMultiBaselineByteStability
 
-        TestLayoutInvariantBaseline().test_layout_invariant_baseline()
+        TestMultiBaselineByteStability().test_v7_0_0_baseline_byte_identical()
 
 
 class TestChangeContextV5:

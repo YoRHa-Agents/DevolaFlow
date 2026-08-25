@@ -125,7 +125,7 @@ def _extract_layers(payload: dict[str, Any]) -> tuple[str, str]:
     responsible for surfacing the empty values as an AWH001 violation.
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #3), the candidate
+    reduction (historical analysis row #3), the candidate
     enumeration body lives in :func:`_layer_lookup_table`. Behaviour
     is byte-identical to v10.5.x baseline.
     """
@@ -373,7 +373,7 @@ def auto_write_handoff(
     the original Rule S-9 recovery hint reaches the caller).
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #4), the env-flag /
+    reduction (historical analysis row #4), the env-flag /
     payload-shape gate body lives in :func:`_resolve_envelope_inputs`
     and the envelope-write try/except shard lives in
     :func:`_write_envelope_or_violation`. Behaviour is byte-identical

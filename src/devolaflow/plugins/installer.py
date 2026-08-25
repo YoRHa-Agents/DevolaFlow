@@ -2,8 +2,7 @@
 
 Design ref: ``.local/research/v8.3.0_design.md`` §6.
 Closes gap H-001 from ``.local/research/v8.3.0_gap_analysis.md``.
-v8.3.1 PV-01 ref: ``.local/research/v8.4.0_rtk_nines_analysis.md`` §5 +
-``.local/research/v8.4.0_gap_analysis.md`` §2.1 R-001 — adds the
+v8.3.1 PV-01 historical analysis and the v8.4.0 gap analysis §2.1 R-001 add the
 ``curl_install_script`` backend (with cargo fallback) and the optional
 ``verify_distinguish_cmd`` field used to detect name-collisions like RTK
 (Rust Token Killer) vs rtk-type-kit (Rust Type Kit) per RTK INSTALL.md.
@@ -35,7 +34,7 @@ Public API
 Backends
 --------
 ``pip``
-    Single-command install via ``install_cmd``. Used by ``nines``.
+    Single-command install via ``install_cmd``. Used by pip-backed entries.
 
 ``npm_then_init``
     Two-stage install: run ``install_cmd`` (``npm install -g <pkg>``), then for
@@ -59,7 +58,7 @@ Invariants
 - All paths relative to repo root (S-2).
 - External tools referenced by canonical URL (S-7).
 - ``verify_distinguish_cmd`` defaults to ``None`` for additive R5 strict —
-  existing nines + ui-pro entries are byte-identical pre/post v8.3.1.
+  existing pip + npm entries are byte-identical pre/post v8.3.1.
 """
 
 from __future__ import annotations
@@ -379,7 +378,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
         When the entry is malformed (missing required keys).
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #7), the per-backend
+    reduction (historical analysis row #7), the per-backend
     schema validation lives in :func:`_validate_required_keys` and
     :func:`_validate_npm_then_init_keys`. Behaviour byte-identical
     to v10.5.x baseline (verified by ``tests/test_plugins.py`` +
@@ -472,7 +471,7 @@ def _load_defaults(registry: dict[str, Any]) -> RegistryDefaults:
 def _parse_version(output: str) -> str | None:
     """Extract a dotted version token (e.g. ``3.3.0``) from CLI output.
 
-    Handles both ``nines, version 3.3.0`` and ``uipro-cli/2.1.0`` formats.
+    Handles both ``tool, version 3.3.0`` and ``uipro-cli/2.1.0`` formats.
     """
     if not output:
         return None
@@ -722,7 +721,7 @@ def _install_via_npm_then_init(
 #
 # Closes R-001 from .local/research/v8.4.0_gap_analysis.md (RTK plugin).
 # Risk references:
-#   - R-1 / R-2 in .local/research/v8.4.0_rtk_nines_analysis.md §7 — name
+#   - R-1 / R-2 in the historical RTK analysis §7 — name
 #     collision (RTK Rust Token Killer vs rtk-type-kit Rust Type Kit).
 #     Mitigated by ALWAYS pinning canonical_url for the cargo fallback
 #     (NEVER bare `cargo install <pkg>`) and by the mandatory
@@ -854,8 +853,8 @@ def _verify_distinguish(
 ) -> None:
     """Run ``spec.verify_distinguish_cmd`` to detect plugin name-collisions.
 
-    No-op when ``spec.verify_distinguish_cmd`` is ``None`` (the case for all
-    pre-v8.3.1 plugins — nines + ui-pro — preserving R5 strict).
+    No-op when ``spec.verify_distinguish_cmd`` is ``None`` (the case for
+    plugins without a discriminator, including ui-pro, preserving R5 strict).
 
     For RTK, the discriminator is ``rtk gain``: the Rust Token Killer's stats
     command, which is NOT present in rtk-type-kit (Rust Type Kit). A failure
@@ -964,7 +963,7 @@ def ensure_plugin(
     """Ensure ``plugin_id`` is installed at >= its declared ``min_version``.
 
     Resolution chain (matches design.md §6.5 failure-mode catalog +
-    v8.4.0_rtk_nines_analysis.md §5 distinguish-cmd protocol):
+    the historical RTK distinguish-cmd protocol):
 
     1. Load + resolve registry entry.
     2. Probe current version via ``version_check_cmd``; if present AND
@@ -1023,7 +1022,7 @@ def ensure_plugin(
         timeout, version still unparseable post-install, sha mismatch).
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #1), the cache-hit arm
+    reduction (historical analysis row #1), the cache-hit arm
     lives in :func:`_handle_already_installed_path` and the
     network-fetch arm lives in :func:`_handle_install_path`. All 8
     named log events (``plugin_already_installed``, ``plugin_installed``,
@@ -1237,7 +1236,7 @@ def _handle_install_path(
         )
 
     # Distinguish-check is a no-op for plugins without verify_distinguish_cmd
-    # (nines, ui-pro); for RTK it runs `rtk gain` to detect rtk-type-kit
+    # (for example, ui-pro); for RTK it runs `rtk gain` to detect rtk-type-kit
     # name-collisions per the upstream INSTALL.md warning. Loud per S-5.
     try:
         _verify_distinguish(spec, timeout=timeout)
@@ -1359,7 +1358,7 @@ def _parse_log_event_timestamp(
     caller (:func:`read_last_checked`) handles via ``OSError`` catch.
 
     Extracted from :func:`read_last_checked` in v10.2.4 PV-05 self-iteration
-    round 2 to close the NineS PV-03 finding ``CC-a5d310-0003`` (cyclomatic
+    round 2 to close a historical complexity finding (cyclomatic
     complexity 15 in ``read_last_checked``). Behaviour byte-identical to
     the inline pre-extraction body; preserved by the existing
     ``TestReadLastChecked`` suite (5 prior tests) plus the NEW direct-helper

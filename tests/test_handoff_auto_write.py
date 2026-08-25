@@ -67,7 +67,7 @@ def _make_payload(
     *,
     change_id: str = _CHANGE_ID,
     from_layer: str = "L0",
-    to_layer: str = "L3",
+    to_layer: str = "L2",
     include_change_context: bool = True,
 ) -> dict:
     """Build a minimal valid dispatch payload for the auto-write hook.
@@ -213,18 +213,20 @@ def test_env_flag_on_with_change_context_writes_envelope(
     assert result.passed is True
     assert result.violations == []
 
-    expected = _handoff_dir(tmp_path) / f"L0__L3__{_CHANGE_ID}__0001.yaml"
+    expected = _handoff_dir(tmp_path) / f"L0__L2__{_CHANGE_ID}__0001.yaml"
     handoff_dir = _handoff_dir(tmp_path)
     observed = list(handoff_dir.iterdir()) if handoff_dir.exists() else "no handoff dir"
     assert expected.is_file(), (
         f"Action gate violation: envelope MUST be written at {expected!s} (observed: {observed})"
     )
     body = expected.read_text(encoding="utf-8")
+    assert "schema_version: 2" in body
     assert "envelope_kind: TaskDispatch" in body
     assert f"change_id: {_CHANGE_ID}" in body
     assert "seq: 1" in body
     assert "from_layer: L0" in body
-    assert "to_layer: L3" in body
+    assert "to_layer: L2" in body
+    assert "L3" not in body
 
 
 def test_seq_monotonically_increases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -244,7 +246,7 @@ def test_seq_monotonically_increases(tmp_path: Path, monkeypatch: pytest.MonkeyP
             f"call {expected_seq} should have produced seq={expected_seq} cleanly; "
             f"got violations={result.violations}"
         )
-        target = _handoff_dir(tmp_path) / f"L0__L3__{_CHANGE_ID}__{expected_seq:04d}.yaml"
+        target = _handoff_dir(tmp_path) / f"L0__L2__{_CHANGE_ID}__{expected_seq:04d}.yaml"
         assert target.is_file(), f"seq={expected_seq} envelope MUST exist on disk"
 
     files = sorted(_handoff_dir(tmp_path).iterdir())
@@ -276,7 +278,7 @@ def test_envelope_immutable_error_surfaces_as_warning_in_permissive(
     pre_existing = make_envelope(
         seq=1,
         from_layer="L0",
-        to_layer="L3",
+        to_layer="L2",
         change_id=_CHANGE_ID,
         envelope_kind="TaskDispatch",
         payload={
@@ -287,7 +289,8 @@ def test_envelope_immutable_error_surfaces_as_warning_in_permissive(
         },
         created="2026-04-30T00:00:00Z",
     )
-    HandoffStore().write_envelope(pre_existing)
+    pre_existing_path = HandoffStore().write_envelope(pre_existing)
+    original_body = pre_existing_path.read_bytes()
 
     monkeypatch.setattr(HandoffStore, "next_seq", lambda self, change_id: 1)
 
@@ -300,6 +303,7 @@ def test_envelope_immutable_error_surfaces_as_warning_in_permissive(
     assert v.code == "AWH002"
     assert v.severity == "warning"
     assert _CHANGE_ID in v.message
+    assert pre_existing_path.read_bytes() == original_body
 
 
 def test_envelope_immutable_error_raises_in_strict_mode(
@@ -319,7 +323,7 @@ def test_envelope_immutable_error_raises_in_strict_mode(
     pre_existing = make_envelope(
         seq=1,
         from_layer="L0",
-        to_layer="L3",
+        to_layer="L2",
         change_id=_CHANGE_ID,
         envelope_kind="TaskDispatch",
         payload={
@@ -330,13 +334,15 @@ def test_envelope_immutable_error_raises_in_strict_mode(
         },
         created="2026-04-30T00:00:00Z",
     )
-    HandoffStore().write_envelope(pre_existing)
+    pre_existing_path = HandoffStore().write_envelope(pre_existing)
+    original_body = pre_existing_path.read_bytes()
 
     monkeypatch.setattr(HandoffStore, "next_seq", lambda self, change_id: 1)
 
     with pytest.raises(EnvelopeImmutableError) as exc_info:
         auto_write_handoff(_make_payload(), strict=True)
     assert "seq+1" in str(exc_info.value) or "seq=2" in str(exc_info.value)
+    assert pre_existing_path.read_bytes() == original_body
 
 
 # ---------------------------------------------------------------------------
@@ -375,6 +381,14 @@ def test_malformed_payload_surfaces_as_error_in_permissive(
     result3 = auto_write_handoff(payload3)
     assert result3.passed is False
     assert any(v.code == "AWH001" for v in result3.violations)
+
+    payload4 = _make_payload(to_layer="L3")
+    result4 = auto_write_handoff(payload4)
+    assert result4.passed is False
+    assert any(
+        v.code == "AWH001" and "unknown current layer token 'L3'" in v.message
+        for v in result4.violations
+    )
 
     handoff_dir = _handoff_dir(tmp_path)
     assert not handoff_dir.exists() or list(handoff_dir.iterdir()) == [], (
@@ -424,12 +438,12 @@ def test_layer_lookup_falls_through_to_lean_hdr(
     payload = _make_payload(from_layer="L0", to_layer="L2")
     del payload["change_context"]["from_layer"]
     del payload["change_context"]["to_layer"]
-    payload["hdr"] = {"id": "d-001", "from_layer": "L1", "to_layer": "L3"}
+    payload["hdr"] = {"id": "d-001", "from_layer": "L1", "to_layer": "L2"}
 
     result = auto_write_handoff(payload)
     assert result.passed is True
 
-    expected = _handoff_dir(tmp_path) / f"L1__L3__{_CHANGE_ID}__0001.yaml"
+    expected = _handoff_dir(tmp_path) / f"L1__L2__{_CHANGE_ID}__0001.yaml"
     assert expected.is_file()
 
 
@@ -443,12 +457,12 @@ def test_layer_lookup_falls_through_to_verbose_header(
     payload = _make_payload(from_layer="L0", to_layer="L2")
     del payload["change_context"]["from_layer"]
     del payload["change_context"]["to_layer"]
-    payload["header"] = {"from_layer": "L2", "to_layer": "L3"}
+    payload["header"] = {"from_layer": "L2", "to_layer": "L0"}
 
     result = auto_write_handoff(payload)
     assert result.passed is True
 
-    expected = _handoff_dir(tmp_path) / f"L2__L3__{_CHANGE_ID}__0001.yaml"
+    expected = _handoff_dir(tmp_path) / f"L2__L0__{_CHANGE_ID}__0001.yaml"
     assert expected.is_file()
 
 
@@ -493,7 +507,7 @@ def test_dispatch_block_falls_back_to_top_level_task_id(
     result = auto_write_handoff(payload)
     assert result.passed is True
 
-    expected = _handoff_dir(tmp_path) / f"L0__L3__{_CHANGE_ID}__0001.yaml"
+    expected = _handoff_dir(tmp_path) / f"L0__L2__{_CHANGE_ID}__0001.yaml"
     body = expected.read_text(encoding="utf-8")
     assert "task_id: T-VERBOSE" in body
     assert "type: review" in body

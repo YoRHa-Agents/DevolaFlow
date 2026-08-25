@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import os
 import subprocess
 import textwrap
 from pathlib import Path
@@ -425,46 +424,14 @@ class TestCreateDefaultRegistry:
 
     def test_creates_registry_from_repo_yaml(self) -> None:
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
-        nines = reg.get("nines")
-        assert nines is not None
-        assert nines.cli_binary == "nines"
         ui = reg.get("ui-pro")
         assert ui is not None
         assert ui.cli_binary == "uipro"
 
-    def test_repo_yaml_nines_pip_install_command(self) -> None:
-        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
-        nines = reg.get("nines")
-        assert nines is not None
-        expected = "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
-        assert nines.install_methods["pip"] == expected
-
-    def test_repo_yaml_nines_role_and_version(self) -> None:
-        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
-        nines = reg.get("nines")
-        assert nines is not None
-        assert nines.role == "research_and_iteration"
-        # v15.0.0 G-021 — mirrors the owner registry (was 1.0.0 pre-unification).
-        assert nines.min_version == "3.0.0"
-
-    def test_repo_yaml_nines_capabilities(self) -> None:
-        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
-        nines = reg.get("nines")
-        assert nines is not None
-        assert nines.capabilities, "nines plugin should declare capabilities"
-
-    def test_repo_yaml_nines_stage_mapping_and_workflows(self) -> None:
-        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
-        nines = reg.get("nines")
-        assert nines is not None
-        assert "research" in nines.stage_mapping
-        assert "analyze" in nines.stage_mapping
-        assert nines.workflows == ["research-only", "skill-optimization", "self-update"]
-
     def test_auto_discovers_repo_yaml_when_no_arg(self) -> None:
         reg = create_default_registry()
-        assert reg.get("nines") is not None
         assert reg.get("ui-pro") is not None
+        assert len(reg.list_plugins()) == 5
 
     def test_loads_from_yaml_when_explicit(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
@@ -484,7 +451,7 @@ class TestCreateDefaultRegistry:
         # Only plugins from the explicit YAML are registered (no implicit merge
         # with _BUILTIN_SPECS — it no longer exists).
         assert reg.get("extra-tool") is not None
-        assert reg.get("nines") is None
+        assert reg.get("si-chip") is None
         assert reg.get("ui-pro") is None
 
     def test_emergency_stub_when_yaml_missing(
@@ -498,24 +465,18 @@ class TestCreateDefaultRegistry:
 
         with caplog.at_level(_logging.WARNING, logger="devolaflow.plugins.loader"):
             reg = create_default_registry()
-        # Emergency stub provides a minimal NineS entry so detection still works.
-        nines = reg.get("nines")
-        assert nines is not None
-        assert nines.cli_binary == "nines"
-        assert "pip" in nines.install_methods
-        assert reg.get("ui-pro") is None
+        assert reg.list_plugins() == []
         assert any("plugins.yaml not found" in rec.message for rec in caplog.records)
 
     def test_explicit_missing_path_falls_back_to_stub(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # When caller explicitly passes a non-existent path, we do NOT silently
-        # auto-discover the repo YAML — we fall through to the emergency stub
-        # so the caller's intent is preserved.
+        # auto-discover the repo YAML — return an empty registry so the
+        # caller's explicit path intent is preserved.
         monkeypatch.setattr("devolaflow.plugins.loader._find_repo_plugins_yaml", lambda: None)
         reg = create_default_registry(plugins_yaml=tmp_path / "nope.yaml")
-        assert reg.get("nines") is not None
-        assert reg.get("ui-pro") is None
+        assert reg.list_plugins() == []
 
 
 # ===========================================================================
@@ -525,9 +486,8 @@ class TestCreateDefaultRegistry:
 # Closes gap H-001 from .local/research/v8.3.0_gap_analysis.md
 #
 # Coverage targets:
-#   AC-3  runtime-plugins.yaml schema validates (nines pip + ui-pro npm_then_init)
+#   AC-3  runtime-plugins.yaml schema validates
 #   AC-4  precondition stage is first in both workflow YAMLs
-#   AC-7  smoke test against editable nines install (skip if absent)
 #   AC-8  8 failure-mode scenarios from design.md §6.5 — all mocked subprocess
 #   AC-9  ui-pro per-target init failure raises PluginInstallError loudly
 # ===========================================================================
@@ -547,9 +507,6 @@ from devolaflow.plugins import installer as _installer_mod  # noqa: E402
 _REPO_ROOT_V821 = Path(__file__).resolve().parent.parent
 _RUNTIME_PLUGINS_YAML = (
     _REPO_ROOT_V821 / "workflow-system" / "agent" / "knowledge" / "runtime-plugins.yaml"
-)
-_NINES_EDITABLE_PATH = Path(
-    os.environ.get("DEVOLAFLOW_NINES_EDITABLE_PATH", "/home/agent/workspace/NineS")
 )
 
 
@@ -588,7 +545,7 @@ def _write_runtime_registry(
             version_check_cmd: "nines --version"
             min_version: "3.0.0"
             expected_sha256: null
-            canonical_url: "https://github.com/YoRHa-Agents/NineS"
+            canonical_url: "https://example.com/nines-fixture"
             local_fallback_path: {local_fallback_repr}
             invoked_by_workflows:
               - nines-assisted
@@ -644,24 +601,14 @@ class TestRuntimePluginsYamlContract:
     def test_registry_yaml_loads(self) -> None:
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
         # schema_version history:
-        #   v1 (v8.2.1) — initial nines + ui-pro
+        #   v1 (v8.2.1) — initial registry schema
         #   v2 (v8.3.1 PV-01) — curl_install_script backend + rtk
         #   v3 (v9.4.0 PV-04) — upgrade_cmd + upgrade_check_frequency_hours
         #   v4 (v15.2.0 B-6) — tier: require|suggest + auto_install default flip
         # v1..v3 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS.
         assert raw["schema_version"] == 4
         assert isinstance(raw["plugins"], list)
-        # nines + ui-pro + rtk (rtk added in v8.3.1 PV-01).
-        assert len(raw["plugins"]) >= 3
-
-    def test_registry_contains_nines_pip_backend(self) -> None:
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("nines", registry)
-        assert spec.backend == "pip"
-        assert spec.package == "nines"
-        assert spec.version_check_cmd == "nines --version"
-        assert spec.min_version == "3.0.0"
-        assert spec.canonical_url == "https://github.com/YoRHa-Agents/NineS"
+        assert len(raw["plugins"]) == 5
 
     def test_registry_contains_ui_pro_npm_then_init(self) -> None:
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
@@ -690,12 +637,7 @@ class TestRuntimePluginsYamlContract:
 
 
 class TestWorkflowPreconditionWiring:
-    """Assert the precondition/suggest_plugins contracts survive the v15.0.0 collapse.
-
-    nines-assisted (survivor yaml) keeps its precondition stage first;
-    product-verification (composition since v15-ADR-002 Phase B) carries
-    the contract via its manifest params.
-    """
+    """Assert plugin ownership and seed provenance survive registry v3."""
 
     @staticmethod
     def _load_template(rel_path: str) -> dict:
@@ -705,30 +647,27 @@ class TestWorkflowPreconditionWiring:
         return _yaml.safe_load(path.read_text())
 
     def test_nines_assisted_precondition_stage_first(self) -> None:
-        tpl = self._load_template("workflow-system/agent/templates/builtin/nines-assisted.yaml")
-        first = tpl["stages"][0]
-        assert first["id"] == "precondition"
-        assert first["primitive"] == "implement"
-        # v15.2.0 B-6 — renamed ensure_plugins → suggest_plugins (probe
-        # instruction, not a hard precondition).
-        assert first["config"]["suggest_plugins"] == ["nines"]
-        assert tpl["composition"]["stages"][0] == {"stage": "precondition"}
+        """The opaque historical seed remains available without plugin wiring."""
+        from devolaflow.template_engine.registry import TemplateRegistry
+
+        registry = TemplateRegistry(_REPO_ROOT_V821 / "workflow-system/agent/templates")
+        seed = registry.load_seed("nines-assisted")
+        assert seed is not None
+        assert ("precondition", "implement") in seed.source_stage_sequence()
+        assert not hasattr(seed, "composition")
 
     def test_product_verification_precondition_carried_by_composition(self) -> None:
-        """product-verification.yaml was deleted at v15.0.0 (v15-ADR-002 Phase B).
+        """Product-verification retains precondition provenance only."""
+        from devolaflow.template_engine.registry import TemplateRegistry
 
-        The v8.2.1 AC-4 precondition contract (now `suggest_plugins: [ui-pro]`
-        per the v15.2.0 B-6 ensure→suggest rename)
-        is carried over as `params.suggest_plugins` on the
-        `product-verification` composition entry in
-        templates/registry.yaml#compositions (base: web-design).
-        """
-        registry = self._load_template("workflow-system/agent/templates/registry.yaml")
-        entry = next(c for c in registry["compositions"] if c["name"] == "product-verification")
-        assert entry["base"] == "web-design"
-        # v15.2.0 B-6 — the v8.2.1 AC-4 hard precondition is now a
-        # capability probe (suggest_plugins); contract value unchanged.
-        assert entry["params"]["suggest_plugins"] == ["ui-pro"]
+        registry = TemplateRegistry(_REPO_ROOT_V821 / "workflow-system/agent/templates")
+        seed = registry.load_seed("product-verification")
+        assert seed is not None
+        assert ("precondition", "implement") in seed.source_stage_sequence()
+        assert not hasattr(seed, "composition")
+
+        plugin = resolve_plugin("ui-pro", load_registry(_RUNTIME_PLUGINS_YAML))
+        assert "product-verification" in plugin.invoked_by_workflows
 
 
 # ---------------------------------------------------------------------------
@@ -1168,12 +1107,6 @@ class TestInstallLog:
 
 
 # ---------------------------------------------------------------------------
-# AC-7: smoke test against editable nines install at /home/agent/workspace/NineS
-# (skip when absent — CI runners without /home/agent/workspace/NineS pass vacuously)
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # Additional edge-case coverage for installer.py branches
 # ---------------------------------------------------------------------------
 
@@ -1255,7 +1188,7 @@ class TestInstallerEdgeCases:
                     install_cmd: "pip install --upgrade nines"
                     version_check_cmd: "nines --version"
                     min_version: "3.0.0"
-                    canonical_url: "https://github.com/YoRHa-Agents/NineS"
+                    canonical_url: "https://example.com/nines-fixture"
                 defaults:
                   - "this is a list not a mapping"
                 """
@@ -1385,43 +1318,16 @@ class TestInstallerEdgeCases:
             install_cmd="pip install nines",
             version_check_cmd="nines --version",
             min_version="3.0.0",
-            canonical_url="https://github.com/YoRHa-Agents/NineS",
+            canonical_url="https://example.com/nines-fixture",
         )
         # Should complete silently (no raise) even with pip missing.
         _installer_mod._attempt_pip_uninstall(spec, timeout=5)
 
 
-@pytest.mark.skipif(
-    not _NINES_EDITABLE_PATH.exists(),
-    reason=f"{_NINES_EDITABLE_PATH} not present; smoke test requires editable nines install",
-)
-def test_smoke_ensure_plugin_nines_against_editable_install(tmp_path: Path) -> None:
-    """AC-7: invoke ensure_plugin('nines') without mocking subprocess.
-
-    Verifies that version parsing works end-to-end against an actual
-    installed ``nines`` CLI. The registry writes into ``tmp_path`` to isolate
-    the install log. Skipped when the editable checkout is unavailable.
-    """
-    log_file = tmp_path / "install.log"
-    registry_path = _write_runtime_registry(tmp_path)
-    version = ensure_plugin("nines", registry_path=registry_path, log_path=log_file)
-    assert version  # a non-empty version string
-    # Version must satisfy min_version floor = 3.0.0 (the actual editable
-    # checkout ships 3.3.0 at the time of writing; any >= 3.0.0 is acceptable).
-    assert _installer_mod._meets_min(version, "3.0.0"), (
-        f"nines editable install reports version {version!r} < 3.0.0"
-    )
-    events = [json.loads(line) for line in log_file.read_text().splitlines() if line]
-    # Either "plugin_already_installed" (common case on workstation) or
-    # "plugin_installed" (fresh install) is acceptable.
-    assert any(e["event"] in {"plugin_already_installed", "plugin_installed"} for e in events)
-
-
 # ===========================================================================
 # v8.3.1 PV-01 — RTK plugin entry (closes R-001 from v8.4.0_gap_analysis.md)
 # ---------------------------------------------------------------------------
-# Design ref: .local/research/v8.4.0_rtk_nines_analysis.md §5
-#             .local/research/v8.4.0_gap_analysis.md §2.1 R-001
+# Design ref: .local/research/v8.4.0_gap_analysis.md §2.1 R-001
 #
 # Coverage targets:
 #   - rtk presence in canonical runtime-plugins.yaml (3rd entry)
@@ -1457,8 +1363,7 @@ class TestRtkPluginRegistry:
         assert spec.version_check_cmd == "rtk --version"
 
     def test_rtk_min_version_037_or_above(self) -> None:
-        # Pinned to Cargo.toml canonical (NOT README's stale 0.28.2 — see
-        # NineS analysis §3 manual finding 7).
+        # Pinned to Cargo.toml canonical (NOT README's stale 0.28.2).
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
         spec = resolve_plugin("rtk", registry)
         assert spec.min_version == "0.37.2"
@@ -1481,9 +1386,7 @@ class TestRtkPluginRegistry:
 
     def test_rtk_local_fallback_path_is_none(self) -> None:
         # Per S-7: NEVER hardcode local clone paths in agent-facing files.
-        # /home/agent/reference/rtk is the runtime clone for SI-2 NineS
-        # analysis only — it is NOT installed via local_fallback_path.
-        # Also forward-declares shell-proxy workflow id (PV-02 will register).
+        # No runtime clone path is installed via local_fallback_path.
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
         spec = resolve_plugin("rtk", registry)
         assert spec.local_fallback_path is None
@@ -1695,8 +1598,7 @@ class TestRtkCurlScriptHelpers:
         assert "name-collision" in str(exc.value) or "collision" in str(exc.value)
 
     def test_verify_distinguish_no_op_when_field_unset(self) -> None:
-        # R5 strict: when verify_distinguish_cmd is None (the case for
-        # nines + ui-pro pre-v8.3.1 plugins), _verify_distinguish is a
+        # R5 strict: when verify_distinguish_cmd is None, _verify_distinguish is a
         # no-op and does NOT spawn any subprocess.
         spec = RuntimePluginSpec(
             id="nines",
@@ -1705,7 +1607,7 @@ class TestRtkCurlScriptHelpers:
             install_cmd="pip install nines",
             version_check_cmd="nines --version",
             min_version="3.0.0",
-            canonical_url="https://github.com/YoRHa-Agents/NineS",
+            canonical_url="https://example.com/nines-fixture",
             verify_distinguish_cmd=None,  # explicit
         )
         with patch("devolaflow.plugins.installer.subprocess.run") as mock_run:

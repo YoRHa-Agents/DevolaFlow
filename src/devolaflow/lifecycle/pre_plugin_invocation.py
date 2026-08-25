@@ -10,7 +10,7 @@ Bound to the ``pre_plugin_invocation`` event by
 dispatcher knows a stage needs a plugin (resolved via
 ``runtime-plugins.yaml#plugins[*].invoked_by_workflows``), this hook
 auto-invokes :func:`devolaflow.plugins.installer.ensure_plugin` so the
-plugin is installed before the L3 Task Agent attempts to call its
+plugin is installed before the L2 Task Agent attempts to call its
 binary.
 
 Behaviour contract (R5 strict):
@@ -304,7 +304,7 @@ def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookVi
     :func:`ensure_plugin` would surface the registry error loudly.
 
     Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #5), the per-source parsers
+    reduction (historical analysis row #5), the per-source parsers
     live in :func:`_parse_plugin_ids_list`, :func:`_parse_plugin_id_single`,
     and :func:`_parse_workflow_plugins`. Behaviour is byte-identical
     to v10.5.x baseline (verified by ``tests/test_pre_plugin_invocation.py``).
@@ -336,7 +336,7 @@ def _resolve_upgrade_threshold_hours(default: int) -> int:
 
     Defensive helper extracted in v10.2.3 PV-04 so the parent
     :func:`pre_plugin_invocation` does not own the registry-read
-    branching (NineS PV-03 deep-analysis flagged the parent at CC=18;
+    branching (historical complexity analysis flagged the parent at CC=18;
     splitting this off + the per-plugin install/upgrade helper drops it
     below the warn threshold).
 
@@ -382,10 +382,9 @@ def _run_install_then_upgrade_for_plugin(
 ) -> list[HookViolation]:
     """Run ``ensure_plugin`` then optionally ``upgrade_plugin`` for one plugin.
 
-    Helper extracted in v10.2.3 PV-04 to address the NineS PV-03 deep-
-    analysis finding at
-    `.local/research/v10.2.2_nines.md` §2 row #2 (CC=18 in
-    :func:`pre_plugin_invocation`). The parent function's loop body
+    Helper extracted in v10.2.3 PV-04 to address a historical complexity
+    finding (CC=18 in :func:`pre_plugin_invocation`). The parent function's
+    loop body
     here was the dominant complexity contributor: 4 distinct exception
     sinks + the staleness branch + the upgrade branch all stacked into
     one cyclomatic graph.

@@ -24,6 +24,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+import yaml
 
 from devolaflow.entropy_manager import (
     ApplyReport,
@@ -527,11 +528,9 @@ class TestCheckDriftIntegration:
         assert "No drift detected" in buf.getvalue()
 
 
-# ── Integration: entropy-cleanup composition (v15-ADR-002) ──────────────
-# entropy-cleanup.yaml was deleted at v15.0.0 (Phase B collapse per
-# v15-ADR-002); the name lives on as a named composition over the
-# change-driven survivor in templates/registry.yaml#compositions. The
-# original v8.0.0 P-11 pins below are updated to the alias-layer truth.
+# ── Integration: entropy-cleanup checklist seed (registry v3) ───────────
+# The historical name now selects declarative decomposition knowledge.
+# Execution always uses the sole change-driven runtime.
 
 
 class TestEntropyCleanupTemplate:
@@ -539,45 +538,82 @@ class TestEntropyCleanupTemplate:
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
-        assert "entropy-cleanup" in reg.compositions(), (
-            "entropy-cleanup must stay registered as a composition alias "
-            "(v15-ADR-002 >=1-major guarantee)"
-        )
+        seed = reg.load_seed("entropy-cleanup")
+        assert seed is not None
+        assert seed.metadata.name == "entropy-cleanup"
+        assert seed.kind == "checklist-seed"
 
     def test_template_validates(self) -> None:
         from devolaflow.template_engine.registry import TemplateRegistry
-        from devolaflow.template_engine.validator import validate_template
 
         reg = TemplateRegistry()
-        tpl = reg.load_template("entropy-cleanup")
-        assert tpl is not None
-        result = validate_template(tpl)
-        assert result.valid, f"template invalid: {result.errors}"
+        seed = reg.load_seed("entropy-cleanup")
+        assert seed is not None
+        assert seed.partitions
+        assert all(partition.assertions for partition in seed.partitions)
 
     def test_template_resolves_via_change_driven(self) -> None:
-        # Post-collapse the alias resolves to a template SYNTHESIZED from
-        # the manifest entry's C-3 verbatim stage sequence (the deleted
-        # yaml's stages survive byte-equal), with the change-driven base
-        # + stage_aliases recorded under parameters["composition"].
-        from devolaflow.template_engine.registry import TemplateRegistry
+        # Compatibility aliases return the unchanged runtime shape plus
+        # checklist-seed metadata. The seed stages remain provenance only.
+        from devolaflow.template_engine.registry import (
+            ChecklistSeedAliasWarning,
+            TemplateRegistry,
+        )
 
         reg = TemplateRegistry()
-        tpl = reg.load_template("entropy-cleanup")
-        assert tpl is not None
-        assert {s.id for s in tpl.stages} == {"scan", "propose", "review", "apply"}
-        record = tpl.parameters["composition"]
-        assert record["alias_of"] == "change-driven"
-        assert record["params"]["stage_aliases"] == {"propose": "scan", "verify": "review"}
+        seed = reg.load_seed("entropy-cleanup")
+        with pytest.warns(ChecklistSeedAliasWarning, match="load_seed"):
+            alias = reg.load_template("entropy-cleanup")
+        runtime = reg.load_template("change-driven")
+        assert seed is not None and alias is not None and runtime is not None
+        assert seed.source_stage_sequence() == [
+            ("scan", "analyze"),
+            ("propose", "design"),
+            ("review", "review"),
+            ("apply", "implement"),
+        ]
+        assert [stage.id for stage in alias.stages] == [stage.id for stage in runtime.stages]
+        assert alias.parameters["checklist_seed"] == {
+            "name": "entropy-cleanup",
+            "path": "seeds/entropy-cleanup.yaml",
+            "runtime": "change-driven",
+            "compatibility_alias": True,
+        }
+        assert "composition" not in alias.parameters
 
     def test_template_count_matches_survivor_set(self) -> None:
-        # Was `test_template_count_is_23`: the 23-name surface is now
-        # 7 survivor yamls + 16 compositions (v15-ADR-002 survivor set).
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
-        assert len(reg.discover()) == 7
-        assert len(reg.compositions()) == 16
-        assert len(reg.discover()) + len(reg.compositions()) == 23
+        names = [metadata.name for metadata in reg.discover()]
+        assert len(names) == 23
+        assert all(reg.load_seed(name) is not None for name in names)
+        executable = [
+            entry
+            for entry in yaml.safe_load(
+                (Path("workflow-system/agent/templates/registry.yaml")).read_text(encoding="utf-8")
+            )["templates"]
+            if "path" in entry
+        ]
+        assert executable == [
+            {
+                "name": "change-driven",
+                "seed": "seeds/change-driven.yaml",
+                "path": "builtin/change-driven.yaml",
+                "category": "composite",
+                "tags": [
+                    "change",
+                    "propose",
+                    "preflight",
+                    "round",
+                    "archive",
+                    "lifecycle",
+                    "agent-workspace",
+                    "opsx",
+                ],
+                "description": "The sole executable checklist-round lifecycle runtime.",
+            }
+        ]
 
 
 # ── Regression: learnings refactor preserves public API ─────────────────

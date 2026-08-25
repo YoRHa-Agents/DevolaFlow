@@ -4,10 +4,11 @@ Closes C-003 (Python half) per ``.local/research/v8.3.0_gap_analysis.md`` §2.1
 and the M-005 Python binding for ``schemas/agent-workspace/change-status.yaml``.
 
 A :class:`Change` is the in-memory representation of a single
-``.local/.agent/active/<change-id>/`` folder, mapping the seven on-disk
-artifacts (``goal.md`` / ``acceptance.md`` / ``spec.md`` / ``tasks.md`` /
-``STATUS.yaml`` / ``owned_files.txt`` / ``learnings.jsonl``) to attributes
-plus the parsed STATUS frontmatter values.
+``.local/.agent/active/<change-id>/`` folder. During the v16 compatibility
+window it maps either the legacy ``acceptance.md`` + ``tasks.md`` layout or
+the checklist-anchored ``checklist.md`` + ``stage.md`` + ``preflight.md`` +
+``evidence/*.txt`` layout, plus their shared artifacts and parsed STATUS
+values.
 
 The :class:`ChangeStore` exposes list / get / move semantics on top of
 ``.local/.agent/active/`` and ``.local/.agent/archive/``. It is the sole
@@ -38,8 +39,9 @@ from __future__ import annotations
 import logging
 import re
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
@@ -51,12 +53,18 @@ __all__ = [
     "ACTIVE_DIR_DEFAULT",
     "ARCHIVE_DIR_DEFAULT",
     "ARTIFACT_FILES",
+    "ARTIFACT_FILES_V16",
+    "ChecklistProgress",
     "Change",
+    "ChangeLayout",
     "ChangeNotFoundError",
     "ChangeStore",
     "ChangeStoreError",
     "FSM_STATES",
     "STATE_TRANSITIONS",
+    "derive_checklist_progress",
+    "detect_change_layout",
+    "reconcile_round_boundary",
 ]
 
 
@@ -70,6 +78,19 @@ ARTIFACT_FILES: Final[tuple[str, ...]] = (
     "acceptance.md",
     "spec.md",
     "tasks.md",
+    "STATUS.yaml",
+    "owned_files.txt",
+    "learnings.jsonl",
+)
+
+# The checklist-anchored v16 artifact set. ``evidence/*.txt`` is represented
+# separately by ``Change.evidence_files`` because its filenames are dynamic.
+ARTIFACT_FILES_V16: Final[tuple[str, ...]] = (
+    "goal.md",
+    "checklist.md",
+    "stage.md",
+    "preflight.md",
+    "spec.md",
     "STATUS.yaml",
     "owned_files.txt",
     "learnings.jsonl",
@@ -94,6 +115,7 @@ STATE_TRANSITIONS: Final[dict[str, frozenset[str]]] = {
 
 _CHANGE_ID_RE: Final[re.Pattern[str]] = re.compile(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$")
 _DATE_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
+_ISO_UTC_RE: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 class ChangeStoreError(RuntimeError):
@@ -109,13 +131,82 @@ class ChangeNotFoundError(ChangeStoreError):
     """Raised when a change-id is not present in active or archive."""
 
 
+class ChangeLayout(StrEnum):
+    """Canonical active/archive folder layouts supported during the v16 window."""
+
+    LEGACY = "LEGACY"
+    CHECKLIST = "CHECKLIST"
+    INVALID_MIXED = "INVALID_MIXED"
+
+
+@dataclass(frozen=True)
+class ChecklistProgress:
+    """Body-derived checklist counters used by lifecycle guards."""
+
+    total_items: int
+    checked: int
+    reverted_open: int
+
+    @property
+    def percent_complete(self) -> int:
+        """Return deterministic integer progress without trusting frontmatter."""
+
+        if not self.total_items:
+            return 0
+        return self.checked * 100 // self.total_items
+
+    @property
+    def ready_for_verifying(self) -> bool:
+        """Whether the parsed checklist body permits VERIFYING."""
+
+        return self.total_items > 0 and self.checked == self.total_items and self.reverted_open == 0
+
+
+def derive_checklist_progress(checklist_md: str) -> ChecklistProgress:
+    """Derive lifecycle counters from parsed item bodies, never frontmatter."""
+
+    from devolaflow.agent_workspace.round_parser import parse_checklist
+
+    document = parse_checklist(checklist_md)
+    return ChecklistProgress(
+        total_items=len(document.items),
+        checked=sum(item.checked for item in document.items),
+        reverted_open=sum(
+            not item.checked and item.reverted_reason is not None for item in document.items
+        ),
+    )
+
+
+def detect_change_layout(folder: Path | str) -> ChangeLayout:
+    """Detect a change folder's canonical storage layout without mutating it.
+
+    A checklist marker wins only when neither legacy marker is present.
+    Presence of ``checklist.md`` together with ``tasks.md`` or
+    ``acceptance.md`` is an invalid mixed layout. Folders without
+    ``checklist.md`` remain legacy-compatible for the full v16 window.
+    """
+
+    folder_path = Path(folder)
+    if not folder_path.is_dir():
+        raise ChangeNotFoundError(
+            f"change folder {folder_path!s} does not exist or is not a directory"
+        )
+
+    has_checklist = (folder_path / "checklist.md").exists()
+    has_legacy = any((folder_path / name).exists() for name in ("tasks.md", "acceptance.md"))
+    if has_checklist and has_legacy:
+        return ChangeLayout.INVALID_MIXED
+    if has_checklist:
+        return ChangeLayout.CHECKLIST
+    return ChangeLayout.LEGACY
+
+
 @dataclass
 class Change:
     """In-memory representation of one ``.local/.agent/active/<id>/`` folder.
 
-    The seven artifact attributes hold the verbatim on-disk text (or
-    ``None`` when the file is absent — only ``learnings.jsonl`` is
-    legitimately optional). The ``status`` attribute carries the parsed
+    Artifact attributes hold verbatim on-disk text for the detected legacy
+    or checklist layout. The ``status`` attribute carries the parsed
     ``STATUS.yaml`` mapping.
 
     ``Change.from_active_folder(path)`` is the canonical constructor;
@@ -132,6 +223,13 @@ class Change:
     learnings_jsonl: str | None = None
     # Source folder — populated by from_active_folder; useful for diagnostics.
     source_folder: Path | None = None
+    # v16 fields are appended to preserve positional compatibility for all
+    # pre-v16 callers of the dataclass constructor.
+    layout: ChangeLayout = ChangeLayout.LEGACY
+    checklist_md: str = ""
+    stage_md: str = ""
+    preflight_md: str = ""
+    evidence_files: dict[str, str] = field(default_factory=dict)
 
     @property
     def state(self) -> str:
@@ -179,9 +277,11 @@ class Change:
           ChangeStoreError: when STATUS.yaml is malformed (loud per S-5).
         """
         folder_path = Path(folder)
-        if not folder_path.is_dir():
-            raise ChangeNotFoundError(
-                f"change folder {folder_path!s} does not exist or is not a directory"
+        layout = detect_change_layout(folder_path)
+        if layout is ChangeLayout.INVALID_MIXED:
+            raise ChangeStoreError(
+                f"change folder {folder_path!s} has INVALID_MIXED layout: "
+                "checklist.md cannot coexist with tasks.md or acceptance.md"
             )
 
         change_id = _derive_change_id(folder_path.name)
@@ -214,24 +314,40 @@ class Change:
             learnings_path.read_text(encoding="utf-8") if learnings_path.exists() else None
         )
 
+        evidence_files: dict[str, str] = {}
+        if layout is ChangeLayout.CHECKLIST:
+            evidence_dir = folder_path / "evidence"
+            if evidence_dir.is_dir():
+                evidence_files = {
+                    evidence_path.name: evidence_path.read_text(encoding="utf-8")
+                    for evidence_path in sorted(evidence_dir.glob("*.txt"))
+                    if evidence_path.is_file()
+                }
+
         return cls(
             change_id=change_id,
             goal_md=_read("goal.md"),
-            acceptance_md=_read("acceptance.md"),
+            acceptance_md=_read("acceptance.md") if layout is ChangeLayout.LEGACY else "",
             spec_md=_read("spec.md"),
-            tasks_md=_read("tasks.md"),
+            tasks_md=_read("tasks.md") if layout is ChangeLayout.LEGACY else "",
             status=status_data,
             owned_files=owned_files,
             learnings_jsonl=learnings_jsonl,
             source_folder=folder_path,
+            layout=layout,
+            checklist_md=_read("checklist.md") if layout is ChangeLayout.CHECKLIST else "",
+            stage_md=_read("stage.md") if layout is ChangeLayout.CHECKLIST else "",
+            preflight_md=_read("preflight.md") if layout is ChangeLayout.CHECKLIST else "",
+            evidence_files=evidence_files,
         )
 
     def to_active_folder(self, folder: Path | str) -> None:
         """Write this :class:`Change` to ``folder`` (creating it if absent).
 
-        Existing files in ``folder`` are OVERWRITTEN. The seven
-        artifacts are written in the canonical order from
-        :data:`ARTIFACT_FILES`.
+        Existing files in a matching layout are overwritten. A non-empty
+        target with the other layout (or mixed markers) is rejected rather
+        than cleaned or migrated. Only the selected canonical artifact set
+        (:data:`ARTIFACT_FILES` or :data:`ARTIFACT_FILES_V16`) is written.
 
         Round-trip contract (AC-2): when the source was loaded via
         :meth:`from_active_folder`, the output is byte-identical to the
@@ -246,6 +362,34 @@ class Change:
           treats it as opt-in).
         """
         folder_path = Path(folder)
+        layout = ChangeLayout(self.layout)
+        if layout is ChangeLayout.INVALID_MIXED:
+            raise ChangeStoreError("cannot write a Change with INVALID_MIXED layout")
+        if folder_path.exists() and not folder_path.is_dir():
+            raise ChangeStoreError(f"change target {folder_path!s} exists and is not a directory")
+        if folder_path.is_dir() and any(folder_path.iterdir()):
+            target_layout = detect_change_layout(folder_path)
+            if target_layout is ChangeLayout.INVALID_MIXED:
+                raise ChangeStoreError(
+                    f"change target {folder_path!s} has INVALID_MIXED layout; "
+                    "refusing to clean or migrate it implicitly"
+                )
+            if target_layout is not layout:
+                raise ChangeStoreError(
+                    f"change target {folder_path!s} uses {target_layout.value!r} layout, "
+                    f"not {layout.value!r}; refusing implicit migration"
+                )
+
+        evidence_items: list[tuple[str, str]] = []
+        if layout is ChangeLayout.CHECKLIST:
+            for basename, text in self.evidence_files.items():
+                evidence_name = Path(basename)
+                if evidence_name.name != basename or evidence_name.suffix != ".txt":
+                    raise ChangeStoreError(
+                        f"evidence filename {basename!r} must be a .txt basename"
+                    )
+                evidence_items.append((basename, text))
+
         folder_path.mkdir(parents=True, exist_ok=True)
 
         def _write(name: str, text: str, *, newline: str | None = None) -> None:
@@ -266,9 +410,15 @@ class Change:
                 target.write_text(text, encoding="utf-8", newline=newline)
 
         _write("goal.md", self.goal_md)
-        _write("acceptance.md", self.acceptance_md)
+        if layout is ChangeLayout.LEGACY:
+            _write("acceptance.md", self.acceptance_md)
+        else:
+            _write("checklist.md", self.checklist_md)
+            _write("stage.md", self.stage_md)
+            _write("preflight.md", self.preflight_md)
         _write("spec.md", self.spec_md)
-        _write("tasks.md", self.tasks_md)
+        if layout is ChangeLayout.LEGACY:
+            _write("tasks.md", self.tasks_md)
 
         status_yaml = yaml.safe_dump(
             self.status,
@@ -282,6 +432,12 @@ class Change:
         if owned_text and not owned_text.endswith("\n"):
             owned_text += "\n"
         _write("owned_files.txt", owned_text, newline="\n")
+
+        if layout is ChangeLayout.CHECKLIST:
+            evidence_dir = folder_path / "evidence"
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            for basename, text in evidence_items:
+                _write(str(Path("evidence") / basename), text)
 
         if self.learnings_jsonl is not None:
             _write("learnings.jsonl", self.learnings_jsonl, newline="\n")
@@ -315,7 +471,60 @@ class Change:
             owned_files=list(self.owned_files),
             learnings_jsonl=self.learnings_jsonl,
             source_folder=self.source_folder,
+            layout=self.layout,
+            checklist_md=self.checklist_md,
+            stage_md=self.stage_md,
+            preflight_md=self.preflight_md,
+            evidence_files=dict(self.evidence_files),
         )
+
+
+def reconcile_round_boundary(
+    change: Change,
+    *,
+    at: str | None = None,
+) -> Change:
+    """Return a checklist change with body-derived STATUS counters reconciled.
+
+    The helper is side-effect free. An open user revert demotes VERIFYING to
+    IN_PROGRESS, while stage/checklist artifacts and prior round history remain
+    byte-identical.
+    """
+
+    if change.layout is not ChangeLayout.CHECKLIST:
+        return change
+    timestamp = at or _now_iso()
+    if _ISO_UTC_RE.fullmatch(timestamp) is None:
+        raise ChangeStoreError(
+            f"round-boundary timestamp must use YYYY-MM-DDTHH:MM:SSZ; got {timestamp!r}"
+        )
+
+    from devolaflow.agent_workspace.round_parser import parse_stage
+
+    try:
+        progress = derive_checklist_progress(change.checklist_md)
+        stage = parse_stage(change.stage_md)
+    except ValueError as exc:
+        raise ChangeStoreError(
+            f"cannot reconcile checklist round boundary for {change.change_id!r}: {exc}"
+        ) from exc
+    if progress.total_items == 0:
+        raise ChangeStoreError(
+            f"cannot reconcile checklist round boundary for {change.change_id!r}: "
+            "parsed checklist body contains no items"
+        )
+
+    new_status = dict(change.status)
+    new_status["checklist_checked"] = progress.checked
+    new_status["checklist_total"] = progress.total_items
+    new_status["percent_complete"] = progress.percent_complete
+    new_status["current_round"] = stage.current_round
+    if change.state == "VERIFYING" and progress.reverted_open:
+        new_status["state"] = "IN_PROGRESS"
+        new_status["gate_score"] = None
+        new_status["verify_pass"] = None
+    new_status["last_updated"] = timestamp
+    return replace(change, status=new_status)
 
 
 def _fire_file_write_hook(
@@ -428,6 +637,30 @@ class ChangeStore:
 
     def _resolve(self, p: Path) -> Path:
         return p if p.is_absolute() else self.repo_root / p
+
+    def _get_active(self, change_id: str) -> tuple[Change, Path]:
+        target = self.active_root / change_id
+        if not target.is_dir():
+            raise ChangeStoreError(
+                f"operation requires an ACTIVE change; {change_id!r} is absent "
+                f"from {self.active_root!s}"
+            )
+        return Change.from_active_folder(target), target
+
+    @staticmethod
+    def _write_artifact(change: Change, folder: Path, filename: str, text: str) -> None:
+        target = folder / filename
+        _fire_file_write_hook(target, change.owned_files, folder)
+        target.write_text(text, encoding="utf-8")
+
+    def _write_status(self, change: Change, folder: Path) -> None:
+        status_yaml = yaml.safe_dump(
+            change.status,
+            sort_keys=False,
+            default_flow_style=False,
+            allow_unicode=True,
+        )
+        self._write_artifact(change, folder, "STATUS.yaml", status_yaml)
 
     def list_active(self) -> list[str]:
         """Return change-ids of every folder under ``active_root``.
@@ -545,17 +778,88 @@ class ChangeStore:
         :exc:`ChangeStoreError` when the transition is illegal per
         :data:`STATE_TRANSITIONS`.
         """
-        change = self.get(change_id)
+        change, target_folder = self._get_active(change_id)
+        if (
+            change.layout is ChangeLayout.CHECKLIST
+            and change.state == "IN_PROGRESS"
+            and new_state == "VERIFYING"
+        ):
+            try:
+                progress = derive_checklist_progress(change.checklist_md)
+            except ValueError as exc:
+                raise ChangeStoreError(
+                    f"cannot transition checklist change {change_id!r} to VERIFYING: {exc}"
+                ) from exc
+            if not progress.ready_for_verifying:
+                raise ChangeStoreError(
+                    "CHECKLIST_NOT_READY: IN_PROGRESS -> VERIFYING requires the parsed "
+                    "checklist body to have all items checked and zero open reverts "
+                    f"(checked={progress.checked}, total={progress.total_items}, "
+                    f"reverted_open={progress.reverted_open})"
+                )
+            synced_status = dict(change.status)
+            synced_status["checklist_checked"] = progress.checked
+            synced_status["checklist_total"] = progress.total_items
+            synced_status["percent_complete"] = progress.percent_complete
+            change = replace(change, status=synced_status)
+
         updated = change.with_state(new_state)
-        target_folder = self.active_root / change_id
-        if not target_folder.is_dir():
+        if change.layout is ChangeLayout.CHECKLIST:
+            self._write_status(updated, target_folder)
+        else:
+            # Preserve legacy behavior, including its full round-trip hooks.
+            updated.to_active_folder(target_folder)
+        return updated
+
+    def revert_checklist_item(
+        self,
+        change_id: str,
+        item_id: str,
+        reason: str,
+        *,
+        actor: str,
+        at: str | None = None,
+    ) -> Change:
+        """Explicitly persist a user-only checked-item revert.
+
+        Only ``checklist.md`` is written. STATUS reconciliation and any
+        VERIFYING demotion remain an explicit round-boundary operation.
+        """
+
+        change, folder = self._get_active(change_id)
+        if change.layout is not ChangeLayout.CHECKLIST:
             raise ChangeStoreError(
-                f"transition_state requires an ACTIVE change; {change_id!r} is "
-                f"either archived or absent (search: {self.active_root!s})"
+                f"revert_checklist_item requires CHECKLIST layout; got {change.layout.value}"
             )
-        # Round-trip the full Change to disk so STATUS.yaml is rewritten with
-        # the new state + refreshed last_updated stamp.
-        updated.to_active_folder(target_folder)
+
+        from devolaflow.agent_workspace.round_engine import (
+            revert_checklist_item as render_revert,
+        )
+
+        updated_text = render_revert(
+            change.checklist_md,
+            item_id,
+            reason,
+            actor=actor,
+            at=at or _now_iso(),
+        )
+        updated = replace(change, checklist_md=updated_text)
+        self._write_artifact(updated, folder, "checklist.md", updated_text)
+        return updated
+
+    def reconcile_round_boundary(
+        self,
+        change_id: str,
+        *,
+        at: str | None = None,
+    ) -> Change:
+        """Persist body-derived counters and any required revert demotion."""
+
+        change, folder = self._get_active(change_id)
+        updated = reconcile_round_boundary(change, at=at)
+        if updated is change:
+            return change
+        self._write_status(updated, folder)
         return updated
 
     def move_to_archive(self, change_id: str, *, archive_date: str | None = None) -> Path:

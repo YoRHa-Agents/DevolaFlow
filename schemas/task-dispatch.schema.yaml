@@ -71,6 +71,11 @@ fields:
           language: { type: string, optional: true, description: Primary language hint. }
           task_type: { type: string, optional: true, description: Task category for rule selection. }
           quality_focus: { type: list, description: e.g. security, maintainability. }
+          constraint_tiers:
+            type: mapping
+            optional: true
+            value_enum: [invariant, guard, advisory]
+            description: "Optional field-name→constraint-tier metadata. quality_focus and unknown unannotated entries default advisory and remain fully injected."
           reinforcement:
             type: object
             optional: true
@@ -88,6 +93,11 @@ fields:
                   severity: { type: string }
                   mandate: { type: string, description: "Imperative instruction (MUST/SHALL)." }
                   file: { type: string, optional: true }
+                  tier:
+                    type: string
+                    enum: [invariant, guard, advisory]
+                    optional: true
+                    description: "Constraint tier; new tier-aware emitters annotate reinforcement mandates as guard."
               escalation_note: { type: string, optional: true, description: "Context about prior round failure." }
       shared_context:
         type: string

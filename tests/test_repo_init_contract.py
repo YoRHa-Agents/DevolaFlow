@@ -1,14 +1,9 @@
-"""Contract tests for the `repo-init` workflow's canonical_manifest.
+"""Contract tests for the ``repo-init`` checklist seed and owned-file manifest.
 
-Asserts that ``workflow-system/agent/templates/builtin/repo-init.yaml``
-declares the v8.2.3 8-path canonical manifest (5 pre-existing paths +
-3 new ``.agent/*`` substrate paths) per
-``.local/research/v8.3.0_design.md`` §1.1 and §v8.2.3 of the patch plan.
-
-This module is the YAML-side contract gate. Cross-source parity with
-``WORKFLOW_MANIFESTS["repo-init"]`` (in
-``src/devolaflow/lifecycle/validate_owned_files.py``) and the SKILL.md
-table is enforced separately by ``tests/test_canonical_manifest_parity.py``.
+Registry v3 retires the executable ``repo-init.yaml`` while preserving its
+historical stages as non-executable seed provenance. The eight-path dispatch
+contract remains owned by ``WORKFLOW_MANIFESTS["repo-init"]`` and is named by
+the seed's canonical-manifest assertion.
 
 Closes AC-6 + AC-10 of v8.2.3.
 """
@@ -18,10 +13,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
+
+from devolaflow.lifecycle.validate_owned_files import WORKFLOW_MANIFESTS
+from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.seeds import ChecklistSeed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE_PATH = REPO_ROOT / "workflow-system/agent/templates/builtin/repo-init.yaml"
+TEMPLATES_ROOT = REPO_ROOT / "workflow-system/agent/templates"
 
 # Order matches the YAML declaration:
 #   * positions 1..5 — the pre-v8.2.3 paths (preserved per I-PV03-A, additive only)
@@ -39,15 +37,25 @@ EXPECTED_PATHS: list[str] = [
 
 
 @pytest.fixture()
-def repo_init_data() -> dict:
-    """Parse the repo-init template YAML once per test."""
-    return yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
+def repo_init_data() -> ChecklistSeed:
+    """Load and strictly validate the repo-init checklist seed."""
+    seed = TemplateRegistry(TEMPLATES_ROOT).load_seed("repo-init")
+    assert seed is not None
+    return seed
 
 
-def _scaffold_config(data: dict) -> dict:
-    """Return the `scaffold` stage config dict from the parsed YAML."""
-    scaffold = next(s for s in data["stages"] if s["id"] == "scaffold")
-    return scaffold["config"]
+def _scaffold_config(data: ChecklistSeed) -> dict:
+    """Return the manifest plus the seed assertion that names its contract."""
+    assertion = next(
+        assertion
+        for partition in data.partitions
+        for assertion in partition.assertions
+        if assertion.key == "canonical-manifest"
+    )
+    return {
+        "canonical_manifest": list(WORKFLOW_MANIFESTS["repo-init"]),
+        "statement_template": assertion.statement_template,
+    }
 
 
 # ── Manifest cardinality ────────────────────────────────────────────────
@@ -144,15 +152,18 @@ def test_no_absolute_paths_in_manifest(repo_init_data: dict) -> None:
 
 
 def test_mode_parameter_description_mentions_eight_paths(repo_init_data: dict) -> None:
-    """The mode-parameter description MUST cite the v8.2.3 8-path manifest."""
-    desc = repo_init_data["parameters"]["mode"]["description"]
-    assert "8" in desc, f"mode description must mention '8 paths' after v8.2.3; got: {desc!r}"
+    """The seed assertion names the eight-path canonical contract."""
+    statement = _scaffold_config(repo_init_data)["statement_template"]
+    assert "eight canonical workspace paths" in statement.lower()
 
 
 def test_scaffold_stage_description_mentions_agent_substrate(repo_init_data: dict) -> None:
-    """The scaffold-stage description MUST hint at the new .agent/* substrate."""
-    scaffold = next(s for s in repo_init_data["stages"] if s["id"] == "scaffold")
-    desc = scaffold.get("description", "")
-    assert ".agent" in desc, (
-        f"scaffold stage description must mention '.agent' substrate; got: {desc!r}"
-    )
+    """The seed retains scaffold/compile provenance without executable semantics."""
+    assert repo_init_data.source_stage_sequence() == [
+        ("analyze", "analyze"),
+        ("scaffold", "implement"),
+        ("compile", "implement"),
+        ("interview", "analyze"),
+        ("verify", "verify"),
+    ]
+    assert not hasattr(repo_init_data, "composition")

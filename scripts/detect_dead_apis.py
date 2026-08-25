@@ -79,16 +79,10 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # semver — see CHANGELOG `## [9.0.0]` "Adoption notes"). NOT a
         # domain-SSOT registry symbol per A-5.2 — pure read-only filter.
         "devolaflow.agents_md_slice:select_agents_md_slice",
-        # v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild_index() is the
-        # Python entry-point invoked by the Makefile target
-        # `make nines-index-rebuild` via a `python -c "from devolaflow.nines.researcher
-        # import rebuild_index; ..."` subprocess. The dead-API detector only
-        # sees Python callers; the Makefile subprocess invocation does NOT
-        # register as a caller in the AST walk. Allowlisted with this
-        # comment so the W-19 / Workflow Rule W-18 ghost-audit refresh
-        # contract is satisfied. NOT a domain-SSOT registry symbol per
-        # A-5.2 — `rebuild_index` is a pure CLI wrapper around
-        # `nines analyze --target-path . --depth deep --agent-impact --keypoints`.
+        # Legacy external-only compatibility API. The former Makefile caller
+        # no longer exists, but downstream operators may still import this
+        # wrapper while historical NineS integrations age out. This pin makes
+        # that status explicit without claiming an in-repo production caller.
         "devolaflow.nines.researcher:rebuild_index",
         # v10.2.0 PV-01 (D-P-3 closure) — read_installed_si_chip_version is
         # invoked by the si-chip entry's `version_check_cmd` in
@@ -108,8 +102,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # step (`repo-init.yaml::codegraph_init`, `execution: background`)
         # and downstream analyze consumers call them via agent-side
         # `python -c "..."` subprocesses, which the AST walk cannot see —
-        # same shape as `rebuild_index` / `read_installed_si_chip_version`
-        # above. Behaviour pinned by tests/test_codegraph_markers.py; the
+        # same shape as `read_installed_si_chip_version` above. Behaviour
+        # pinned by tests/test_codegraph_markers.py; the
         # W-18 stanza is
         # tests/ghost/test_features_v15_0.py::test_v15_0_x_codegraph_backgrounding_registered.
         # NOT domain-SSOT registry symbols per A-5.2 — pure marker-file
@@ -277,10 +271,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.task_adaptive_selector:escalate_round",
         "devolaflow.nines.advisor:get_research_advice",
         # ---- Compressor module — runtime lean format validators (CO-1) ----
-        # Public API exported via module path; consumed by external workflow
-        # agents and CI checks (validate dispatch/report compliance).
-        "devolaflow.compressor:compress_message",
-        "devolaflow.compressor:validate_lean_format",
+        # Public APIs remain exported from ``devolaflow.compressor`` for
+        # callers, but their definitions moved to ``compressor.transforms``
+        # in the package split. External workflow agents and CI checks use
+        # them to compress messages and validate dispatch/report compliance.
+        # NOT domain-SSOT registry symbols per A-5.2 — both are stateless
+        # transformations with no registration data.
+        "devolaflow.compressor.transforms:compress_message",
+        "devolaflow.compressor.transforms:validate_lean_format",
         # v7.0.0 cache-layout invariant validators — consumed by external
         # workflow agents before sending lean dispatches; mandated by A-2
         # (P6 Preserve Cached Prefix, .rules/architecture.mdc — ex
@@ -441,10 +439,18 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # All exported via devolaflow.template_engine.__all__ for external
         # template authoring tools and the validate-template CLI.
         "devolaflow.template_engine.composer:collect_all_refs",
+        # v16 registry-v3 compatibility window — these two public helpers
+        # remain importable so legacy callers receive the classified
+        # CompositionManifestError retirement message instead of an import
+        # failure. They intentionally have no production caller because
+        # executable composition synthesis/validation is retired; remove
+        # both compatibility APIs and these pins in v17.0.0. NOT domain-SSOT
+        # registry symbols per A-5.2 — they hold no registration data.
+        "devolaflow.template_engine.compositions:composition_to_template",
+        "devolaflow.template_engine.compositions:validate_composition_manifest",
         "devolaflow.template_engine.models:JoinStrategy",
         "devolaflow.template_engine.models:OnExhaustion",
         "devolaflow.template_engine.models:GateFailAction",
-        "devolaflow.template_engine.nines_bridge:nines_commands_to_dispatch_context",
         "devolaflow.template_engine.parser:parse_template_string",
         "devolaflow.template_engine.registry:TemplateRegistry",
         # ---- Runtime stage selector (P-04 in v7.4.9) ----
@@ -800,6 +806,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # contract). NOT a domain-SSOT registry symbol per A-5.2 —
         # pure function with zero module-level state.
         "devolaflow.task_adaptive_selector:default_timeout_for",
+        # v16.0.0 M5b — single-file harness fixture loader. The probe runtime
+        # uses the bounded directory loader, while external harness tooling
+        # and focused fixture diagnostics use this public one-file entry
+        # point. The dead-API detector excludes tests, where filename-to-id
+        # binding and schema validation are pinned. NOT a domain-SSOT
+        # registry symbol per A-5.2 — pure read-and-validate helper with no
+        # module-level registration data.
+        "devolaflow.harness.fixtures:load_harness_fixture",
         # NOTE (v15.0.0 R1): `devolaflow.gate.artifact_score:score_artifact_evidence`
         # was allowlisted here during the v15-ADR-007 phase-2 standalone
         # landing; the entry was REMOVED when the R1 gate wiring gave it a

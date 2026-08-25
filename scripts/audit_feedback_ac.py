@@ -115,15 +115,15 @@ def _parse_version_from_filename(p: Path) -> str:
     Supports:
       - ``feedback_for_v7.7.0.md`` → ``"7.7.0"``
       - ``feedback_for_skill.md``  → ``"skill"``
-      - ``eb070_for_devola_v3.4.0.md`` → ``"3.4.0"`` (EvoBench reports)
-      - ``integration_feedback.md`` → ``"integration_feedback"`` (NineS)
+      - ``eb070_for_devola_v3.4.0.md`` → ``"3.4.0"`` (legacy EvoBench report)
+      - ``integration_feedback.md`` → ``"integration_feedback"`` (legacy NineS report)
     """
     stem = p.stem
     if stem.startswith("feedback_for_v"):
         return stem[len("feedback_for_v") :]
     if stem.startswith("feedback_for_"):
         return stem[len("feedback_for_") :]
-    # EvoBench naming: eb070_for_devola_v3.4.0
+    # Legacy EvoBench naming retained for historical feedback routing.
     m = re.match(r".*_for_devola_v(.+)$", stem)
     if m:
         return m.group(1)
@@ -564,9 +564,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"Error: feedbacks directory not found: {feedbacks_dir}", file=sys.stderr)
         return 2
 
-    # Collect direct user-feedback files + EvoBench automated reports +
-    # NineS integration feedback.  Excludes synthesis/proposal/meta files
-    # (TRACKER.md, README.md, integration_proposal_report_*, etc.).
+    # Collect current direct user feedback plus the two read-only historical
+    # automated-report routes. Keeping the legacy EvoBench and NineS folders
+    # here preserves feedback audit compatibility after their live evaluator
+    # surfaces retired. Synthesis/proposal/meta files remain excluded.
     files: list[Path] = []
     files.extend(sorted(feedbacks_dir.glob("feedback_for_*.md")))
     eb_dir = feedbacks_dir / "from_evobench"

@@ -257,7 +257,7 @@ def from_env(env: dict[str, str] | None = None) -> bool:
 
 
 def cascade_requirement(complexity: Complexity) -> CascadeRequirement:
-    """STANDARD complexity or higher → cascade required (L0→L1→L2→L3); SIMPLE / TRIVIAL → cascade optional (operators may collapse to a single L3)."""  # noqa: E501
+    """STANDARD complexity or higher → cascade required (L0→L1 Wave→L2 Task); SIMPLE / TRIVIAL → cascade optional."""  # noqa: E501
     # v11.1.0 PV-02 (G-CLASSIFY-1 Candidate C — "Rule-based 4-tier collapse
     # with new sibling pure function"). Pure function of ``complexity`` —
     # no env-flag, no dispatcher state, no parameter beyond complexity.

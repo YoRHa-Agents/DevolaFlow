@@ -33,8 +33,8 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
         constants + the schema per-entry fields metric_kind / comparison.
     (d) schemas/lean-dispatch.yaml NEST sub-fields gate.intra_task_convergence
         + gate.intra_task_max_rounds.
-    (e) references/decomposition-gate.md §6.2 (intra-task convergence) +
-        §5.6 (legibility opt-in weight) doc surfaces.
+    (e) references/decomposition-gate.md current intra-task convergence and
+        artifact-evidence gate-weight surfaces.
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.1 G-005 (NEST slice).
     """
@@ -114,13 +114,16 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
     dg_text = (project_root / "workflow-system/agent/references/decomposition-gate.md").read_text(
         encoding="utf-8"
     )
-    for heading in (
-        "### 6.2 Intra-Task Convergence (v14.4.0",
-        "### 5.6 Legibility Opt-In Weight (v14.4.0)",
+    assert "### 5.2 Intra-task convergence and self-verification" in dg_text
+    for contract in (
+        "gate.intra_task_convergence: true",
+        "gate.intra_task_max_rounds: 2",
+        "implement → review → fix → re-review",
+        "artifact_evidence_weight",
+        "STRICT/STANDARD/AUDIT",
     ):
-        assert heading in dg_text, (
-            f"W-18 v14.4.0 violation: decomposition-gate.md missing the "
-            f"section heading starting {heading!r}."
+        assert contract in dg_text, (
+            f"W-18 current-contract violation: decomposition-gate.md missing {contract!r}."
         )
 
 

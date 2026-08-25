@@ -34,7 +34,7 @@ unambiguous:
 * **Branch 1** (4 tests) — v11.1.0 PV-02 stub kept verbatim (no
   regression; pure-function + schema-sentinel + orthogonality tests).
 * **Branch 2** (1 test) — populate-helper propagation test.
-* **Branch 3** (4 tests) — backward-compat (R-1 + R-12 mitigation,
+* **Branch 3** (3 tests) — backward-compat (R-1 + R-12 mitigation,
   CRITICAL): legacy v11.0.x dispatches without the new sub-fields
   flow through cleanly; SIMPLE/TRIVIAL skip cascade validation
   end-to-end.
@@ -88,8 +88,9 @@ from devolaflow.skills.subagent_pattern import (
 _SCHEMA_PATH = Path(__file__).parent.parent / "schemas/lean-dispatch.yaml"
 
 # Truth table mirrors the operator-quotable verdict rule from the decision
-# memo §1: "STANDARD complexity or higher → cascade required (L0→L1→L2→L3);
-# SIMPLE / TRIVIAL → cascade optional (operators may collapse to a single L3)."
+# memo §1: "STANDARD complexity or higher → cascade required
+# (L0→L1 Wave→L2 Task);
+# SIMPLE / TRIVIAL → cascade optional (operators may collapse to one L2 Task)."
 _CASCADE_TRUTH_TABLE: dict[Complexity, str] = {
     "TRIVIAL": "CASCADE_OPTIONAL",
     "SIMPLE": "CASCADE_OPTIONAL",
@@ -249,7 +250,7 @@ def test_cascade_signal_orthogonal_to_force_no_change() -> None:
     )
 
     # Cascade signal is UNCHANGED — STANDARD complexity still requires
-    # the L0→L1→L2→L3 cascade regardless of the workspace override.
+    # the L0→L1 Wave→L2 Task cascade regardless of the workspace override.
     cascade_verdict = cascade_requirement("STANDARD")
     assert cascade_verdict == "CASCADE_REQUIRED", (
         f"cascade_requirement('STANDARD') drifted under force_no_change; "
@@ -277,7 +278,7 @@ def test_cascade_signal_propagation_through_populate_helper() -> None:
     Pins the v11.0.4 PV-04 contract: the opt-in populate helper
     (:func:`devolaflow.feedback.populate_cascade_gate_fields`) deep-copies
     the base dispatch and adds ``gate.cascade_required = True`` +
-    ``gate.cascade_min_layers = 4`` when complexity is STANDARD/COMPLEX.
+    ``gate.cascade_min_layers = 3`` when complexity is STANDARD/COMPLEX.
     For SIMPLE the helper short-circuits per the canonical absence-as-
     default A-2.3 contract — the returned dispatch's ``gate`` block is
     BYTE-IDENTICAL to a deepcopy of the input (NO ``cascade_required``
@@ -295,9 +296,9 @@ def test_cascade_signal_propagation_through_populate_helper() -> None:
         "populate_cascade_gate_fields(complexity='STANDARD') did NOT set "
         "gate.cascade_required = True per feedback.py:570"
     )
-    assert standard_result["gate"]["cascade_min_layers"] == 4, (
+    assert standard_result["gate"]["cascade_min_layers"] == 3, (
         "populate_cascade_gate_fields(complexity='STANDARD') did NOT set "
-        "gate.cascade_min_layers = 4 per feedback.py:571"
+        "gate.cascade_min_layers = 3 per the L0→L1 Wave→L2 Task contract"
     )
     # Pre-existing gate sub-fields preserved (deep copy + sub-field add).
     assert standard_result["gate"]["coverage"] == 85, (
@@ -345,60 +346,44 @@ def test_cascade_signal_propagation_through_populate_helper() -> None:
 # SIMPLE/TRIVIAL dispatches that intentionally omit the cascade signal,
 # MUST pass byte-identically through the validator (no warnings) and
 # MUST NOT have the sub-fields synthesised by the populate helper.
-# These four tests pin the R-1 contract end-to-end.
+# These three tests pin the R-1 contract end-to-end.
 
 
-def test_legacy_dispatch_without_cascade_fields_passes_byte_identically() -> None:
-    """Legacy v11.0.x gate block (no cascade_* keys) → validator returns ``None`` (no raise).
+@pytest.mark.parametrize(
+    "legacy_gate",
+    [
+        pytest.param({"coverage": 85, "quality": 80}, id="cascade-fields-absent"),
+        pytest.param({"cascade_required": False}, id="cascade-explicitly-disabled"),
+    ],
+)
+# def test_legacy_dispatch_with_cascade_required_false_passes
+# Historical W-18 discovery marker; consolidated into the explicit-off parameter above.
+def test_legacy_dispatch_without_cascade_fields_passes_byte_identically(
+    caplog: pytest.LogCaptureFixture,
+    legacy_gate: dict[str, object],
+) -> None:
+    """Legacy absent/disabled cascade signals pass byte-identically.
 
-    R-1 + R-12 backward-compat: a v11.0.x dispatch authored BEFORE the
-    PV-04 schema NEST landed has no ``cascade_required`` key in its
-    ``gate`` block. Even after v12.0.0 PV-02 D-1 STRICT graduation
-    promotes the validator to raise on violations, the legacy
-    short-circuit (``if not cascade_required: return None``) is
-    PRESERVED by construction so legacy dispatches continue to pass
-    byte-identically — no exception, no observable side-effect.
-
-    Verified at scorer.py: ``cascade_required = gate_block.get(...)``
-    + ``if not cascade_required: return None``. The R-12 mitigation
-    in ``.local/research/v12.0.0_gap_analysis.md`` §9 codifies this
-    requirement.
+    R-1 + R-12 backward compatibility covers both a pre-NEST v11.0.x
+    gate block and the explicit ``cascade_required=False`` state. Both
+    trigger ``if not cascade_required: return None`` without mutation,
+    warning, exception, or other observable side effect.
     """
-    legacy_gate = {"coverage": 85, "quality": 80}
+    snapshot = copy.deepcopy(legacy_gate)
 
     # v12.0.0 STRICT contract: returns None (was: returned [] in v11.x).
     # The MUST NOT raise contract is the R-12 carve-out for legacy callers.
-    result = validate_cascade_gate_fields(legacy_gate)
+    with caplog.at_level("WARNING", logger="devolaflow.gate.cascade"):
+        result = validate_cascade_gate_fields(legacy_gate)
 
     assert result is None, (
         f"validate_cascade_gate_fields drifted from the v12.0.0 None return "
-        f"contract on a legacy v11.0.x gate block; got {result!r}, expected None. "
-        "R-12 mitigation broken: legacy dispatches MUST pass byte-identically "
-        "per the v12.0.0 PV-02 D-1 spec."
+        f"contract on legacy gate block {legacy_gate!r}; got {result!r}, expected None. "
+        "R-12 mitigation broken: absent and explicitly disabled cascade signals "
+        "MUST pass byte-identically."
     )
-
-
-def test_legacy_dispatch_with_cascade_required_false_passes() -> None:
-    """``gate.cascade_required = False`` → validator short-circuits, returns ``None``.
-
-    The validator's ``if not cascade_required: return None`` guard
-    (``src/devolaflow/gate/scorer.py`` early-return) treats an explicit
-    ``False`` value identically to absence — both are falsy and trigger
-    the short-circuit return. This pins the R-12 mitigation for the
-    intermediate state where a dispatch carries the schema NEST sub-field
-    but with the default-OFF value: STRICT graduation does NOT raise on
-    explicit-opt-out dispatches.
-    """
-    legacy_gate = {"cascade_required": False}
-
-    result = validate_cascade_gate_fields(legacy_gate)
-
-    assert result is None, (
-        f"validate_cascade_gate_fields drifted from None on cascade_required=False; "
-        f"got {result!r}, expected None. The validator MUST short-circuit on "
-        "any falsy cascade_required per scorer.py early-return; STRICT "
-        "graduation MUST NOT raise on explicit opt-out."
-    )
+    assert legacy_gate == snapshot
+    assert caplog.records == []
 
 
 def test_simple_complexity_skips_cascade_validation() -> None:
@@ -434,10 +419,7 @@ def test_trivial_complexity_skips_cascade_validation() -> None:
 
     Mirror of the SIMPLE test above for the TRIVIAL tier. Both
     OPTIONAL-tier complexities take the same short-circuit path through
-    the ``cascade_requirement(complexity) == "CASCADE_OPTIONAL"`` guard;
-    splitting the test functions per tier (rather than parametrizing)
-    keeps the W-17 NEW-test-function trail unambiguous and lets a future
-    failure point at the EXACT tier that regressed.
+    the ``cascade_requirement(complexity) == "CASCADE_OPTIONAL"`` guard.
     """
     base = {"gate": {"coverage": 85}}
 
@@ -463,78 +445,69 @@ def test_trivial_complexity_skips_cascade_validation() -> None:
 # at v12.0.0 per ``.rules/architecture.mdc`` §A-7.1 verbatim.
 
 
-def test_strict_validator_warns_when_actual_layers_below_min() -> None:
-    """``actual_layers < cascade_min_layers`` → raises :class:`CascadeViolationError`.
-
-    v12.0.0 PV-02 D-1 STRICT contract: when ``cascade_required is True``
-    AND the observed ``actual_layers`` falls below the
-    ``cascade_min_layers`` threshold, the validator now RAISES
-    :class:`CascadeViolationError` (was: returned a warning list in
-    v11.x SOFT mode). The error message MUST contain the substring
-    ``"cascade depth violation"`` — the operator-quotable identifier
-    A-7's strict promotion pattern-matches on.
-    """
+def test_strict_validator_warns_when_actual_layers_below_min(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Legacy min 4 warns and strict-validates against effective min 3."""
     gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+    snapshot = copy.deepcopy(gate_block)
 
-    with pytest.raises(CascadeViolationError) as excinfo:
+    with (
+        caplog.at_level("WARNING", logger="devolaflow.gate.cascade"),
+        pytest.raises(CascadeViolationError) as excinfo,
+    ):
         validate_cascade_gate_fields(gate_block, actual_layers=2)
 
     msg = str(excinfo.value)
-    assert "cascade depth violation" in msg, (
-        f"CascadeViolationError message {msg!r} missing the "
-        "operator-quotable substring 'cascade depth violation' that "
-        "scorer.py emits and that A-7 strict enforcement pattern-matches on."
+    assert "cascade depth violation" in msg
+    assert "actual_layers=2" in msg
+    assert "cascade_min_layers=3" in msg
+    assert "declared cascade_min_layers=4" in msg
+    assert any(
+        "legacy cascade_min_layers=4 interpreted as effective cascade_min_layers=3"
+        in record.getMessage()
+        for record in caplog.records
     )
-    assert "actual_layers=2" in msg and "cascade_min_layers=4" in msg, (
-        f"CascadeViolationError message {msg!r} must echo the depth values "
-        "verbatim per the v12.0.0 PV-02 D-1 message-shape contract."
-    )
+    assert gate_block == snapshot
 
 
-def test_soft_mode_warns_instead_of_raising() -> None:
-    """v12.0.0 PV-02 D-1 BREAKING: STRICT mode now RAISES on cascade-depth violations.
+def test_soft_mode_warns_instead_of_raising(caplog: pytest.LogCaptureFixture) -> None:
+    """Legacy min 4 warns but actual depth 3 passes without input mutation.
 
-    PRE-v12.0.0 (SOFT mode): the validator returned a warning list and
-    never raised. POST-v12.0.0 (STRICT mode, this test): the validator
-    raises :class:`CascadeViolationError` on the FIRST violation.
-
-    Test name retained for cycle-archive trail continuity (the v11.x
-    test pinned SOFT mode; the v12.0.0 graduation flips the assertion
-    while preserving the symbol so the W-18 ghost-audit refresh stays
-    line-anchored to the exact same function name across the MAJOR
-    boundary). Future maintainers who find the name confusing should
-    rename in v12.0.x — but the rename MUST land alongside a
-    ``test_no_ghost_features`` refresh per W-18 sequencing.
+    The historical test name remains ghost-pinned; the validator itself
+    remains strict on genuine depth violations.
     """
     gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+    snapshot = copy.deepcopy(gate_block)
 
-    with pytest.raises(CascadeViolationError):
-        validate_cascade_gate_fields(gate_block, actual_layers=2)
+    with caplog.at_level("WARNING", logger="devolaflow.gate.cascade"):
+        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
 
-
-def test_strict_validator_passes_when_actual_layers_meets_min() -> None:
-    """``actual_layers == cascade_min_layers`` → returns ``None`` (boundary PASS).
-
-    Pins the boundary case that A-7 STRICT enforcement also passes:
-    when the observed layer depth EXACTLY meets the minimum threshold,
-    the validator's strict comparison ``actual_layers <
-    cascade_min_layers`` evaluates False, no exception is raised, and
-    the validator returns ``None``. Confirms the inclusive-min
-    semantics A-7 inherits at v12.0.0 (the SOFT v11.x return-empty-list
-    contract is replaced by return-None, but the inclusive-min
-    boundary is unchanged).
-    """
-    gate_block = {"cascade_required": True, "cascade_min_layers": 4}
-
-    result = validate_cascade_gate_fields(gate_block, actual_layers=4)
-
-    assert result is None, (
-        f"validate_cascade_gate_fields drifted from None at the boundary "
-        f"actual_layers=4 == cascade_min_layers=4; got {result!r}, expected None. "
-        "Inclusive-min semantics broken ('< cascade_min_layers' is "
-        "exclusive of the boundary; v12.0.0 PV-02 D-1 preserved this "
-        "contract from v11.1.0 PV-04)."
+    assert result is None
+    assert any(
+        "legacy cascade_min_layers=4 interpreted as effective cascade_min_layers=3"
+        in record.getMessage()
+        for record in caplog.records
     )
+    assert gate_block == snapshot
+
+
+def test_strict_validator_passes_when_actual_layers_meets_min(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """New min 3 is quiet; other explicit valid minima keep boundary semantics."""
+    gate_blocks = [
+        {"cascade_required": True, "cascade_min_layers": minimum} for minimum in (1, 2, 3, 5)
+    ]
+    snapshots = copy.deepcopy(gate_blocks)
+
+    with caplog.at_level("WARNING", logger="devolaflow.gate.cascade"):
+        for gate_block in gate_blocks:
+            minimum = gate_block["cascade_min_layers"]
+            assert validate_cascade_gate_fields(gate_block, actual_layers=minimum) is None
+
+    assert caplog.records == []
+    assert gate_blocks == snapshots
 
 
 # ── Branch 5 — Cascade-requirement truth-table propagation pipeline ────
@@ -556,8 +529,8 @@ def test_cascade_requirement_propagates_through_populate_then_validate() -> None
        :func:`devolaflow.feedback.populate_cascade_gate_fields`.
     2. STRICT-validate via
        :func:`devolaflow.gate.scorer.validate_cascade_gate_fields` with
-       ``actual_layers=4`` (matches the populated default
-       ``cascade_min_layers=4`` for STANDARD/COMPLEX; for SIMPLE/TRIVIAL
+       ``actual_layers=3`` (matches the populated default
+       ``cascade_min_layers=3`` for STANDARD/COMPLEX; for SIMPLE/TRIVIAL
        no cascade_required key is populated so the validator
        short-circuits via the legacy R-12 path).
     3. Assert SIMPLE/TRIVIAL gate blocks have NO ``cascade_required`` key
@@ -576,17 +549,17 @@ def test_cascade_requirement_propagates_through_populate_then_validate() -> None
         dispatch = populate_cascade_gate_fields(base_dispatch=base, complexity=complexity)
 
         # v12.0.0 STRICT contract: the validator returns None on every
-        # passing path AND raises on violations. With actual_layers=4
+        # passing path AND raises on violations. With actual_layers=3
         # matching the populated min for STANDARD/COMPLEX, NO violation
         # fires. For SIMPLE/TRIVIAL the absence-canonical short-circuit
         # at scorer.py's ``if not cascade_required: return None`` fires
         # before any validation runs.
-        result = validate_cascade_gate_fields(dispatch.get("gate"), actual_layers=4)
+        result = validate_cascade_gate_fields(dispatch.get("gate"), actual_layers=3)
         assert result is None, (
             f"complexity={complexity!r}: validate_cascade_gate_fields drifted from "
-            f"None for actual_layers=4; got {result!r}. Either the populate helper "
-            "wrote a min above 4 (PV-04 contract violation — feedback.py:571 hard-codes "
-            "4) OR the strict validator's R-12 short-circuit broke."
+            f"None for actual_layers=3; got {result!r}. Either the populate helper "
+            "wrote a min above 3 (M2-W1-B contract violation) OR the strict "
+            "validator's R-12 short-circuit broke."
         )
 
         if complexity in ("SIMPLE", "TRIVIAL"):
@@ -604,9 +577,9 @@ def test_cascade_requirement_propagates_through_populate_then_validate() -> None
                 f"complexity={complexity!r}: populate_cascade_gate_fields did NOT "
                 "set gate.cascade_required = True per feedback.py:570."
             )
-            assert dispatch["gate"]["cascade_min_layers"] == 4, (
+            assert dispatch["gate"]["cascade_min_layers"] == 3, (
                 f"complexity={complexity!r}: populate_cascade_gate_fields did NOT "
-                "set gate.cascade_min_layers = 4 per feedback.py:571."
+                "set gate.cascade_min_layers = 3."
             )
 
     # Cross-iteration deep-copy guard: the base dispatch survived all
@@ -685,7 +658,7 @@ def test_cascade_violation_error_message_cites_a7() -> None:
     # Path 3: actual_layers depth violation.
     with pytest.raises(CascadeViolationError) as depth_exc:
         validate_cascade_gate_fields(
-            {"cascade_required": True, "cascade_min_layers": 4}, actual_layers=1
+            {"cascade_required": True, "cascade_min_layers": 3}, actual_layers=1
         )
     assert "A-7" in str(depth_exc.value), (
         f"depth-violation error message {str(depth_exc.value)!r} missing "
@@ -754,23 +727,18 @@ def test_validate_cascade_gate_fields_raises_on_invalid_type() -> None:
 
 
 def test_validate_cascade_gate_fields_raises_on_actual_layers_below_min() -> None:
-    """Depth violation (``actual_layers < cascade_min_layers``) → raises.
+    """Every non-legacy explicit valid minimum rejects depth one below it."""
+    for minimum in (1, 2, 3, 5):
+        actual = minimum - 1
+        gate_block = {"cascade_required": True, "cascade_min_layers": minimum}
 
-    v12.0.0 PV-02 D-1 happy-path STRICT pin: the canonical
-    cascade-depth violation. With ``cascade_required=True``,
-    ``cascade_min_layers=4``, and ``actual_layers=1`` (collapsed
-    L0→L3 dispatch), the validator MUST raise.
-    """
-    gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+        with pytest.raises(CascadeViolationError) as excinfo:
+            validate_cascade_gate_fields(gate_block, actual_layers=actual)
 
-    with pytest.raises(CascadeViolationError) as excinfo:
-        validate_cascade_gate_fields(gate_block, actual_layers=1)
-
-    msg = str(excinfo.value)
-    # Operator-quotable substring + verbatim values.
-    assert "cascade depth violation" in msg
-    assert "actual_layers=1" in msg
-    assert "cascade_min_layers=4" in msg
+        msg = str(excinfo.value)
+        assert "cascade depth violation" in msg
+        assert f"actual_layers={actual}" in msg
+        assert f"cascade_min_layers={minimum}" in msg
 
 
 def test_validate_cascade_gate_fields_returns_none_on_pass() -> None:
@@ -790,7 +758,7 @@ def test_validate_cascade_gate_fields_returns_none_on_pass() -> None:
     # Depth meets min (boundary inclusive-min).
     assert (
         validate_cascade_gate_fields(
-            {"cascade_required": True, "cascade_min_layers": 4}, actual_layers=4
+            {"cascade_required": True, "cascade_min_layers": 3}, actual_layers=3
         )
         is None
     )
@@ -798,7 +766,7 @@ def test_validate_cascade_gate_fields_returns_none_on_pass() -> None:
     # Depth exceeds min.
     assert (
         validate_cascade_gate_fields(
-            {"cascade_required": True, "cascade_min_layers": 4}, actual_layers=5
+            {"cascade_required": True, "cascade_min_layers": 3}, actual_layers=4
         )
         is None
     )
@@ -896,23 +864,23 @@ class TestCascadePatternConsistency:
         """``cascade_required=True`` + ``subagent_pattern="INLINE"`` is consistent.
 
         Pattern 1 INLINE on a CASCADE_REQUIRED dispatch is the canonical
-        single-L3-after-cascaded-L0→L1→L2-chain shape. The cascade
+        single-L2-Task-after-L0→L1-Wave shape. The cascade
         validator (which inspects ONLY the cascade sub-fields) returns
         ``None`` cleanly because the pattern sub-field is orthogonal —
         it does NOT feed into the depth-violation check. INLINE means
-        "single L3 dispatched via the ``Task`` tool"; the L0/L1/L2
+        "single L2 Task dispatched via the ``Task`` tool"; the L0/L1 Wave
         cascade chain still happens — the ``subagent_pattern`` only
         identifies the leaf-level dispatch shape.
         """
         gate_block = {
             "cascade_required": True,
-            "cascade_min_layers": 4,
+            "cascade_min_layers": 3,
             "subagent_pattern": "INLINE",
         }
 
         # Validate-cascade returns None when actual_layers >= min (the
         # cascade is honoured; pattern is orthogonal).
-        result = validate_cascade_gate_fields(gate_block, actual_layers=4)
+        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
         assert result is None, (
             f"validate_cascade_gate_fields drifted from None on "
             f"cascade_required=True + subagent_pattern=INLINE; got {result!r}. "
@@ -925,18 +893,18 @@ class TestCascadePatternConsistency:
         """``cascade_required=True`` + ``subagent_pattern="FAN_OUT"`` is consistent.
 
         Pattern 2 FAN_OUT on a CASCADE_REQUIRED dispatch is the
-        canonical v12.0.0 cascaded-fan-out shape: L0 → L1 → L2 →
-        parallel L3 wave (max 5 per ``references/agent-hierarchy.md``
+        canonical cascaded-fan-out shape: L0 → L1 Wave →
+        parallel L2 Tasks (max 5 per ``references/agent-hierarchy.md``
         §5). The cascade validator returns ``None`` cleanly because
         the pattern sub-field is orthogonal to the depth check.
         """
         gate_block = {
             "cascade_required": True,
-            "cascade_min_layers": 4,
+            "cascade_min_layers": 3,
             "subagent_pattern": "FAN_OUT",
         }
 
-        result = validate_cascade_gate_fields(gate_block, actual_layers=4)
+        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
         assert result is None, (
             f"validate_cascade_gate_fields drifted from None on "
             f"cascade_required=True + subagent_pattern=FAN_OUT; got {result!r}."
@@ -959,11 +927,11 @@ class TestCascadePatternConsistency:
         """
         gate_block = {
             "cascade_required": True,
-            "cascade_min_layers": 4,
+            "cascade_min_layers": 3,
             "subagent_pattern": "AGENT_POOL_FORWARD",
         }
 
-        result = validate_cascade_gate_fields(gate_block, actual_layers=4)
+        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
         assert result is None, (
             f"validate_cascade_gate_fields drifted from None on "
             f"cascade_required=True + subagent_pattern=AGENT_POOL_FORWARD; "
@@ -1083,9 +1051,9 @@ class TestCascadePatternConsistency:
         # into v12.0.0 PV-04 subagent-pattern wiring).
         intermediate_gate = {
             "cascade_required": True,
-            "cascade_min_layers": 4,
+            "cascade_min_layers": 3,
         }
-        assert validate_cascade_gate_fields(intermediate_gate, actual_layers=4) is None, (
+        assert validate_cascade_gate_fields(intermediate_gate, actual_layers=3) is None, (
             "Intermediate gate block (cascade_required=True, no "
             "subagent_pattern) drifted from None — A-2.3 absence-canonical "
             "contract broken."
@@ -1104,7 +1072,7 @@ class TestCascadePatternConsistency:
         """
         base = {"gate": {"coverage": 85}}
 
-        # Canonical FAN_OUT case: STANDARD complexity, 3 parallel L3
+        # Canonical FAN_OUT case: STANDARD complexity, 3 parallel L2
         # tasks with disjoint owned files. select_pattern verdict is
         # FAN_OUT per its decision rule (task_count >= 2 AND
         # parallel_independence is True AND not persistent_state_needed).
@@ -1121,9 +1089,9 @@ class TestCascadePatternConsistency:
             "populate_cascade_gate_fields(STANDARD, ...) did NOT set "
             "gate.cascade_required = True — v11.1.0 PV-04 contract broken."
         )
-        assert result["gate"]["cascade_min_layers"] == 4, (
+        assert result["gate"]["cascade_min_layers"] == 3, (
             "populate_cascade_gate_fields(STANDARD, ...) did NOT set "
-            "gate.cascade_min_layers = 4 — v11.1.0 PV-04 contract broken."
+            "gate.cascade_min_layers = 3 — M2-W1-B contract broken."
         )
 
         # Subagent-pattern sub-field populated per v12.0.0 PV-04
@@ -1152,7 +1120,7 @@ class TestCascadePatternConsistency:
         """SIMPLE complexity dispatches don't trigger the consistency check.
 
         Per A-7.1 (cascade is OPTIONAL for SIMPLE/TRIVIAL): even when
-        the L3 caller passes the four v12.0.0 PV-04 axes for a SIMPLE
+        the L2 Task caller passes the four v12.0.0 PV-04 axes for a SIMPLE
         complexity dispatch, the cascade validator MUST NOT raise
         because the ``cascade_required`` sub-field is OMITTED (the
         helper short-circuits at the
