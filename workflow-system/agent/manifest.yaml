@@ -14,6 +14,9 @@
 #                                     profile at import time
 #   * src/devolaflow/init_project.py — devola-init copies per profile via
 #                                     devolaflow.install_manifest.load_manifest
+#   * packages/npm/bin/devola-flow.js — npx installer fetches this file at the
+#                                     package-version tag and derives its
+#                                     download list per install_profiles
 #   * scripts/scaffold_reference.py — appends new references/<name>.md entries
 #                                     to the `references:` list below
 #

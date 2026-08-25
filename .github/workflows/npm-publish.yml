@@ -1,0 +1,45 @@
+# v17.0.0 R6 — publish @yorha-agents/devola-flow (packages/npm) to the npm
+# registry on version-tag push. The package is a thin installer over the
+# install-manifest SSOT (workflow-system/agent/manifest.yaml); it ships no
+# skill files, so publishing is safe on every release tag.
+#
+# Fail-fast contract: the tag MUST equal packages/npm/package.json version
+# (both are managed by scripts/bump_version.py per Rule C-6) — a mismatch
+# aborts before any registry interaction.
+name: npm publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  # Required for `npm publish --provenance` (Sigstore attestation via the
+  # GitHub OIDC token).
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./packages/npm/package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match packages/npm/package.json version ${PKG_VERSION} — run scripts/bump_version.py before tagging"
+            exit 1
+          fi
+          echo "tag ${GITHUB_REF_NAME} matches package version ${PKG_VERSION}"
+      - name: Publish to npm
+        working-directory: packages/npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

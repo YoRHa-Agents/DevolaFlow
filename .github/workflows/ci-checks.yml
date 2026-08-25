@@ -93,3 +93,26 @@ jobs:
         run: make check-drift
       - name: Check cursor-skill mirror (W-9 gate 6)
         run: make check-cursor-skill
+
+  # v17.0.0 R6 — npm installation surface (packages/npm). Offline-only checks:
+  # syntax, --help/--version smoke, and a pack dry-run (tarball allowlist).
+  # Publishing lives in npm-publish.yml (tag-triggered). Like check/test/
+  # validate, this job carries no needs: edges (D11 — parallel by default).
+  npm-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax-check installer bin
+        run: node --check packages/npm/bin/devola-flow.js
+      - name: Bin smoke test (offline)
+        run: |
+          node packages/npm/bin/devola-flow.js --help
+          node packages/npm/bin/devola-flow.js --version
+      - name: npm pack (dry run)
+        working-directory: packages/npm
+        run: npm pack --dry-run

@@ -423,7 +423,7 @@ devola-init claude --global
 Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 7.4.3            # updates all 9 version locations (6 canonical sync locations across 7 files per CP-3; README badge + demo SAMPLE_DATA are render/load-time derived per C-6)
+python scripts/bump_version.py 7.4.3            # updates all 10 version locations (7 canonical sync locations across 8 files incl. packages/npm/package.json; README badge + demo SAMPLE_DATA are render/load-time derived per C-6)
 python scripts/bump_version.py 7.4.3 --dry-run   # preview without writing
 ```
 

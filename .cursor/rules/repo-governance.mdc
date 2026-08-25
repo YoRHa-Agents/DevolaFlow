@@ -418,7 +418,7 @@ Source: SF-2.
 
 ## C-6 — Version Consistency
 
-The version string must match `src/devolaflow/__init__.py` `__version__` in ALL canonical 6 locations:
+The version string must match `src/devolaflow/__init__.py` `__version__` in ALL canonical 7 locations:
 
 1. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:" text
 2. `workflow-system/agent/workflow-skill.yaml` — identity section
@@ -426,6 +426,7 @@ The version string must match `src/devolaflow/__init__.py` `__version__` in ALL 
 4. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
 5. `tests/test_smoke.py` — version assertion
 6. `README.md` — version example (`prints "DevolaFlow vX.Y.Z"`)
+7. `packages/npm/package.json` — npm installer `version` field (v17.0.0 R6; publish workflow fail-fasts on tag/version mismatch)
 
 Two former locations are DERIVED, not pattern-managed (v14.4.0 G-031): the `README.md` version badge is a shields.io dynamic TOML badge that reads `pyproject.toml` from the GitHub raw URL at render time, and `workflow-system/human/demo/benchmark-results/index.html` derives its displayed version at load time from `version-timeline/versions.json` (newest entry; its in-file `SAMPLE_DATA` literal is a clearly-marked `file://` fallback that MAY lag and is intentionally NOT synced by `scripts/bump_version.py`).
 

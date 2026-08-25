@@ -71,6 +71,16 @@ VERSION_LOCATIONS = [
         "pattern": r'assert devolaflow\.__version__\s*==\s*"[^"]+"',
         "replacement": 'assert devolaflow.__version__ == "{version}"',
     },
+    # v17.0.0 R6 (Rule C-6): the npm installation surface. The package version
+    # doubles as the default download ref (v<version> tag) in
+    # packages/npm/bin/devola-flow.js, and npm-publish.yml refuses to publish
+    # when the pushed tag differs from it. The count=1 substitution relies on
+    # the package "version" key being the FIRST "version" match in the file.
+    {
+        "path": "packages/npm/package.json",
+        "pattern": r'"version":\s*"[^"]+"',
+        "replacement": '"version": "{version}"',
+    },
 ]
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(-[\w.]+)?$")

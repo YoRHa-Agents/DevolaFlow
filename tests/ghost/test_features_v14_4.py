@@ -383,6 +383,9 @@ def test_v14_4_0_version_sync_fanout_reduction_registered(project_root: Path) ->
         corpus targets).
     (d) scripts/bump_version.py VERSION_LOCATIONS shrinks to 9 patterns
         across 7 unique files — neither derived surface is pattern-managed.
+        (v17.0.0 R6 later grew the set to 10 patterns / 8 files by adding
+        packages/npm/package.json; the G-031 pin is that the two DERIVED
+        surfaces stay out, not the absolute count.)
 
     Source: .local/research/v14.2.0_gap_analysis.md §2 G-031.
     """
@@ -426,7 +429,11 @@ def test_v14_4_0_version_sync_fanout_reduction_registered(project_root: Path) ->
         "DERIVED-surfaces paragraph (G-031)."
     )
 
-    # --- (d) VERSION_LOCATIONS shrunk to 9 patterns / 7 files --------------
+    # --- (d) VERSION_LOCATIONS: the two DERIVED surfaces stay absent --------
+    # G-031 shrank the set to 9 patterns / 7 files; v17.0.0 R6 grew it to
+    # 10 patterns / 8 files by appending packages/npm/package.json (the npm
+    # installation surface — a legitimate C-6 addition, not a G-031
+    # regression: neither derived surface returned, per the pins below).
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -437,13 +444,14 @@ def test_v14_4_0_version_sync_fanout_reduction_registered(project_root: Path) ->
     spec.loader.exec_module(bump_mod)
     locations = bump_mod.VERSION_LOCATIONS
     paths = [loc["path"] for loc in locations]
-    assert len(locations) == 9, (
-        f"W-18 v14.4.0 violation: VERSION_LOCATIONS has {len(locations)} "
-        "patterns, expected 9 (G-031 fan-out reduction)."
+    assert len(locations) == 10, (
+        f"W-18 violation: VERSION_LOCATIONS has {len(locations)} patterns, "
+        "expected 10 (9 post-G-031 + packages/npm/package.json per v17 R6)."
     )
-    assert len(set(paths)) == 7, (
-        f"W-18 v14.4.0 violation: VERSION_LOCATIONS spans {len(set(paths))} "
-        "files, expected 7 (1 source-of-truth + 6 canonical sync per C-6)."
+    assert len(set(paths)) == 8, (
+        f"W-18 violation: VERSION_LOCATIONS spans {len(set(paths))} files, "
+        "expected 8 (1 source-of-truth + 7 canonical sync per C-6, "
+        "incl. packages/npm/package.json since v17 R6)."
     )
     assert "workflow-system/human/demo/benchmark-results/index.html" not in paths, (
         "W-18 v14.4.0 violation: the benchmark-demo page regressed into "

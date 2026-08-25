@@ -61,5 +61,5 @@ that hand-edits the compiled outputs (drift detection via `.rules/.compile-hashe
 
 - Python 3.11+, ruff for lint/format, pytest for tests
 - Coverage floor: 80% (`pyproject.toml [tool.coverage]`)
-- Version tracked across 6 canonical sync locations (7 files, rooted in `src/devolaflow/__init__.py`) — use `scripts/bump_version.py`; README badge + benchmark-demo version are render/load-time derived per C-6
+- Version tracked across 7 canonical sync locations (8 files, rooted in `src/devolaflow/__init__.py`) — use `scripts/bump_version.py`; README badge + benchmark-demo version are render/load-time derived per C-6
 - All paths in agent-facing files must be relative to repo root
