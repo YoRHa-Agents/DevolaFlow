@@ -554,3 +554,128 @@ def test_approved_apply_is_atomic_audited_idempotent_and_drift_safe(
         )
         == 2
     )
+
+
+# ---------------------------------------------------------------------------
+# v17.0.0 R5 (G17-B6 / D-R5-1) — meta.capacity.* AUTO_CONFIG targets.
+# ---------------------------------------------------------------------------
+
+
+def test_capacity_targets_are_auto_config_with_range_validation() -> None:
+    """The four meta.capacity paths are allowlisted with owner-module ranges.
+
+    Range validation mirrors the layer_token_budgets precedent but sources
+    its bounds from ``harness.capacity.CAPACITY_TARGET_RANGES`` (A-5 — the
+    reader and the proposal loop share one table). ``stage.capacity_per_round``
+    stays CHANGE_REQUIRED: per-change capacity edits remain human-reviewed.
+    """
+    from devolaflow.harness.capacity import CAPACITY_TARGET_RANGES
+
+    evaluation = {"sampled_at": "2026-08-25T00:00:00+00:00", "verdict": "NOT_READY"}
+    targets = [
+        {
+            "path": "meta.capacity.round_capacity",
+            "value": 4,
+            "model_hint": "frontier",
+        },
+        {"path": "meta.capacity.max_concurrency", "value": 8, "model_hint": "frontier"},
+        {"path": "meta.capacity.stop_guard.stagnation_rounds", "value": 3},
+        {"path": "meta.capacity.stop_guard.unsuccessful_item_rounds", "value": 4},
+    ]
+    proposal = build_proposal(evaluation, cycle="v17.0.0", targets=targets)
+    assert proposal["apply_mode"] == "AUTO_CONFIG"
+
+    stage_capacity = build_proposal(
+        evaluation,
+        cycle="v17.0.0",
+        targets=[{"path": "stage.capacity_per_round", "value": 4}],
+    )
+    assert stage_capacity["apply_mode"] == "CHANGE_REQUIRED"
+
+    for path, (lo, hi) in CAPACITY_TARGET_RANGES.items():
+        for bad_value in (lo - 1, hi + 1, True, str(hi)):
+            with pytest.raises(ProposalError, match=f"integer in \\[{lo}, {hi}\\]"):
+                build_proposal(
+                    evaluation,
+                    cycle="v17.0.0",
+                    targets=[{"path": path, "value": bad_value}],
+                )
+
+
+def test_capacity_proposal_apply_roundtrip_patches_declared_block(
+    tmp_path: Path,
+) -> None:
+    """An approved capacity proposal patches a DECLARED meta.capacity block.
+
+    The apply transaction never creates config structure: on a dark config
+    (no ``meta.capacity`` block) the same apply fails loudly with the
+    existing path-does-not-exist error, preserving the R5 dark-shipping
+    contract.
+    """
+    config_path = tmp_path / "workflow-system" / "agent" / "context_profiles.yaml"
+    config_path.parent.mkdir(parents=True)
+    dark_config = {"meta": {"budget_hard_cap_tokens": 8000}}
+    declared_config = {
+        "meta": {
+            "budget_hard_cap_tokens": 8000,
+            "capacity": {
+                "round_capacity": 5,
+                "max_concurrency": 4,
+                "stop_guard": {"stagnation_rounds": 2, "unsuccessful_item_rounds": 3},
+            },
+        }
+    }
+    config_path.write_text(yaml.safe_dump(declared_config, sort_keys=False), encoding="utf-8")
+
+    evaluation = {"sampled_at": "2026-08-25T00:00:00+00:00", "verdict": "NOT_READY"}
+    proposal = build_proposal(
+        evaluation,
+        cycle="v17.0.0",
+        targets=[
+            {"path": "meta.capacity.max_concurrency", "current": 4, "value": 6},
+            {"path": "meta.capacity.round_capacity", "current": 5, "value": 4},
+        ],
+    )
+    proposal_path = write_proposal(proposal, tmp_path / ".local/research/capacity.yaml")
+    approval = {
+        "schema_version": 1,
+        "proposal_id": proposal["proposal_id"],
+        "proposal_sha256": hashlib.sha256(proposal_path.read_bytes()).hexdigest(),
+        "decision": "APPROVE",
+        "approved_by": "operator",
+        "approved_at": "2026-08-25T00:01:00+00:00",
+        "approved_targets": proposal["targets"],
+    }
+    approval_path = tmp_path / ".local/research/capacity.approval.yaml"
+    approval_path.write_text(yaml.safe_dump(approval, sort_keys=False), encoding="utf-8")
+    ledger_path = tmp_path / ".local/telemetry/harness.jsonl"
+
+    status = apply_approved_proposal(
+        proposal_path,
+        approval_path,
+        repo_root=tmp_path,
+        config_path=config_path,
+        ledger_path=ledger_path,
+    )
+    assert status == "APPLIED"
+    patched = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert patched["meta"]["capacity"]["max_concurrency"] == 6
+    assert patched["meta"]["capacity"]["round_capacity"] == 4
+    assert patched["meta"]["capacity"]["stop_guard"] == {
+        "stagnation_rounds": 2,
+        "unsuccessful_item_rounds": 3,
+    }
+    event = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert event["event"] == "proposal_applied"
+
+    # Dark config → the apply path refuses to create the missing block.
+    config_path.write_text(yaml.safe_dump(dark_config, sort_keys=False), encoding="utf-8")
+    ledger_path.unlink()
+    with pytest.raises(ProposalError, match="does not exist in config"):
+        apply_approved_proposal(
+            proposal_path,
+            approval_path,
+            repo_root=tmp_path,
+            config_path=config_path,
+            ledger_path=ledger_path,
+        )

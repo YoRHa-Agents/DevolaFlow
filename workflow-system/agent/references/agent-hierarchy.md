@@ -198,6 +198,12 @@ ceiling and classifies failure as retry, escalate, or abort.
 | Research/design task target | ≤45 minutes |
 | Writable overlap inside a wave | Forbidden |
 
+The 5-task wave ceiling is a CAPACITY bound (how many tasks one wave or
+round may contain — `meta.capacity.round_capacity`), while the dispatch
+executor's default of 4 simultaneous in-flight tasks is a THROUGHPUT bound
+(`meta.capacity.max_concurrency`); the two are independent axes and their
+differing values are intentional.
+
 ## 7. Evidence Handshake
 
 The completion path is deliberately two-step:

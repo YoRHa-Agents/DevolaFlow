@@ -63,6 +63,51 @@ def test_v17_0_0_r2_dogfood_host_configs_present(project_root: Path) -> None:
     assert "tools/pre-execute" in dsh_plugin
 
 
+def test_v17_0_0_r5_capacity_and_probe_table_wired(project_root: Path) -> None:
+    """W-18 v17.0.0 R5: capacity SSOT reader + probe model table + W-24.2 record."""
+    from devolaflow.harness.capacity import (
+        CAPACITY_TARGET_RANGES,
+        CapacityConfigError,
+        CapacityProfile,
+        capacity_profile,
+    )
+    from devolaflow.harness.probe import (
+        ProbeModel,
+        load_probe_model_table,
+        sanitize_model_for_filename,
+    )
+
+    # Dark config: shipped context_profiles.yaml has no meta.capacity block,
+    # so the profile is byte-identical to the pre-R5 hardcoded literals.
+    profile = capacity_profile()
+    assert isinstance(profile, CapacityProfile)
+    assert (
+        profile.round_capacity,
+        profile.max_concurrency,
+        profile.stagnation_rounds,
+        profile.unsuccessful_item_rounds,
+    ) == (5, 4, 2, 3)
+    assert set(profile.sources.values()) == {"default"}
+    assert set(CAPACITY_TARGET_RANGES) == {
+        "meta.capacity.round_capacity",
+        "meta.capacity.max_concurrency",
+        "meta.capacity.stop_guard.stagnation_rounds",
+        "meta.capacity.stop_guard.unsuccessful_item_rounds",
+    }
+    assert issubclass(CapacityConfigError, ValueError)
+
+    # Probe model table ships dark too; helpers are importable and pure.
+    assert ProbeModel is not None
+    assert load_probe_model_table() == ()
+    assert sanitize_model_for_filename("m/1") == "m_1"
+
+    # W-24.2 verdict: stale forward-looking phrasing is gone from the
+    # compiled corpus; the re-deferral gate is recorded.
+    agents_md = (project_root / "AGENTS.md").read_text(encoding="utf-8")
+    assert "landing deferred to v12.0.0+ SI-1" not in agents_md
+    assert "v18+" in agents_md
+
+
 def test_v17_0_0_r4_focus_loop_wired(project_root: Path) -> None:
     """W-18 v17.0.0 R4: session resume adapter + checkpoint composition + goal drift."""
     from devolaflow.agent_workspace import (

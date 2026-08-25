@@ -44,7 +44,18 @@ EXPECTED_RECORD_KEYS = [
     # v17.0.0 R3 (G17-B3 / D-R3-2) — host-injection accounting fields.
     "host_rule_tokens",
     "slice_savings_pct",
+    # v17.0.0 R5 (G17-B6 / D-R5-1) — resolved capacity profile with
+    # aggregate provenance, appended AFTER slice_savings_pct.
+    "capacity_profile",
 ]
+
+# The dark-config capacity view (the shipped context_profiles.yaml declares
+# no meta.capacity block), mirrored verbatim in exact-record pins below.
+DEFAULT_CAPACITY_PROFILE = {
+    "round_capacity": 5,
+    "max_concurrency": 4,
+    "source": "default",
+}
 
 # The full AGENTS.md corpus estimate on this checkout (12,267 tokens as of
 # v17.0.0 R3) — resolved dynamically so AGENTS.md recompiles don't break
@@ -121,6 +132,8 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
         # with host_rule_tokens still the full AGENTS.md estimate (D-R3-2).
         "host_rule_tokens": FULL_AGENTS_MD_TOKENS,
         "slice_savings_pct": 0.0,
+        # Dark meta.capacity → hardcoded defaults with source "default" (D-R5-1).
+        "capacity_profile": DEFAULT_CAPACITY_PROFILE,
     }
     assert rendered == [
         yaml.safe_dump(

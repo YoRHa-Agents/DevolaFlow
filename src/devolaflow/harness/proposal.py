@@ -15,6 +15,8 @@ from typing import Any, Final
 
 import yaml
 
+from devolaflow.harness.capacity import CAPACITY_TARGET_RANGES
+
 _PROPOSAL_KEYS: Final[tuple[str, ...]] = (
     "schema_version",
     "proposal_id",
@@ -58,6 +60,12 @@ _AUTO_CONFIG_TARGETS: Final[frozenset[str]] = frozenset(
         "meta.complexity_routing.medium",
         "meta.complexity_routing.complex",
         "meta.complexity_routing.very_complex",
+        # v17.0.0 R5 (D-R5-1) — capacity/threshold dark-config paths. The
+        # ranges come from the A-5 owner module (harness/capacity.py) so
+        # the proposal loop and the runtime reader can never disagree.
+        # NOTE: stage.capacity_per_round stays OUTSIDE this allowlist —
+        # per-change capacity edits remain CHANGE_REQUIRED (human-review).
+        *CAPACITY_TARGET_RANGES,
     }
 )
 _ROUTING_VALUES: Final[frozenset[str]] = frozenset({"budget", "balanced", "quality", "inherit"})
@@ -110,6 +118,10 @@ def build_proposal(
         if path.startswith("meta.layer_token_budgets."):
             if type(value) is not int or not 0 < value <= 8_000:
                 raise ProposalError(f"target {path} must be an integer in [1, 8000]")
+        elif path in CAPACITY_TARGET_RANGES:
+            lo, hi = CAPACITY_TARGET_RANGES[path]
+            if type(value) is not int or not lo <= value <= hi:
+                raise ProposalError(f"target {path} must be an integer in [{lo}, {hi}]")
         elif path == "meta.summary_trigger_pct":
             if type(value) is not int or not 1 <= value <= 100:
                 raise ProposalError(f"target {path} must be an integer in [1, 100]")
@@ -563,6 +575,10 @@ def apply_approved_proposal(
             if path.startswith("meta.layer_token_budgets."):
                 if type(value) is not int or not 0 < value <= hard_cap:
                     raise ProposalError(f"target {path} must be an integer in [1, {hard_cap}]")
+            elif path in CAPACITY_TARGET_RANGES:
+                lo, hi = CAPACITY_TARGET_RANGES[path]
+                if type(value) is not int or not lo <= value <= hi:
+                    raise ProposalError(f"target {path} must be an integer in [{lo}, {hi}]")
             elif path == "meta.summary_trigger_pct":
                 if type(value) is not int or not 1 <= value <= 100:
                     raise ProposalError(f"target {path} must be an integer in [1, 100]")

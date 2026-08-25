@@ -21,7 +21,11 @@ from devolaflow.harness.evaluator import (
     load_signals,
     render_evaluation,
 )
-from devolaflow.harness.probe import run_probe
+from devolaflow.harness.probe import (
+    load_probe_model_table,
+    run_probe,
+    sanitize_model_for_filename,
+)
 from devolaflow.harness.proposal import (
     ProposalError,
     apply_approved_proposal,
@@ -75,9 +79,17 @@ def _parser() -> argparse.ArgumentParser:
         default=DEFAULT_CROSS_VALIDATION_DELTA,
     )
     cross_validate.add_argument("--output", type=Path, required=True)
-    probe = subcommands.add_parser("probe", help="run one bounded model-compliance probe")
-    probe.add_argument("--provider", choices=sorted(PROVIDER_CHOICES), required=True)
-    probe.add_argument("--model", required=True)
+    probe = subcommands.add_parser(
+        "probe",
+        help="run one bounded model-compliance probe "
+        "(omit --provider/--model to sweep meta.probe_models)",
+    )
+    # v17.0.0 R5 (D-R5-2): both optional. Given together → single-model
+    # probe, byte-identical to the pre-R5 contract. Both omitted → sweep
+    # the context_profiles.yaml#meta.probe_models table, one profile per
+    # configured (provider, model). Mixed → explicit error (S-5).
+    probe.add_argument("--provider", choices=sorted(PROVIDER_CHOICES))
+    probe.add_argument("--model")
     probe.add_argument("--cycle", required=True)
     probe.add_argument("--fixtures", type=Path, default=Path("tests/fixtures/harness"))
     probe.add_argument("--fold-mode", choices=("full", "folded"), default="folded")
@@ -142,6 +154,79 @@ def _input_document(path: Path) -> dict[str, str]:
     }
 
 
+_PROBE_EXIT_CODES = {"PASS": 0, "FAIL": 1, "PARTIAL": 1, "SKIPPED_NO_KEY": 2}
+
+
+def _sweep_output_path(output: Path | None, provider: str, model: str) -> Path | None:
+    """Derive one per-model output path from the single ``--output`` arg.
+
+    ``profiles/probe.yaml`` + (``mock``, ``m/1``) → ``profiles/probe__mock__m_1.yaml``.
+    ``None`` stays ``None`` — :func:`run_probe` then uses its own per-model
+    default under ``.local/telemetry/model_profiles/``.
+    """
+
+    if output is None:
+        return None
+    safe_model = sanitize_model_for_filename(model)
+    return output.with_name(f"{output.stem}__{provider}__{safe_model}{output.suffix}")
+
+
+def _run_probe_command(args: argparse.Namespace) -> int:
+    """Run the probe subcommand: single-model or config-table sweep.
+
+    v17.0.0 R5 (D-R5-2): with ``--provider``/``--model`` the behaviour is
+    byte-identical to the pre-R5 single-model contract. With both omitted,
+    every configured ``meta.probe_models`` (provider, model) pair is probed
+    and one profile artifact is written per model; the exit code is the
+    worst per-model verdict under the single-model mapping. Mixed flag
+    usage and an unconfigured table raise explicit errors per S-5.
+    """
+
+    if (args.provider is None) != (args.model is None):
+        raise ValueError(
+            "pass BOTH --provider and --model for a single-model probe, "
+            "or NEITHER to sweep the meta.probe_models table"
+        )
+    if args.model is not None:
+        profile = run_probe(
+            args.fixtures,
+            provider=args.provider,
+            model=args.model,
+            cycle=args.cycle,
+            fold_mode=args.fold_mode,
+            baseline_profile=args.baseline_profile,
+            max_tokens=args.max_tokens,
+            timeout=args.timeout,
+            output=args.output,
+        )
+        print(f"harness probe: {profile['status']}")
+        return _PROBE_EXIT_CODES[profile["status"]]
+
+    table = load_probe_model_table()
+    if not table:
+        raise ValueError(
+            "--model omitted but meta.probe_models is not configured in "
+            "workflow-system/agent/context_profiles.yaml; declare the "
+            "table or pass --provider/--model explicitly"
+        )
+    exit_code = 0
+    for entry in table:
+        profile = run_probe(
+            args.fixtures,
+            provider=entry.provider,
+            model=entry.model,
+            cycle=args.cycle,
+            fold_mode=args.fold_mode,
+            baseline_profile=args.baseline_profile,
+            max_tokens=args.max_tokens,
+            timeout=args.timeout,
+            output=_sweep_output_path(args.output, entry.provider, entry.model),
+        )
+        print(f"harness probe [{entry.provider}:{entry.model}]: {profile['status']}")
+        exit_code = max(exit_code, _PROBE_EXIT_CODES[profile["status"]])
+    return exit_code
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the harness CLI with command-specific bounded exit semantics."""
 
@@ -179,24 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result["verdict"] == "PASS" else 1
 
         if args.command == "probe":
-            profile = run_probe(
-                args.fixtures,
-                provider=args.provider,
-                model=args.model,
-                cycle=args.cycle,
-                fold_mode=args.fold_mode,
-                baseline_profile=args.baseline_profile,
-                max_tokens=args.max_tokens,
-                timeout=args.timeout,
-                output=args.output,
-            )
-            print(f"harness probe: {profile['status']}")
-            return {
-                "PASS": 0,
-                "FAIL": 1,
-                "PARTIAL": 1,
-                "SKIPPED_NO_KEY": 2,
-            }[profile["status"]]
+            return _run_probe_command(args)
 
         if args.command == "propose":
             evaluation = _load_yaml(args.evaluation, label="evaluation")

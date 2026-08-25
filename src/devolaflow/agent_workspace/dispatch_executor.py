@@ -81,10 +81,15 @@ DEFAULT_MAX_CONCURRENCY: int = 4
 """Default upper bound on simultaneous in-flight L2 tasks.
 
 Picked to match the canonical 4-parallel-task wave shape documented in
-``workflow-system/agent/SKILL.md`` §"Wave Dispatch". A future PV that
-wires the executor into a dispatcher MAY override via the
-``max_concurrency`` constructor arg or via a future env flag; until
-that landing the constant IS the contract."""
+``workflow-system/agent/SKILL.md`` §"Wave Dispatch". v17.0.0 R5
+(D-R5-1): construction with ``max_concurrency=None`` now resolves the
+default through ``devolaflow.harness.capacity.capacity_profile()``
+(``context_profiles.yaml#meta.capacity.max_concurrency``, valid 1..8).
+This constant stays the pinned FALLBACK default — byte-equal to the
+dark-config value, asserted by
+``tests/test_async_dispatch_executor.py::test_executor_default_max_concurrency_is_four``
+— and MUST remain equal to the ``CapacityProfile.max_concurrency``
+dataclass default (the A-5 owner of the configurable value)."""
 
 
 # Type alias for the per-task callable. Accepts either a sync callable
@@ -160,8 +165,10 @@ class AsyncDispatchExecutor:
 
         Args:
           max_concurrency: Upper bound on simultaneous in-flight tasks
-            in :meth:`dispatch_parallel`. Defaults to
-            :data:`DEFAULT_MAX_CONCURRENCY` (4). Must be >= 1 — a
+            in :meth:`dispatch_parallel`. ``None`` resolves through
+            ``meta.capacity.max_concurrency`` (D-R5-1), which is
+            :data:`DEFAULT_MAX_CONCURRENCY` (4) when the config key is
+            absent — the shipped dark default. Must be >= 1 — a
             value of 0 or negative raises :class:`ExecutorError`
             because it would deadlock the semaphore.
 
@@ -169,7 +176,12 @@ class AsyncDispatchExecutor:
           ExecutorError: when ``max_concurrency`` < 1.
         """
         if max_concurrency is None:
-            max_concurrency = DEFAULT_MAX_CONCURRENCY
+            # Import at call boundary: harness.telemetry imports
+            # agent_workspace.layers, so a module-level import here would
+            # create an agent_workspace ↔ harness init cycle.
+            from devolaflow.harness.capacity import capacity_profile
+
+            max_concurrency = capacity_profile().max_concurrency
         if max_concurrency < 1:
             raise ExecutorError(
                 f"AsyncDispatchExecutor.max_concurrency must be >= 1, got {max_concurrency!r}"

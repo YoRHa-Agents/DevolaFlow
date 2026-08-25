@@ -364,8 +364,8 @@ philschmid-2026 taxonomy maps to the L0..L2 hierarchy as:
 **Pattern 1 Inline Tool** (native — one L2 Task via `Task`);
 **Pattern 2 Fan-Out** (native — one L1 Wave, max 5 parallel L2 Tasks
 per `references/agent-hierarchy.md` §5);
-**Pattern 3 Agent Pool** (forward-compat-only at v11.4.0; landing
-deferred to v12.0.0+ SI-1); **Pattern 4 Teams** (PERMANENTLY NOT
+**Pattern 3 Agent Pool** (schema NEST landed v12.0.0; the pool RUNTIME
+remains deferred — see W-24.2); **Pattern 4 Teams** (PERMANENTLY NOT
 SUPPORTED — Soul-level P5 invariant forbids cross-agent shared
 state; reversal requires SI-1 + ADR + W-21 cadence + SI-3 §3.2 ≥ 9.5/10).
 
@@ -377,13 +377,20 @@ parallel_independence, persistent_state_needed)` →
 returns `"TEAMS_FORBIDDEN"` — that literal is reserved for
 `forbidden_pattern_rationale("TEAMS_FORBIDDEN")` (operator-education).
 
-### W-24.2 — Pattern 3 forward-compat policy
+### W-24.2 — Pattern 3 forward-compat policy (pool runtime re-deferred)
 
 `AGENT_POOL_FORWARD` returns when `persistent_state_needed=True` AND
-`model_tier="frontier"` AND `complexity in ("STANDARD", "COMPLEX")`,
-but NO API path activates Pattern 3 in v11.4.0. Callers fall back to
-INLINE round-robin via `change-driven` workflow's `apply ↔ verify`
-convergence loop (see `references/execution-protocol.md` §12).
+`model_tier="frontier"` AND `complexity in ("STANDARD", "COMPLEX")`.
+Factual state per the v17.0.0 R5 verdict: v12.0.0 landed the schema
+NEST under `gate.subagent_pattern` with
+`populate_cascade_gate_fields` writing the selection verdict, but the
+Pattern 3 pool RUNTIME (a persistent-state pool executor path)
+remained deferred through v13–v17 — NO API path activates Pattern 3.
+Callers fall back to INLINE round-robin via `change-driven` workflow's
+`apply ↔ verify` convergence loop (see
+`references/execution-protocol.md` §12). Re-evaluation gate: v18+
+SI-1 evidence PLUS a persistent-state schema design; until both
+exist the verdict stays advisory-only.
 
 ### W-24.3 — Pattern 4 permanent-NOT-SUPPORTED rationale
 
@@ -400,15 +407,19 @@ count remains unchanged — see
 `workflow-system/agent/references/env-flags.md` §2, the canonical
 inventory. Mirrors W-22.4 verbatim.
 
-### W-24.5 — v12.0.0 graduation pre-staging
+### W-24.5 — v12.0.0 graduation record
 
-v12.0.0 lands the schema NEST under `gate.subagent_pattern` per A-2.3
-NEST-vs-APPEND (parallel to v11.1.0 PV-04 cascade NEST precedent at
-`gate.cascade_required` + `gate.cascade_min_layers`). canonical_order
-length stays at 17; A-2.4 multi-baseline 32/32 GREEN unchanged.
-v11.4.0 adds NO schema fields. v12.0.0 also lands D-1 (A-7 STRICT),
-D-2 (`SHORTCUT_SIMPLE` retirement; flags 8→7), D-5 (CHANGELOG CI
-lint), per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph
-— subagent-pattern is the **fourth** v12.0.0 graduation.
+v12.0.0 LANDED the schema NEST under `gate.subagent_pattern` per A-2.3
+NEST-vs-APPEND (parallel to the v11.1.0 PV-04 cascade NEST precedent
+at `gate.cascade_required` + `gate.cascade_min_layers`), populated by
+`populate_cascade_gate_fields` in `src/devolaflow/gate/cascade.py`;
+canonical_order length stayed at 17 and the A-2.4 multi-baseline byte
+suite stayed GREEN. The same release landed D-1 (A-7 STRICT), D-2
+(`SHORTCUT_SIMPLE` retirement; flags 8→7), and D-5 (CHANGELOG CI
+lint) per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph —
+subagent-pattern was the **fourth** v12.0.0 graduation. The Pattern 3
+pool RUNTIME did NOT graduate with the schema; it remains deferred per
+W-24.2 pending v18+ SI-1 evidence and a persistent-state schema
+design.
 
 Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.

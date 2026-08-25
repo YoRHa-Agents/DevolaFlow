@@ -19,6 +19,7 @@ import yaml
 
 from devolaflow.agent_workspace.layers import LAYER_ATTRIBUTION_ALIASES
 from devolaflow.agents_md_slice import cached_slice_summary
+from devolaflow.harness.capacity import CapacityProfile, capacity_profile
 from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
 from devolaflow.task_adaptive_selector import estimate_tokens
 
@@ -133,15 +134,38 @@ def _round_number(payload: dict[str, Any]) -> int:
     return 1
 
 
-def _checklist_constraint_count(payload: dict[str, Any]) -> int:
+def _capacity_view() -> CapacityProfile:
+    """Resolve the capacity profile without ever blocking a dispatch.
+
+    v17.0.0 R5 (D-R5-1): telemetry mirrors the configured round capacity
+    (checklist-slice bound) and records the resolved profile in each ledger
+    record. Any resolution failure — including a loudly-invalid
+    ``meta.capacity`` block, which the DISPATCH path surfaces as a raise —
+    degrades here to the hardcoded defaults with a WARNING per S-5, because
+    telemetry is observational and must never block.
+    """
+
+    try:
+        return capacity_profile()
+    except Exception as exc:  # noqa: BLE001 - telemetry stays nonblocking
+        logger.warning(
+            "harness telemetry capacity profile resolution failed: %s; using hardcoded defaults",
+            exc,
+        )
+        return CapacityProfile()
+
+
+def _checklist_constraint_count(payload: dict[str, Any], *, round_capacity: int) -> int:
     change_context = _mapping(payload, "change_context")
     if change_context is None or "checklist_items" not in change_context:
         return 0
     checklist_items = change_context["checklist_items"]
     if not isinstance(checklist_items, list):
         raise _AttributionError("change_context.checklist_items must be a list")
-    if not 1 <= len(checklist_items) <= 5:
-        raise _AttributionError("change_context.checklist_items must contain 1 through 5 items")
+    if not 1 <= len(checklist_items) <= round_capacity:
+        raise _AttributionError(
+            f"change_context.checklist_items must contain 1 through {round_capacity} items"
+        )
     return len(checklist_items)
 
 
@@ -280,7 +304,11 @@ def build_dispatch_record(
     inject the unsliced corpus) and ``slice_savings_pct`` (the configured
     slice's available saving for this dispatch's task type, resolved per
     :func:`_dispatch_task_type` / :func:`_slice_injection_metrics`).
-    Both are OPTIONAL for the aggregator — old ledgers keep aggregating.
+    v17.0.0 R5 (G17-B6 / D-R5-1) appended ``capacity_profile`` — the
+    resolved round capacity + executor concurrency with aggregate
+    provenance (``"config"`` when any ``meta.capacity`` field is declared,
+    else ``"default"``). All three are OPTIONAL for the aggregator — old
+    ledgers keep aggregating.
     """
 
     if not isinstance(payload, dict):
@@ -289,8 +317,9 @@ def build_dispatch_record(
     if Path(attributed_change_id).name != attributed_change_id:
         raise _AttributionError("change_id must be one active-folder basename")
 
+    capacity_view = _capacity_view()
     layer = _dispatch_layer(payload)
-    _checklist_constraint_count(payload)
+    _checklist_constraint_count(payload, round_capacity=capacity_view.round_capacity)
     summary_view = _constraint_summary_view(payload)
     constraint_count, tier_breakdown, quantifiable_ratio = summarize_constraints(summary_view)
     behavioral = _mapping(payload, "behavioral_guidelines")
@@ -315,6 +344,11 @@ def build_dispatch_record(
         "model_hint": model_hint,
         "host_rule_tokens": host_rule_tokens,
         "slice_savings_pct": slice_savings_pct,
+        "capacity_profile": {
+            "round_capacity": capacity_view.round_capacity,
+            "max_concurrency": capacity_view.max_concurrency,
+            "source": capacity_view.source,
+        },
     }
     if advisory_folded:
         record["fold_trace"] = {
