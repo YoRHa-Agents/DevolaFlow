@@ -10,7 +10,10 @@ normalizes it, decides, and responds using the host's block protocol:
   deny → reason on stderr + exit 2.
 
 ``python -m devolaflow.hostbridge install <host>`` delegates to
-:mod:`devolaflow.hostbridge.install`.
+:mod:`devolaflow.hostbridge.install`. ``python -m devolaflow.hostbridge
+resume [--host cursor|claude]`` delegates to
+:mod:`devolaflow.hostbridge.session` (v17 R4 session-start resume
+summary; gated on ``DEVOLAFLOW_AGENT_WORKSPACE=1``, always exit 0).
 
 Fail-open guarantee (design §D-R2-1): NO exception escapes this module.
 Unparseable argv/stdin, or any internal error, degrades to the host's
@@ -62,6 +65,11 @@ def main(argv: list[str] | None = None) -> int:
         from devolaflow.hostbridge.install import main as install_main
 
         return install_main(argv[1:])
+
+    if argv and argv[0] == "resume":
+        from devolaflow.hostbridge.session import main as session_main
+
+        return session_main(argv[1:])
 
     parser = argparse.ArgumentParser(
         prog="python -m devolaflow.hostbridge",

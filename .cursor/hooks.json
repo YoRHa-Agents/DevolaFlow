@@ -11,6 +11,11 @@
       {
         "command": ".cursor/hooks/devola-boundary.sh"
       }
+    ],
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/devola-session.sh"
+      }
     ]
   }
 }

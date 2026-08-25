@@ -47,6 +47,8 @@ def _arrange_resume(
     stage_reference: str | None = None,
     stage_picked_ids: tuple[str, ...] | None = None,
     stage_history_round: int | None = None,
+    goal_text: str | None = None,
+    checkpoint_goal_hash: str | None = None,
 ) -> tuple[str, tuple[Path, ...]]:
     config_path = root / ".local" / "project_config.yaml"
     config_path.parent.mkdir(parents=True)
@@ -89,6 +91,8 @@ def _arrange_resume(
     picked = ", ".join(f"{item_id}(P0)" for item_id in picked_ids)
     stage_path = root / ".local" / ".agent" / "active" / "resume-test" / "stage.md"
     stage_path.parent.mkdir(parents=True)
+    if goal_text is not None:
+        stage_path.with_name("goal.md").write_text(goal_text, encoding="utf-8")
     checklist_path = stage_path.with_name("checklist.md")
     checklist_path.write_text("\n".join(checklist_lines) + "\n", encoding="utf-8")
     stage_path.write_text(
@@ -136,6 +140,9 @@ def _arrange_resume(
             "workflow_type": "checklist_rounds",
             "project_name": "resume-test",
             "config_hash": config_hash or f"sha256:{digest}",
+            # v17 R4: goal_hash is ADDITIVE — omitted entirely unless the
+            # arranging test opts in (legacy checkpoints have no field).
+            **({"goal_hash": checkpoint_goal_hash} if checkpoint_goal_hash is not None else {}),
         },
         "stage_progress": {},
         "wave_state": {},
@@ -291,3 +298,40 @@ def test_resume_rejects_inconsistent_checkpoint_stage_state(
 
     with pytest.raises(ResumePlanningError, match=message):
         plan_checklist_resume(tmp_path, "resume-test", checkpoint_id)
+
+
+# ── v17.0.0 R4 — goal_loop ↔ goal.md hash binding (D-R4-3) ─────────────
+
+
+@pytest.mark.parametrize("case", ["drift", "match", "legacy_no_field"])
+def test_goal_drift_between_checkpoint_and_resume(tmp_path: Path, case: str) -> None:
+    """goal.md edits after the checkpoint flip the plan to GOAL_DRIFT.
+
+    Legacy checkpoints without ``project_state.goal_hash`` skip the check
+    entirely (full backward compatibility); a matching hash resumes READY.
+    """
+    goal_text = "# Goal\nShip the v17 R4 focus/loop surface.\n"
+    goal_hash = f"sha256:{hashlib.sha256(goal_text.encode('utf-8')).hexdigest()}"
+    checkpoint_id, _ = _arrange_resume(
+        tmp_path,
+        item_states=("checked", "open"),
+        checkpoint_checked_ids=("C-G1.1",),
+        stage_current=1,
+        goal_text=goal_text,
+        checkpoint_goal_hash=None if case == "legacy_no_field" else goal_hash,
+    )
+    goal_path = tmp_path / ".local" / ".agent" / "active" / "resume-test" / "goal.md"
+    if case != "match":
+        goal_path.write_text("# Goal\nPivoted mid-flight to a NEW objective.\n", encoding="utf-8")
+    before = _workspace_snapshot(tmp_path)
+
+    plan = plan_checklist_resume(tmp_path, "resume-test", checkpoint_id)
+
+    if case == "drift":
+        assert plan.disposition is ResumeDisposition.GOAL_DRIFT
+        assert plan.selection is None
+    else:
+        assert plan.disposition is ResumeDisposition.READY
+        assert plan.selection is not None
+    assert plan.resume_round == 2
+    assert _workspace_snapshot(tmp_path) == before

@@ -31,6 +31,7 @@ fields:
       workflow_type: { type: string, description: Template / pipeline key. }
       project_name: { type: string }
       config_hash: { type: string, description: Hash of frozen project_config for drift detection. }
+      goal_hash: { type: string, optional: true, description: "v17 R4 goal binding: sha256:<hex> of the change's goal.md after newline normalization; absent/empty on pre-v17 checkpoints (goal-drift check skipped)." }
 
   stage_progress:
     children:

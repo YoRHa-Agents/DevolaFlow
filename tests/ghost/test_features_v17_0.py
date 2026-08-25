@@ -63,6 +63,33 @@ def test_v17_0_0_r2_dogfood_host_configs_present(project_root: Path) -> None:
     assert "tools/pre-execute" in dsh_plugin
 
 
+def test_v17_0_0_r4_focus_loop_wired(project_root: Path) -> None:
+    """W-18 v17.0.0 R4: session resume adapter + checkpoint composition + goal drift."""
+    from devolaflow.agent_workspace import (
+        ResumeDisposition,
+        checkpoint_round_pass,
+        goal_content_hash,
+    )
+
+    assert callable(checkpoint_round_pass) and callable(goal_content_hash)
+    assert ResumeDisposition.GOAL_DRIFT.name == "GOAL_DRIFT"
+    assert importlib.util.find_spec("devolaflow.hostbridge.session") is not None
+
+    # Dogfood session hooks are wired for cursor + claude (Codex/Kimi/DSH
+    # deliberately deferred per references/host-bridges.md §8).
+    cursor_hooks = json.loads((project_root / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
+    assert "sessionStart" in cursor_hooks.get("hooks", {})
+    claude_settings = json.loads(
+        (project_root / ".claude" / "settings.json").read_text(encoding="utf-8")
+    )
+    assert "SessionStart" in claude_settings.get("hooks", {})
+    for script in (
+        project_root / ".cursor" / "hooks" / "devola-session.sh",
+        project_root / ".claude" / "hooks" / "devola-session.sh",
+    ):
+        assert script.is_file() and os.access(script, os.X_OK)
+
+
 def test_v17_0_0_r3_host_injection_accounting_wired(project_root: Path) -> None:
     """W-18 v17.0.0 R3: slice account + ledger fields + config-driven fold."""
     from devolaflow.agents_md_slice import cached_slice_summary, slice_account

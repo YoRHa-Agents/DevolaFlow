@@ -324,11 +324,31 @@ def test_install_generates_host_configs_idempotently(tmp_path: Path) -> None:
         assert '"$DEVOLAFLOW_HOST_ENFORCE" != "1"' in text  # pure-bash fast path
         assert "failClosed" not in text
 
+    # v17 R4 session scripts gate on the WORKSPACE flag (W-20 reuse),
+    # never on the boundary-enforcement flag.
+    for rel in (
+        ".cursor/hooks/devola-session.sh",
+        ".claude/hooks/devola-session.sh",
+    ):
+        script = tmp_path / rel
+        assert os.access(script, os.X_OK), f"{rel} must be executable"
+        text = script.read_text(encoding="utf-8")
+        assert text.startswith("#!/usr/bin/env bash")
+        assert '"$DEVOLAFLOW_AGENT_WORKSPACE" != "1"' in text  # pure-bash fast path
+        assert "DEVOLAFLOW_HOST_ENFORCE" not in text
+        assert "hostbridge resume" in text
+
     # Claude merge is ADDITIVE: foreign keys + foreign hook entries survive.
     merged = json.loads((claude_dir / "settings.json").read_text(encoding="utf-8"))
     assert merged["model"] == "opus"
     matchers = [entry["matcher"] for entry in merged["hooks"]["PreToolUse"]]
     assert matchers == ["WebFetch", "Edit|Write|MultiEdit", "Bash"]
+    session_matchers = [entry["matcher"] for entry in merged["hooks"]["SessionStart"]]
+    assert session_matchers == ["startup|resume"]
+
+    # Cursor hooks.json carries the sessionStart entry (v17 R4).
+    cursor_hooks = json.loads((tmp_path / ".cursor/hooks.json").read_text(encoding="utf-8"))
+    assert cursor_hooks["hooks"]["sessionStart"] == [{"command": ".cursor/hooks/devola-session.sh"}]
 
 
 def test_install_kimi_prints_toml_snippet(capsys: pytest.CaptureFixture[str]) -> None:
@@ -351,5 +371,10 @@ def test_committed_dogfood_configs_match_installer_output(project_root: Path) ->
         ("codex", ".codex/hooks/devola-boundary.sh"),
     ):
         assert read(rel) == hb_install._render_boundary_script(host)
+    for host, rel in (
+        ("cursor", ".cursor/hooks/devola-session.sh"),
+        ("claude", ".claude/hooks/devola-session.sh"),
+    ):
+        assert read(rel) == hb_install._render_session_script(host)
     committed_claude = read(".claude/settings.json")
     assert hb_install._merge_claude_settings(committed_claude) == committed_claude
