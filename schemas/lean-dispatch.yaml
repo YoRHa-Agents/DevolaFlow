@@ -450,7 +450,7 @@ lean_format_spec:
   #     state: str                        # PROPOSED | IN_PROGRESS | VERIFYING
   #     spec_delta_target: str            # source-of-truth domain (e.g. "agent_workspace")
   #     owned_files_ref: str              # ".local/.agent/active/<id>/owned_files.txt"
-  #     acceptance_ref: str               # ".local/.agent/active/<id>/acceptance.md"
+  #     acceptance_ref: str               # ".local/.agent/active/<id>/checklist.md"
   #
   # Semantics: when present, the dispatch payload is bound to a specific
   # in-flight change folder under ``.local/.agent/active/<change-id>/``;
@@ -473,7 +473,7 @@ lean_format_spec:
       state: "str — one of 'PROPOSED' | 'IN_PROGRESS' | 'VERIFYING' (terminal ARCHIVED / ESCALATED states never appear in a live dispatch)"
       spec_delta_target: "str — source-of-truth spec domain under .local/memory/specs/<domain>/spec.md"
       owned_files_ref: "str — repo-relative path '.local/.agent/active/<change_id>/owned_files.txt' — MUST be honoured per Rule S-8"
-      acceptance_ref: "str — repo-relative path '.local/.agent/active/<change_id>/acceptance.md' — MAY include #ac-<n> fragment"
+      acceptance_ref: "str — repo-relative path '.local/.agent/active/<change_id>/checklist.md' (frozen field name; pre-v17 payloads referenced acceptance.md) — MAY include #ac-<n> fragment"
       # ---- v9.1.4 PV-04 NEST extension (A-2.3 nest-vs-append decision rule) ----
       # All 3 sub-fields are OPTIONAL; absence preserves byte-identical
       # rendering vs the v8.3.0 PV-05 / v8.4.0 baselines (the v8.3.0 +
@@ -706,7 +706,7 @@ compression_rules:
 #     state: PROPOSED|IN_PROGRESS|VERIFYING
 #     spec_delta_target: <domain>              # e.g. "agent_workspace"
 #     owned_files_ref: ".local/.agent/active/<id>/owned_files.txt"
-#     acceptance_ref: ".local/.agent/active/<id>/acceptance.md"
+#     acceptance_ref: ".local/.agent/active/<id>/checklist.md"
 # Field is OPTIONAL — when absent, the dispatch is a "free-floating"
 # workflow (current v4 behaviour preserved). assert_dispatch_layout
 # treats absence as canonical, so all v4-shape callers continue to

@@ -68,7 +68,7 @@ class DeltaSpecParseError(ValueError):
     """Raised when a ``spec.md`` violates the v8.2.4 change-spec schema.
 
     The error message identifies the offending line / section so the caller
-    can surface it to the L3 task agent (loud per S-5; never silent).
+    can surface it to the L2 task agent (loud per S-5; never silent).
     """
 
 

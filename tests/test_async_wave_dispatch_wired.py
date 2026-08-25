@@ -3,7 +3,9 @@
 Closes D-N-3 from ``.local/research/v9.7.0_gap_analysis.md`` §1.2 — the
 v9.3.0 PV-05 ``AsyncDispatchExecutor`` shipped library-only; v9.7.0
 PV-03 wires it into a public dispatch entry point at the L2-wave
-boundary via :func:`devolaflow.feedback.dispatch_wave_tasks`.
+boundary via :func:`devolaflow.dispatch.dispatch_wave_tasks` (owner
+module since the v14.5.0 ADR-006 split; the ``devolaflow.feedback``
+re-export shim was retired in v17.0.0).
 
 Six concerns are covered:
 
@@ -47,7 +49,7 @@ from devolaflow.agent_workspace.dispatch_executor import (
     AsyncDispatchExecutor,
     TaskOutcome,
 )
-from devolaflow.feedback import dispatch_wave_tasks
+from devolaflow.dispatch import dispatch_wave_tasks
 
 
 def _parallel_wave(tasks: list[dict] | None = None, max_parallelism: int | None = None) -> dict:

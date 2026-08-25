@@ -5,7 +5,7 @@ that flip from opt-in (default OFF) to default-ON for STRICT/AUDIT
 profiles in v8.5.1:
 
 * :func:`devolaflow.gate.budget.is_token_budget_breaker_active` (T5 #1)
-* :func:`devolaflow.gate.scorer.is_verification_ladder_active` (T5 #2)
+* :func:`devolaflow.gate.ladder.is_verification_ladder_active` (T5 #2)
 * :func:`devolaflow.gate.ratchet.is_gate_ratchet_active` (T5 #3)
 * :func:`devolaflow.gate.complexity_detector.is_complexity_detector_active` (T5 #4)
 * :func:`devolaflow.ac_generator.is_ac_generator_active` (T5 #5)
@@ -43,13 +43,13 @@ from devolaflow.gate.complexity_detector import (
 from devolaflow.gate.complexity_detector import (
     is_complexity_detector_active,
 )
-from devolaflow.gate.profiles import AUDIT, RELAXED, STANDARD, STRICT
-from devolaflow.gate.ratchet import ENV_FLAG as RATCHET_ENV_FLAG
-from devolaflow.gate.ratchet import is_gate_ratchet_active
-from devolaflow.gate.scorer import (
+from devolaflow.gate.ladder import (
     VERIFICATION_LADDER_ENV_FLAG,
     is_verification_ladder_active,
 )
+from devolaflow.gate.profiles import AUDIT, RELAXED, STANDARD, STRICT
+from devolaflow.gate.ratchet import ENV_FLAG as RATCHET_ENV_FLAG
+from devolaflow.gate.ratchet import is_gate_ratchet_active
 
 _PRIMITIVE_TABLE = [
     ("token_budget_breaker", TOKEN_BUDGET_ENV_FLAG, is_token_budget_breaker_active),

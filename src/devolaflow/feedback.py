@@ -465,7 +465,7 @@ class ProposalGenerator:
         :meth:`devolaflow.feedback_emit.ProposalEmitter.emit`.
 
         V6-01 wiring: stitches :meth:`generate_reinforcement` into the
-        dispatch lifecycle so L3 Task Agents receive the reinforcement
+        dispatch lifecycle so L2 Task Agents receive the reinforcement
         block under ``context.applicable_rules.reinforcement`` on rounds
         ≥ 2. Round 1 is a pure pass-through — the first attempt has no
         prior round to learn from.
@@ -533,35 +533,17 @@ class ProposalGenerator:
 
 
 # ---------------------------------------------------------------------------
-# v14.5.0 (ADR-006 / gap G-025) — PERMANENT re-export shims for the module
-# split. ``feedback.py`` keeps the feedback classes
-# (``FeedbackCollector`` / ``FeedbackAnalyzer`` / ``ProposalGenerator`` —
-# incl. the S-10-named ``ProposalGenerator.generate_round_dispatch``, which
-# does NOT move); the extracted concerns live in:
-#
-#   * ``gate/cascade.py``  — populate_cascade_gate_fields +
-#     populate_intra_task_convergence (+ their constants), beside the
-#     validators they pair with
-#   * ``dispatch.py``      — dispatch_wave_tasks + dispatch_dogfood_cycle
-#     (the wave-execution / dogfood dispatch wrappers; see its module
-#     docstring for the full shim tracking table)
-#
-# Deprecation note: prefer the new owner-module paths in NEW code. These
-# shims are PERMANENT (lifetime >= v16.0.0, revisit then — per the ADR's
-# shim clause): Soul rule S-10 names ``feedback.py`` verbatim and
-# ``schemas/lean-dispatch.yaml`` line 683 names
-# ``feedback.py::populate_cascade_gate_fields`` — neither text changes; the
-# shim preserves the path contract. Every re-export below is
-# identity-preserving (``old_path.symbol is new_path.symbol``), pinned by
+# PERMANENT — S-10/lean-dispatch.yaml name this path verbatim; survives the
+# v17 shim retirement. Soul rule S-10 names ``feedback.py`` verbatim and
+# ``schemas/lean-dispatch.yaml`` line ~683 names
+# ``feedback.py::populate_cascade_gate_fields`` BY PATH — the
+# identity-preserving re-export below keeps that path contract forever
+# (likewise the S-10-named ``ProposalGenerator.generate_round_dispatch``
+# above, which never moved). The sibling ADR-006 re-exports that lived here
+# (``dispatch_wave_tasks`` / ``dispatch_dogfood_cycle`` /
+# ``populate_intra_task_convergence`` + its constants) were retired in
+# v17.0.0 after call-site migration — import them from
+# ``devolaflow.dispatch`` / ``devolaflow.gate.cascade``. Pinned by
 # ``tests/test_module_split_shims.py``.
 # ---------------------------------------------------------------------------
-from devolaflow.dispatch import (  # noqa: E402, F401
-    dispatch_dogfood_cycle,
-    dispatch_wave_tasks,
-)
-from devolaflow.gate.cascade import (  # noqa: E402, F401
-    INTRA_TASK_CONVERGENCE_TASK_TYPES,
-    INTRA_TASK_MAX_ROUNDS_DEFAULT,
-    populate_cascade_gate_fields,
-    populate_intra_task_convergence,
-)
+from devolaflow.gate.cascade import populate_cascade_gate_fields  # noqa: E402, F401

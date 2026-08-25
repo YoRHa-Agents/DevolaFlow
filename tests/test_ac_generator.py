@@ -56,17 +56,17 @@ from devolaflow.compressor import (
     DispatchLayoutError,
     assert_dispatch_layout,
 )
+from devolaflow.gate.acceptance_v2 import (
+    CommandRunResult,
+    aggregate_criterion_verdicts,
+    evaluate_acceptance_criteria_v2,
+)
 from devolaflow.gate.models import (
     VALID_VERIFICATION_TYPES,
     AcceptanceCriterion,
     AcceptanceCriterionVerdict,
     CheckResult,
     GateInput,
-)
-from devolaflow.gate.scorer import (
-    CommandRunResult,
-    aggregate_criterion_verdicts,
-    evaluate_acceptance_criteria_v2,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

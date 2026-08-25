@@ -141,8 +141,8 @@ discriminated_union:
           description: "Task type — drives context profile selection (per task_adaptive_selector.py)."
         acceptance_criteria_ref:
           type: string
-          pattern: "^\\.local/\\.agent/active/[a-z0-9][a-z0-9.-]*[a-z0-9]/acceptance\\.md(#ac-\\d+)?$"
-          description: "Repo-relative path into the active change's acceptance.md, optionally pinned to a specific AC fragment (#ac-<n>)."
+          pattern: "^\\.local/\\.agent/active/[a-z0-9][a-z0-9.-]*[a-z0-9]/checklist\\.md(#ac-\\d+)?$"
+          description: "Repo-relative path into the active change's checklist.md (the acceptance-criteria carrier since v16; sole target since the v17 tasks.md/acceptance.md removal), optionally pinned to a specific AC fragment (#ac-<n>). Field name is a frozen code symbol per references/message-schemas.md."
         owned_files_ref:
           type: string
           pattern: "^\\.local/\\.agent/active/[a-z0-9][a-z0-9.-]*[a-z0-9]/owned_files\\.txt$"
@@ -253,7 +253,7 @@ examples:
     dispatch:
       task_id: T01
       type: implement
-      acceptance_criteria_ref: ".local/.agent/active/add-dark-mode/acceptance.md#ac-1"
+      acceptance_criteria_ref: ".local/.agent/active/add-dark-mode/checklist.md#ac-1"
       owned_files_ref: ".local/.agent/active/add-dark-mode/owned_files.txt"
       predecessor_artifact_refs:
         - path: ".local/.agent/active/add-dark-mode/spec.md"

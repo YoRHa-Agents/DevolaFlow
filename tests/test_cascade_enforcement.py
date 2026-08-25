@@ -74,7 +74,7 @@ import yaml
 
 from devolaflow.compressor import DEFAULT_DISPATCH_LAYOUT, FROZEN_PREFIX_LENGTH
 from devolaflow.feedback import populate_cascade_gate_fields
-from devolaflow.gate.scorer import CascadeViolationError, validate_cascade_gate_fields
+from devolaflow.gate.cascade import CascadeViolationError, validate_cascade_gate_fields
 from devolaflow.skills.change_activation import (
     Complexity,
     activation_verdict,
@@ -448,7 +448,7 @@ def test_trivial_complexity_skips_cascade_validation() -> None:
 def test_strict_validator_warns_when_actual_layers_below_min(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Legacy min 4 warns and strict-validates against effective min 3."""
+    """Declared min 4 validates at face value in v17 (G17-A5): depth 2 raises."""
     gate_block = {"cascade_required": True, "cascade_min_layers": 4}
     snapshot = copy.deepcopy(gate_block)
 
@@ -461,43 +461,44 @@ def test_strict_validator_warns_when_actual_layers_below_min(
     msg = str(excinfo.value)
     assert "cascade depth violation" in msg
     assert "actual_layers=2" in msg
-    assert "cascade_min_layers=3" in msg
-    assert "declared cascade_min_layers=4" in msg
-    assert any(
-        "legacy cascade_min_layers=4 interpreted as effective cascade_min_layers=3"
-        in record.getMessage()
-        for record in caplog.records
-    )
+    assert "cascade_min_layers=4" in msg
+    assert not any(
+        "legacy cascade_min_layers" in record.getMessage() for record in caplog.records
+    ), "v16 legacy-fold WARNING must be gone in v17 (G17-A5)"
     assert gate_block == snapshot
 
 
 def test_soft_mode_warns_instead_of_raising(caplog: pytest.LogCaptureFixture) -> None:
-    """Legacy min 4 warns but actual depth 3 passes without input mutation.
+    """Declared min 4 keeps face-value semantics in v17 (G17-A5).
 
-    The historical test name remains ghost-pinned; the validator itself
-    remains strict on genuine depth violations.
+    The historical test name remains ghost-pinned. The v16 compat fold
+    (4 → effective 3 + WARNING) is removed: depth 3 against a declared 4
+    now raises, and depth 4 passes quietly without input mutation.
     """
     gate_block = {"cascade_required": True, "cascade_min_layers": 4}
     snapshot = copy.deepcopy(gate_block)
 
-    with caplog.at_level("WARNING", logger="devolaflow.gate.cascade"):
-        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
+    with (
+        caplog.at_level("WARNING", logger="devolaflow.gate.cascade"),
+        pytest.raises(CascadeViolationError) as excinfo,
+    ):
+        validate_cascade_gate_fields(gate_block, actual_layers=3)
+    assert "actual_layers=3 < cascade_min_layers=4" in str(excinfo.value)
+    assert gate_block == snapshot
 
-    assert result is None
-    assert any(
-        "legacy cascade_min_layers=4 interpreted as effective cascade_min_layers=3"
-        in record.getMessage()
-        for record in caplog.records
-    )
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="devolaflow.gate.cascade"):
+        assert validate_cascade_gate_fields(gate_block, actual_layers=4) is None
+    assert caplog.records == []
     assert gate_block == snapshot
 
 
 def test_strict_validator_passes_when_actual_layers_meets_min(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """New min 3 is quiet; other explicit valid minima keep boundary semantics."""
+    """Every explicit valid minimum (4 included, v17 face value) is quiet at depth==min."""
     gate_blocks = [
-        {"cascade_required": True, "cascade_min_layers": minimum} for minimum in (1, 2, 3, 5)
+        {"cascade_required": True, "cascade_min_layers": minimum} for minimum in (1, 2, 3, 4, 5)
     ]
     snapshots = copy.deepcopy(gate_blocks)
 
@@ -528,7 +529,7 @@ def test_cascade_requirement_propagates_through_populate_then_validate() -> None
     1. Build the dispatch via
        :func:`devolaflow.feedback.populate_cascade_gate_fields`.
     2. STRICT-validate via
-       :func:`devolaflow.gate.scorer.validate_cascade_gate_fields` with
+       :func:`devolaflow.gate.cascade.validate_cascade_gate_fields` with
        ``actual_layers=3`` (matches the populated default
        ``cascade_min_layers=3`` for STANDARD/COMPLEX; for SIMPLE/TRIVIAL
        no cascade_required key is populated so the validator
@@ -727,8 +728,8 @@ def test_validate_cascade_gate_fields_raises_on_invalid_type() -> None:
 
 
 def test_validate_cascade_gate_fields_raises_on_actual_layers_below_min() -> None:
-    """Every non-legacy explicit valid minimum rejects depth one below it."""
-    for minimum in (1, 2, 3, 5):
+    """Every explicit valid minimum (4 included, v17 face value) rejects depth one below it."""
+    for minimum in (1, 2, 3, 4, 5):
         actual = minimum - 1
         gate_block = {"cascade_required": True, "cascade_min_layers": minimum}
 

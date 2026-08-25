@@ -14,13 +14,12 @@ This module wires two flows:
    promotion engine). This is the missing half of the v8.2.6 archive flow:
    without it, per-change reflective reflexes never make it into the global
    ``.local/memory/operational.jsonl`` substrate.
-2. **Context hydration** — :func:`hydrate_change_context` detects the
-   canonical active-change layout and loads either the exact seven-key legacy
-   payload or the checklist payload (including verbatim ``evidence/*.txt``)
-   for L0/L1/L2/L3 context injection. Text artifacts are capped at their hard
-   ceilings so a runaway ``spec.md`` cannot blow a Wave Agent's 4K budget.
-   Truncation appends a sentinel rather than raising — the caller still gets
-   *some* context.
+2. **Context hydration** — :func:`hydrate_change_context` validates the
+   canonical active-change layout and loads the checklist payload (including
+   verbatim ``evidence/*.txt``) for L0/L1/L2 context injection. Text
+   artifacts are capped at their hard ceilings so a runaway ``spec.md``
+   cannot blow a Wave Agent's 4K budget. Truncation appends a sentinel
+   rather than raising — the caller still gets *some* context.
 
 Public surface (consumed by ``v8.2.6`` change-driven workflow + future
 ``/devola:archive`` command in ``v8.2.9``):
@@ -28,7 +27,7 @@ Public surface (consumed by ``v8.2.6`` change-driven workflow + future
 * :func:`consolidate_change_on_archive` — archive-time JSONL → global
   promotion via :func:`consolidate_session`.
 * :func:`hydrate_change_context` — load + cap the canonical artifact set for
-  a legacy or checklist-layout active change.
+  a checklist-layout active change.
 * :exc:`MemoryBridgeError` — raised by
   :func:`consolidate_change_on_archive` when the per-change JSONL is
   syntactically malformed (S-5: loud, never silent).
@@ -90,17 +89,7 @@ for context injection but lacks the trailing material."""
 # ``.cursor/rules/repo-governance.mdc#C-9`` and ``schemas/agent-workspace/*``.
 # Keys are the dict keys returned by :func:`hydrate_change_context`; values
 # are the HARD ceilings (the soft / hard split lives in
-# :data:`devolaflow.agent_workspace.lint.ARTIFACT_BUDGETS`).
-_HYDRATE_BUDGETS: Final[dict[str, int]] = {
-    "goal": 400,
-    "acceptance": 800,
-    "spec": 3000,
-    "tasks": 1500,
-    "status": 200,
-    "owned_files": 100,
-}
-"""Legacy hydration hard ceilings; retained byte-for-byte for compatibility."""
-
+# :data:`devolaflow.agent_workspace.lint.CHECKLIST_ARTIFACT_BUDGETS`).
 _CHECKLIST_HYDRATE_BUDGETS: Final[dict[str, int]] = {
     "goal": 400,
     "checklist": 2400,
@@ -224,14 +213,11 @@ def hydrate_change_context(
     change_id: str,
     active_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Hydrate an active change using its canonical storage layout.
+    """Hydrate an active change using the canonical checklist layout.
 
-    Legacy folders preserve the original exact seven-key return contract and
-    hard ceilings. Checklist folders expose only ``goal``, ``checklist``,
-    ``stage``, ``preflight``, ``spec``, ``status``, ``owned_files``,
-    ``learnings``, and ``evidence``; legacy ``acceptance`` and ``tasks`` keys
-    are deliberately omitted. Evidence values are verbatim text keyed by
-    ``.txt`` basename.
+    The payload exposes ``goal``, ``checklist``, ``stage``, ``preflight``,
+    ``spec``, ``status``, ``owned_files``, ``learnings``, and ``evidence``.
+    Evidence values are verbatim text keyed by ``.txt`` basename.
 
     Text artifacts are capped to the hard ceiling for the detected layout.
     Truncation is destructive but additive — the original file on disk is
@@ -245,9 +231,9 @@ def hydrate_change_context(
             ``.local/.agent/active`` resolved against ``Path.cwd()``.
 
     Returns:
-        The exact seven-key legacy payload, or the nine-key checklist payload
-        described above. Missing text/status artifacts return ``None``;
-        missing list/mapping collections return an empty container.
+        The nine-key checklist payload described above. Missing text/status
+        artifacts return ``None``; missing list/mapping collections return
+        an empty container.
 
     Raises:
         ChangeNotFoundError: When ``active_root/<change_id>/`` does not
@@ -255,6 +241,8 @@ def hydrate_change_context(
             know the change is real before requesting context).
         ChangeStoreError: When checklist and legacy marker artifacts coexist
             and the canonical detector reports ``INVALID_MIXED``.
+        LegacyChangeLayoutError: When the folder still uses the removed
+            pre-v16 tasks.md/acceptance.md layout.
     """
     if active_root is None:
         active_root = _resolve_under_cwd(ACTIVE_DIR_DEFAULT)
@@ -273,30 +261,17 @@ def hydrate_change_context(
             "tasks.md or acceptance.md"
         )
 
-    if layout is ChangeLayout.CHECKLIST:
-        budgets = _CHECKLIST_HYDRATE_BUDGETS
-        return {
-            "goal": _hydrate_markdown(folder / "goal.md", budgets["goal"]),
-            "checklist": _hydrate_markdown(folder / "checklist.md", budgets["checklist"]),
-            "stage": _hydrate_markdown(folder / "stage.md", budgets["stage"]),
-            "preflight": _hydrate_markdown(folder / "preflight.md", budgets["preflight"]),
-            "spec": _hydrate_markdown(folder / "spec.md", budgets["spec"]),
-            "status": _hydrate_status(folder / "STATUS.yaml", budgets["status"]),
-            "owned_files": _hydrate_owned_files(folder / "owned_files.txt", budgets["owned_files"]),
-            "learnings": _hydrate_learnings(folder / "learnings.jsonl"),
-            "evidence": _hydrate_evidence(folder / "evidence"),
-        }
-
+    budgets = _CHECKLIST_HYDRATE_BUDGETS
     return {
-        "goal": _hydrate_markdown(folder / "goal.md", _HYDRATE_BUDGETS["goal"]),
-        "acceptance": _hydrate_markdown(folder / "acceptance.md", _HYDRATE_BUDGETS["acceptance"]),
-        "spec": _hydrate_markdown(folder / "spec.md", _HYDRATE_BUDGETS["spec"]),
-        "tasks": _hydrate_markdown(folder / "tasks.md", _HYDRATE_BUDGETS["tasks"]),
-        "status": _hydrate_status(folder / "STATUS.yaml", _HYDRATE_BUDGETS["status"]),
-        "owned_files": _hydrate_owned_files(
-            folder / "owned_files.txt", _HYDRATE_BUDGETS["owned_files"]
-        ),
+        "goal": _hydrate_markdown(folder / "goal.md", budgets["goal"]),
+        "checklist": _hydrate_markdown(folder / "checklist.md", budgets["checklist"]),
+        "stage": _hydrate_markdown(folder / "stage.md", budgets["stage"]),
+        "preflight": _hydrate_markdown(folder / "preflight.md", budgets["preflight"]),
+        "spec": _hydrate_markdown(folder / "spec.md", budgets["spec"]),
+        "status": _hydrate_status(folder / "STATUS.yaml", budgets["status"]),
+        "owned_files": _hydrate_owned_files(folder / "owned_files.txt", budgets["owned_files"]),
         "learnings": _hydrate_learnings(folder / "learnings.jsonl"),
+        "evidence": _hydrate_evidence(folder / "evidence"),
     }
 
 

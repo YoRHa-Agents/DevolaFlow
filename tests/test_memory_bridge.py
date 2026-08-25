@@ -20,7 +20,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from devolaflow.agent_workspace import ChangeNotFoundError, ChangeStoreError
+from devolaflow.agent_workspace import (
+    ChangeNotFoundError,
+    ChangeStoreError,
+    LegacyChangeLayoutError,
+)
 from devolaflow.agent_workspace.memory_bridge import (
     TRUNCATION_SENTINEL,
     MemoryBridgeError,
@@ -270,8 +274,8 @@ class TestConsolidateChangeOnArchive:
 class TestHydrateChangeContext:
     """Dual-layout :func:`hydrate_change_context` artifact loader."""
 
-    def test_returns_seven_keys(self, tmp_path: Path, monkeypatch) -> None:
-        """Change with all 7 artifacts ⇒ dict with all 7 keys present."""
+    def test_legacy_folder_raises_removal_error(self, tmp_path: Path, monkeypatch) -> None:
+        """Pre-v16 tasks.md/acceptance.md folder ⇒ LegacyChangeLayoutError (v17)."""
         monkeypatch.chdir(tmp_path)
         _make_active_folder(
             tmp_path,
@@ -285,20 +289,11 @@ class TestHydrateChangeContext:
             learnings=[_learning_dict(key="k1")],
         )
 
-        result = hydrate_change_context("add-foo")
+        with pytest.raises(LegacyChangeLayoutError) as exc_info:
+            hydrate_change_context("add-foo")
 
-        expected = {
-            "goal",
-            "acceptance",
-            "spec",
-            "tasks",
-            "status",
-            "owned_files",
-            "learnings",
-        }
-        assert set(result.keys()) == expected, (
-            f"hydrate must return exactly the 7 canonical keys; got {set(result.keys())}"
-        )
+        assert "removed in v17.0.0" in str(exc_info.value)
+        assert "checklist.md" in str(exc_info.value)
 
     def test_checklist_returns_exact_nine_keys_and_verbatim_evidence(
         self, tmp_path: Path, monkeypatch
@@ -423,12 +418,14 @@ class TestHydrateChangeContext:
         result = hydrate_change_context("skinny")
 
         assert result["goal"] == "# Goal only"
-        assert result["acceptance"] is None
+        assert result["checklist"] is None
+        assert result["stage"] is None
+        assert result["preflight"] is None
         assert result["spec"] is None
-        assert result["tasks"] is None
         assert result["status"] == {"state": "PROPOSED"}
         assert result["owned_files"] == []
         assert result["learnings"] == []
+        assert result["evidence"] == {}
 
     def test_parses_status_yaml(self, tmp_path: Path, monkeypatch) -> None:
         """STATUS.yaml ⇒ returns dict with parsed YAML mapping."""

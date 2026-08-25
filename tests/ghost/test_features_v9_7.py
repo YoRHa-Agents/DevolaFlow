@@ -26,8 +26,10 @@ _V9_7_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
     ("devolaflow.compressor.transforms", "dedup_predecessor_summaries"),
     ("devolaflow.compressor.transforms", "_hash_summary"),
     ("devolaflow.compressor.transforms", "_build_dedup_index"),
-    # PV-03 auto-wired async wave dispatch
-    ("devolaflow.feedback", "dispatch_wave_tasks"),
+    # PV-03 auto-wired async wave dispatch (defined on devolaflow.feedback at
+    # v9.7.0; moved to the ADR-006 owner module devolaflow.dispatch at
+    # v14.5.0; the old-path re-export shim was retired in v17.0.0)
+    ("devolaflow.dispatch", "dispatch_wave_tasks"),
     # PV-04 selector cache warmup
     ("devolaflow.task_adaptive_selector", "warmup_selector_cache"),
     ("devolaflow.task_adaptive_selector", "WARMUP_ENV_FLAG"),

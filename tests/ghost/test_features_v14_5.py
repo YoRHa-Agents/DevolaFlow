@@ -34,15 +34,18 @@ def test_v14_5_0_adr006_module_split_registered(project_root: Path) -> None:
     (a) The 6 NEW owner modules exist and import: gate/cascade.py,
         gate/ladder.py, gate/acceptance_v2.py, dispatch.py,
         agents_md_slice.py, selector_cli.py.
-    (b) Shim identity — ``old_path.symbol is new_path.symbol`` for the
-        gate.scorer re-exports AND the feedback.py S-10-named path
-        (``feedback.populate_cascade_gate_fields`` keeps working).
+    (b) The moved features live on their owner modules; the S-10-named
+        path keeps its identity-preserving shim
+        (``feedback.populate_cascade_gate_fields`` keeps working). The
+        other ADR-006 re-export shims were retired in v17.0.0 after
+        call-site migration (absence pinned by
+        tests/test_module_split_shims.py).
     (c) Post-split line ceilings stay honest: scorer < 1700,
         task_adaptive_selector < 1600.
-    (d) tests/test_module_split_shims.py (the dedicated identity suite)
-        exists.
+    (d) tests/test_module_split_shims.py (the dedicated shim-contract
+        suite) exists.
 
-    Source: ADR-006 (G-025); shims are PERMANENT (lifetime >= v16.0.0).
+    Source: ADR-006 (G-025); v17.0.0 shim retirement (ADR-006 revisit).
     """
     # --- (a) the 6 new owner modules import -------------------------------
     import devolaflow.agents_md_slice  # noqa: F401
@@ -54,22 +57,28 @@ def test_v14_5_0_adr006_module_split_registered(project_root: Path) -> None:
     import devolaflow.gate.scorer as scorer
     import devolaflow.selector_cli  # noqa: F401
 
-    # --- (b) identity-preserving shims ------------------------------------
-    assert scorer.validate_cascade_gate_fields is cascade.validate_cascade_gate_fields, (
-        "W-18 v14.5.0 violation: gate.scorer cascade shim lost identity (ADR-006)."
+    # --- (b) owner modules carry the moved features; only the S-10-named
+    # feedback.py path keeps its shim (v17.0.0 retirement) ------------------
+    assert callable(cascade.validate_cascade_gate_fields), (
+        "W-18 v14.5.0 violation: gate.cascade lost validate_cascade_gate_fields (ADR-006)."
     )
-    assert scorer.evaluate_ladder is ladder.evaluate_ladder, (
-        "W-18 v14.5.0 violation: gate.scorer ladder shim lost identity (ADR-006)."
+    assert callable(ladder.evaluate_ladder), (
+        "W-18 v14.5.0 violation: gate.ladder lost evaluate_ladder (ADR-006)."
     )
-    assert (
-        scorer.evaluate_acceptance_criteria_v2 is acceptance_v2.evaluate_acceptance_criteria_v2
-    ), "W-18 v14.5.0 violation: gate.scorer acceptance_v2 shim lost identity (ADR-006)."
+    assert callable(acceptance_v2.evaluate_acceptance_criteria_v2), (
+        "W-18 v14.5.0 violation: gate.acceptance_v2 lost evaluate_acceptance_criteria_v2 (ADR-006)."
+    )
     assert feedback.populate_cascade_gate_fields is cascade.populate_cascade_gate_fields, (
         "W-18 v14.5.0 violation: feedback.py shim lost identity — S-10 and "
         "schemas/lean-dispatch.yaml name feedback.py::populate_cascade_gate_fields verbatim."
     )
-    assert feedback.dispatch_wave_tasks is dispatch.dispatch_wave_tasks, (
-        "W-18 v14.5.0 violation: feedback.py dispatch shim lost identity (ADR-006)."
+    assert callable(dispatch.dispatch_wave_tasks), (
+        "W-18 v14.5.0 violation: dispatch.py lost dispatch_wave_tasks (ADR-006)."
+    )
+    retired = hasattr(scorer, "evaluate_ladder") or hasattr(feedback, "dispatch_wave_tasks")
+    assert not retired, (
+        "v17.0.0 shim-retirement violation: a retired ADR-006 re-export shim "
+        "reappeared — only feedback.populate_cascade_gate_fields is permanent."
     )
     # The S-10-named path stays FUNCTIONAL, not just importable.
     populated = feedback.populate_cascade_gate_fields({}, "STANDARD")

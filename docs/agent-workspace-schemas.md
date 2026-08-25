@@ -4,7 +4,7 @@
 > Closes gaps **C-002, M-003, M-005** from `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md`.
 > Authoritative spec: [`docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §2](../docs/cycle-archive/v8.3.0/design/v8.3.0_design.md).
 
-Human-readable companion to the 10 YAML files under
+Human-readable companion to the 10 artifact schemas (plus the index) under
 [`schemas/agent-workspace/`](../schemas/agent-workspace/). Use this when
 authoring `.local/.agent/active/<change-id>/` artifacts by hand between the
 v8.2.3 scaffold and the v8.2.5 Python API + CLI lint. Schemas are declarative
@@ -27,14 +27,22 @@ in v8.2.5 and turns hard-budget breaches into commit failures.
 | # | Schema | Target file | Token budget (soft / hard) | Format |
 |---|--------|-------------|----------------------------|--------|
 | 1 | `change-goal` | `.local/.agent/active/<id>/goal.md` | 200 / 400 | markdown + frontmatter |
-| 2 | `change-acceptance` | `.local/.agent/active/<id>/acceptance.md` | 400 / 800 | markdown + frontmatter |
-| 3 | `change-spec` | `.local/.agent/active/<id>/spec.md` | 1500 / 3000 | markdown + OpenSpec deltas |
-| 4 | `change-tasks` | `.local/.agent/active/<id>/tasks.md` | 800 / 1500 | markdown + frontmatter |
-| 5 | `change-status` | `.local/.agent/active/<id>/STATUS.yaml` | 100 / 200 | pure YAML |
-| 6 | `owned-files` | `.local/.agent/active/<id>/owned_files.txt` | 50 / 100 | plaintext |
-| 7 | `handoff-envelope` | `.local/.agent/handoff/<from>__<to>__<id>__<seq>.yaml` | 600 / 1200 | YAML (discriminated union) |
-| 8 | `agent-config` | `.local/.agent/config.yaml` | 400 / 800 | pure YAML |
-| 9 | `source-of-truth-spec` | `.local/memory/specs/<domain>/spec.md` | 2000 / 4000 | markdown + frontmatter |
+| 2 | `change-checklist` | `.local/.agent/active/<id>/checklist.md` | 1200 / 2400 | markdown + frontmatter |
+| 3 | `change-stage` | `.local/.agent/active/<id>/stage.md` | 400 / 800 | markdown + frontmatter |
+| 4 | `change-preflight` | `.local/.agent/active/<id>/preflight.md` | 600 / 1200 | markdown + frontmatter |
+| 5 | `change-spec` | `.local/.agent/active/<id>/spec.md` | 1500 / 3000 | markdown + OpenSpec deltas |
+| 6 | `change-status` | `.local/.agent/active/<id>/STATUS.yaml` | 100 / 200 | pure YAML |
+| 7 | `owned-files` | `.local/.agent/active/<id>/owned_files.txt` | 50 / 100 | plaintext |
+| 8 | `handoff-envelope` | `.local/.agent/handoff/<from>__<to>__<id>__<seq>.yaml` | 600 / 1200 | YAML (discriminated union) |
+| 9 | `agent-config` | `.local/.agent/config.yaml` | 400 / 800 | pure YAML |
+| 10 | `source-of-truth-spec` | `.local/memory/specs/<domain>/spec.md` | 2000 / 4000 | markdown + frontmatter |
+
+History: v16.0.0 replaced the per-change `acceptance.md` + `tasks.md` pair with
+the single `checklist.md` contract (plus `stage.md` / `preflight.md`); the
+`change-acceptance` and `change-tasks` schemas rode dual-track for one MAJOR
+and were **removed in v17.0.0** at their declared `removal_target`. Loading a
+folder that still carries `tasks.md`/`acceptance.md` without `checklist.md`
+raises `LegacyChangeLayoutError` — migrate the folder to `checklist.md`.
 
 ## 1. `change-goal`
 
@@ -47,19 +55,30 @@ order: `# Goal: <one-line title>` (≤ 120 chars), `## Why` (1–2 sentences),
 [`change-goal.yaml`](../schemas/agent-workspace/change-goal.yaml). Validate
 with `pytest tests/test_agent_workspace_schemas.py -k change_goal -v`.
 
-## 2. `change-acceptance`
+## 2. `change-checklist`
 
-Testable AC checklist organised into `## Functional`, `## Quality`, and
-`## Backward-compat` sections; each AC is a `- [ ] AC-N: <verifiable
-condition>` line. The `## Quality` section MUST mandate three baseline AC
-items — tests pass, `ruff check`, and `ruff format --check` — aligned with
-W-9 / SI-10. Frontmatter: `parent`, `ac_count` (1..30, derived). Lifecycle:
-`[ ]` → `[x]` is monotonic — never regress a checked AC (author a follow-up
-change instead). Schema:
-[`change-acceptance.yaml`](../schemas/agent-workspace/change-acceptance.yaml).
-Validate with `pytest tests/test_agent_workspace_schemas.py -k change_acceptance -v`.
+Single per-change execution contract (v16.0.0): goals as `## G<n>: <title>`
+H2 headings, items as `- [ ] C-G<n>.<m> (P0|P1|P2) <text>` with an indented
+`verify:` line; checked items carry an
+`evidence: evidence/<item>.txt | checked_by: ... | round: N | at: <ISO>` line.
+Frontmatter: `parent`, `schema_version`, `total_items`, `checked`,
+`priority_dist`, `reverted_open` (all derived from the body). When ALL items
+are `[x]`, the change MAY transition `IN_PROGRESS → VERIFYING`. Replaces the
+removed `change-acceptance` + `change-tasks` pair. Schema:
+[`change-checklist.yaml`](../schemas/agent-workspace/change-checklist.yaml).
+Validate with `pytest tests/test_agent_workspace_schemas.py -k change_checklist -v`.
 
-## 3. `change-spec`
+## 3. `change-stage` and 4. `change-preflight`
+
+`stage.md` records the current round's focus and hand-back notes (soft 400 /
+hard 800). `preflight.md` is the signed pre-execution authorization surface
+(soft 600 / hard 1200) read by the preflight guard before any owned-file
+write. Schemas:
+[`change-stage.yaml`](../schemas/agent-workspace/change-stage.yaml),
+[`change-preflight.yaml`](../schemas/agent-workspace/change-preflight.yaml).
+Validate with `pytest tests/test_agent_workspace_schemas.py -k "change_stage or change_preflight" -v`.
+
+## 5. `change-spec`
 
 Operation spec in **OpenSpec delta format** — per Rule **A-4** (M-004 ADR),
 this file carries deltas relative to the source-of-truth at
@@ -79,19 +98,7 @@ adoption: see `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md`
 [OpenSpec](https://github.com/Fission-AI/OpenSpec). Validate with
 `pytest tests/test_agent_workspace_schemas.py -k change_spec -v`.
 
-## 4. `change-tasks`
-
-Hierarchical numbered checklist read by the L0 / L2 dispatch loop; tasks
-grouped under `## N. <Group>` H2 headings and individual tasks use
-`- [ ] N.M ...` notation (e.g. `- [ ] 1.1 ...`). Per-task constraints: ≤ 6
-owned files (matches `owned-files` `max_paths`), ≤ 30 minutes estimated
-duration. Frontmatter: `parent`, `total_tasks` (1..50), `checked` (derived
-from `[x]` count). When ALL tasks are `[x]`, the change MAY transition
-`IN_PROGRESS → VERIFYING`. Schema:
-[`change-tasks.yaml`](../schemas/agent-workspace/change-tasks.yaml).
-Validate with `pytest tests/test_agent_workspace_schemas.py -k change_tasks -v`.
-
-## 5. `change-status`
+## 6. `change-status`
 
 Pure YAML FSM block — the only artifact that mutates frequently. Encodes
 the canonical lifecycle:
@@ -112,7 +119,7 @@ null is **required**, MUST NOT be omitted. Schema:
 [`change-status.yaml`](../schemas/agent-workspace/change-status.yaml).
 Validate with `pytest tests/test_agent_workspace_schemas.py -k change_status -v`.
 
-## 6. `owned-files`
+## 7. `owned-files`
 
 Plaintext file-ownership manifest: one repo-relative POSIX path per line,
 **max 6 paths**, no comments, no blank lines, trailing newline required, LF
@@ -125,7 +132,7 @@ outbox under `.local/.agent/handoff/` (append-only per S-9). Schema:
 [`owned-files.yaml`](../schemas/agent-workspace/owned-files.yaml). Validate
 with `pytest tests/test_agent_workspace_schemas.py -k owned_files -v`.
 
-## 7. `handoff-envelope`
+## 8. `handoff-envelope`
 
 The only supported channel for inter-agent messaging in DevolaFlow's 4-layer
 hierarchy. Filename pattern: `<FROM>__<TO>__<change-id>__<seq4>.yaml` where
@@ -147,7 +154,7 @@ envelopes for the change-id are compacted into
 [`handoff-envelope.yaml`](../schemas/agent-workspace/handoff-envelope.yaml).
 Validate with `pytest tests/test_agent_workspace_schemas.py -k envelope -v`.
 
-## 8. `agent-config`
+## 9. `agent-config`
 
 Per-project DevolaFlow agent config read at every L0 boot. Fields:
 `schema_version`, `schema` (default `change-driven`), `context` (free-form
@@ -159,7 +166,7 @@ prose ≤ 800 chars — tech stack / conventions / house rules), `rules`
 [`agent-config.yaml`](../schemas/agent-workspace/agent-config.yaml).
 Validate with `pytest tests/test_agent_workspace_schemas.py -k agent_config -v`.
 
-## 9. `source-of-truth-spec`
+## 10. `source-of-truth-spec`
 
 Per Rule **A-4** (M-004 ADR), the authoritative source-of-truth for current
 system behavior in `<domain>`; mutated **only** at archive time AFTER the
@@ -175,13 +182,13 @@ Validate with `pytest tests/test_agent_workspace_schemas.py -k source_of_truth_s
 
 ## Cross-cutting governance
 
-The 9 artifact schemas above are bound to four rules introduced in v8.2.2:
+The 10 artifact schemas above are bound to four rules introduced in v8.2.2:
 
 | Rule | Layer | Summary | Bound schemas |
 |------|-------|---------|---------------|
-| **S-8** | Soul (P0) | No writes outside active change `owned_files`. | owned-files, change-spec, change-tasks |
+| **S-8** | Soul (P0) | No writes outside active change `owned_files`. | owned-files, change-spec, change-checklist |
 | **S-9** | Soul (P0) | Handoff envelopes are append-only. | handoff-envelope |
-| **C-9** | Conventions (P2) | Per-artifact token budgets (table above). | all 9 artifact schemas |
+| **C-9** | Conventions (P2) | Per-artifact token budgets (table above). | all 10 artifact schemas |
 | **A-4** | Architecture (P1) | Source-of-truth at `.local/memory/specs/<domain>/spec.md`; mutated only at archive after gate PASS. | source-of-truth-spec, change-spec |
 
 ## Q-5 `agent_plus_specs` `.gitignore` policy
@@ -200,7 +207,7 @@ git check-ignore -v .local/memory/operational.jsonl    # rule does NOT start wit
 
 ## Cross-references
 
-- [`schemas/agent-workspace/__init__.yaml`](../schemas/agent-workspace/__init__.yaml) — index of all 9 schemas with byte-identical token budgets.
+- [`schemas/agent-workspace/__init__.yaml`](../schemas/agent-workspace/__init__.yaml) — index of all 10 schemas with byte-identical token budgets.
 - [`tests/test_agent_workspace_schemas.py`](../tests/test_agent_workspace_schemas.py) — 154 schema tests.
 - [`tests/test_gitignore_policy.py`](../tests/test_gitignore_policy.py) — 37 gitignore policy tests.
 - [`.cursor/rules/repo-governance.mdc`](../.cursor/rules/repo-governance.mdc) + [`AGENTS.md`](../AGENTS.md) — compiled rule-layer copies of S-8 / S-9 / C-9 / A-4.

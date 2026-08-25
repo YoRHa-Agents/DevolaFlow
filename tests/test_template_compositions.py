@@ -14,9 +14,7 @@ from devolaflow.template_engine.compositions import (
     CompositionEntry,
     CompositionManifestError,
     CompositionStep,
-    composition_to_template,
     load_composition_manifest,
-    validate_composition_manifest,
 )
 from devolaflow.template_engine.registry import (
     ChecklistSeedAliasWarning,
@@ -287,10 +285,6 @@ def test_runtime_discovery_validator_and_legacy_failure(
     assert legacy.primary_base == "change-driven"
     assert legacy.stage_sequence() == []
     assert "synthesis is retired" in legacy.deprecation_note()
-    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
-        composition_to_template(legacy)
-    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
-        validate_composition_manifest({"legacy": legacy}, {"change-driven"})
     assert validate_all_templates(True, _TEMPLATES_ROOT / "builtin")
     assert "1 template + 23 seeds" in capsys.readouterr().out
 

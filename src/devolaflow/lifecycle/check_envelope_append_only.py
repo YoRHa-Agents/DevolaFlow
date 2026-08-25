@@ -4,7 +4,7 @@ Documented in ``workflow-system/agent/SKILL.md`` §"Lifecycle Hooks" and
 ``.rules/soul.mdc`` §S-9. Bound to the ``envelope_write`` event by
 :mod:`devolaflow.lifecycle.__init__`.
 
-Contract: when an L3 task agent attempts to author a handoff envelope
+Contract: when an L2 task agent attempts to author a handoff envelope
 under ``.local/.agent/handoff/`` (paths of the form
 ``<from>__<to>__<change-id>__<seq>.yaml``), the target ``path`` MUST NOT
 already exist in the directory. To convey new information, the agent

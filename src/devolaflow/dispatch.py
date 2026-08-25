@@ -7,35 +7,24 @@ item 3 ("``dispatch_wave_tasks`` / ``dispatch_dogfood_cycle`` move to a
 dispatch module").
 
 Shim tracking table (per the ADR's "tracking table needed in the dispatch
-module docstring" clause). Every OLD path below keeps working PERMANENTLY
-(lifetime >= v16.0.0, revisit then) via identity-preserving module-level
-re-exports; S-10-named paths never expire:
+module docstring" clause). v17.0.0 shim retirement (the ADR's "revisit at
+v16.0.0+" clause discharged): every ADR-006 re-export shim EXCEPT the
+S-10/schema-named row below was retired in v17.0.0 after all in-repo call
+sites migrated to the owner modules (``devolaflow.gate.cascade`` /
+``devolaflow.gate.ladder`` / ``devolaflow.gate.acceptance_v2`` /
+``devolaflow.dispatch`` / ``devolaflow.agents_md_slice`` /
+``devolaflow.selector_cli``):
 
-    Old import path                                         New owner module
-    ------------------------------------------------------- -------------------------------
-    devolaflow.feedback.dispatch_wave_tasks                  devolaflow.dispatch
-    devolaflow.feedback.dispatch_dogfood_cycle               devolaflow.dispatch
-    devolaflow.feedback.populate_cascade_gate_fields         devolaflow.gate.cascade
-                                                             (S-10 / lean-dispatch.yaml-named
-                                                             — shim permanent)
-    devolaflow.feedback.populate_intra_task_convergence      devolaflow.gate.cascade
-    devolaflow.feedback.INTRA_TASK_CONVERGENCE_TASK_TYPES    devolaflow.gate.cascade
-    devolaflow.feedback.INTRA_TASK_MAX_ROUNDS_DEFAULT        devolaflow.gate.cascade
-    devolaflow.gate.scorer.CascadeViolationError             devolaflow.gate.cascade
-    devolaflow.gate.scorer.validate_cascade_gate_fields      devolaflow.gate.cascade
-    devolaflow.gate.scorer.IntraTaskConvergenceViolationError devolaflow.gate.cascade
-    devolaflow.gate.scorer.validate_intra_task_convergence_fields devolaflow.gate.cascade
-    devolaflow.gate.scorer.evaluate_ladder                   devolaflow.gate.ladder
-    devolaflow.gate.scorer.is_verification_ladder_active     devolaflow.gate.ladder
-    devolaflow.gate.scorer.VERIFICATION_LADDER_ENV_FLAG      devolaflow.gate.ladder
-    devolaflow.gate.scorer.RungChecker                       devolaflow.gate.ladder
-    devolaflow.gate.scorer.evaluate_acceptance_criteria_v2   devolaflow.gate.acceptance_v2
-    devolaflow.gate.scorer.aggregate_criterion_verdicts      devolaflow.gate.acceptance_v2
-    devolaflow.gate.scorer.CommandRunner / CommandRunResult  devolaflow.gate.acceptance_v2
-    devolaflow.gate.scorer.METRIC_KIND_{COVERAGE,LINT,NUMBER} devolaflow.gate.acceptance_v2
-    devolaflow.task_adaptive_selector.select_agents_md_slice devolaflow.agents_md_slice
-    devolaflow.task_adaptive_selector.count_agents_md_rules  devolaflow.agents_md_slice
-    devolaflow.task_adaptive_selector.main                   devolaflow.selector_cli
+    Old import path                                  Status
+    ------------------------------------------------ ------------------------------
+    devolaflow.feedback.populate_cascade_gate_fields PERMANENT — S-10 /
+                                                     lean-dispatch.yaml name this
+                                                     path verbatim; survives the
+                                                     v17 shim retirement. Owner:
+                                                     devolaflow.gate.cascade.
+    (every other ADR-006 shim row)                   retired v17.0.0 after
+                                                     call-site migration — import
+                                                     from the owner modules above.
 
 Pinned by ``tests/test_module_split_shims.py``.
 """

@@ -143,8 +143,8 @@ byte-identical before and after the schema bump. Their
 `verify_distinguish_cmd` was unset (`None` after parse), so
 `_verify_distinguish()` remained a no-op. `_SUPPORTED_SCHEMA_VERSIONS =
 frozenset({1, 2})` accepted both v1 and v2 fixtures. NineS is absent from the
-current v16 runtime registry; `devolaflow.nines` remains compatibility-only
-until v17.
+current runtime registry; its historical compatibility package was removed
+in v17.0.0.
 
 ### 3.3 The `curl_install_script` backend
 

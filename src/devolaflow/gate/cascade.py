@@ -12,12 +12,13 @@ reviewable module"; "``populate_cascade_gate_fields`` moves beside
 ``gate/cascade.py``").
 
 Path-contract note (S-10 + ``schemas/lean-dispatch.yaml`` line 683): rule and
-schema text name ``feedback.py::populate_cascade_gate_fields`` and the
-``gate.scorer`` validator paths BY PATH. PERMANENT identity-preserving
-re-export shims live at the old paths (``devolaflow.feedback`` and
-``devolaflow.gate.scorer``) — neither text changes; symbols imported from
-either path are the SAME objects. Pinned by
-``tests/test_module_split_shims.py``.
+schema text name ``feedback.py::populate_cascade_gate_fields`` BY PATH. That
+single re-export is PERMANENT — S-10/lean-dispatch.yaml name the path
+verbatim; it survives the v17 shim retirement. The other ADR-006 shims that
+once mirrored this module (the ``devolaflow.gate.scorer`` validator paths and
+the ``devolaflow.feedback`` intra-task-convergence re-exports) were retired
+in v17.0.0 after call-site migration — this module is their sole import
+surface. Pinned by ``tests/test_module_split_shims.py``.
 """
 
 from __future__ import annotations
@@ -37,10 +38,10 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # M2-W1-B — the simplified execution hierarchy has three observable layers:
-# L0 project orchestration → L1 Wave → L2 Task.  Four remains accepted only as
-# a legacy declaration and is interpreted as the new effective minimum.
+# L0 project orchestration → L1 Wave → L2 Task.  The v16 compatibility
+# reinterpretation of a declared ``4`` as effective ``3`` was removed in
+# v17.0.0 (G17-A5): declarations are validated at face value.
 _CASCADE_MIN_LAYERS_DEFAULT = 3
-_CASCADE_MIN_LAYERS_LEGACY = 4
 
 
 class CascadeViolationError(Exception):
@@ -129,8 +130,12 @@ def validate_cascade_gate_fields(
       under STANDARD/COMPLEX complexity and the L2 Task receiver knows the
       chain MUST traverse L0 → L1 Wave → L2 Task per Architecture rule A-7.
     * ``cascade_min_layers: int`` — minimum layer depth (default 3).
-      Legacy payloads declaring ``4`` are accepted with a warning and
-      validated against an effective minimum of ``3`` without mutation.
+
+    .. versionchanged:: 17.0.0
+       G17-A5 — the v16 compatibility reinterpretation of a declared
+       ``cascade_min_layers: 4`` as effective ``3`` (WARNING + fold) is
+       REMOVED. Declared minima are validated at face value; a ``4``
+       against a 3-layer chain now raises.
 
     Validation order (FIRST violation raises; the validator does NOT
     accumulate violations per v12.0.0 PV-02 spec):
@@ -148,13 +153,11 @@ def validate_cascade_gate_fields(
     4. ``cascade_min_layers`` not ``int >= 1`` (None / str / float /
        bool / 0 / negative) → raises :class:`CascadeViolationError`
        ("cascade_min_layers must be int >= 1, got <repr>").
-    5. A legacy ``cascade_min_layers == 4`` declaration emits a warning
-       and resolves to an effective minimum of ``3``. Other valid
-       explicit minima retain their declared semantics.
-    6. ``actual_layers is not None`` AND ``actual_layers <
-       effective_min_layers`` → raises :class:`CascadeViolationError`
+    5. ``actual_layers is not None`` AND ``actual_layers <
+       cascade_min_layers`` → raises :class:`CascadeViolationError`
        ("cascade depth violation: actual_layers=<n> <
-       cascade_min_layers=<effective-n>").
+       cascade_min_layers=<n>"). All declared minima retain their
+       face-value semantics (v17.0.0 G17-A5).
 
     Args:
       gate_block: the dispatch's ``gate`` sub-dict, or ``None`` when
@@ -211,25 +214,10 @@ def validate_cascade_gate_fields(
         logger.warning(msg)
         raise CascadeViolationError(msg)
 
-    effective_min_layers = cascade_min_layers
-    legacy_suffix = ""
-    if cascade_min_layers == _CASCADE_MIN_LAYERS_LEGACY:
-        effective_min_layers = _CASCADE_MIN_LAYERS_DEFAULT
-        legacy_suffix = (
-            f" (declared cascade_min_layers={_CASCADE_MIN_LAYERS_LEGACY}; "
-            f"compatibility effective minimum={_CASCADE_MIN_LAYERS_DEFAULT})"
-        )
-        logger.warning(
-            "A-7 legacy cascade_min_layers=%d interpreted as effective "
-            "cascade_min_layers=%d (L0→L1 Wave→L2 Task); input payload unchanged",
-            _CASCADE_MIN_LAYERS_LEGACY,
-            _CASCADE_MIN_LAYERS_DEFAULT,
-        )
-
-    if actual_layers is not None and actual_layers < effective_min_layers:
+    if actual_layers is not None and actual_layers < cascade_min_layers:
         msg = (
             f"A-7 cascade depth violation: actual_layers={actual_layers} "
-            f"< cascade_min_layers={effective_min_layers}{legacy_suffix}"
+            f"< cascade_min_layers={cascade_min_layers}"
         )
         logger.warning(msg)
         raise CascadeViolationError(msg)

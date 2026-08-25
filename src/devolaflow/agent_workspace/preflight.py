@@ -16,7 +16,11 @@ from typing import Final, Literal
 
 import yaml
 
-from devolaflow.agent_workspace.change import ChangeLayout, detect_change_layout
+from devolaflow.agent_workspace.change import (
+    ChangeLayout,
+    LegacyChangeLayoutError,
+    detect_change_layout,
+)
 from devolaflow.agent_workspace.round_parser import (
     RoundArtifactParseError,
     parse_checklist,
@@ -763,6 +767,10 @@ def _active_checklist_folder(repo_root: Path, change_id: str) -> Path:
     folder = repo_root / ".local" / ".agent" / "active" / change_id
     try:
         layout = detect_change_layout(folder)
+    except LegacyChangeLayoutError as exc:
+        raise PreflightAuthorizationError(
+            f"active change {change_id!r} must use the checklist layout: {exc}"
+        ) from exc
     except (OSError, RuntimeError) as exc:
         raise PreflightAuthorizationError(
             f"active change {change_id!r} is missing or unreadable"

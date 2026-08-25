@@ -282,7 +282,7 @@ class CycleDetector:
         ≥ :data:`FUZZY_MATCH_MIN_WINDOW`.
     similarity_threshold:
         Minimum pairwise Jaccard similarity required for ``fuzzy_match``
-        to fire. Defaults to ``0.8`` (per the L3 task contract). Must be
+        to fire. Defaults to ``0.8`` (per the L2 task contract). Must be
         in the inclusive range ``[0.0, 1.0]``.
 
     Examples
@@ -327,7 +327,7 @@ class CycleDetector:
     ) -> StateSnapshot:
         """Build a :class:`StateSnapshot` and :meth:`record` it in one shot.
 
-        Convenience wrapper around :func:`_make_snapshot` for L3 task
+        Convenience wrapper around :func:`_make_snapshot` for L2 task
         agents that want a single-call API instead of constructing the
         snapshot manually. Returns the constructed snapshot so callers
         can introspect or re-use it.

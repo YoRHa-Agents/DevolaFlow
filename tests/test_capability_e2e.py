@@ -62,9 +62,10 @@ import devolaflow as _devolaflow_pkg
 from devolaflow.agent_workspace.archive import ArchiveManager, ArchiveResult
 from devolaflow.agent_workspace.change import Change, ChangeStore
 from devolaflow.agent_workspace.lint import (
-    ARTIFACT_BUDGETS,
+    CHECKLIST_ARTIFACT_BUDGETS,
     estimate_tokens,
 )
+from devolaflow.agents_md_slice import select_agents_md_slice
 from devolaflow.init_project import (
     _EXAMPLE_CHANGE_ID,
     _EXAMPLE_DOMAIN,
@@ -77,7 +78,6 @@ from devolaflow.skills.change_activation import (
     classify_complexity,
     from_env,
 )
-from devolaflow.task_adaptive_selector import select_agents_md_slice
 from devolaflow.workspace_context import scan_workspace
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ def _make_payload(change_id: str, *, from_layer: str = "L1", to_layer: str = "L2
             "state": "IN_PROGRESS",
             "spec_delta_target": "agent_workspace",
             "owned_files_ref": f".local/.agent/active/{change_id}/owned_files.txt",
-            "acceptance_ref": f".local/.agent/active/{change_id}/acceptance.md",
+            "acceptance_ref": f".local/.agent/active/{change_id}/checklist.md",
             "from_layer": from_layer,
             "to_layer": to_layer,
         },
@@ -383,10 +383,11 @@ mutating the source-of-truth at `.local/memory/specs/<domain>/spec.md`.
 """
     (active / "spec.md").write_text(spec, encoding="utf-8")
     (active / "goal.md").write_text("# Goal\nValidate archive merge proposal.\n", encoding="utf-8")
-    (active / "acceptance.md").write_text(
-        "# AC\n1. Proposal returned.\n2. Source-of-truth absent post-archive.\n", encoding="utf-8"
+    (active / "checklist.md").write_text(
+        "# Checklist\n\n## G1: Drive archive\n- [x] C-G1.1 (P0) Proposal returned\n"
+        "      verify: manual\n",
+        encoding="utf-8",
     )
-    (active / "tasks.md").write_text("# Tasks\n## T1\nDrive archive.\n", encoding="utf-8")
     (active / "owned_files.txt").write_text("src/foo.py\n", encoding="utf-8")
     (active / "STATUS.yaml").write_text(
         "schema_version: 1\n"
@@ -432,10 +433,10 @@ def test_artifacts_respect_c9_token_budgets(tmp_path: Path) -> None:
     """C-9 contract — every example artifact stays within its budget ceiling.
 
     Drives ``install_local(with_examples=True)`` then checks every
-    artifact's estimated token count against ``ARTIFACT_BUDGETS`` from
-    ``devolaflow.agent_workspace.lint``. The handoff envelope is checked
-    against the design.md §1.1 budget (600 / 1200 — not in
-    ARTIFACT_BUDGETS but pinned in the cycle plan §PV-06).
+    artifact's estimated token count against ``CHECKLIST_ARTIFACT_BUDGETS``
+    from ``devolaflow.agent_workspace.lint``. The handoff envelope is
+    checked against the design.md §1.1 budget (600 / 1200 — not in
+    CHECKLIST_ARTIFACT_BUDGETS but pinned in the cycle plan §PV-06).
     """
     install_local(_agent_dir(), tmp_path, compile_rules=False, with_examples=True)
 
@@ -443,10 +444,10 @@ def test_artifacts_respect_c9_token_budgets(tmp_path: Path) -> None:
     handoff = tmp_path / ".local" / ".agent" / "handoff"
     envelope = handoff / f"L0__L2__{_EXAMPLE_CHANGE_ID}__0001.yaml"
 
-    for filename, (soft, hard) in ARTIFACT_BUDGETS.items():
+    for filename, (soft, hard) in CHECKLIST_ARTIFACT_BUDGETS.items():
         target = active / filename
         if not target.exists():
-            # README.md is part of the seed but not in ARTIFACT_BUDGETS.
+            # README.md is part of the seed but not in the budget table.
             continue
         observed = estimate_tokens(target.read_text(encoding="utf-8"))
         assert observed <= hard, (
@@ -485,9 +486,9 @@ def test_install_local_with_examples_seeds_three_artifacts(tmp_path: Path) -> No
     assert active.is_dir(), f"PV-06 fixture #1 missing: {active}"
     for required in (
         "goal.md",
-        "acceptance.md",
+        "checklist.md",
+        "stage.md",
         "spec.md",
-        "tasks.md",
         "STATUS.yaml",
         "owned_files.txt",
         "README.md",

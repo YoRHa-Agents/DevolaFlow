@@ -1,19 +1,23 @@
-"""Shim contract for the v14.5.0 ADR-006 module split (gap G-025).
+"""Shim contract for the v14.5.0 ADR-006 module split (gap G-025) — v17 form.
 
 Per ``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` the
 v14.5.0 split extracts ``gate/cascade.py`` + ``gate/ladder.py`` +
 ``gate/acceptance_v2.py`` out of ``gate/scorer.py``, ``agents_md_slice.py``
 + ``selector_cli.py`` out of ``task_adaptive_selector.py``, and the
-cascade populators + dispatch wrappers out of ``feedback.py`` — with
-PERMANENT re-export shims at every historical public import path (the ADR's
-shim clause; S-10 and ``schemas/lean-dispatch.yaml`` line 683 cite
-``feedback.py::populate_cascade_gate_fields`` /
-``feedback.py::ProposalGenerator.generate_round_dispatch`` BY PATH, so those
-paths never expire).
+cascade populators + dispatch wrappers out of ``feedback.py`` — originally
+with re-export shims at every historical public import path.
 
-This file is the executable contract: every old-path import MUST resolve
-AND be the IDENTICAL object (``is``) as the new-owner-module symbol. A
-shim that wraps, copies, or re-implements a moved symbol fails here.
+v17.0.0 shim retirement (the ADR's "revisit at v16.0.0+" clause discharged):
+every in-repo call site migrated to the owner modules and the shims were
+DELETED — EXCEPT the S-10/schema-named path, which is PERMANENT because
+S-10 and ``schemas/lean-dispatch.yaml`` line ~683 cite
+``feedback.py::populate_cascade_gate_fields`` /
+``feedback.py::ProposalGenerator.generate_round_dispatch`` BY PATH.
+
+This file is the executable contract in BOTH directions: retired old-path
+imports MUST NOT resolve (a reappearing re-export fails here), and the
+S-10-named keeper MUST resolve AND be the IDENTICAL object (``is``) as the
+owner-module symbol.
 """
 
 from __future__ import annotations
@@ -22,65 +26,56 @@ import importlib
 
 import pytest
 
-# (old_module, new_owner_module, symbol) — the full public moved-symbol set.
-_SHIMMED_SYMBOLS: tuple[tuple[str, str, str], ...] = (
+# (old_module, symbol) — every ADR-006 shim retired in v17.0.0. Importing
+# the old module must succeed (the modules themselves live on); the retired
+# re-export attribute must be GONE.
+_RETIRED_SHIMS: tuple[tuple[str, str], ...] = (
     # gate/scorer.py → gate/cascade.py (cascade + intra-task validators)
-    ("devolaflow.gate.scorer", "devolaflow.gate.cascade", "CascadeViolationError"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.cascade", "validate_cascade_gate_fields"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.cascade", "IntraTaskConvergenceViolationError"),
-    (
-        "devolaflow.gate.scorer",
-        "devolaflow.gate.cascade",
-        "validate_intra_task_convergence_fields",
-    ),
+    ("devolaflow.gate.scorer", "CascadeViolationError"),
+    ("devolaflow.gate.scorer", "validate_cascade_gate_fields"),
+    ("devolaflow.gate.scorer", "IntraTaskConvergenceViolationError"),
+    ("devolaflow.gate.scorer", "validate_intra_task_convergence_fields"),
     # gate/scorer.py → gate/ladder.py (the 6-rung verification ladder)
-    ("devolaflow.gate.scorer", "devolaflow.gate.ladder", "VERIFICATION_LADDER_ENV_FLAG"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.ladder", "RungChecker"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.ladder", "is_verification_ladder_active"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.ladder", "evaluate_ladder"),
+    ("devolaflow.gate.scorer", "VERIFICATION_LADDER_ENV_FLAG"),
+    ("devolaflow.gate.scorer", "RungChecker"),
+    ("devolaflow.gate.scorer", "is_verification_ladder_active"),
+    ("devolaflow.gate.scorer", "evaluate_ladder"),
     # gate/scorer.py → gate/acceptance_v2.py (AC-v2 + v14.4.0 metric runners)
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "METRIC_KIND_COVERAGE"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "METRIC_KIND_LINT"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "METRIC_KIND_NUMBER"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "CommandRunner"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "CommandRunResult"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "evaluate_acceptance_criteria_v2"),
-    ("devolaflow.gate.scorer", "devolaflow.gate.acceptance_v2", "aggregate_criterion_verdicts"),
-    # feedback.py → gate/cascade.py (populators beside their validators)
-    ("devolaflow.feedback", "devolaflow.gate.cascade", "populate_cascade_gate_fields"),
-    ("devolaflow.feedback", "devolaflow.gate.cascade", "populate_intra_task_convergence"),
-    ("devolaflow.feedback", "devolaflow.gate.cascade", "INTRA_TASK_CONVERGENCE_TASK_TYPES"),
-    ("devolaflow.feedback", "devolaflow.gate.cascade", "INTRA_TASK_MAX_ROUNDS_DEFAULT"),
+    ("devolaflow.gate.scorer", "METRIC_KIND_COVERAGE"),
+    ("devolaflow.gate.scorer", "METRIC_KIND_LINT"),
+    ("devolaflow.gate.scorer", "METRIC_KIND_NUMBER"),
+    ("devolaflow.gate.scorer", "CommandRunner"),
+    ("devolaflow.gate.scorer", "CommandRunResult"),
+    ("devolaflow.gate.scorer", "evaluate_acceptance_criteria_v2"),
+    ("devolaflow.gate.scorer", "aggregate_criterion_verdicts"),
+    # feedback.py → gate/cascade.py (intra-task populate helper + constants;
+    # populate_cascade_gate_fields is NOT here — it is the S-10 keeper)
+    ("devolaflow.feedback", "populate_intra_task_convergence"),
+    ("devolaflow.feedback", "INTRA_TASK_CONVERGENCE_TASK_TYPES"),
+    ("devolaflow.feedback", "INTRA_TASK_MAX_ROUNDS_DEFAULT"),
     # feedback.py → dispatch.py (wave-execution / dogfood dispatch wrappers)
-    ("devolaflow.feedback", "devolaflow.dispatch", "dispatch_wave_tasks"),
-    ("devolaflow.feedback", "devolaflow.dispatch", "dispatch_dogfood_cycle"),
+    ("devolaflow.feedback", "dispatch_wave_tasks"),
+    ("devolaflow.feedback", "dispatch_dogfood_cycle"),
     # task_adaptive_selector.py → agents_md_slice.py (AGENTS.md slicing)
-    ("devolaflow.task_adaptive_selector", "devolaflow.agents_md_slice", "select_agents_md_slice"),
-    ("devolaflow.task_adaptive_selector", "devolaflow.agents_md_slice", "count_agents_md_rules"),
+    ("devolaflow.task_adaptive_selector", "select_agents_md_slice"),
+    ("devolaflow.task_adaptive_selector", "count_agents_md_rules"),
     # task_adaptive_selector.py → selector_cli.py (the CLI block)
-    ("devolaflow.task_adaptive_selector", "devolaflow.selector_cli", "main"),
+    ("devolaflow.task_adaptive_selector", "main"),
 )
 
 
 @pytest.mark.parametrize(
-    ("old_module", "new_module", "symbol"),
-    _SHIMMED_SYMBOLS,
-    ids=[f"{old}::{sym}" for old, _new, sym in _SHIMMED_SYMBOLS],
+    ("old_module", "symbol"),
+    _RETIRED_SHIMS,
+    ids=[f"{old}::{sym}" for old, sym in _RETIRED_SHIMS],
 )
-def test_old_path_resolves_and_is_new_path_symbol(
-    old_module: str, new_module: str, symbol: str
-) -> None:
-    """Every old-path import resolves AND ``is`` the new-owner-module symbol."""
+def test_retired_shim_absent_from_old_path(old_module: str, symbol: str) -> None:
+    """Every v17.0.0-retired shim is GONE from its historical module."""
     old = importlib.import_module(old_module)
-    new = importlib.import_module(new_module)
-    assert hasattr(old, symbol), (
-        f"ADR-006 shim violation: {old_module}.{symbol} no longer resolves — "
-        f"the permanent re-export shim was dropped."
-    )
-    assert getattr(old, symbol) is getattr(new, symbol), (
-        f"ADR-006 shim violation: {old_module}.{symbol} is not the IDENTICAL "
-        f"object as {new_module}.{symbol} — shims must be identity-preserving "
-        f"re-exports, never wrappers or copies."
+    assert not hasattr(old, symbol), (
+        f"v17.0.0 shim-retirement violation: {old_module}.{symbol} resolves "
+        f"again — the ADR-006 re-export was retired in v17.0.0 after "
+        f"call-site migration; import it from the owner module instead."
     )
 
 
@@ -88,13 +83,22 @@ def test_s10_named_paths_verbatim_functional() -> None:
     """The S-10 / schema-named ``feedback.py`` paths work verbatim.
 
     Soul rule S-10 names ``feedback.py::ProposalGenerator.generate_round_dispatch``
-    and ``schemas/lean-dispatch.yaml`` line 683 names
+    and ``schemas/lean-dispatch.yaml`` line ~683 names
     ``feedback.py::populate_cascade_gate_fields`` BY PATH — both MUST stay
     importable from ``devolaflow.feedback`` and behave (smoke-level)
-    exactly as before the split.
+    exactly as before the split. PERMANENT — this keeper survives the v17
+    shim retirement and must stay an identity-preserving re-export.
     """
     from devolaflow.feedback import ProposalGenerator, populate_cascade_gate_fields
+    from devolaflow.gate.cascade import (
+        populate_cascade_gate_fields as owner_populate_cascade_gate_fields,
+    )
 
+    assert populate_cascade_gate_fields is owner_populate_cascade_gate_fields, (
+        "S-10 keeper violation: feedback.populate_cascade_gate_fields is not "
+        "the IDENTICAL object as gate.cascade.populate_cascade_gate_fields — "
+        "the permanent shim must stay an identity-preserving re-export."
+    )
     assert callable(populate_cascade_gate_fields)
     assert callable(ProposalGenerator.generate_round_dispatch)
 

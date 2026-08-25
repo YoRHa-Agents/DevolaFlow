@@ -138,8 +138,8 @@ lean_format_spec:
       why: "rationale (≤10 words)"
       alt: "rejected alternative (≤8 words, optional)"
     max_entries: 5
-  # --- v14.3.0 L3 evidence blocks (G-002 + G-003, doctrine per v15-ADR-007) ---
-  # L3 emits EVIDENCE ONLY — never scores; L0 derives scores from evidence
+  # --- v14.3.0 L2 evidence blocks (G-002 + G-003, doctrine per v15-ADR-007) ---
+  # L2 emits EVIDENCE ONLY — never scores; L0 derives scores from evidence
   # (L0-side scoring lands v15.0.0). None of the three blocks below defines a
   # score field; the `reject_subagent_quality_score` pre_dispatch hook guards
   # the top-level key, and these blocks keep the nested surface score-free by
@@ -155,7 +155,7 @@ lean_format_spec:
       conflicts: "BG-006 — typed ConflictFinding entries [{patterns, files}]; may be empty; optional"
       conventions: "BG-007 — typed ADRRequiredFinding entries [{existing, proposed}]; may be empty; optional"
   ac_results:
-    description: "Optional. Per-AC verdicts keyed to the dispatch's acceptance_criteria_v2 ids. verdict comes from the L3 ACTUALLY RUNNING the criterion's verification_cmd intra-task — self-verify protocol per references/execution-protocol.md §self-verify."
+    description: "Optional. Per-AC verdicts keyed to the dispatch's acceptance_criteria_v2 ids. verdict comes from the L2 ACTUALLY RUNNING the criterion's verification_cmd intra-task — self-verify protocol per references/execution-protocol.md §self-verify."
     per_entry:
       id: "verbatim acceptance_criteria_v2 id from the originating dispatch"
       verdict: "pass|fail|skip"
@@ -217,7 +217,7 @@ compression_rules:
   default_intensity: standard
   # v7.2.0 (C-002 mirror, source: caveman/SKILL.md "## Auto-Clarity") — bypass list.
   # Mirrors lean-dispatch.yaml#compression_rules.bypass_conditions verbatim so
-  # the L3→L2 (status report) and L2→L3 (dispatch) sides of the channel agree
+  # the L2→L1 (status report) and L1→L2 (dispatch) sides of the channel agree
   # on which content classes are NEVER compressed. P6-safe (nested, not new
   # top-level key in the rendered report payload).
   bypass_conditions:
@@ -306,7 +306,7 @@ aggregation_formats:
 
 # Tool-output truncation manifest (v7.0.1+, per .local/research/adr/v7-ADR-002-tool-output-truncation.md)
 # Reports how many tool_use outputs were preserved verbatim vs. truncated, and
-# the head/tail/placeholder policy applied. Producing layer is the L3 task agent;
+# the head/tail/placeholder policy applied. Producing layer is the L2 task agent;
 # consuming layer is the L2 wave agent (which uses it to decide whether to refresh
 # tool definitions). Block is APPENDED at the end of the file per the additive rule
 # in v7-ADR-001 §2 (cache layout invariant) — new top-level keys MUST follow the
@@ -324,7 +324,7 @@ tool_results:
     cleared_at_round: null           # int | null
 
 # Optional session reflections — v7.2.3 (P-03 reflective reflex writer; activates
-# dormant substrate from v7.2.0 PR-C / C-007). The L3 task agent emits an
+# dormant substrate from v7.2.0 PR-C / C-007). The L2 task agent emits an
 # ``learnings.entries`` list inside its status report; the L0 dispatcher's
 # status-report consumer persists each entry via
 # ``devolaflow.learnings.capture_session_reflection`` (auto-derives ``key`` when
@@ -352,7 +352,7 @@ learnings:
 
 # v8.0.0 (P-06) — Cycle Detection Middleware optional surface.
 #
-# When the L3 task agent uses `devolaflow.gate.cycle_detector.CycleDetector`
+# When the L2 task agent uses `devolaflow.gate.cycle_detector.CycleDetector`
 # inside its convergence loop, the resulting `CycleReport` MAY be surfaced
 # in the StatusReport so upstream gates (L2 Wave / L1 Stage) can decide
 # whether to inject a `MUST NOT repeat` reinforcement rule into the next
@@ -369,7 +369,7 @@ cycle_detected:
   default: false
   rules:
     - rule: "When true, `cycle_details` MUST be populated; consumers MUST NOT silently drop the signal (S-5)."
-    - rule: "Producer: L3 task agent's `evaluate_gate(..., cycle_detector=...)` call."
+    - rule: "Producer: L2 task agent's `evaluate_gate(..., cycle_detector=...)` call."
     - rule: "Consumer: L2 Wave agent — converts the report into a ReinforcementRule via `cycle_to_instruction`."
 
 cycle_details:

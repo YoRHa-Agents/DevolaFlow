@@ -49,7 +49,7 @@ STANDARD's ``legibility_enabled`` auto-wire flag remains ``False``.
 v15.0.0 (R1 gate wiring per v15-ADR-007) — each profile carries an
 ``artifact_evidence_weight`` factor controlling how much the L0-side
 :func:`devolaflow.gate.artifact_score.score_artifact_evidence`
-composite (computed from L3 evidence blocks) steers the gate
+composite (computed from L2 evidence blocks) steers the gate
 composite. Mirrors the legibility precedent exactly:
 STRICT/STANDARD/AUDIT default to ``0.05``; RELAXED defaults to
 ``0.0`` (opt-in only — supplying ``artifact_evidence=None`` keeps

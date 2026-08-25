@@ -13,7 +13,7 @@ This module is deliberately small and dependency-free:
   :class:`devolaflow.gate.models.AcceptanceCriterion` records.
 * :meth:`ACGenerator.score_quality` reports a 3-dimensional quality
   vector (``completeness`` / ``testability`` / ``specificity``) so
-  L2/L3 agents can refuse low-quality criteria upstream of the gate.
+  L1/L2 agents can refuse low-quality criteria upstream of the gate.
 
 Per ``patch_plan §3 P-10`` the legacy ``acceptance_criteria: list[str]``
 alias remains the contract for v7.x dispatchers; this module supplies

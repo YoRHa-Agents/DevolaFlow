@@ -5,7 +5,7 @@ Pins the audit verdict from `.local/research/v12.4.0_l0_only_audit.md`
 `workflow-system/agent/context_profiles.yaml` source-of-truth:
 
 1. `version_update` — L0-only operator-facing banner content. All
-   subagent (L1/L2/L3) profiles MUST mark `skip`. Only `self_update`
+   subagent (L1/L2) profiles MUST mark `skip`. Only `self_update`
    profile legitimately needs `critical` (the workflow whose whole
    purpose IS bumping the version).
 2. `task_quality_score` — L0-only scoring stub. All subagent profiles
@@ -56,7 +56,7 @@ def test_version_update_skip_for_all_subagent_profiles(
     profiles: dict[str, Any],
 ) -> None:
     """Per audit §A.1: `version_update` is L0-only operator-facing banner
-    content. Every subagent (L1/L2/L3) profile MUST mark `skip`. Only
+    content. Every subagent (L1/L2) profile MUST mark `skip`. Only
     the `self_update` profile legitimately consumes the §"Version &
     Update" content (its whole purpose IS bumping version).
 

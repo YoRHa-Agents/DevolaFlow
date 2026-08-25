@@ -17,7 +17,7 @@ Covers AC-1 through AC-8 from ``.local/research/v8.3.0_patch_plan.md``
   CLI writes the workspace REPORT.
 * AC-7: this file pushes coverage on reporter.py to ≥ 80% (verified
   by the coverage check in v8.2.7 Final Verification).
-* AC-8: SI-10 6/6 is verified by the orchestrating L3 task agent.
+* AC-8: SI-10 6/6 is verified by the orchestrating L2 task agent.
 
 All tests use ``tmp_path`` fixtures so they run in isolation from the
 real ``.local/.agent/`` tree on disk.
@@ -79,7 +79,7 @@ def _scaffold_change(
     state: str = "ARCHIVED",
     spec_md: str | None = None,
     goal_md: str | None = None,
-    tasks_md: str | None = None,
+    checklist_md: str | None = None,
     owned_files: list[str] | None = None,
     learnings_jsonl: str | None = None,
     status_overrides: dict | None = None,
@@ -117,21 +117,6 @@ def _scaffold_change(
     )
     (folder / "goal.md").write_text(goal, encoding="utf-8")
 
-    acceptance = textwrap.dedent(
-        f"""\
-        ---
-        parent: {change_id}
-        ac_count: 1
-        ---
-
-        # Acceptance Criteria
-
-        ## Functional
-        - [ ] AC-1: It works
-        """
-    )
-    (folder / "acceptance.md").write_text(acceptance, encoding="utf-8")
-
     if spec_md is None:
         spec_md = textwrap.dedent(
             f"""\
@@ -154,25 +139,30 @@ def _scaffold_change(
         )
     (folder / "spec.md").write_text(spec_md, encoding="utf-8")
 
-    if tasks_md is None:
-        tasks_md = textwrap.dedent(
+    if checklist_md is None:
+        checklist_md = textwrap.dedent(
             f"""\
             ---
             parent: {change_id}
-            total_tasks: 2
+            schema_version: 1
+            total_items: 2
             checked: 0
+            priority_dist: {{P0: 2, P1: 0, P2: 0}}
+            reverted_open: 0
             ---
 
-            # Tasks
+            # Checklist
 
-            ## 1. Implementation
-            - [ ] 1.1 Write code
+            ## G1: Implementation
+            - [ ] C-G1.1 (P0) Write code
+                  verify: manual
 
-            ## 2. Tests
-            - [ ] 2.1 Write tests
+            ## G2: Tests
+            - [ ] C-G2.1 (P0) Write tests
+                  verify: manual
             """
         )
-    (folder / "tasks.md").write_text(tasks_md, encoding="utf-8")
+    (folder / "checklist.md").write_text(checklist_md, encoding="utf-8")
 
     status: dict = {
         "schema_version": 1,
@@ -422,7 +412,10 @@ class TestChangeReport:
             archive_folder,
             change_id="empty-test",
             spec_md="---\nparent: empty-test\ndelta_target: empty\ndelta_kind: lite\n---\n",
-            tasks_md="---\nparent: empty-test\ntotal_tasks: 0\nchecked: 0\n---\n\n# Tasks\n",
+            checklist_md=(
+                "---\nparent: empty-test\nschema_version: 1\ntotal_items: 0\nchecked: 0\n"
+                "priority_dist: {P0: 0, P1: 0, P2: 0}\nreverted_open: 0\n---\n\n# Checklist\n"
+            ),
             owned_files=[],
             learnings_jsonl=None,
         )

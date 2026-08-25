@@ -161,7 +161,7 @@ def _build_dispatch_block(
 
     The full payload is NOT embedded — that would routinely blow the
     C-9 hard-ceiling (1200 tokens per envelope) on real dispatches. The
-    block is the minimal envelope contract; the L3 receiver follows the
+    block is the minimal envelope contract; the L2 receiver follows the
     refs back to the canonical artefacts under ``.local/.agent/active/``.
     """
     task = payload.get("task")

@@ -269,8 +269,8 @@ Cross-change analysis and self-evaluation use
 `python -m devolaflow.harness evaluate`; aggregation, bounded model probes,
 proposal generation, and explicit approval/application live in the same
 `devolaflow.harness` domain. Missing evidence remains `INSUFFICIENT`, never an
-implicit manual pass. `devolaflow.nines` is deprecated v16 compatibility only
-and is scheduled for removal in v17.
+implicit manual pass. The historical NineS compatibility package was removed
+in v17.0.0.
 
 When evidence is supplied, `evaluate_gate(artifact_evidence=...)` adds the
 profile's `artifact_evidence_weight` dimension: `0.05` in

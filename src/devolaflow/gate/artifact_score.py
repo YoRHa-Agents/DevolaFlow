@@ -1,14 +1,14 @@
-"""L0-side artifact-quality scoring computed FROM L3 evidence blocks.
+"""L0-side artifact-quality scoring computed FROM L2 evidence blocks.
 
 v15.0.0 SCORING PHASE of the evidence-vs-scoring doctrine split ratified
 in `docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`:
-the L3 Task Agent emits EVIDENCE ONLY (the v14.3.0 ``self_check`` /
+the L2 Task Agent emits EVIDENCE ONLY (the v14.3.0 ``self_check`` /
 ``ac_results`` / ``diff_stats`` blocks per ``schemas/lean-report.yaml``
 and the 4-dimension rubric in
 ``workflow-system/agent/references/artifact-quality.md``); the **L0
 Project Agent** computes the artifact quality score FROM that evidence
 at workflow close / stage-gate time. The doctrine is never inverted —
-**L3 never scores** (W-21-adjacent L0-only framing; enforced at runtime
+**L2 never scores** (W-21-adjacent L0-only framing; enforced at runtime
 by the strict ``lifecycle/reject_subagent_quality_score.py`` hook as of
 v15.0.0 G-038). This module is the L0-ONLY consumer of the evidence
 channel and mirrors the hook's forbidden-key scan: a report that
@@ -66,7 +66,7 @@ over the SCORED subset when dimensions are ``unscored``.
 """
 
 _FORBIDDEN_SCORE_KEYS: tuple[str, ...] = ("quality_score", "quality")
-"""Keys that signal an L3-authored score — mirrors the runtime hook.
+"""Keys that signal an L2-authored score — mirrors the runtime hook.
 
 ``gate_input_score`` (the v14.2.1 G-013 rename) is deliberately ABSENT:
 it is gate-dimension input EVIDENCE, not a holistic score.
@@ -81,7 +81,7 @@ carried forward as read-only predecessor evidence is legitimate.
 
 
 class EvidenceDoctrineError(ValueError):
-    """Report input carries a forbidden L3-authored quality score.
+    """Report input carries a forbidden L2-authored quality score.
 
     Coherent with the strict ``reject_subagent_quality_score`` lifecycle
     hook (v15.0.0 G-038): the same forbidden keys at the same locations
@@ -107,7 +107,7 @@ def _assert_evidence_only(report: dict) -> None:
         rendered = ", ".join(f"{key!r} at {loc}" for key, loc in locations)
         raise EvidenceDoctrineError(
             f"report carries forbidden subagent score field(s): {rendered}. "
-            "Per v15-ADR-007, L3 emits evidence only — scoring is L0-side. "
+            "Per v15-ADR-007, L2 emits evidence only — scoring is L0-side. "
             "Strip the field upstream (gate-dimension input evidence "
             "belongs in 'metrics.gate_input_score')."
         )
@@ -136,7 +136,7 @@ class DimensionScore:
 
 @dataclass(frozen=True)
 class ArtifactScore:
-    """L0-computed artifact quality score derived from L3 evidence blocks.
+    """L0-computed artifact quality score derived from L2 evidence blocks.
 
     ``composite`` is the weighted mean over SCORED dimensions only
     (weights renormalized per the ADR-007 never-fabricate rule); ``None``

@@ -1,5 +1,5 @@
 """Doctrine pins for schemas/lean-report.yaml metrics (v14.2.1 G-013)
-and the v14.3.0 L3 evidence blocks (G-002 + G-003, per v15-ADR-007).
+and the v14.3.0-era L2 evidence blocks (G-002 + G-003, per v15-ADR-007).
 
 G-013 (v14.2.1) closes `.local/research/v14.2.0_gap_analysis.md` §2.3
 (source finding F-P4-3): the lean StatusReport spec used to define

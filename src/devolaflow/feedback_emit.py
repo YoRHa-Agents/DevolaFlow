@@ -214,7 +214,7 @@ class ProposalEmitter:
         V6-01 wiring (preserved verbatim from the v10.5.x
         ``ProposalGenerator.generate_round_dispatch`` body): stitches
         the caller's reinforcement factory into the dispatch lifecycle
-        so L3 Task Agents receive the reinforcement block under
+        so L2 Task Agents receive the reinforcement block under
         ``context.applicable_rules.reinforcement`` on rounds ≥ 2.
         Round 1 is a pure pass-through — the first attempt has no
         prior round to learn from.
@@ -315,7 +315,7 @@ class ProposalEmitter:
 
         v9.4.0 PV-03 — ``pre_plugin_invocation`` lands AFTER
         ``pre_handoff`` so the dispatch's plugin candidates can be
-        auto-installed BEFORE the L3 Task Agent attempts to call the
+        auto-installed BEFORE the L2 Task Agent attempts to call the
         plugin's binary. The default ``pre_plugin_invocation``
         handler is a no-op when ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS``
         is unset (R5 strict byte-identical), so adding the fourth

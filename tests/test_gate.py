@@ -1321,7 +1321,8 @@ class TestLadderByteIdenticalDefaultProfile:
     def test_evaluate_gate_pass_input_unchanged_with_ladder_field(self) -> None:
         # Two calls must return *equal* verdicts now that GateProfile
         # carries a new ``ladder_enabled`` field with default False.
-        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+        from devolaflow.gate.ladder import evaluate_ladder
+        from devolaflow.gate.scorer import evaluate_gate
 
         gi = _pass_input()
         v_gate = evaluate_gate(gi, STANDARD)
@@ -1334,7 +1335,8 @@ class TestLadderByteIdenticalDefaultProfile:
         assert v_gate.escalation_context == v_ladder.escalation_context
 
     def test_evaluate_gate_fail_blockers_unchanged_with_ladder_field(self) -> None:
-        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+        from devolaflow.gate.ladder import evaluate_ladder
+        from devolaflow.gate.scorer import evaluate_gate
 
         gi = _pass_input()
         gi.review_findings = [_make_finding("blocker", "F001")]
@@ -1346,7 +1348,8 @@ class TestLadderByteIdenticalDefaultProfile:
         assert "blockers" in v_gate.rationale
 
     def test_evaluate_gate_convergence_unchanged_with_ladder_field(self) -> None:
-        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+        from devolaflow.gate.ladder import evaluate_ladder
+        from devolaflow.gate.scorer import evaluate_gate
 
         gi = GateInput(
             build_status=CheckResult(status="pass"),

@@ -67,7 +67,7 @@ def test_select_pattern_fan_out_for_parallel_independent_tasks() -> None:
     """STANDARD / >=2 tasks / parallel_independence=True → FAN_OUT.
 
     Pins gap-analysis §5.4 row "STANDARD / ≥ 2 / True / any / False"
-    → FAN_OUT: an L2 wave dispatching N parallel L3 tasks (max 5 per
+    → FAN_OUT: an L1 wave dispatching N parallel L2 tasks (max 5 per
     wave per ``references/agent-hierarchy.md`` §5) — the canonical
     Pattern 2 use case. Verifies behaviour at task_count=2 (boundary)
     and task_count=3 (interior).

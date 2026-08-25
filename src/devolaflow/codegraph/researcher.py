@@ -1,4 +1,4 @@
-"""Codegraph researcher API — public helpers for L0/L1/L2/L3 invocation.
+"""Codegraph researcher API — public helpers for L0/L1/L2 invocation.
 
 Five public researcher helpers that mirror the upstream MCP tool surface
 (see :mod:`devolaflow.codegraph` package docstring for the full 9-tool
@@ -199,7 +199,7 @@ def get_impact(
     Wraps ``codegraph impact <symbol> --depth N --json``. Returns the
     upstream-published structured impact payload on success, ``{}`` on
     degraded mode. The empty-dict sentinel is the degraded-mode signal;
-    callers (gate scoring, L3 review) MUST fall back to a manual
+    callers (gate scoring, L2 review) MUST fall back to a manual
     blast-radius probe when empty.
 
     Args:

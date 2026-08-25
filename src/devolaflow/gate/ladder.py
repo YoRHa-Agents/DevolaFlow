@@ -11,9 +11,9 @@ item 1. Mechanical import fixes only: the two call sites of
 ``gate/scorer.py``) import them at function level to keep this module free
 of module-level cycles.
 
-PERMANENT identity-preserving re-export shims live at the old
-``devolaflow.gate.scorer`` path per the ADR's shim clause. Pinned by
-``tests/test_module_split_shims.py``.
+The ADR-006 re-export shims at the old ``devolaflow.gate.scorer`` path were
+retired in v17.0.0 after call-site migration; this module is the sole import
+surface. Absence pinned by ``tests/test_module_split_shims.py``.
 """
 
 from __future__ import annotations

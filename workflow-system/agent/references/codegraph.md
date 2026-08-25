@@ -165,7 +165,7 @@ The thin subprocess wrapper at `devolaflow.codegraph._cli.run_codegraph_cli` is 
 
 ### §4.5 — Env flag (per W-20 reuse-first)
 
-NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with the other registered plugins. NineS is not a v16 runtime-plugin dependency; `devolaflow.nines` is deprecated compatibility only.
+NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with the other registered plugins. NineS is not a runtime-plugin dependency; its historical compatibility package was removed in v17.0.0.
 
 Operators who want codegraph auto-installed AND don't want manual `npm install`:
 

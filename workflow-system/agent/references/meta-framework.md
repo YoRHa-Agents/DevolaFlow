@@ -220,7 +220,7 @@ manifest:
 
 - `TemplateRegistry.compositions()` fails explicitly;
 - `load_composition_manifest()` fails explicitly;
-- `composition_to_template()` is not a v3 execution path.
+- the v16 always-raise synthesis/validation stubs were removed in v17.0.0.
 
 Do not rebuild a DAG from seed partitions or provenance.
 

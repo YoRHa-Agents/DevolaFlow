@@ -285,7 +285,7 @@ def test_cascade_requirement_complex_returns_required() -> None:
 
     Pins the operator-quotable verdict rule per
     `.local/research/v11.1.0_pv02_decision.md` §1: "STANDARD complexity
-    or higher → cascade required (L0→L1→L2→L3)".
+    or higher → cascade required (L0→L1→L2)".
     """
     assert cascade_requirement("COMPLEX") == "CASCADE_REQUIRED"
 
@@ -410,7 +410,7 @@ def test_cascade_requirement_orthogonal_to_force_no_change() -> None:
     """cascade_requirement and activation_verdict(force_no_change=True) compose orthogonally.
 
     Per ``.local/research/v11.1.0_pv02_decision.md`` §3 R-2:
-    ``cascade_requirement`` applies to DISPATCH SHAPE (the L0→L1→L2→L3
+    ``cascade_requirement`` applies to DISPATCH SHAPE (the L0→L1→L2
     chain), while ``activation_verdict``'s ``force_no_change`` applies
     to WORKSPACE ACTIVATION (the ``.local/.agent/active/<id>/``
     scaffold). The two surfaces are independent and never override

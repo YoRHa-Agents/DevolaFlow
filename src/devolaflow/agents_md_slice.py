@@ -10,9 +10,9 @@ item 2. Mechanical import fix only: ``select_agents_md_slice`` imports the
 selector-core ``load_profiles`` / ``estimate_tokens`` at function level to
 keep this module free of module-level cycles.
 
-PERMANENT identity-preserving re-export shims live at the old
-``devolaflow.task_adaptive_selector`` path per the ADR's shim clause.
-Pinned by ``tests/test_module_split_shims.py``.
+The ADR-006 re-export shims at the old ``devolaflow.task_adaptive_selector``
+path were retired in v17.0.0 after call-site migration; this module is the
+sole import surface. Absence pinned by ``tests/test_module_split_shims.py``.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # truth per the A-5 SSOT registry pattern (PV-03 ADR-003).
 #
 # MAJOR semver justification: when an operator opts into slicing, the
-# cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70%
+# cached prefix that L0 sends to L1/L2 dispatchees shrinks by 15-70%
 # depending on task type. For long-running L0 sessions that cache the
 # AGENTS.md prefix between dispatches, this is an observable change in
 # the input prompt — downstream tools that audit / log prompts will see

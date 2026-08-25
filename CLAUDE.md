@@ -23,7 +23,6 @@ make test-harness                             # built-in harness contracts
 ## Project Structure
 
 - `src/devolaflow/harness/` — current telemetry, evaluation, proposal, and model-probe source of truth
-- `src/devolaflow/nines/` — deprecated v16 compatibility only; scheduled for removal in v17
 - `src/devolaflow/` — remaining Python package domains (gate, template_engine, adapters)
 - `workflow-system/agent/` — SKILL.md, references, templates, context profiles
 - `workflow-system/human/` — Human docs (EN/ZH), demo pages

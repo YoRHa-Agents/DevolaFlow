@@ -245,9 +245,8 @@ def scaffold_change_folder(
 
     New proposals use :class:`ChangeLayout.CHECKLIST`: one initial goal
     (G1) maps to one unchecked item (C-G1.1), round control starts at
-    zero with capacity five, and preflight remains unsigned. Legacy
-    ``acceptance.md`` and ``tasks.md`` are intentionally absent, as is
-    the optional ``learnings.jsonl``.
+    zero with capacity five, and preflight remains unsigned. The
+    optional ``learnings.jsonl`` is intentionally absent.
     """
     slug = change_id if change_id is not None else slugify(topic)
     if not _VALID_CHANGE_ID_RE.match(slug):
@@ -471,9 +470,8 @@ def run_apply(change_id: str, repo_root: Path) -> Change:
         ``/devola:verify`` instead).
     """
     store = ChangeStore(repo_root=repo_root)
-    change = store.get(change_id)
-    if change.layout is ChangeLayout.CHECKLIST:
-        guard_preflight_authorization(repo_root, change_id)
+    store.get(change_id)
+    guard_preflight_authorization(repo_root, change_id)
     return store.transition_state(change_id, "IN_PROGRESS")
 
 

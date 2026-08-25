@@ -71,13 +71,13 @@ first L1 Wave dispatch. Seed `source_stages` remain non-executable provenance.
 All paths are repository-relative. Change IDs are lowercase kebab-case.
 Handoff sequence numbers start at `0001` and increase monotonically.
 
-### Legacy layout compatibility
+### Legacy layout removal (v17.0.0)
 
-`acceptance.md` and `tasks.md` are retired current-authoring surfaces.
-Schema-v1 change folders containing them remain read-compatible for one
-migration window and are never rewritten merely to migrate. A folder mixing
-legacy files with `checklist.md` is invalid. New changes use only the layout
-above.
+The pre-v16 `acceptance.md` + `tasks.md` pair is fully removed. Loading a
+change folder that carries them without `checklist.md` raises
+`LegacyChangeLayoutError` — migrate the folder to `checklist.md` before
+loading. A folder mixing legacy files with `checklist.md` is invalid
+(`INVALID_MIXED`). All changes use only the layout above.
 
 ## 3. Three-Layer Ownership
 
