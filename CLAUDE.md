@@ -7,7 +7,7 @@ description: >
 
 # DevolaFlow Repository
 
-Use the **devola-flow** skill (`/devola-flow` or auto-activated) for workflow orchestration.
+Use the **devola-flow** skill for workflow orchestration ONLY on explicit request (`/devola-flow` or the user naming devola-flow/DevolaFlow) — never auto-activate it.
 Install the skill via: `npx @yorha-agents/devola-flow install claude` (user-global, Node >= 18)
 or `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude` (project-local)
 

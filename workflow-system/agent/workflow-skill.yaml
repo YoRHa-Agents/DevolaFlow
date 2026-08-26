@@ -8,40 +8,24 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "17.1.0"
+  version: "17.1.1"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
-    context-isolated task delegation. Use when the user requests implementation
-    of a feature, bug fix, refactoring, migration, or any multi-step development
-    workflow. Triggers on: "implement", "build", "create feature", "fix bug",
-    "refactor", "migrate", "full pipeline", "hotfix", "add capability".
+    context-isolated task delegation. Explicit invocation ONLY: activate when
+    the user explicitly types /devola-flow or names devola-flow/DevolaFlow and
+    asks for its workflow orchestration. Do NOT auto-activate for generic
+    implementation, bug-fix, refactoring, or migration requests that do not
+    name this skill.
 
 activation:
   policy: "intent"                        # always | intent | path_match
   trigger_terms:
-    - "implement"
-    - "build feature"
-    - "fix bug"
-    - "refactor"
-    - "migrate"
-    - "full pipeline"
-    - "hotfix"
-    - "workflow"
-    - "build from scratch"
-    - "new project"
-    - "add capability"
-    - "security audit"
-    - "spike"
-    - "prototype"
-    - "document"
-    - "research"
-    - "init repo"
-    - "initialize repo"
-    - "初始化仓库"
-    - "setup workspace"
-    - "scaffold local"
-    - "sync rules"
+    - "/devola-flow"
+    - "devola-flow"
+    - "devolaflow"
+    - "use devola"
+    - "update devola"
 
 content:
 

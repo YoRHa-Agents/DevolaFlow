@@ -5,6 +5,18 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.1.1] - 2026-08-27 — PATCH — Explicit-Invocation-Only Skill Activation
+
+### Changed — skill discovery/activation surface narrowed to explicit invocation
+
+- **`workflow-system/agent/SKILL.md` frontmatter**: `description` now reads "Explicit invocation ONLY …" (activate only when the user types `/devola-flow` or names devola-flow/DevolaFlow); `triggers` narrowed from 12 generic development phrases ("implement feature", "fix bug", "refactor code", "workflow orchestration", …) to 7 explicit skill-name phrases (`/devola-flow`, `devola-flow`, `devolaflow`, "use devola", "update devola", `update_devola`, `/update-devola`). Hosts that auto-discover skills by frontmatter description (Cursor, Claude Code) stop matching generic multi-file / multi-step work.
+- **`workflow-system/agent/workflow-skill.yaml`**: `identity.description` + `activation.trigger_terms` narrowed identically, so the four adapter-generated outputs (Codex frontmatter, Claude body, Copilot instructions, Cursor mirror) carry the explicit-only contract; `activation.policy` stays `intent` — the intent vocabulary is now the explicit skill-name set.
+- **`CLAUDE.md`**: the repo guidance line drops "or auto-activated"; the skill is used only on explicit request.
+
+### Operator-visible behaviour change
+
+- devola-flow no longer auto-activates on generic "implement / fix bug / refactor / migrate" intents; invoke it explicitly via `/devola-flow` or by naming the skill. Installed copies pick this up through the normal update channels (`npx @yorha-agents/devola-flow update <host|all>` or the curl-installer `update` target). NO new env flag (W-20); NO Python code paths changed; dispatch `canonical_order` untouched (A-2, Tier-A byte witnesses unchanged); W-17: +0 new test functions; W-18: no new symbols introduced (metadata-only change).
+
 ## [17.1.0] - 2026-08-27 — MINOR — Harness Construction Branch (seed + gap/coverage inventory CLI + preflight artifact + capability-review archive loop)
 
 Design contract: `.local/tasks/add_harness_design/design.md` (五项设计决策, §6). Gap analysis: `.local/research/v17.1.0_gap_analysis.md` (W-1/SI-1). Harness evaluation (W-2): `.local/research/v17.1.0_harness_evaluation.json`.
