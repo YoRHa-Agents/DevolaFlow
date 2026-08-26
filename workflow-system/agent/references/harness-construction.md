@@ -12,7 +12,7 @@ purpose: >
   `devolaflow.agent_workspace.archive`.
 tier: 2
 token_estimate: 3400
-last_updated: "2026-08-27"
+last_updated: "2026-08-26"
 ---
 
 # Harness Construction — Operating Contract
