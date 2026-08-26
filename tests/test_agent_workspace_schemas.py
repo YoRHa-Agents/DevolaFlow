@@ -1,8 +1,9 @@
 """Schema validation tests for the agent-workspace YAML schema registry.
 
-Covers the 11 files in `schemas/agent-workspace/` (1 index + 10 artifact
+Covers the 12 files in `schemas/agent-workspace/` (1 index + 11 artifact
 schemas). The v8.3.0 PV-04 contracts remain covered alongside the v16.0.0 M1
-checklist/stage/preflight additions and the goal/status v2 contracts.
+checklist/stage/preflight additions, the goal/status v2 contracts, and the
+harness-construction harness-preflight addition.
 
 Test scope (per .local/research/v8.3.0_patch_plan.md §v8.2.4 AC-1..AC-10):
 
@@ -37,9 +38,10 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = REPO_ROOT / "schemas" / "agent-workspace"
 
-# The registry contains 11 files total (1 index + 10 artifact schemas — the
+# The registry contains 12 files total (1 index + 11 artifact schemas — the
 # legacy acceptance/tasks schemas were removed in v17.0.0 at their declared
-# removal_target). The schema ids match the basename minus `.yaml`.
+# removal_target; harness-preflight was added by the harness-construction
+# change). The schema ids match the basename minus `.yaml`.
 EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "__init__.yaml",
     SCHEMA_DIR / "change-goal.yaml",
@@ -52,6 +54,7 @@ EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "handoff-envelope.yaml",
     SCHEMA_DIR / "agent-config.yaml",
     SCHEMA_DIR / "source-of-truth-spec.yaml",
+    SCHEMA_DIR / "harness-preflight.yaml",
 ]
 
 # Schemas that govern an actual artifact (i.e. NOT the index). All of these
@@ -83,6 +86,7 @@ EXPECTED_TOKEN_BUDGETS: dict[str, tuple[int, int]] = {
     "handoff-envelope": (600, 1200),
     "agent-config": (400, 800),
     "source-of-truth-spec": (2000, 4000),
+    "harness-preflight": (800, 1600),
 }
 
 # Canonical FSM transition matrix — declared verbatim in change-status.yaml
@@ -155,7 +159,7 @@ def _parse_markdown_example(raw: str) -> tuple[dict[str, Any], str]:
 
 @pytest.fixture(scope="module")
 def schemas() -> dict[str, dict[str, Any]]:
-    """All 11 schemas, keyed by schema_name."""
+    """All 12 schemas, keyed by schema_name."""
     out: dict[str, dict[str, Any]] = {}
     for path in EXPECTED_SCHEMA_FILES:
         doc = _load_yaml(path)
@@ -169,7 +173,7 @@ def index_schema(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 # =============================================================================
-# AC-1 — All 11 schemas exist + safe_load + canonical convention
+# AC-1 — All 12 schemas exist + safe_load + canonical convention
 # =============================================================================
 
 
@@ -208,7 +212,7 @@ def test_schema_versions_match_registry_generation(schema_path: Path) -> None:
 
 
 def test_no_unexpected_files_in_schema_dir() -> None:
-    """The schema directory contains exactly the 11 expected YAML files."""
+    """The schema directory contains exactly the 12 expected YAML files."""
     actual = sorted(p.name for p in SCHEMA_DIR.iterdir() if p.is_file())
     expected = sorted(p.name for p in EXPECTED_SCHEMA_FILES)
     assert actual == expected, f"schemas/agent-workspace/ drift — expected {expected}, got {actual}"
@@ -221,12 +225,12 @@ def test_schema_dir_has_no_subdirs() -> None:
 
 
 # =============================================================================
-# Index schema — declares the 10 artifact schemas
+# Index schema — declares the 11 artifact schemas
 # =============================================================================
 
 
 def test_index_lists_all_twelve_artifact_schemas(index_schema: dict[str, Any]) -> None:
-    """__init__.yaml `schemas` list enumerates all 10 artifact schemas."""
+    """__init__.yaml `schemas` list enumerates all 11 artifact schemas."""
     listed_ids = sorted(s["id"] for s in index_schema["schemas"])
     expected_ids = sorted(p.stem for p in ARTIFACT_SCHEMA_FILES)
     assert listed_ids == expected_ids, f"index drift — expected {expected_ids}, got {listed_ids}"
@@ -1156,14 +1160,17 @@ def test_artifact_schema_no_absolute_paths(schema_path: Path) -> None:
 
 @pytest.mark.parametrize("schema_path", ARTIFACT_SCHEMA_FILES, ids=lambda p: p.name)
 def test_artifact_schema_design_reference_format(schema_path: Path) -> None:
-    """design_reference points to the applicable legacy or v16 design artifact."""
+    """design_reference points to the applicable legacy, v16, or harness design artifact."""
     doc = _load_yaml(schema_path)
     ref = doc["design_reference"]
-    expected = (
-        ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md"
-        if doc["schema_name"] in V16_ARTIFACT_SCHEMA_NAMES
-        else ".local/research/v8.3.0_design.md"
-    )
+    if doc["schema_name"] == "harness-preflight":
+        expected = ".local/tasks/add_harness_design/design.md"
+    else:
+        expected = (
+            ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md"
+            if doc["schema_name"] in V16_ARTIFACT_SCHEMA_NAMES
+            else ".local/research/v8.3.0_design.md"
+        )
     assert ref.startswith(expected), (
         f"{schema_path.name} design_reference must point at {expected} (got {ref!r})"
     )

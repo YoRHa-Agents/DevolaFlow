@@ -84,6 +84,11 @@ compositions:
     category: control
     tags: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
     description: "Stale-documentation and drift cleanup knowledge."
+  - name: harness-construction
+    seed: seeds/harness-construction.yaml
+    category: composite
+    tags: [harness, evaluation-infrastructure, observability, telemetry, coverage, gap-analysis, baseline]
+    description: "Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review."
 
 # Keep templates as the final top-level block.
 templates:

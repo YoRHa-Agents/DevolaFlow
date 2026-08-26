@@ -433,7 +433,7 @@ Source: SF-3. Absorbs W-10 (CP-3) — v15.0.0 fold per v15-ADR-004; see v15-ADR-
 
 ## C-7 — Valid Reference Links
 
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (26 entries as of v17.0.0) is enumerated verbatim in `tests/ghost/test_registries.py::_SF4_REFERENCE_SET` (re-exported by the `tests/test_no_ghost_features.py` aggregator shim until v15.0.0) and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in the `references:` list of `workflow-system/agent/manifest.yaml` — the install-manifest SSOT (per A-5) from which `scripts/sync_cursor_skill.py::MIRRORED_FILES`, `scripts/install.sh`, and `devola-init` all derive their file lists (machine-readable parity linted by `tests/test_install_manifest.py`; `scripts/scaffold_reference.py` automates places (a)+(c)+(d)).
+Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (27 entries as of v17.1.0) is enumerated verbatim in `tests/ghost/test_registries.py::_SF4_REFERENCE_SET` (re-exported by the `tests/test_no_ghost_features.py` aggregator shim until v15.0.0) and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in the `references:` list of `workflow-system/agent/manifest.yaml` — the install-manifest SSOT (per A-5) from which `scripts/sync_cursor_skill.py::MIRRORED_FILES`, `scripts/install.sh`, and `devola-init` all derive their file lists (machine-readable parity linted by `tests/test_install_manifest.py`; `scripts/scaffold_reference.py` automates places (a)+(c)+(d)).
 
 Source: SF-4.
 
@@ -449,6 +449,7 @@ budgets:
 | checklist.md | 1200 | 2400 |
 | stage.md | 400 | 800 |
 | preflight.md | 600 | 1200 |
+| harness_preflight.md | 800 | 1600 |
 | spec.md | 1500 | 3000 |
 | STATUS.yaml | 150 | 300 |
 | owned_files.txt | 50 | 100 |

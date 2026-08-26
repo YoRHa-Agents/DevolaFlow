@@ -6,7 +6,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
     "schema_version": "3.0",
     "source_path": "workflow-system/agent/templates/registry.yaml"
   },
-  "record_count": 23,
+  "record_count": 24,
   "seeds": [
     {
       "registry_schema_version": "3.0",
@@ -1280,6 +1280,132 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
               "verify": {
                 "mode": "metric",
                 "template": "remaining_targeted_drift == 0"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "registry_schema_version": "3.0",
+      "seed_schema_version": "1.0",
+      "source": {
+        "kind": "composition",
+        "name": "harness-construction",
+        "path": "workflow-system/agent/templates/registry.yaml",
+        "schema_version": "3.0"
+      },
+      "name": "harness-construction",
+      "category": "composite",
+      "tags": [
+        "harness",
+        "evaluation-infrastructure",
+        "observability",
+        "telemetry",
+        "coverage",
+        "gap-analysis",
+        "baseline"
+      ],
+      "description": "Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review.",
+      "seed_path": "workflow-system/agent/templates/seeds/harness-construction.yaml",
+      "partitions": [
+        {
+          "key": "inventory",
+          "title": "Harness capability inventory",
+          "source_stages": [
+            {
+              "id": "survey",
+              "primitive": "research"
+            },
+            {
+              "id": "capability_map",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "surfaces-inventoried",
+              "statement": "Every existing harness capability surface is inventoried with its machine evidence source",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "gap-analysis",
+          "title": "Machine-grounded gap analysis",
+          "source_stages": [
+            {
+              "id": "gap_analysis",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "gap-report-frozen",
+              "statement": "The machine gap report JSON exists and is frozen as preflight evidence",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "command",
+                "template": "python -m devolaflow.harness gap --ledger .local/telemetry/harness.jsonl --repo . --output evidence/harness_gap_before.json"
+              }
+            },
+            {
+              "key": "gaps-cited-verbatim",
+              "statement": "Every committed coverage gap is cited verbatim from the gap report JSON",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "infra-build",
+          "title": "Harness infrastructure build",
+          "source_stages": [
+            {
+              "id": "build_infra",
+              "primitive": "implement"
+            },
+            {
+              "id": "refine_infra",
+              "primitive": "refine"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "committed-axes-built",
+              "statement": "Every committed observation point, probe, baseline, and loop closure is implemented with tests",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "capability-review",
+          "title": "Capability delta review",
+          "source_stages": [
+            {
+              "id": "capability_review",
+              "primitive": "validate"
+            },
+            {
+              "id": "verify_delta",
+              "primitive": "verify"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "capability-delta-recorded",
+              "statement": "The archive review records the before and after gap reports and the capability delta",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "manual"
               }
             }
           ]

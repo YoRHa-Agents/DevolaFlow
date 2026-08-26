@@ -21,6 +21,12 @@ from devolaflow.harness.evaluator import (
     load_signals,
     render_evaluation,
 )
+from devolaflow.harness.gap import (
+    build_gap_report,
+    compare_gap_reports,
+    load_gap_report,
+    render_capability_review,
+)
 from devolaflow.harness.probe import (
     load_probe_model_table,
     run_probe,
@@ -55,6 +61,18 @@ def _parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--base-ref", "--base", dest="base_ref", default="HEAD~1")
     evaluate.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     evaluate.add_argument("--output", type=Path)
+    gap = subcommands.add_parser(
+        "gap",
+        help="inventory harness coverage gaps across built-in and custom axes",
+    )
+    gap.add_argument("--ledger", type=Path, required=True)
+    gap.add_argument("--repo", "--repo-root", dest="repo_root", type=Path, default=Path("."))
+    gap.add_argument("--axes-config", type=Path)
+    gap.add_argument("--output", type=Path)
+    # Capability-review comparison mode (design §4): both flags together or
+    # neither — enforced after parse via parser.error in main().
+    gap.add_argument("--compare", type=Path)
+    gap.add_argument("--review-output", type=Path)
     cross_validate = subcommands.add_parser(
         "cross-validate",
         help="compare current evaluation with one historical W-3 companion",
@@ -230,7 +248,10 @@ def _run_probe_command(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     """Run the harness CLI with command-specific bounded exit semantics."""
 
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.command == "gap" and (args.compare is None) != (args.review_output is None):
+        parser.error("--compare and --review-output must be given together")
     try:
         if args.command == "aggregate":
             summary = aggregate_ledger(args.ledger)
@@ -247,6 +268,26 @@ def main(argv: list[str] | None = None) -> int:
             )
             _write_output(rendered, args.output)
             return 0
+
+        if args.command == "gap":
+            report = build_gap_report(
+                args.ledger,
+                repo_root=args.repo_root,
+                axes_config=args.axes_config,
+            )
+            _write_output(render_evaluation(report), args.output)
+            if args.compare is not None:
+                delta = compare_gap_reports(load_gap_report(args.compare), report)
+                review = render_capability_review(
+                    delta,
+                    before_ref=args.compare.as_posix(),
+                    after_ref=args.output.as_posix() if args.output else "<stdout>",
+                )
+                _write_output(review, args.review_output)
+            # Exit reflects CURRENT gaps only; the comparison delta is
+            # trend-only and never gates (design decision 5).
+            summary = report["summary"]
+            return 0 if summary["partial"] == 0 and summary["gap"] == 0 else 1
 
         if args.command == "cross-validate":
             current = _load_json(args.current_evaluation, label="current evaluation")

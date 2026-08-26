@@ -200,6 +200,15 @@ _SOURCE_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("review", "review"),
         ("apply", "implement"),
     ],
+    "harness-construction": [
+        ("survey", "research"),
+        ("capability_map", "analyze"),
+        ("gap_analysis", "analyze"),
+        ("build_infra", "implement"),
+        ("refine_infra", "refine"),
+        ("capability_review", "validate"),
+        ("verify_delta", "verify"),
+    ],
 }
 
 _ALIASES = sorted(set(_SOURCE_STAGE_SEQUENCES) - {"change-driven"})
@@ -210,7 +219,7 @@ def test_registry_schema_v3_and_seed_stage_provenance(name: str) -> None:
     raw = yaml.safe_load(_REGISTRY_YAML.read_text(encoding="utf-8"))
     assert raw["schema_version"] == REGISTRY_SCHEMA_V3
     assert list(raw)[-1] == "templates"
-    assert len(raw["compositions"]) == 16
+    assert len(raw["compositions"]) == 17
     assert len(raw["templates"]) == 7
     assert all(
         set(entry) == {"name", "seed", "category", "tags", "description"}
@@ -286,7 +295,7 @@ def test_runtime_discovery_validator_and_legacy_failure(
     assert legacy.stage_sequence() == []
     assert "synthesis is retired" in legacy.deprecation_note()
     assert validate_all_templates(True, _TEMPLATES_ROOT / "builtin")
-    assert "1 template + 23 seeds" in capsys.readouterr().out
+    assert "1 template + 24 seeds" in capsys.readouterr().out
 
 
 def test_malformed_seed_and_registry_fail_loudly(tmp_path: Path) -> None:

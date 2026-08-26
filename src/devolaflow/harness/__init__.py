@@ -19,6 +19,15 @@ from devolaflow.harness.evaluator import (
     normalize_signals,
     render_evaluation,
 )
+from devolaflow.harness.gap import (
+    BUILTIN_GAP_AXES,
+    COMMAND_TIMEOUT_CAP_SECONDS,
+    GapConfigError,
+    build_gap_report,
+    compare_gap_reports,
+    load_gap_report,
+    render_capability_review,
+)
 from devolaflow.harness.telemetry import (
     HARNESS_SEGMENT_MAX_BYTES,
     LAYER_TOKEN_BUDGETS,
@@ -29,6 +38,8 @@ from devolaflow.harness.telemetry import (
 )
 
 __all__ = [
+    "BUILTIN_GAP_AXES",
+    "COMMAND_TIMEOUT_CAP_SECONDS",
     "DEFAULT_THRESHOLD",
     "DIMENSION_WEIGHTS",
     "HARNESS_SEGMENT_MAX_BYTES",
@@ -37,17 +48,22 @@ __all__ = [
     "SIGNAL_KEYS",
     "AggregationError",
     "EvaluationError",
+    "GapConfigError",
     "SignalResult",
     "aggregate_ledger",
     "aggregate_records",
     "append_harness_record",
     "build_dispatch_record",
+    "build_gap_report",
     "collect_signals",
+    "compare_gap_reports",
     "evaluate_harness",
+    "load_gap_report",
     "load_ledger_records",
     "load_signals",
     "nearest_rank",
     "normalize_signals",
     "record_dispatch_telemetry",
+    "render_capability_review",
     "render_evaluation",
 ]

@@ -175,7 +175,7 @@ invalid, or the project configuration hash has drifted.
 
 ### 3.4 Intent and runtime selection
 
-L0 matches intent to one of the 23 registry-v3 seed names:
+L0 matches intent to one of the 24 registry-v3 seed names:
 
 ```python
 seed = registry.load_seed(seed_name)

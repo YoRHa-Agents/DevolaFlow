@@ -162,7 +162,9 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
     ]
     assert not report.hard_failures
 
-    expected_c9_budgets = {
+    # The seven v16 rows carried verbatim by the C-9 rules table
+    # (.rules/conventions.mdc).
+    c9_rules_table_rows = {
         "goal.md": (200, 400),
         "checklist.md": (1200, 2400),
         "stage.md": (400, 800),
@@ -170,6 +172,12 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         "spec.md": (1500, 3000),
         "STATUS.yaml": (150, 300),
         "owned_files.txt": (50, 100),
+    }
+    expected_c9_budgets = {
+        **c9_rules_table_rows,
+        # OPTIONAL harness pre-analysis artifact (harness-construction);
+        # not part of the v16 C-9 rules table.
+        "harness_preflight.md": (800, 1600),
     }
     assert expected_c9_budgets == CHECKLIST_ARTIFACT_BUDGETS
     assert _CHECKLIST_HYDRATE_BUDGETS == {
@@ -184,7 +192,7 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
     assert EVIDENCE_FILE_MAX_BYTES == 10 * 1024
     assert EVIDENCE_DIRECTORY_MAX_BYTES == 50 * 1024
     c9_source = (project_root / ".rules" / "conventions.mdc").read_text(encoding="utf-8")
-    for filename, (soft, hard) in expected_c9_budgets.items():
+    for filename, (soft, hard) in c9_rules_table_rows.items():
         assert f"| {filename} | {soft} | {hard} |" in c9_source
     assert "| evidence/ | No token limit | ≤ 10 KB/file; ≤ 50 KB/directory |" in c9_source
 
