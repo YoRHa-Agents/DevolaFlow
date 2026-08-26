@@ -13,7 +13,7 @@ tier: 2
 token_estimate: 2800
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-27"
+last_updated: "2026-08-26"
 ---
 
 # Meta-Framework Reference
