@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.0.1"
+version: "17.1.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -28,12 +28,12 @@ description: >
   and auditable quality gates.
 ---
 
-> **Now Using DevolaFlow v17.0.1**
+> **Now Using DevolaFlow v17.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.0.1 — Check only on explicit update request:
+**Current version:** 17.1.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -184,6 +184,7 @@ Match intent to a registry-v3 checklist seed. Every row uses
 | initialize repository workspace | `repo-init` |
 | change lifecycle explicitly | `change-driven` |
 | stale docs or drift cleanup | `entropy-cleanup` |
+| harness construction, evaluation infrastructure, observation coverage | `harness-construction` |
 | frontend/web design | `web-design` |
 
 Seeds are non-executable decomposition knowledge. `source_stages` retain
@@ -408,6 +409,7 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/evaluator-rosetta.md` | Evaluation cross-walk |
 | `references/execution-protocol.md` | Task lifecycle and checkpoints |
 | `references/grill-mode.md` | Plan stress-testing |
+| `references/harness-construction.md` | Harness gap preflight and capability review |
 | `references/host-bridges.md` | wiring host-agent tool events (Cursor/Claude/Codex/Kimi/DSH hooks) into boundary enforcement, or configuring DEVOLAFLOW_HOST_ENFORCE |
 | `references/human-surface.md` | Human input/output contracts |
 | `references/impeccable.md` | Design refinement checks |

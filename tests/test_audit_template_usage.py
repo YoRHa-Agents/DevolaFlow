@@ -85,7 +85,7 @@ def test_scan_compositions_derives_from_registry(tmp_path: Path) -> None:
 
     repo_root = Path(__file__).resolve().parents[1]
     live = audit.scan_compositions(repo_root)
-    assert len(live) == 16, f"expected the 16 collapsed names, got {len(live)}: {live}"
+    assert len(live) == 17, f"expected the 17 collapsed names, got {len(live)}: {live}"
 
 
 def test_count_cycle_mentions_counts_across_globs(tmp_path: Path) -> None:

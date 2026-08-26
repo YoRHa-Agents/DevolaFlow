@@ -247,6 +247,26 @@ _SF4_REFERENCE_SET = frozenset(
         # tests/test_hostbridge*.py (G17-B1 closure per the v17 R2
         # design §D-R2-1..§D-R2-4).
         "host-bridges.md",
+        # harness-construction branch — harness-construction operating
+        # contract (27th SF-4 canonical). Tier 2 Large-tier reference:
+        # the explicit `harness-construction` seed trigger (v1; the v2
+        # cross-cutting suggest channel is documented as DEFERRED per
+        # S-4), the machine-grounded gap preflight
+        # (`python -m devolaflow.harness gap`; exit 0/1/2), the six
+        # built-in coverage axes + custom-axes YAML contract (three
+        # probe kinds, fail-loud GapConfigError), the OPTIONAL
+        # `harness_preflight.md` artifact (presence = harness-flagged;
+        # C-9 soft 800 / hard 1600; HPF_* lint register), and the
+        # archive-time capability review loop (existence-only gate;
+        # delta values trend-only per design decision 5). NO new env
+        # flag (W-20 reuse-first) and NO dispatch schema change
+        # (A-2.4 witnesses untouched). Pairs with
+        # `src/devolaflow/harness/gap.py`,
+        # `schemas/agent-workspace/harness-preflight.yaml`, the
+        # `_guard_harness_capability_review` archive gate in
+        # `src/devolaflow/agent_workspace/archive.py`, and the seed
+        # `workflow-system/agent/templates/seeds/harness-construction.yaml`.
+        "harness-construction.md",
     }
 )
 

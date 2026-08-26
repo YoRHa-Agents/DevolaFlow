@@ -527,6 +527,74 @@ def test_archive_moves_to_archive_dir(tmp_path: Path) -> None:
     assert archived_status["state"] == "ARCHIVED"
 
 
+@pytest.mark.parametrize(
+    ("flagged", "review", "expect_error"),
+    [
+        pytest.param(False, None, False, id="non-flagged-unchanged"),
+        pytest.param(True, "present", False, id="flagged-review-present"),
+        pytest.param(True, None, True, id="flagged-review-missing"),
+        pytest.param(True, "empty", True, id="flagged-review-empty"),
+    ],
+)
+def test_archive_harness_flagged_requires_capability_review(
+    tmp_path: Path,
+    flagged: bool,
+    review: str | None,
+    expect_error: bool,
+) -> None:
+    """Harness-construction archive gate (design §4, decision 5).
+
+    A change is harness-flagged iff ``harness_preflight.md`` exists in
+    its change folder (artifact-as-contract — no schema field, no env
+    flag). Flagged changes REQUIRE ``evidence/harness_capability_review.md``
+    to exist and be non-empty at archive time; the review's delta values
+    are recorded trends only and are never gated on. Non-flagged changes
+    archive exactly as before. A failed gate is loud per S-5 (names the
+    missing path) and leaves the active folder untouched in VERIFYING.
+    """
+    scaffold_change_folder("foo", tmp_path)
+    folder = tmp_path / ".local" / ".agent" / "active" / "foo"
+    _advance_to_verifying(tmp_path, "foo", gate_score=ARCHIVE_GATE_THRESHOLD + 0.5)
+
+    if flagged:
+        (folder / "harness_preflight.md").write_text(
+            "## 4. 覆盖面承诺\n- observation\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+    if review == "present":
+        (folder / "evidence" / "harness_capability_review.md").write_text(
+            "# Harness Capability Review\n\n- observation: GAP -> COVERED\n"
+            "- auto_fill_rate delta: +0.12\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+    elif review == "empty":
+        (folder / "evidence" / "harness_capability_review.md").write_text("", encoding="utf-8")
+
+    if expect_error:
+        with pytest.raises(
+            ArchiveError,
+            match=r"harness-flagged.*evidence/harness_capability_review\.md",
+        ):
+            run_archive("foo", tmp_path, archive_date="2026-08-27")
+        # Failed gate must leave the active folder untouched (no STATUS
+        # mutation, no move) so the operator can produce the review and
+        # retry the archive verbatim.
+        assert folder.is_dir()
+        status = yaml.safe_load((folder / "STATUS.yaml").read_text(encoding="utf-8"))
+        assert status["state"] == "VERIFYING"
+    else:
+        archive_path = run_archive("foo", tmp_path, archive_date="2026-08-27")
+        assert archive_path == tmp_path / ".local" / ".agent" / "archive" / "2026-08-27-foo"
+        assert archive_path.is_dir()
+        assert not folder.exists()
+        if flagged:
+            # Both harness artifacts travel with the archived folder.
+            assert (archive_path / "harness_preflight.md").is_file()
+            assert (archive_path / "evidence" / "harness_capability_review.md").is_file()
+
+
 # ── CLI surface (main entry point) ─────────────────────────────────────
 
 

@@ -313,6 +313,8 @@ def test_checklist_lint_uses_v16_budgets_and_evidence_limits(tmp_path: Path) -> 
         "spec.md": (1500, 3000),
         "STATUS.yaml": (150, 300),
         "owned_files.txt": (50, 100),
+        # OPTIONAL harness pre-analysis artifact (harness-construction).
+        "harness_preflight.md": (800, 1600),
     }
     assert EVIDENCE_FILE_MAX_BYTES == 10_240
     assert EVIDENCE_DIRECTORY_MAX_BYTES == 51_200

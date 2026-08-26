@@ -90,6 +90,16 @@ GLOBAL_LEARNINGS_DEFAULT: Path = Path(".local") / "memory" / "operational.jsonl"
 GATE_THRESHOLD_DEFAULT: float = 8.5
 GATE_THRESHOLD_MAJOR: float = 9.0
 
+# Harness-construction archive gate (design §4, decision 5). A change is
+# harness-flagged iff HARNESS_PREFLIGHT_FILENAME exists in its change
+# folder — artifact-as-contract: no dispatch schema field, no env flag
+# (W-20 reuse-first). Flagged changes REQUIRE the capability review
+# artifact to exist and be non-empty at archive time; the review's delta
+# VALUES are trend signals and are never gated on (mirrors the composite
+# score "recorded trend, not a PASS condition" philosophy).
+HARNESS_PREFLIGHT_FILENAME: str = "harness_preflight.md"
+HARNESS_CAPABILITY_REVIEW_RELPATH: str = "evidence/harness_capability_review.md"
+
 
 class ArchiveError(RuntimeError):
     """Generic error raised by :class:`ArchiveManager`."""
@@ -309,10 +319,16 @@ class ArchiveManager:
                 f"(per .local/research/v8.3.0_design.md §1.3 lifecycle FSM)"
             )
 
+        active_path = self.store.active_root / change_id
+
+        # Harness-construction archive gate: runs BEFORE any STATUS
+        # mutation so a failed gate leaves the active folder untouched.
+        # Non-flagged changes pay exactly one flag-file existence test.
+        self._guard_harness_capability_review(change_id, active_path)
+
         # Step 1: rewrite STATUS.yaml so state == ARCHIVED before the move.
         # The Change.with_state call enforces the legal transition matrix.
         archived_change = change.with_state("ARCHIVED")
-        active_path = self.store.active_root / change_id
         archived_change.to_active_folder(active_path)
 
         # Step 2: physically move the folder.
@@ -351,6 +367,40 @@ class ArchiveManager:
             consolidated_counts=counts,
             proposed_merge=proposal,
         )
+
+    def _guard_harness_capability_review(self, change_id: str, active_path: Path) -> None:
+        """Existence-only archive gate for harness-flagged changes.
+
+        A change is harness-flagged iff
+        :data:`HARNESS_PREFLIGHT_FILENAME` exists in its change folder
+        (artifact-as-contract — no dispatch schema field, no env flag).
+        Flagged changes REQUIRE :data:`HARNESS_CAPABILITY_REVIEW_RELPATH`
+        (produced by the ``harness gap --compare`` review flow) to exist
+        and be non-empty before the archive move. The review's delta
+        values are recorded trends only and are NOT inspected here.
+
+        Non-harness-flagged changes: a single flag-file existence test,
+        then byte-identical legacy behaviour — zero further IO.
+
+        Raises:
+          ArchiveError: when the change is harness-flagged but the
+            capability review artifact is missing or empty (loud per
+            S-5, naming the expected path verbatim).
+        """
+        flag_path = active_path / HARNESS_PREFLIGHT_FILENAME
+        if not flag_path.is_file():
+            return
+        review_path = active_path / HARNESS_CAPABILITY_REVIEW_RELPATH
+        if not review_path.is_file() or review_path.stat().st_size == 0:
+            raise ArchiveError(
+                f"cannot archive harness-flagged change {change_id!r}: the "
+                f"capability review artifact {review_path!s} is missing or "
+                f"empty; the change is flagged by {HARNESS_PREFLIGHT_FILENAME} "
+                f"so `python -m devolaflow.harness gap --compare` must produce "
+                f"{HARNESS_CAPABILITY_REVIEW_RELPATH} before archive "
+                f"(existence-only gate; delta values are recorded trends, "
+                f"not PASS conditions)"
+            )
 
     def _auto_regenerate_reports(self, change_id: str, archive_path: Path) -> None:
         """Auto-regenerate per-change + workspace REPORT.md after archive.

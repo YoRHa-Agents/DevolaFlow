@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "17.0.1"
+  version: "17.1.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -301,7 +301,7 @@ content:
     registry:
       file: "templates/registry.yaml"
       schema_version: "3.0"
-      description: "Seed and runtime discovery registry; 23 seeds + one executable runtime"
+      description: "Seed and runtime discovery registry; 24 seeds + one executable runtime"
 
     seeds:
       - {id: "hotfix", file: "templates/seeds/hotfix.yaml"}
@@ -320,6 +320,7 @@ content:
       - {id: "demo-showcase", file: "templates/seeds/demo-showcase.yaml"}
       - {id: "product-verification", file: "templates/seeds/product-verification.yaml"}
       - {id: "entropy-cleanup", file: "templates/seeds/entropy-cleanup.yaml"}
+      - {id: "harness-construction", file: "templates/seeds/harness-construction.yaml"}
       - {id: "migration", file: "templates/seeds/migration.yaml"}
       - {id: "skill-optimization", file: "templates/seeds/skill-optimization.yaml"}
       - {id: "self-update", file: "templates/seeds/self-update.yaml"}
@@ -582,7 +583,7 @@ manifest:
       type: "knowledge"
       design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
-  # Registry v3 inventory: one registry, 23 checklist seeds, one executable
+  # Registry v3 inventory: one registry, 24 checklist seeds, one executable
   # runtime, and two operator-facing checklist-round artifact templates.
   templates:
     - path: "templates/registry.yaml"
@@ -650,6 +651,10 @@ manifest:
       type: "checklist-seed"
       design_source: "checklist_iteration_design.md §10.2"
     - path: "templates/seeds/entropy-cleanup.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/harness-construction.yaml"
       tier: 3
       type: "checklist-seed"
       design_source: "checklist_iteration_design.md §10.2"

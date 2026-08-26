@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Agent Workspace Schemas — Index
 # -----------------------------------------------------------------------------
-# Index of the 10 schema files that govern the agent workspace artifacts under
+# Index of the 11 schema files that govern the agent workspace artifacts under
 # `.local/.agent/` and `.local/memory/specs/`. Source of truth: every schema
 # listed here MUST exist as a file in this directory.
 #
@@ -29,7 +29,7 @@ patch_slot: "v17.0.0 R1"
 gap_ids: [C-002, M-003, M-005, G17-A2]
 governing_rules: [S-8, S-9, C-9, A-4]
 
-# 10 schema files declaring the artifact contracts. Registry entries MUST be
+# 11 schema files declaring the artifact contracts. Registry entries MUST be
 # unique and resolve every non-index YAML file in this directory.
 schemas:
   - id: change-goal
@@ -114,6 +114,15 @@ schemas:
     format: markdown_with_frontmatter
     summary: "Source-of-truth spec for current system behavior in a domain — mutated only at archive time after gate PASS (A-4)."
     token_budget: { soft: 2000, hard: 4000, units: tokens }
+
+  - id: harness-preflight
+    file: harness-preflight.yaml
+    target_path_template: ".local/.agent/active/<change-id>/harness_preflight.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/harness_preflight.md"
+    format: markdown_with_frontmatter
+    optional: true
+    summary: "OPTIONAL harness pre-analysis artifact — presence flags the change as harness-flagged (artifact-as-contract; no dispatch schema field)."
+    token_budget: { soft: 800, hard: 1600, units: tokens }
 
 # Cross-references — each rule below cites the section of design.md that
 # motivates it. The verbatim rule text lives in `.rules/` and the compiled

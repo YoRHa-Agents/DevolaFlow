@@ -5,6 +5,35 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.1.0] - 2026-08-27 — MINOR — Harness Construction Branch (seed + gap/coverage inventory CLI + preflight artifact + capability-review archive loop)
+
+Design contract: `.local/tasks/add_harness_design/design.md` (五项设计决策, §6). Gap analysis: `.local/research/v17.1.0_gap_analysis.md` (W-1/SI-1). Harness evaluation (W-2): `.local/research/v17.1.0_harness_evaluation.json`.
+
+### Added — explicit trigger seed `harness-construction` (v1 channel)
+
+- **NEW seed `workflow-system/agent/templates/seeds/harness-construction.yaml`** (24th seed, 17th registry-v3 composition): intent keywords harness / 评测基建 / 观测覆盖 / telemetry 建设 / 基建前置; four non-executing partitions (`inventory` → `gap-analysis` → `infra-build` → `capability-review`) mirroring the design's dependency-inversion order (基建 → 节点 → loop). Registered across the mechanical checklist surfaces: registry.yaml, workflow-skill.yaml, SKILL.md intent row, ZH descriptions, regenerated demo seed catalog (`record_count` 24), README seed table, and every seed-count prose site (demo copy 23 → 24 in lockstep with its ghost byte-pins). The v2 cross-cutting suggest channel (`auto_fill_rate` threshold → task reordering) is DEFERRED to the next cycle per design §2.
+- **NEW reference `workflow-system/agent/references/harness-construction.md`** (27th SF-4 canonical): the operating contract for the branch — seed trigger, gap preflight, six built-in axes, custom-axes config, capability-review archive loop. C-7 four-place wiring complete (file + `_SF4_REFERENCE_SET` + SKILL.md Tier-2 row + `manifest.yaml`); `.rules/conventions.mdc` C-7 prose recompiled to "27 entries as of v17.1.0".
+
+### Added — machine-grounded gap inventory CLI (`harness gap` + compare)
+
+- **NEW module `devolaflow.harness.gap`**: `python -m devolaflow.harness gap --ledger <jsonl> --repo . [--axes-config <yaml>] [--output <json>]` — the evaluator's inventory mode (the `INSUFFICIENT` mechanism used in reverse). Six built-in coverage axes: `observation` (per-layer dispatch telemetry), `evaluation` (W-3 slot availability), `probe` (fixtures × model table), `baseline` (W-16 Tier-B window), `signal` (local signal collectability), `loop-closure` (propose→apply audit events). Exit codes align with `evaluate`: 0 = no gaps, 1 = gaps present, 2 = insufficient input. Low-intrusion by construction: axes enumerate observation points, never propose invasive hooks.
+- **Custom axes** via `--axes-config` (change-level `harness_axes.yaml`): every custom axis MUST declare a falsifiable machine probe — `file_exists` / `command` / `ledger_query` — so no unverifiable "vibes" axis can enter a report; malformed config fails loud with `GapConfigError` (S-5).
+- **Capability review (trend-only)**: `--compare <before.json> --review-output <review.md>` renders the change-level before/after capability delta — axis status transitions (GAP→COVERED etc.), `auto_fill_rate` delta, new observation points, regressions. Delta values are recorded trend, never a PASS condition (mirrors the composite-score philosophy). Public API `build_gap_report` / `load_gap_report` / `compare_gap_reports` / `render_capability_review` / `GapConfigError` / `BUILTIN_GAP_AXES`, all exported from `devolaflow.harness`.
+
+### Added — `harness_preflight.md` artifact + C-9 lint (HPF family)
+
+- **NEW schema `schemas/agent-workspace/harness-preflight.yaml`**: the OPTIONAL harness pre-analysis artifact — presence in a change folder marks the change harness-flagged (artifact-as-contract per P5; NO dispatch schema change, `preflight.md`'s signed schema untouched). Frontmatter references the frozen gap report (`evidence/harness_gap_before.json`); §3 gap items are verbatim extractions from it (C-3).
+- **C-9 budget row `harness_preflight.md | 800 | 1600`** in `agent_workspace.lint.CHECKLIST_ARTIFACT_BUDGETS` and the recompiled `.rules/conventions.mdc` table; new `_check_harness_preflight` validator with finding codes `HPF_FRONTMATTER` / `HPF_SCHEMA_VERSION` / `HPF_SECTION_ORDER` / `HPF_GAP_REPORT` / `HPF_AXES_CONFIG`. Absence yields zero findings — an un-flagged change lints byte-identically to v17.0.1.
+
+### Added — capability-review archive gate (closure loop)
+
+- **NEW guard `ArchiveManager._guard_harness_capability_review`**: archiving a harness-flagged change (= `HARNESS_PREFLIGHT_FILENAME` present) REQUIRES a non-empty `HARNESS_CAPABILITY_REVIEW_RELPATH` (`evidence/harness_capability_review.md`); the review's delta numbers stay trend-only (design decision #5: existence is checked, no hard delta gate). Cycle-level rollup rides the existing W-16 settlement + W-7 retrospective cadence — no new rhythm.
+
+### Operator-visible behaviour change
+
+- NEW CLI subcommand `python -m devolaflow.harness gap` (plus `--compare`/`--review-output`). NO new env flag (W-20 reuse-first: activation is the explicit seed / natural-language channel, same pattern as W-22.4). The archive gate activates ONLY when `harness_preflight.md` exists in the change folder — non-flagged changes archive byte-identically.
+- W-17: +17 new test functions vs main (`tests/harness/test_gap.py` 11, `tests/test_agent_workspace_harness_preflight.py` 3, `tests/test_slash_commands.py` 1, ghost 2) ≤ 30; W-18: all branch symbols ghost-pinned in `tests/ghost/test_features_v17_1.py` BEFORE this entry; A-2: dispatch `canonical_order` untouched, no schema bump, Tier-A byte witnesses unchanged.
+
 ## [17.0.1] - 2026-08-26 — PATCH — Pinned Effort-Weighted Checklist Progress Header
 
 ### Added — pinned `## Progress` header in `checklist.md`

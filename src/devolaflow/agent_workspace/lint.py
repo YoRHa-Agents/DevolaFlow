@@ -99,6 +99,11 @@ CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     "spec.md": (1500, 3000),
     "STATUS.yaml": (150, 300),
     "owned_files.txt": (50, 100),
+    # OPTIONAL harness pre-analysis artifact per the harness-construction
+    # design (.local/tasks/add_harness_design/design.md §3.3): its presence
+    # flags the change as harness-flagged; absence is a valid state that
+    # yields zero findings and zero budget violations.
+    "harness_preflight.md": (800, 1600),
 }
 
 # learnings.jsonl: enforced as a file-size ceiling rather than tokens.
@@ -115,6 +120,25 @@ _CHECKLIST_GOAL_RE: Final[re.Pattern[str]] = re.compile(r"^## (G(?:[1-9]|1[0-5])
 _EVIDENCE_METADATA_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s{6}evidence:\s*([^|\s]+)(?:\s*\|.*)?$"
 )
+
+# OPTIONAL harness pre-analysis artifact — schemas/agent-workspace/
+# harness-preflight.yaml. HPF_* finding kinds are the register for
+# :func:`_check_harness_preflight`.
+HARNESS_PREFLIGHT_FILENAME: Final[str] = "harness_preflight.md"
+_HARNESS_PREFLIGHT_REQUIRED_KEYS: Final[tuple[str, ...]] = (
+    "parent",
+    "schema_version",
+    "gap_report",
+    "axes_config",
+)
+_HARNESS_PREFLIGHT_HEADINGS: Final[tuple[str, ...]] = (
+    "## 1. Target Observation Surface",
+    "## 2. Capability Mapping",
+    "## 3. Gap Inventory",
+    "## 4. Coverage Commitments",
+    "## 5. Build Order",
+)
+_HARNESS_NUMBERED_HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^## \d+\. ")
 
 
 # Per the v14.0.0 design §4c — NEW C-9 rows for the ``.local/human/`` surface.
@@ -871,6 +895,151 @@ def _check_preflight(
             )
 
 
+def _resolve_harness_reference(
+    reference: str,
+    *,
+    change_folder: Path,
+    repo_root: Path,
+) -> Path | None:
+    """Resolve a change- or repo-relative reference to an existing regular file."""
+    for base in (change_folder, repo_root):
+        candidate = base / reference
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _check_harness_reference(
+    frontmatter: dict[str, object],
+    field_name: str,
+    kind: str,
+    *,
+    nullable: bool,
+    change_folder: Path,
+    repo_root: Path,
+    report: BudgetReport,
+) -> None:
+    """Validate one frontmatter path reference of ``harness_preflight.md``."""
+    if field_name not in frontmatter:
+        return  # Missing key already reported as HPF_FRONTMATTER.
+    value = frontmatter[field_name]
+    if value is None and nullable:
+        return
+    if not isinstance(value, str) or not value:
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                kind,
+                f"{field_name} must be a non-empty change- or repo-relative path"
+                + (" or null" if nullable else ""),
+            )
+        )
+        return
+    if Path(value).is_absolute():
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                kind,
+                f"{field_name} must be a relative path (S-2), got {value!r}",
+            )
+        )
+        return
+    if _resolve_harness_reference(value, change_folder=change_folder, repo_root=repo_root) is None:
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                kind,
+                f"{field_name} {value!r} does not exist relative to the change "
+                "folder or the repo root",
+            )
+        )
+
+
+def _check_harness_preflight(
+    change_folder: Path,
+    *,
+    repo_root: Path,
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> None:
+    """Validate the OPTIONAL ``harness_preflight.md`` artifact when present.
+
+    Absence produces zero findings — the change is simply not
+    harness-flagged (artifact-as-contract per
+    ``schemas/agent-workspace/harness-preflight.yaml#presence_semantics``).
+    """
+    result = _read_artifact(change_folder, HARNESS_PREFLIGHT_FILENAME, report, cache)
+    if result.state == "missing":
+        return
+    if result.text is None:
+        return  # READ_ERROR already recorded by _read_artifact (S-5).
+
+    try:
+        artifact = round_parser.parse_frontmatter(result.text, filename=HARNESS_PREFLIGHT_FILENAME)
+    except round_parser.RoundArtifactParseError as exc:
+        report.violations.append(
+            SemanticViolation(HARNESS_PREFLIGHT_FILENAME, "HPF_FRONTMATTER", exc.message)
+        )
+        return
+
+    frontmatter = artifact.frontmatter
+    missing = [key for key in _HARNESS_PREFLIGHT_REQUIRED_KEYS if key not in frontmatter]
+    if missing:
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                "HPF_FRONTMATTER",
+                f"frontmatter is missing required key(s): {', '.join(missing)}",
+            )
+        )
+
+    if "schema_version" in frontmatter and not _strict_frontmatter_equal(
+        frontmatter["schema_version"], 1
+    ):
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                "HPF_SCHEMA_VERSION",
+                f"schema_version={frontmatter['schema_version']!r}; the only "
+                "supported version is 1",
+            )
+        )
+
+    headings = [
+        line.rstrip()
+        for line in artifact.body.splitlines()
+        if _HARNESS_NUMBERED_HEADING_RE.match(line)
+    ]
+    if headings != list(_HARNESS_PREFLIGHT_HEADINGS):
+        report.violations.append(
+            SemanticViolation(
+                HARNESS_PREFLIGHT_FILENAME,
+                "HPF_SECTION_ORDER",
+                "numbered '## N.' headings must be exactly "
+                f"{list(_HARNESS_PREFLIGHT_HEADINGS)} in order; got {headings}",
+            )
+        )
+
+    _check_harness_reference(
+        frontmatter,
+        "gap_report",
+        "HPF_GAP_REPORT",
+        nullable=False,
+        change_folder=change_folder,
+        repo_root=repo_root,
+        report=report,
+    )
+    _check_harness_reference(
+        frontmatter,
+        "axes_config",
+        "HPF_AXES_CONFIG",
+        nullable=True,
+        change_folder=change_folder,
+        repo_root=repo_root,
+        report=report,
+    )
+
+
 def _lint_checklist_semantics(
     change_folder: Path,
     *,
@@ -1027,6 +1196,7 @@ def lint_change(
     _lint_token_budgets(change_folder, budgets, report, cache)
     _lint_learnings_size(change_folder, report)
     _lint_evidence_sizes(change_folder, report)
+    _check_harness_preflight(change_folder, repo_root=root, report=report, cache=cache)
     if layout is ChangeLayout.CHECKLIST:
         _lint_checklist_semantics(
             change_folder,

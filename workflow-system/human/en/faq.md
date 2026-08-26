@@ -4,8 +4,8 @@ description: "Common questions about checklist rounds, installation scope, updat
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T19:37:27Z"
-source_version: "17.0.1"
+last_synced: "2026-08-26T16:59:36Z"
+source_version: "17.1.0"
 ---
 
 # FAQ
@@ -14,7 +14,7 @@ Common questions about checklist rounds, installation scope, updates, and releas
 
 ## What does DevolaFlow execute?
 
-It selects one of 23 registry-derived checklist seeds as
+It selects one of 24 registry-derived checklist seeds as
 decomposition knowledge, materializes a user-confirmed checklist, and executes
 that contract through the sole `change-driven` runtime.
 

@@ -14,7 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "workflow-system/agent/templates/registry.yaml"
 OUTPUT_PATH = ROOT / "workflow-system/human/demo/shared/seed-catalog.js"
-EXPECTED_SEED_COUNT = 23
+EXPECTED_SEED_COUNT = 24
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
