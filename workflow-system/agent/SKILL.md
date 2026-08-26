@@ -1,39 +1,35 @@
 ---
 id: "agent/SKILL"
-version: "17.1.0"
+version: "17.1.1"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
   and context-isolated task delegation.
 triggers:
-  - "implement feature"
-  - "build from scratch"
-  - "fix bug"
-  - "refactor code"
-  - "migrate system"
-  - "full pipeline"
-  - "hotfix"
-  - "workflow orchestration"
-  - "run workflow"
+  - "/devola-flow"
+  - "devola-flow"
+  - "devolaflow"
+  - "use devola"
   - "update devola"
   - "update_devola"
   - "/update-devola"
 tier: 1
 token_estimate: 6000
-last_updated: "2026-08-25"
+last_updated: "2026-08-26"
 name: devola-flow
 description: >
-  Use when multi-file or multi-step work needs a user-confirmed goal and
-  checklist, bounded parallel delegation, explicit verification evidence,
-  and auditable quality gates.
+  Explicit invocation ONLY. Use when the user explicitly types /devola-flow
+  or names devola-flow/DevolaFlow and asks for its workflow orchestration.
+  Do NOT auto-activate for generic multi-file or multi-step work that does
+  not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.1.0**
+> **Now Using DevolaFlow v17.1.1**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.1.0 — Check only on explicit update request:
+**Current version:** 17.1.1 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
