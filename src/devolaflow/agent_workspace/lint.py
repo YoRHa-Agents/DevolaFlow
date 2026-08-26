@@ -104,6 +104,11 @@ CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     # flags the change as harness-flagged; absence is a valid state that
     # yields zero findings and zero budget violations.
     "harness_preflight.md": (800, 1600),
+    # Agent onboarding entry point (.local/research/v17.2.0_change_entrance_design.md
+    # §4): scaffolded for every new change. Absence in a pre-v17.2 folder is a
+    # WARN (ENTRANCE_MISSING) until backfilled on first resume — see
+    # _check_entrance for the semantic checks.
+    "entrance.md": (400, 800),
 }
 
 # learnings.jsonl: enforced as a file-size ceiling rather than tokens.
@@ -1040,6 +1045,118 @@ def _check_harness_preflight(
     )
 
 
+# entrance.md Section 3 inventory row — backtick-quoted filename in the first cell.
+_ENTRANCE_INVENTORY_ROW_RE: Final[re.Pattern[str]] = re.compile(r"^\|\s*`([^`]+)`\s*\|")
+
+_ENTRANCE_INVENTORY_HEADING: Final[str] = "## 3. Artifact Inventory"
+
+_ENTRANCE_REQUIRED_HEADINGS: Final[tuple[str, ...]] = (
+    "## 1. What This Change Is",
+    "## 2. Scenario Routing",
+    _ENTRANCE_INVENTORY_HEADING,
+    "## 4. Discipline Pointers",
+)
+
+
+def _entrance_expected_inventory() -> set[str]:
+    """Section 3 parity target (design D-7).
+
+    The budget registry keys minus the router itself, plus the ``evidence/``
+    directory (byte-limited rather than token-budgeted, but still part of the
+    artifact set an onboarding agent must know about).
+    """
+    return (set(CHECKLIST_ARTIFACT_BUDGETS) - {"entrance.md"}) | {"evidence/"}
+
+
+def _check_entrance(
+    change_folder: Path,
+    *,
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> None:
+    """Validate the entrance.md onboarding router (change-entrance schema).
+
+    A missing file yields ``ENTRANCE_MISSING`` at WARN severity — pre-v17.2
+    folders are backfilled on first resume (design D-4), so absence must not
+    flip the lint exit code. A present-but-malformed file fails loud (S-5).
+    """
+    result = _read_artifact(change_folder, "entrance.md", report, cache)
+    if result.state == "missing":
+        report.violations.append(
+            SemanticViolation(
+                "entrance.md",
+                "ENTRANCE_MISSING",
+                "agent onboarding entry point is absent; backfill from the "
+                "scaffold template (schemas/agent-workspace/change-entrance.yaml)",
+                severity="WARN",
+            )
+        )
+        return
+    if result.text is None:
+        return  # READ_ERROR already recorded by _read_artifact.
+
+    try:
+        artifact = round_parser.parse_frontmatter(result.text, filename="entrance.md")
+    except round_parser.RoundArtifactParseError as exc:
+        report.violations.append(SemanticViolation("entrance.md", exc.kind, exc.message))
+        return
+
+    frontmatter = artifact.frontmatter or {}
+    if frontmatter.get("parent") != report.change_id:
+        report.violations.append(
+            SemanticViolation(
+                "entrance.md",
+                "ENTRANCE_PARENT",
+                f"frontmatter parent {frontmatter.get('parent')!r} must equal "
+                f"the change-id {report.change_id!r}",
+            )
+        )
+    if frontmatter.get("schema_version") != 1:
+        report.violations.append(
+            SemanticViolation(
+                "entrance.md",
+                "ENTRANCE_SCHEMA_VERSION",
+                f"schema_version must be 1 (got {frontmatter.get('schema_version')!r})",
+            )
+        )
+
+    lines = artifact.body.splitlines()
+    for heading in _ENTRANCE_REQUIRED_HEADINGS:
+        if heading not in lines:
+            report.violations.append(
+                SemanticViolation(
+                    "entrance.md",
+                    "ENTRANCE_SECTION",
+                    f"required section heading {heading!r} is absent",
+                )
+            )
+
+    if _ENTRANCE_INVENTORY_HEADING not in lines:
+        return  # ENTRANCE_SECTION already recorded; parity has no anchor.
+
+    listed: set[str] = set()
+    in_inventory = False
+    for line in lines:
+        if line.startswith("## "):
+            in_inventory = line == _ENTRANCE_INVENTORY_HEADING
+            continue
+        if in_inventory:
+            match = _ENTRANCE_INVENTORY_ROW_RE.match(line)
+            if match is not None:
+                listed.add(match.group(1))
+    expected = _entrance_expected_inventory()
+    if listed != expected:
+        report.violations.append(
+            SemanticViolation(
+                "entrance.md",
+                "ENTRANCE_PARITY",
+                "Section 3 inventory drifted from the budget registry — "
+                f"missing {sorted(expected - listed)!r}, "
+                f"surplus {sorted(listed - expected)!r}",
+            )
+        )
+
+
 def _lint_checklist_semantics(
     change_folder: Path,
     *,
@@ -1128,6 +1245,8 @@ def _lint_checklist_semantics(
             archived=archived,
             report=report,
         )
+
+    _check_entrance(change_folder, report=report, cache=cache)
 
 
 def lint_change(

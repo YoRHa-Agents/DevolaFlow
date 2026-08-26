@@ -5,6 +5,22 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.2.0] - 2026-08-27 — MINOR — Change-Workspace Entrance Router (`entrance.md`)
+
+Design contract: `.local/research/v17.2.0_change_entrance_design.md` (W-1/SI-1; §8 records the two as-built adjustments). Ghost audit: `tests/ghost/test_features_v17_2.py` (W-18 — refreshed before this entry). User intent origin: the `plan_mode_full_update` follow-up ("除了 checklist goal等文件外，还要额外补充一个 entrance.md 以方便各种 agent快速接入").
+
+### Added — `entrance.md` agent onboarding router (12th artifact schema)
+
+- **NEW schema `schemas/agent-workspace/change-entrance.yaml`** (12th artifact schema; registered in the `__init__.yaml` index): the change folder's agent onboarding entry point — a STATIC ROUTER with four sections (one-line change summary, scenario routing table, artifact inventory, discipline pointers). Progress/rounds/blockers are never mirrored — they stay in `STATUS.yaml` / `stage.md` / `preflight.md` §4 (design D-2). Never injected into dispatch payloads: the `hydrate_change_context` key set and `schemas/lean-dispatch.yaml` are untouched; A-2 `canonical_order` stays at 17 (design D-5).
+- **`Change.entrance_md` field** + read/write wiring in `agent_workspace/change.py`: opt-in like `learnings.jsonl` — a pre-v17.2 folder without the file round-trips byte-identically and never gains it implicitly; archive carries it via the physical folder move.
+- **Scaffold template `slash_commands._entrance_md`**: every `/devola:propose` folder now carries the router; only Section 1 (goal title + change-id) is per-change personalized (design D-8); the template renders at 382 tokens, under the soft budget.
+- **C-9 budget row `entrance.md | 400 | 800`** in `CHECKLIST_ARTIFACT_BUDGETS` and the recompiled `.rules/conventions.mdc` table; NEW `_check_entrance` validator with finding codes `ENTRANCE_MISSING` (WARN — missing pre-v17.2 folders stay green until backfilled on first resume; design D-4 as-built softening per memo §8), plus `ENTRANCE_PARENT` / `ENTRANCE_SCHEMA_VERSION` / `ENTRANCE_SECTION` / `ENTRANCE_PARITY` (FAIL). `ENTRANCE_PARITY` machine-locks the Section 3 inventory to the budget-registry keys (design D-7) so the inventory can never silently lag the artifact set.
+- **Docs**: `references/agent-workspace.md` (layout tree, §3.6 protocol-outside resume step, §4 artifact contract, §9 budget row, §11 schema reference; `last_updated` re-validated) + SKILL.md Workspace Engagement row (W-5 verified: line budget, 4 adapters build, harness green, version consistency).
+
+### Operator-visible behaviour change
+
+- New change folders scaffold `entrance.md`; agents joining outside the dispatch protocol (fresh sessions, non-DevolaFlow-aware tools, human auditors) read it FIRST and load only scenario-needed artifacts. Existing active folders lint with an `ENTRANCE_MISSING` WARN (exit code unchanged) until backfilled. NO new env flag (W-20); dispatch `canonical_order` untouched (A-2 — Tier-A byte witnesses unchanged); W-17: +3 new test functions; W-18: ghost stanza `tests/ghost/test_features_v17_2.py` landed before this entry.
+
 ## [17.1.1] - 2026-08-27 — PATCH — Explicit-Invocation-Only Skill Activation
 
 ### Changed — skill discovery/activation surface narrowed to explicit invocation

@@ -4,8 +4,8 @@ description: "诊断安装渠道、本地脚手架、已复制的 skill 与 host
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-26T18:26:37Z"
-source_version: "17.1.1"
+last_synced: "2026-08-26T19:27:02Z"
+source_version: "17.2.0"
 ---
 
 # 故障排查

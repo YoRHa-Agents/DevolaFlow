@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-26T18:26:37Z"
-source_version: "17.1.1"
+last_synced: "2026-08-26T19:27:02Z"
+source_version: "17.2.0"
 ---
 
 # Integration Guide

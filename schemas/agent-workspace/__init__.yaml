@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Agent Workspace Schemas — Index
 # -----------------------------------------------------------------------------
-# Index of the 11 schema files that govern the agent workspace artifacts under
+# Index of the 12 schema files that govern the agent workspace artifacts under
 # `.local/.agent/` and `.local/memory/specs/`. Source of truth: every schema
 # listed here MUST exist as a file in this directory.
 #
@@ -11,25 +11,27 @@
 #   - .local/research/v8.3.0_gap_analysis.md §2.1 C-002 (gap)
 #   - .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md
 #     §§4-9 (v16 checklist iteration artifact contracts)
+#   - .local/research/v17.2.0_change_entrance_design.md (entrance.md artifact)
 #
 # Patch slot: v17.0.0 R1 — legacy dual-track removal (G17-A2)
 # History: v8.2.4 introduced the registry; v16.0.0 M1 extended it additively;
 # v17.0.0 removed the deprecated legacy acceptance/tasks schemas at their
-# declared removal_target (replacement: change-checklist).
+# declared removal_target (replacement: change-checklist); v17.2.0 added
+# change-entrance (agent onboarding entry point).
 # -----------------------------------------------------------------------------
 
 design_reference: .local/research/v8.3.0_design.md §2
 iteration_design_reference: .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §§4-9
 schema_name: agent-workspace-index
 schema_version: 1
-last_updated: "2026-08-25"
+last_updated: "2026-08-26"
 release: "17.0.0"
 milestone: R1
 patch_slot: "v17.0.0 R1"
 gap_ids: [C-002, M-003, M-005, G17-A2]
 governing_rules: [S-8, S-9, C-9, A-4]
 
-# 11 schema files declaring the artifact contracts. Registry entries MUST be
+# 12 schema files declaring the artifact contracts. Registry entries MUST be
 # unique and resolve every non-index YAML file in this directory.
 schemas:
   - id: change-goal
@@ -123,6 +125,14 @@ schemas:
     optional: true
     summary: "OPTIONAL harness pre-analysis artifact — presence flags the change as harness-flagged (artifact-as-contract; no dispatch schema field)."
     token_budget: { soft: 800, hard: 1600, units: tokens }
+
+  - id: change-entrance
+    file: change-entrance.yaml
+    target_path_template: ".local/.agent/active/<change-id>/entrance.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/entrance.md"
+    format: markdown_with_frontmatter
+    summary: "Agent onboarding entry point — static scenario router to the other artifacts; never mirrors dynamic state (missing pre-v17.2 folders lint as WARN until backfilled)."
+    token_budget: { soft: 400, hard: 800, units: tokens }
 
 # Cross-references — each rule below cites the section of design.md that
 # motivates it. The verbatim rule text lives in `.rules/` and the compiled

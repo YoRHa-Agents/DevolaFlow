@@ -49,9 +49,10 @@ from devolaflow.skills.slash_commands import (
     slugify,
 )
 
-# The first seven files come from `Change.to_active_folder`; `README.md`
-# is written separately as the operator orientation file. `evidence/`
-# is the only required directory, while all legacy-only artifacts stay absent.
+# The first eight files come from `Change.to_active_folder` (entrance.md is
+# the v17.2.0 agent onboarding router); `README.md` is written separately as
+# the operator orientation file. `evidence/` is the only required directory,
+# while all legacy-only artifacts stay absent.
 _EXPECTED_FILES: tuple[str, ...] = (
     "goal.md",
     "checklist.md",
@@ -60,6 +61,7 @@ _EXPECTED_FILES: tuple[str, ...] = (
     "spec.md",
     "STATUS.yaml",
     "owned_files.txt",
+    "entrance.md",
     "README.md",
 )
 _ABSENT_LEGACY_FILES: tuple[str, ...] = (

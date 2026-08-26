@@ -230,6 +230,9 @@ class Change:
     stage_md: str = ""
     preflight_md: str = ""
     evidence_files: dict[str, str] = field(default_factory=dict)
+    # Agent onboarding entry point (v17.2.0). Empty string means absent —
+    # pre-v17.2 folders round-trip byte-identically without gaining the file.
+    entrance_md: str = ""
 
     @property
     def state(self) -> str:
@@ -336,6 +339,7 @@ class Change:
             stage_md=_read("stage.md"),
             preflight_md=_read("preflight.md"),
             evidence_files=evidence_files,
+            entrance_md=_read("entrance.md"),
         )
 
     def to_active_folder(self, folder: Path | str) -> None:
@@ -405,6 +409,10 @@ class Change:
         _write("stage.md", self.stage_md)
         _write("preflight.md", self.preflight_md)
         _write("spec.md", self.spec_md)
+        # Opt-in like learnings.jsonl: absent entrance stays absent so
+        # pre-v17.2 folders round-trip byte-identically.
+        if self.entrance_md:
+            _write("entrance.md", self.entrance_md)
 
         status_yaml = yaml.safe_dump(
             self.status,
@@ -459,6 +467,7 @@ class Change:
             stage_md=self.stage_md,
             preflight_md=self.preflight_md,
             evidence_files=dict(self.evidence_files),
+            entrance_md=self.entrance_md,
         )
 
 

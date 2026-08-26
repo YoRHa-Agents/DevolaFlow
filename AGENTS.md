@@ -450,6 +450,7 @@ budgets:
 | stage.md | 400 | 800 |
 | preflight.md | 600 | 1200 |
 | harness_preflight.md | 800 | 1600 |
+| entrance.md | 400 | 800 |
 | spec.md | 1500 | 3000 |
 | STATUS.yaml | 150 | 300 |
 | owned_files.txt | 50 | 100 |
