@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.1.1"
+version: "17.2.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.1.1**
+> **Now Using DevolaFlow v17.2.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.1.1 — Check only on explicit update request:
+**Current version:** 17.2.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -75,6 +75,7 @@ Before classifying work, call
 | `.local/memory/specs/<domain>/spec.md` | Treat as source-of-truth behavior |
 | `.local/memory/cases/*.md` | Consult when memory routing is enabled |
 | `.local/.agent/active/<id>/` | Resume active state instead of duplicating it |
+| `.local/.agent/active/<id>/entrance.md` | Onboarding router — read first, then only scenario-needed artifacts |
 | `.rules/*.mdc` and `AGENTS.md` | Apply governance contract |
 | `.codegraph/codegraph.db` | Prefer indexed planning lookup when available |
 

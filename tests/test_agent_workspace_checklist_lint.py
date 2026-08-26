@@ -28,7 +28,7 @@ from devolaflow.agent_workspace.lint import (
     lint_change,
 )
 from devolaflow.agent_workspace.lint import main as lint_main
-from devolaflow.skills.slash_commands import scaffold_change_folder
+from devolaflow.skills.slash_commands import _entrance_md, scaffold_change_folder
 
 CHANGE_ID = "checklist-lint"
 CHECKED_ITEM = "C-G1.1"
@@ -196,6 +196,7 @@ checklist_total: 3
 current_round: 1
 """,
         "owned_files.txt": "tests/test_agent_workspace_checklist_lint.py\n",
+        "entrance.md": _entrance_md(CHANGE_ID, "Exercise checklist lint contracts"),
     }
     for filename, text in artifacts.items():
         (folder / filename).write_text(text, encoding="utf-8")
@@ -282,6 +283,79 @@ def test_valid_v16_checklist_layout_passes(tmp_path: Path, archived: bool) -> No
     assert report.change_folder == folder
     assert set(CHECKLIST_ARTIFACT_BUDGETS) <= set(report.checked_files)
     assert f"evidence/{CHECKED_ITEM}.txt" in report.checked_files
+
+
+def test_entrance_missing_warns_without_failing(tmp_path: Path) -> None:
+    """Absent entrance.md is a WARN (pre-v17.2 backfill window), never a FAIL."""
+    folder = _scaffold_checklist(tmp_path)
+    (folder / "entrance.md").unlink()
+
+    report = lint_change(CHANGE_ID, repo_root=tmp_path)
+
+    assert report.exit_code == 0
+    assert report.hard_failures == []
+    warned = [
+        violation
+        for violation in report.soft_warnings
+        if isinstance(violation, SemanticViolation) and violation.kind == "ENTRANCE_MISSING"
+    ]
+    assert len(warned) == 1
+    assert "backfill" in warned[0].message
+
+
+@pytest.mark.parametrize(
+    ("case", "old", "new", "expected_kind"),
+    [
+        (
+            "parent-mismatch",
+            f"parent: {CHANGE_ID}",
+            "parent: other-change",
+            "ENTRANCE_PARENT",
+        ),
+        (
+            "schema-version",
+            "schema_version: 1",
+            "schema_version: 2",
+            "ENTRANCE_SCHEMA_VERSION",
+        ),
+        (
+            "section-absent",
+            "## 4. Discipline Pointers",
+            "## 4. Renamed Pointers",
+            "ENTRANCE_SECTION",
+        ),
+        (
+            "parity-missing-row",
+            "| `spec.md` | Behaviour delta (Rule A-4) |\n",
+            "",
+            "ENTRANCE_PARITY",
+        ),
+        (
+            "parity-surplus-row",
+            "| `evidence/` | Per-item verification evidence |",
+            "| `evidence/` | Per-item verification evidence |\n| `extra.md` | Bogus row |",
+            "ENTRANCE_PARITY",
+        ),
+    ],
+)
+def test_entrance_semantic_violations_fail(
+    tmp_path: Path,
+    case: str,
+    old: str,
+    new: str,
+    expected_kind: str,
+) -> None:
+    """A present-but-malformed entrance.md fails loud with its ENTRANCE_* kind."""
+    folder = _scaffold_checklist(tmp_path)
+    entrance_path = folder / "entrance.md"
+    text = entrance_path.read_text(encoding="utf-8")
+    assert old in text, f"fixture drift for case {case}: {old!r} not found"
+    entrance_path.write_text(text.replace(old, new), encoding="utf-8")
+
+    report = lint_change(CHANGE_ID, repo_root=tmp_path)
+
+    assert report.exit_code == 1
+    assert expected_kind in _semantic_kinds(report)
 
 
 @pytest.mark.parametrize(

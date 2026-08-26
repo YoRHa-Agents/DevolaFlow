@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 3600
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-25"
+last_updated: "2026-08-26"
 ---
 
 # Agent Workspace Reference
@@ -44,6 +44,7 @@ first L1 Wave dispatch. Seed `source_stages` remain non-executable provenance.
 .local/.agent/
 ├── active/
 │   └── <change-id>/
+│       ├── entrance.md
 │       ├── goal.md
 │       ├── checklist.md
 │       ├── stage.md
@@ -56,6 +57,7 @@ first L1 Wave dispatch. Seed `source_stages` remain non-executable provenance.
 │   └── <from>__<to>__<change-id>__<seq>.yaml
 └── archive/
     └── <YYYY-MM-DD>-<change-id>/
+        ├── entrance.md
         ├── goal.md
         ├── checklist.md
         ├── stage.md
@@ -113,10 +115,35 @@ Resume planning performs zero writes. Checked items are never selected again.
 A user-reopened item retains its verbatim `reverted:` reason and enters the
 next round before ordinary P0/P1/P2 work.
 
+Agents joining outside this protocol (fresh sessions, non-DevolaFlow-aware
+tools, human auditors) read `entrance.md` FIRST — its scenario routing table
+maps each onboarding case to the minimal artifact read order. A pre-v17.2
+folder without one is backfilled from the scaffold template on first resume
+(lint reports `ENTRANCE_MISSING` as WARN until then).
+
 `force_no_change=True` on `activation_verdict()` remains the explicit
 operator escape hatch for an ad-hoc dispatch.
 
 ## 4. Artifact Contracts
+
+### `entrance.md`
+
+The agent onboarding entry point — a STATIC ROUTER, not a status mirror:
+
+- Section 1 names the change (goal title verbatim + `goal.md` link) and is
+  the only per-change personalized section;
+- Section 2 routes each onboarding scenario (session resume, new L2 task,
+  review/verify, human audit) to its minimal artifact read order;
+- Section 3 inventories every artifact with a one-line role; the lint's
+  `ENTRANCE_PARITY` finding keeps it in lockstep with the C-9 budget
+  registry;
+- Section 4 carries discipline POINTERS only (rule IDs + owning files).
+
+Progress, rounds, and blockers are never restated here — they are read from
+`STATUS.yaml`, `stage.md`, and `preflight.md` Section 4. The router is never
+injected into dispatch payloads (`hydrate_change_context` and
+`schemas/lean-dispatch.yaml` are untouched).
+Schema: `schemas/agent-workspace/change-entrance.yaml`.
 
 ### `goal.md`
 
@@ -398,6 +425,7 @@ Escalation is Task → Wave → Project → Human and never skips a layer.
 
 | File | Soft | Hard |
 |---|---:|---:|
+| `entrance.md` | 400 | 800 |
 | `goal.md` | 200 | 400 |
 | `checklist.md` | 1200 | 2400 |
 | `stage.md` | 400 | 800 |
@@ -431,6 +459,7 @@ Soft breaches warn; hard breaches fail.
 ## 11. References
 
 - `schemas/agent-workspace/change-{goal,checklist,stage,preflight,spec,status}.yaml`
+- `schemas/agent-workspace/change-entrance.yaml`
 - `schemas/agent-workspace/handoff-envelope.yaml`
 - `schemas/agent-workspace/owned-files.yaml`
 - `schemas/lean-dispatch.yaml#layout_invariant`

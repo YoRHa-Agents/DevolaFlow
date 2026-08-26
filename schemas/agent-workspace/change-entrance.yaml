@@ -1,0 +1,159 @@
+# -----------------------------------------------------------------------------
+# Schema: change-entrance
+# Target: .local/.agent/active/<change-id>/entrance.md
+# Design ref: .local/research/v17.2.0_change_entrance_design.md §4
+# Token budget: soft 400 / hard 800 (Rule C-9)
+# -----------------------------------------------------------------------------
+# `entrance.md` is the agent onboarding entry point for a change folder. It is
+# a STATIC ROUTER (design D-2): it routes protocol-outside agents (fresh
+# sessions, non-DevolaFlow-aware tools, human auditors) to the right artifact
+# for their scenario, and it NEVER mirrors dynamic state — progress, rounds,
+# and blockers are always read from STATUS.yaml / stage.md / preflight.md §4.
+# Scaffolded once at propose time; only Section 1 is per-change personalized.
+# -----------------------------------------------------------------------------
+
+design_reference: ".local/research/v17.2.0_change_entrance_design.md §4"
+schema_name: change-entrance
+schema_version: 1
+last_updated: "2026-08-26"
+governing_rules: [P2, P5, S-8, C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/entrance.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/entrance.md"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 400
+  hard: 800
+  units: tokens
+  enforcement:
+    - lint: "python -m devolaflow.agent_workspace.lint <change-id>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required: [parent, schema_version]
+  fields:
+    parent:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Parent change-id; MUST equal the active change folder name."
+    schema_version:
+      type: int
+      enum: [1]
+
+body:
+  required_sections:
+    - heading: "# Entrance —"
+      pattern: "^# Entrance — .+$"
+    - heading: "## 1. What This Change Is"
+      pattern: "^## 1\\. What This Change Is\\s*$"
+    - heading: "## 2. Scenario Routing"
+      pattern: "^## 2\\. Scenario Routing\\s*$"
+    - heading: "## 3. Artifact Inventory"
+      pattern: "^## 3\\. Artifact Inventory\\s*$"
+    - heading: "## 4. Discipline Pointers"
+      pattern: "^## 4\\. Discipline Pointers\\s*$"
+  canonical_order:
+    - "# Entrance —"
+    - "## 1. What This Change Is"
+    - "## 2. Scenario Routing"
+    - "## 3. Artifact Inventory"
+    - "## 4. Discipline Pointers"
+
+  section_1_what:
+    description: >
+      One line: the goal.md title verbatim plus a relative link to goal.md.
+      This is the ONLY per-change personalized section (design D-8); Sections
+      2-4 come verbatim from the scaffold template and evolve with the
+      framework version, not with the change.
+
+  section_2_scenario_routing:
+    format: markdown_table
+    header: "| Scenario | Read order |"
+    description: >
+      Maps each onboarding scenario to the minimal artifact read order.
+      Routing entries point at artifacts; they never inline artifact content.
+
+  section_3_artifact_inventory:
+    format: markdown_table
+    header: "| File | Role |"
+    row_filename_format: "backtick-quoted filename in the first column"
+    parity_contract: >
+      The set of backtick-quoted filenames MUST equal the lint budget
+      registry keys (agent_workspace.lint.CHECKLIST_ARTIFACT_BUDGETS)
+      minus entrance.md itself, plus the evidence/ directory. Enforced by
+      the ENTRANCE_PARITY lint finding (design D-7) so the inventory can
+      never silently lag the artifact set.
+
+  section_4_discipline_pointers:
+    description: >
+      Pointer lines only (rule ids + owning files). Discipline PROSE lives in
+      the governed artifacts and reference docs; restating it here is a
+      review-time rejection point (design risk 1).
+
+lint_findings:
+  - code: ENTRANCE_MISSING
+    severity: WARN
+    trigger: "entrance.md absent from a checklist-layout folder (pre-v17.2 folders; backfill on first resume per design D-4)."
+  - code: ENTRANCE_PARENT
+    severity: FAIL
+    trigger: "frontmatter parent does not equal the change-id."
+  - code: ENTRANCE_SCHEMA_VERSION
+    severity: FAIL
+    trigger: "frontmatter schema_version is not 1."
+  - code: ENTRANCE_SECTION
+    severity: FAIL
+    trigger: "a required body section heading is absent."
+  - code: ENTRANCE_PARITY
+    severity: FAIL
+    trigger: "Section 3 inventory does not match the lint budget registry (see section_3_artifact_inventory.parity_contract)."
+
+invariants:
+  - "Static router only: MUST NOT mirror progress counters, round numbers, or blocker lists — those are read from STATUS.yaml, stage.md, and preflight.md Section 4."
+  - "Only Section 1 is per-change personalized; Sections 2-4 are scaffold-template verbatim."
+  - "Section 3 inventory MUST stay in parity with the lint budget registry (ENTRANCE_PARITY)."
+  - "Never injected into dispatch payloads: hydrate_change_context and schemas/lean-dispatch.yaml are untouched (design D-5; A-2 canonical_order stays 17)."
+  - "MUST NOT contain absolute filesystem paths."
+  - "The archived file is copied byte-identical at archive time."
+
+example: |
+  ---
+  parent: add-dark-mode
+  schema_version: 1
+  ---
+
+  # Entrance — add-dark-mode
+
+  > Onboarding entry point: read this first, then load only what your
+  > scenario needs (Section 2). Do not read every file in order.
+
+  ## 1. What This Change Is
+  Complete add-dark-mode — see [goal.md](goal.md).
+
+  ## 2. Scenario Routing
+  | Scenario | Read order |
+  |---|---|
+  | Session resume | STATUS.yaml → stage.md current round → checklist.md unchecked items |
+  | New L2 task | checklist_items in your dispatch → owned_files.txt → spec.md |
+  | Review / verify | checklist.md `evidence:` lines → evidence/ files |
+  | Human audit | preflight.md Section 4 snapshot → stage.md round history → goal.md |
+
+  ## 3. Artifact Inventory
+  | File | Role |
+  |---|---|
+  | `goal.md` | Numbered goal ledger |
+  | `checklist.md` | Tracking table; checked = evidence-backed DONE |
+  | `stage.md` | Round control: selection, waves, history |
+  | `preflight.md` | Pre-execution confirmation + progress snapshot |
+  | `spec.md` | Behaviour delta (Rule A-4) |
+  | `STATUS.yaml` | Machine state — current truth, read first |
+  | `owned_files.txt` | Legal write surface (Rule S-8) |
+  | `harness_preflight.md` | OPTIONAL harness-flag + gap pre-analysis |
+  | `evidence/` | Per-item verification evidence |
+
+  ## 4. Discipline Pointers
+  - Progress/blockers live in STATUS.yaml + stage.md; never mirrored here.
+  - Writes: owned_files.txt per Rule S-8; only the user reverts [x] to [ ].
+  - Handoff envelopes are append-only per Rule S-9.
+  - Budgets and lint: `python -m devolaflow.agent_workspace.lint <change-id>`.

@@ -1,9 +1,10 @@
 """Schema validation tests for the agent-workspace YAML schema registry.
 
-Covers the 12 files in `schemas/agent-workspace/` (1 index + 11 artifact
+Covers the 13 files in `schemas/agent-workspace/` (1 index + 12 artifact
 schemas). The v8.3.0 PV-04 contracts remain covered alongside the v16.0.0 M1
-checklist/stage/preflight additions, the goal/status v2 contracts, and the
-harness-construction harness-preflight addition.
+checklist/stage/preflight additions, the goal/status v2 contracts, the
+harness-construction harness-preflight addition, and the v17.2.0
+change-entrance onboarding router.
 
 Test scope (per .local/research/v8.3.0_patch_plan.md §v8.2.4 AC-1..AC-10):
 
@@ -38,10 +39,11 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = REPO_ROOT / "schemas" / "agent-workspace"
 
-# The registry contains 12 files total (1 index + 11 artifact schemas — the
+# The registry contains 13 files total (1 index + 12 artifact schemas — the
 # legacy acceptance/tasks schemas were removed in v17.0.0 at their declared
 # removal_target; harness-preflight was added by the harness-construction
-# change). The schema ids match the basename minus `.yaml`.
+# change; change-entrance by the v17.2.0 entrance design). The schema ids
+# match the basename minus `.yaml`.
 EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "__init__.yaml",
     SCHEMA_DIR / "change-goal.yaml",
@@ -55,6 +57,7 @@ EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "agent-config.yaml",
     SCHEMA_DIR / "source-of-truth-spec.yaml",
     SCHEMA_DIR / "harness-preflight.yaml",
+    SCHEMA_DIR / "change-entrance.yaml",
 ]
 
 # Schemas that govern an actual artifact (i.e. NOT the index). All of these
@@ -87,6 +90,7 @@ EXPECTED_TOKEN_BUDGETS: dict[str, tuple[int, int]] = {
     "agent-config": (400, 800),
     "source-of-truth-spec": (2000, 4000),
     "harness-preflight": (800, 1600),
+    "change-entrance": (400, 800),
 }
 
 # Canonical FSM transition matrix — declared verbatim in change-status.yaml
@@ -1165,6 +1169,8 @@ def test_artifact_schema_design_reference_format(schema_path: Path) -> None:
     ref = doc["design_reference"]
     if doc["schema_name"] == "harness-preflight":
         expected = ".local/tasks/add_harness_design/design.md"
+    elif doc["schema_name"] == "change-entrance":
+        expected = ".local/research/v17.2.0_change_entrance_design.md"
     else:
         expected = (
             ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md"
