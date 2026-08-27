@@ -2,7 +2,7 @@
 id: "agent/references/meta-framework"
 version: "1.0.0"
 purpose: >
-  Defines registry-v3 intent routing, the 24 declarative checklist seeds,
+  Defines registry-v3 intent routing, the 26 declarative checklist seeds,
   the sole change-driven runtime, seed provenance and materialization,
   compatibility aliases, and the historical primitive taxonomy.
 triggers:
@@ -32,11 +32,11 @@ user intent
 
 The shipped registry contains:
 
-- **25 checklist seeds**;
+- **26 checklist seeds**;
 - **1 executable path**, `builtin/change-driven.yaml`;
 - **0 executable composition DAGs**.
 
-The 25 workflow names remain useful as intent modes. They no
+The 26 workflow names remain useful as intent modes. They no
 longer prescribe stage order.
 
 ## 2. Registry v3 Contract
@@ -45,7 +45,7 @@ longer prescribe stage order.
 
 | Block | Count | Meaning |
 |---|---:|---|
-| `compositions` | 18 | Historical composition names, now seed-only |
+| `compositions` | 19 | Historical composition names, now seed-only |
 | `templates` | 7 | Historical survivor names, all with seeds |
 
 Every entry declares:
@@ -66,7 +66,7 @@ path: builtin/change-driven.yaml
 
 No other entry may declare an executable path.
 
-### 2.1 The 24 modes
+### 2.1 The 26 modes
 
 Seed-only names from the `compositions` block:
 
@@ -86,17 +86,19 @@ Seed-only names from the `compositions` block:
 14. `demo-showcase`
 15. `product-verification`
 16. `entropy-cleanup`
-17. `harness-construction`
+17. `local-archive`
+18. `harness-construction`
+19. `pathfinder`
 
 Names retained in the `templates` block, each still backed by a seed:
 
-18. `migration`
-19. `skill-optimization`
-20. `self-update`
-21. `nines-assisted`
-22. `repo-init`
-23. `change-driven`
-24. `web-design`
+20. `migration`
+21. `skill-optimization`
+22. `self-update`
+23. `nines-assisted`
+24. `repo-init`
+25. `change-driven`
+26. `web-design`
 
 The block distinction preserves catalog compatibility. It does not imply two
 execution mechanisms.
@@ -211,7 +213,7 @@ runtime = registry.load_template("change-driven")
 - carries no `checklist_seed` alias metadata;
 - returns `None` if the runtime cannot be found.
 
-`discover()` returns catalog metadata for all 24 names without emitting alias
+`discover()` returns catalog metadata for all 26 names without emitting alias
 warnings. Discovery does not prove executability.
 
 ### 4.2 Retired composition synthesis
@@ -281,6 +283,7 @@ Select the seed whose intent keywords best match the user's goal:
 | documentation | `documentation-only` |
 | experiment | `spike-poc` |
 | cleanup/restructure | `refactoring`, `entropy-cleanup` |
+| local-task archiving | `local-archive` |
 | feature or greenfield build | `feature-enhancement`, `full-pipeline` |
 | performance/security | `performance-optimization`, `security-audit` |
 | environment/onboarding | `dependency-setup`, `onboarding`, `repo-init` |
@@ -319,6 +322,7 @@ gate DAG.
 | demo-showcase | checklist-round |
 | product-verification | checklist-round |
 | entropy-cleanup | checklist-round |
+| local-archive | checklist-round |
 | harness-construction | checklist-round |
 | pathfinder | checklist-round |
 | migration | checklist-round |
@@ -334,7 +338,7 @@ gate DAG.
 ```text
 REGISTRY
 □ schema_version is "3.0"
-□ 18 composition entries + 7 template entries = 25
+□ 19 composition entries + 7 template entries = 26
 □ Every entry has exactly one seeds/<name>.yaml
 □ Only change-driven declares builtin/change-driven.yaml
 

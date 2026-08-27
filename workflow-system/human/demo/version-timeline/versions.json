@@ -2281,5 +2281,20 @@
       "npm_runtime_dependencies": "0",
       "canonical_order_length": "17"
     }
+  },
+  {
+    "version": "17.5.0",
+    "date": "2026-08-27",
+    "era": "local-archive",
+    "headline": "MINOR — Local Task Archive: independent runtime, report-only planning, approved non-deletion moves, append-only mapping/index doctor, and seed/reference/install parity",
+    "summary": "v17.5.0 adds an independent local-archive runtime for .local/tasks/ that stays separate from active-change and research archives. The default devola-local-archive command reports repository-relative dispositions without modifying the workspace; --apply accepts only an exact approved plan subset for safe, non-deletion moves, while the dedicated doctor protects append-only mappings and index ownership. The local-archive seed, operator reference, install manifest, registry, and current-cycle ghost coverage are wired consistently.",
+    "highlights": [
+      "Independent local-archive runtime — dedicated inventory, classification, planning, safe-apply, index, and mapping ownership under .local/tasks/, separate from active-change and research archives",
+      "Report-only CLI — devola-local-archive emits deterministic repository-relative dispositions by default, with explicit lifecycle and protection values, stable cluster keys, exact destinations, and no delete action",
+      "Approved non-deletion moves — --apply accepts only an exact approved plan subset matching the current inventory; strict repository, boundary, symlink, nested-repository, worktree, and clean-tree checks protect task contents",
+      "Append-only mapping/index doctor — checks mapping sequence and no-clobber integrity, generated-index coverage and drift, plan findings, and safety conditions; physical moves append immutable source-to-destination records without silently overwriting human-maintained or symlinked indexes",
+      "Seed/reference/install parity — local-archive is wired consistently across the seed, operator reference, install manifest, registry, and current-cycle ghost coverage"
+    ],
+    "metrics": {}
   }
 ]

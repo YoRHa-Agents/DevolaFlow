@@ -84,6 +84,11 @@ compositions:
     category: control
     tags: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
     description: "Stale-documentation and drift cleanup knowledge."
+  - name: local-archive
+    seed: seeds/local-archive.yaml
+    category: control
+    tags: [local-archive, task-archive, archive, tasks, clustering, mapping, index, report-only]
+    description: "Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge."
   - name: harness-construction
     seed: seeds/harness-construction.yaml
     category: composite

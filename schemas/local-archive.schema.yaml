@@ -1,0 +1,109 @@
+# Schema: local-archive
+# Dedicated contracts for task-archive plans, indexes, and mappings.
+design_reference: ".local/tasks/add_local_archive/local_archive_design.md"
+schema_name: local-archive
+schema_version: 1
+instance_top_level_required:
+  - artifact_type
+  - schema_version
+governing_rules: [S-2, S-5, S-9, A-5]
+source_boundary: ".local/tasks"
+protected_prefixes:
+  - ".local/.agent/"
+  - ".local/memory/specs/"
+  - ".local/research/"
+  - ".local/human/input/"
+  - ".rules/"
+  - "src/"
+  - "schemas/"
+  - "scripts/"
+  - "workflow-system/"
+lifecycle:
+  enum: [active, done, stale, unknown]
+  note: "protected is a separate protection verdict, never a lifecycle value"
+protection:
+  enum: [allowed, protected, unsafe, ambiguous]
+actions:
+  enum: [move, retain, review, refuse]
+path_contract:
+  type: string
+  relative_to_repository: true
+  posix_separators: true
+  absolute: false
+contracts:
+  plan:
+    artifact_type: task-archive-plan
+    required:
+      - artifact_type
+      - schema_version
+      - source_boundary
+      - entries
+    entry_required:
+      - source
+      - destination
+      - cluster_key
+      - classification
+      - action
+      - protection
+      - protection_reason
+      - findings
+    entry_notes:
+      - "classification is one lifecycle value"
+      - "protection is represented by a finding and refusal action"
+      - "duplicate destinations are refusal findings"
+  index:
+    artifact_type: task-archive-index
+    required:
+      - artifact_type
+      - schema_version
+      - generated
+      - entries
+    ownership:
+      generated_marker: "<!-- devolaflow: generated task archive index -->"
+      human_maintained: "A file without the marker MUST NOT be overwritten."
+    notes:
+      - "Index is deterministic navigation only."
+      - "The mapping ledger is the source of truth."
+  mapping:
+    artifact_type: task-archive-mapping
+    encoding: "YAML document stream; one immutable row per document"
+    required:
+      - sequence
+      - source
+      - destination
+      - reason
+      - timestamp
+    append_only: true
+    no_clobber: true
+    notes:
+      - "Existing rows and handoff envelopes are never edited or deleted."
+      - "sequence is monotonically increasing from the maximum existing value."
+examples:
+  plan:
+    artifact_type: task-archive-plan
+    schema_version: 1
+    source_boundary: ".local/tasks"
+    entries:
+      - source: ".local/tasks/quality/active/T-001"
+        destination: ".local/tasks/quality/archive/2026-08/T-001"
+        cluster_key: quality
+        classification: done
+        action: move
+        protection: allowed
+        protection_reason: ""
+        findings: []
+  index:
+    artifact_type: task-archive-index
+    schema_version: 1
+    generated: true
+    entries:
+      - source: ".local/tasks/quality/active/T-001"
+        destination: ".local/tasks/quality/archive/2026-08/T-001"
+  mapping:
+    artifact_type: task-archive-mapping
+    schema_version: 1
+    sequence: 1
+    source: ".local/tasks/quality/active/T-001"
+    destination: ".local/tasks/quality/archive/2026-08/T-001"
+    reason: "done task archive"
+    timestamp: "2026-08-27T10:00:00Z"

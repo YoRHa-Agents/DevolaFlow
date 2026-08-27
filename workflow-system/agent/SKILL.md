@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.4.2"
+version: "17.5.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.4.2**
+> **Now Using DevolaFlow v17.5.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.4.2 — Check only on explicit update request:
+**Current version:** 17.5.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -190,6 +190,7 @@ Match intent to a registry-v3 checklist seed. Every row uses
 | initialize repository workspace | `repo-init` |
 | change lifecycle explicitly | `change-driven` |
 | stale docs or drift cleanup | `entropy-cleanup` |
+| local task archive or clustering | `local-archive` |
 | harness construction, evaluation infrastructure, observation coverage | `harness-construction` |
 | look-ahead infrastructure or harness reconnaissance | `pathfinder` |
 | frontend/web design | `web-design` |
@@ -421,6 +422,7 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/host-contract.md` | checking host support tiers, delivery floor, and evidence-backed capability declarations |
 | `references/human-surface.md` | Human input/output contracts |
 | `references/impeccable.md` | Design refinement checks |
+| `references/local-archive.md` | Explicit local-task inventory, approved non-deletion moves, and archive mapping |
 | `references/message-schemas.md` | Typed dispatch/report fields |
 | `references/meta-framework.md` | Registry v3 and seeds |
 | `references/pathfinder.md` | selecting the Pathfinder L2 role or look-ahead harness reconnaissance |

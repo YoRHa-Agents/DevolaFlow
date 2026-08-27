@@ -1,0 +1,88 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: local-archive
+  version: "1.0.0"
+  description: "Seed for bounded local-task inventory, approved non-deletion moves, and archive verification."
+  category: control
+  intent_keywords:
+    - local-archive
+    - local archive
+    - task archive
+    - task clustering
+    - archive mapping
+    - task index
+  applicable_scenarios:
+    - canonical-task-layout
+    - brownfield-task-layout
+    - approved-task-migration
+  source:
+    kind: composition
+    name: local-archive
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: inventory
+    title_template: "Task inventory"
+    source_stages:
+      - {id: inventory, primitive: analyze}
+    assertions:
+      - key: inventory-bounded
+        statement_template: "Task folders are inventoried without modification, and task inventory stays out of default scan_workspace discovery."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: classify
+    title_template: "Lifecycle and protection classification"
+    source_stages:
+      - {id: classify, primitive: analyze}
+    assertions:
+      - key: classification-independent
+        statement_template: "Each candidate has one active, done, stale, or unknown lifecycle value plus a separate protection verdict."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: report-only-plan
+    title_template: "Report-only archive plan"
+    source_stages:
+      - {id: plan, primitive: plan}
+    assertions:
+      - key: report-only-plan
+        statement_template: "The exact source, destination, classification, and report-only action are rendered before any path changes."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: human-approval
+    title_template: "Explicit human approval"
+    source_stages:
+      - {id: approval, primitive: review}
+    assertions:
+      - key: explicit-approval
+        statement_template: "A human explicitly approves the exact proposed entries before any archive move is considered."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: strict-clean-gate
+    title_template: "Strict clean gate"
+    source_stages:
+      - {id: clean-gate, primitive: gate}
+    assertions:
+      - key: clean-gate-passed
+        statement_template: "Every approved candidate passes strict boundary, symlink, nested-repository, worktree, and git-status checks."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: approved-move
+    title_template: "Approved non-deletion move"
+    source_stages:
+      - {id: move, primitive: implement}
+    assertions:
+      - key: non-deletion-move
+        statement_template: "Only approved candidates move while task context is preserved and no deletion action is performed."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: mapping-index-verification
+    title_template: "Append-only mapping and index verification"
+    source_stages:
+      - {id: mapping-index, primitive: verify}
+    assertions:
+      - key: mapping-index-verified
+        statement_template: "Each move appends a complete old-path-to-new-path mapping and verifies unique destinations and index coverage."
+        suggested_priority: P0
+        verify: {mode: manual}

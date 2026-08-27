@@ -4,8 +4,8 @@ description: "Registry-derived checklist seeds and the sole change-driven runtim
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T09:07:22Z"
-source_version: "17.4.2"
+last_synced: "2026-08-27T11:32:38Z"
+source_version: "17.5.0"
 ---
 
 # Checklist Seed Catalog
@@ -35,6 +35,7 @@ membership is not maintained in this guide.
 | `demo-showcase` | `composite` | Demo and presentation decomposition with visual-quality evidence. | `demo`, `showcase`, `presentation`, `prototype`, `ui`, `visual`, `pitch` |
 | `product-verification` | `composite` | User-facing verification across visual, interaction, accessibility, and acceptance axes. | `verify`, `visual`, `acceptance`, `interaction`, `accessibility`, `uat`, `e2e`, `product`, `quality` |
 | `entropy-cleanup` | `control` | Stale-documentation and drift cleanup knowledge. | `entropy`, `gc`, `cleanup`, `freshness`, `drift`, `maintenance`, `meta`, `documentation` |
+| `local-archive` | `control` | Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge. | `local-archive`, `task-archive`, `archive`, `tasks`, `clustering`, `mapping`, `index`, `report-only` |
 | `harness-construction` | `composite` | Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review. | `harness`, `evaluation-infrastructure`, `observability`, `telemetry`, `coverage`, `gap-analysis`, `baseline` |
 | `pathfinder` | `control` | Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave. | `pathfinder`, `path-find`, `look-ahead`, `infrastructure`, `harness`, `gap-analysis`, `reconnaissance` |
 | `migration` | `build` | Systematic migration with validation, cutover, and rollback readiness. | `migrate`, `upgrade`, `transition`, `port` |

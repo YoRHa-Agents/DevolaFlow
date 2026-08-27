@@ -5,6 +5,51 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.5.0] - 2026-08-27 — MINOR — Local Task Archive
+
+Gap analysis: `.local/research/v17.5.0_gap_analysis.md` (W-1/SI-1). Ghost
+audit: `tests/ghost/test_features_v17_5.py` (W-18 — refreshed before this
+entry).
+
+### Added
+
+- **Independent local-archive runtime**: `.local/tasks/` now has a dedicated
+  inventory, classification, planning, safe-apply, index, and mapping owner;
+  it remains separate from active-change and research archives.
+- **Deterministic report-only plans**: the default
+  `devola-local-archive` command emits repository-relative task dispositions
+  without modifying the workspace. Plans use explicit lifecycle and
+  protection values, stable cluster keys, exact destinations, and no delete
+  action.
+- **Approved non-deletion moves**: `--apply` accepts only an exact approved
+  plan subset that still matches the current inventory. Moves preserve task
+  contents, require strict repository/boundary, symlink, nested-repository,
+  worktree, and clean-tree checks, and refuse unsafe or ambiguous candidates.
+- **Append-only mapping/index doctor**: the dedicated doctor checks mapping
+  sequence and no-clobber integrity, generated-index coverage and drift, plan
+  findings, and safety conditions. Physical moves append immutable
+  source-to-destination records; human-maintained or symlinked indexes are
+  never silently overwritten.
+- **Seed/reference/install parity**: the `local-archive` seed, operator
+  reference, install manifest, registry, and current-cycle ghost coverage are
+  wired consistently.
+
+### Operator-visible behaviour change
+
+- `devola-local-archive` is report-only by default; physical organization
+  requires explicit approval and is limited to non-deletion moves. The normal
+  workspace scan remains unchanged and does not enumerate `.local/tasks/`.
+- `ChangeStore` and `ArchiveManager` retain ownership of the
+  `.local/.agent/` active-change lifecycle, W-19 retains versioned research
+  archiving, and the dispatch schema/cache layout remains unchanged. No new
+  `DEVOLAFLOW_*` environment flag was introduced.
+
+### Deferred / unapproved
+
+- The proposed Workflow rules for deletion safety, append-only mapping
+  behavior, and index-generation honesty remain separate deferred,
+  unapproved items; this entry does not claim Workflow rule approval.
+
 ## [17.4.2] - 2026-08-27 — PATCH — Host Delivery Parity
 
 Ghost audit: `tests/ghost/test_features_v17_4.py` (W-18 — refreshed before

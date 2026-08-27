@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover - the package supplies writing_style
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "17.4.2"
+SOURCE_VERSION = "17.5.0"
 INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 HOST_BRIDGE_URL = (
     "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
@@ -58,6 +58,7 @@ ZH_SEED_DESCRIPTIONS = {
     "demo-showcase": "以视觉质量证据支撑演示与展示分解。",
     "product-verification": "从视觉、交互、无障碍与验收维度验证用户体验。",
     "entropy-cleanup": "清理过期文档与漂移。",
+    "local-archive": "独立任务归档工作流：先报告并明确批准，在严格安全与来源约束下执行有界的非删除移动。",
     "harness-construction": "构建 harness 基建（观测/评测/探针/基线/信号/闭环覆盖），以机器化缺口分析打底并在归档时评审能力增量。",
     "pathfinder": "以只读方式前瞻侦察基础设施与 harness 缺口，并在后续轮次前完成有界交接。",
     "migration": "系统化迁移，并验证切换与回滚准备。",

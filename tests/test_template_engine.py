@@ -684,8 +684,8 @@ composition:
 
 REPO_TEMPLATES_ROOT = Path(__file__).parent.parent / "workflow-system" / "agent" / "templates"
 
-# The canonical 23-name seed surface. Only ``change-driven`` is executable;
-# the other 22 names are one-major compatibility aliases.
+# The canonical 24-name seed surface. Only ``change-driven`` is executable;
+# the other 23 names are one-major compatibility aliases.
 PRE_COLLAPSE_TEMPLATE_NAMES = [
     # survivors (yaml-backed)
     "change-driven",
@@ -712,6 +712,7 @@ PRE_COLLAPSE_TEMPLATE_NAMES = [
     "onboarding",
     "product-verification",
     "entropy-cleanup",
+    "local-archive",
 ]
 
 
@@ -761,7 +762,7 @@ class TestCompositionAliasLayer:
     def test_manifest_valid_against_disk(self, repo_registry: TemplateRegistry) -> None:
         raw = yaml.safe_load((REPO_TEMPLATES_ROOT / "registry.yaml").read_text(encoding="utf-8"))
         entries = raw["compositions"] + raw["templates"]
-        assert len(entries) == 25
+        assert len(entries) == 26
         assert all((REPO_TEMPLATES_ROOT / entry["seed"]).is_file() for entry in entries)
         assert all(repo_registry.load_seed(entry["name"]) is not None for entry in entries)
         assert [entry["name"] for entry in entries if "path" in entry] == ["change-driven"]

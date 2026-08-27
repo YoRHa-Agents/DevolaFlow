@@ -4,8 +4,8 @@ description: "三层清单轮次架构、来源原语与证据门。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T09:07:22Z"
-source_version: "17.4.2"
+last_synced: "2026-08-27T11:32:38Z"
+source_version: "17.5.0"
 ---
 
 # 架构概述
@@ -24,9 +24,9 @@ source_version: "17.4.2"
 
 ## 种子与运行时
 
-注册表当前提供 25 个不可执行清单种子，其中
-12 个原语标签
-（`analyze`, `deploy`, `design`, `implement`, `plan`, `refine`, `release`, `research`, `review`, `test`, `validate`, `verify`）只保存历史分解
+注册表当前提供 26 个不可执行清单种子，其中
+13 个原语标签
+（`analyze`, `deploy`, `design`, `gate`, `implement`, `plan`, `refine`, `release`, `research`, `review`, `test`, `validate`, `verify`）只保存历史分解
 来源；列表顺序不是运行时顺序。`change-driven` 是唯一可执行运行时。
 
 ## 证据合同

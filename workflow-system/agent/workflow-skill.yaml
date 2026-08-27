@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "17.4.2"
+  version: "17.5.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -277,7 +277,7 @@ content:
       tier: 3
 
   # ─────────────────────────────────────────────────────────────────
-  # Templates: registry v3 exposes 23 declarative checklist seeds and one
+  # Templates: registry v3 exposes 26 declarative checklist seeds and one
   # executable runtime. Seeds retain decomposition knowledge but carry no DAG
   # semantics. `change-driven` is both a seed name and the sole runtime name.
   # ─────────────────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ content:
     registry:
       file: "templates/registry.yaml"
       schema_version: "3.0"
-      description: "Seed and runtime discovery registry; 25 seeds + one executable runtime"
+      description: "Seed and runtime discovery registry; 26 seeds + one executable runtime"
 
     seeds:
       - {id: "hotfix", file: "templates/seeds/hotfix.yaml"}
@@ -304,6 +304,7 @@ content:
       - {id: "demo-showcase", file: "templates/seeds/demo-showcase.yaml"}
       - {id: "product-verification", file: "templates/seeds/product-verification.yaml"}
       - {id: "entropy-cleanup", file: "templates/seeds/entropy-cleanup.yaml"}
+      - {id: "local-archive", file: "templates/seeds/local-archive.yaml"}
       - {id: "harness-construction", file: "templates/seeds/harness-construction.yaml"}
       - {id: "pathfinder", file: "templates/seeds/pathfinder.yaml"}
       - {id: "migration", file: "templates/seeds/migration.yaml"}
@@ -401,6 +402,11 @@ content:
       file: "../../schemas/checklist-seed.schema.yaml"
       design_source: "checklist_iteration_design.md §10.2 / ADR-8"
       description: "Declarative checklist-seed shape for non-executable decomposition knowledge"
+
+    - id: "local-archive"
+      file: "../../schemas/local-archive.schema.yaml"
+      design_source: "add_local_archive/local_archive_design.md"
+      description: "Task archive plan, index, and mapping contract schemas"
 
 # ═══════════════════════════════════════════════════════════════════
 # Adapters: Per-tool output configuration.
@@ -568,7 +574,7 @@ manifest:
       type: "knowledge"
       design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
-  # Registry v3 inventory: one registry, 25 checklist seeds, one executable
+  # Registry v3 inventory: one registry, 26 checklist seeds, one executable
   # runtime, and two operator-facing checklist-round artifact templates.
   templates:
     - path: "templates/registry.yaml"
@@ -636,6 +642,10 @@ manifest:
       type: "checklist-seed"
       design_source: "checklist_iteration_design.md §10.2"
     - path: "templates/seeds/entropy-cleanup.yaml"
+      tier: 3
+      type: "checklist-seed"
+      design_source: "checklist_iteration_design.md §10.2"
+    - path: "templates/seeds/local-archive.yaml"
       tier: 3
       type: "checklist-seed"
       design_source: "checklist_iteration_design.md §10.2"

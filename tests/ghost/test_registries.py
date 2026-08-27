@@ -270,6 +270,13 @@ _SF4_REFERENCE_SET = frozenset(
         # v17.4.0 — Host Support Contract: canonical host identity,
         # guaranteed floor, declared extras, and provenance obligations.
         "host-contract.md",
+        # v17.5.0 — explicit local-task archive contract: canonical and
+        # brownfield inventory, report-only planning, approved non-deletion
+        # moves, strict safety checks, dedicated append-only mappings, and
+        # generated index ownership. The task archive remains separate from
+        # entropy-cleanup, W-19 research archiving, ChangeStore, and default
+        # scan_workspace discovery.
+        "local-archive.md",
         # v17.3.0 — Pathfinder look-ahead role contract (28th SF-4
         # canonical). Defines the read-only L2 reconnaissance protocol,
         # report schema, bounded handoff, and separation from preflight,
