@@ -6,10 +6,11 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from devolaflow.cli import local_archive_cmd
+from devolaflow.cli import LOCAL_ARCHIVE_SAFETY_REFUSAL, local_archive_cmd
 
 
 def _task(repo: Path, relative: str = ".local/tasks/flat-done") -> Path:
@@ -114,6 +115,43 @@ def test_apply_uses_approved_plan_and_moves_only_its_entry(
     assert not source.exists()
     assert destination.joinpath("context.txt").read_text(encoding="utf-8") == "preserve me\n"
     assert (tmp_path / ".local/tasks/archive-mappings.yaml").is_file()
+
+
+@pytest.mark.parametrize(
+    "finding_code",
+    ["APPLY_ERROR", "INDEX_WRITE_ERROR", "NOT_MOVABLE", "SYMLINK_INDEX", "UNREADABLE_INDEX"],
+)
+def test_apply_failed_findings_return_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    finding_code: str,
+) -> None:
+    from devolaflow.local.archive import ArchiveResult, Finding
+
+    plan = SimpleNamespace(entries=(SimpleNamespace(action="move"),))
+    monkeypatch.setattr("devolaflow.cli._local_archive_load_plan", lambda _: plan)
+
+    def fake_apply(root: Path, loaded_plan: object, approved: object) -> ArchiveResult:
+        assert loaded_plan is plan
+        assert len(approved) == 1
+        return ArchiveResult(
+            findings=(Finding(finding_code, "simulated archive failure"),),
+            refused=True,
+        )
+
+    monkeypatch.setattr("devolaflow.local.archive.apply_archive_plan", fake_apply)
+
+    result = _invoke(
+        monkeypatch,
+        ["--repo-root", str(tmp_path), "--apply", str(tmp_path / "approved-plan.json")],
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert result.value.code == LOCAL_ARCHIVE_SAFETY_REFUSAL
+    assert payload["findings"][0]["code"] == finding_code
+    assert payload["refused"] is True
+    assert payload["success"] is False
 
 
 def test_apply_rejects_malformed_and_changed_approval(

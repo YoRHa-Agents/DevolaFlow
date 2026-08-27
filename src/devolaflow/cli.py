@@ -575,7 +575,9 @@ def _local_archive_load_plan(path: Path) -> object:
     return _local_archive_plan_from_payload(payload)
 
 
-def _local_archive_exit_code(findings: tuple[object, ...] | list[object]) -> int:
+def _local_archive_exit_code(
+    findings: tuple[object, ...] | list[object], *, success: bool = True, refused: bool = False
+) -> int:
     codes = {finding.code for finding in findings}
     if codes & {"APPROVAL_MISMATCH", "PLAN_CHANGED", "APPROVAL_REQUIRED", "EMPTY_APPROVAL"}:
         return LOCAL_ARCHIVE_APPROVAL_MISMATCH
@@ -608,6 +610,8 @@ def _local_archive_exit_code(findings: tuple[object, ...] | list[object]) -> int
         "MAPPING_DESTINATION_MISSING",
         "MAPPING_SOURCE_PRESENT",
     }:
+        return LOCAL_ARCHIVE_SAFETY_REFUSAL
+    if findings or not success or refused:
         return LOCAL_ARCHIVE_SAFETY_REFUSAL
     return LOCAL_ARCHIVE_REPORT
 
@@ -827,4 +831,10 @@ def local_archive_cmd() -> None:
         print(_local_archive_json(payload), end="")
         sys.exit(LOCAL_ARCHIVE_MALFORMED)
     print(_local_archive_json(_local_archive_result_payload(result)), end="")
-    sys.exit(_local_archive_exit_code(result.findings))
+    sys.exit(
+        _local_archive_exit_code(
+            result.findings,
+            success=result.success,
+            refused=result.refused,
+        )
+    )
