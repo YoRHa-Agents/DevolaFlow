@@ -174,6 +174,7 @@ def test_default_timeout_for_returns_known_task_type_value() -> None:
     assert default_timeout_for("test") == 900
     assert default_timeout_for("review") == 1200
     assert default_timeout_for("hotfix") == 600
+    assert default_timeout_for("pathfind") == 2700
 
 
 def test_default_timeout_for_unknown_task_type_returns_fallback() -> None:
@@ -210,7 +211,7 @@ def test_default_timeout_for_non_string_returns_fallback() -> None:
 def test_task_type_timeout_defaults_membership_pinned() -> None:
     """The membership of TASK_TYPE_TIMEOUT_DEFAULTS is the contract surface.
 
-    Pin the exact 5-entry set so future PVs cannot silently widen or
+    Pin the exact 6-entry set so future PVs cannot silently widen or
     narrow it without refreshing the W-18 ghost-audit stanza.
     """
     from devolaflow.task_adaptive_selector import TASK_TYPE_TIMEOUT_DEFAULTS
@@ -221,6 +222,7 @@ def test_task_type_timeout_defaults_membership_pinned() -> None:
         "test",
         "review",
         "hotfix",
+        "pathfind",
     }
 
 

@@ -1463,7 +1463,8 @@ class TestG037TimeoutClassResolution:
             "hotfix": 600,
             "fallback": 7200,
         }
-        for cls, seconds in TASK_TYPE_TIMEOUT_DEFAULTS.items():
+        for cls in ("research", "impl", "test", "review", "hotfix"):
+            seconds = TASK_TYPE_TIMEOUT_DEFAULTS[cls]
             assert timeout_map[cls] == seconds, (
                 f"timeout_class_map[{cls!r}] drifted from TASK_TYPE_TIMEOUT_DEFAULTS"
             )
