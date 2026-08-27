@@ -4,8 +4,8 @@ description: "Registry-derived checklist seeds and the sole change-driven runtim
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T05:10:31Z"
-source_version: "17.3.0"
+last_synced: "2026-08-27T08:33:55Z"
+source_version: "17.4.0"
 ---
 
 # Checklist Seed Catalog

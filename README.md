@@ -62,6 +62,23 @@ requested. Global installation also attempts the registered runtime plugins;
 add `--no-plugins` to copy only skill files. curl supports `update` and
 `uninstall`, but has no doctor target.
 
+### Host Support Contract
+
+The canonical support registry is
+[`workflow-system/agent/hosts.yaml`](workflow-system/agent/hosts.yaml). It
+distinguishes guaranteed delivery from community support and records optional
+capabilities with evidence:
+
+- **Guaranteed:** Cursor, Claude Code, Codex, GitHub Copilot, KimiCode, DSH
+- **Community-installable:** Windsurf, Zed, Cline, Roo
+- **Community-build-only:** Continue, OpenClaw, Gemini, JetBrains, Amazon Q,
+  Augment, Trae
+
+Skill delivery and host-bridge enforcement are separate capabilities. Consult
+the [Host Support Contract reference](workflow-system/agent/references/host-contract.md)
+and [host-bridge matrix](workflow-system/agent/references/host-bridges.md)
+before describing a host as boundary-enforced.
+
 ### pip or wheel: Python runtime and local scaffold
 
 ```bash
@@ -277,7 +294,7 @@ The source plus those sync locations make eight files. The README badge reads
 entry at load time.
 
 ```bash
-devola-version  # prints "DevolaFlow v17.3.0"
+devola-version  # prints "DevolaFlow v17.4.0"
 python scripts/bump_version.py X.Y.Z --dry-run
 python -m pytest tests/test_version.py -v
 ```

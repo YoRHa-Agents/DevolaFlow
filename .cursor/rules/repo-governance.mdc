@@ -233,6 +233,7 @@ silently move, but the view is NOT a second owner):
 | 2 | Shell-proxy whitelist | `src/devolaflow/shell_proxy/registry.py::WHITELIST` |
 | 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
+| 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
 
 Pre-v15.0.0 this table carried 5 rows — "Plugin catalog"
 (`plugins.yaml`) and "Runtime plugin registry" (`runtime-plugins.yaml`)
@@ -528,9 +529,15 @@ Absorbs W-11 (CP-4), W-13 (CP-6), W-14 (CO-5) — v15.0.0 fold per v15-ADR-004; 
 
 ## W-5 — Skill Format Coupling (SI-5)
 
-Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check ≤ 500, (2) `build-skill` for all 4 adapters, (3) `make test-harness` passes, (4) version consistency passes. Partial compliance is treated as full violation.
+Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check within the
+SKILL.md budget, (2) `build-skill` for every host with a registered adapter as
+declared by the Host Support Contract, (3) `make test-harness` passes, (4)
+version consistency passes. Partial compliance is treated as full violation.
 
-Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`) build successfully and stay within their budgets.
+Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running
+`build-skill` and verifying the core and data-driven adapter sets declared by
+`workflow-system/agent/hosts.yaml` and `adapter_configs/*.yaml` build
+successfully and stay within their budgets.
 
 Absorbs W-12 (CP-5) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
 
@@ -902,6 +909,23 @@ W-24.2 pending v18+ SI-1 evidence and a persistent-state schema
 design.
 
 Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.
+
+## W-25 — Host Support Contract Evidence and Revision
+
+`workflow-system/agent/hosts.yaml` owns host identity, tiers, delivery floor,
+and extras. An implemented `boundary_bridge` MUST list a fixture with
+`captured` or `vendor-doc` provenance; `vendor-doc` requires a `provenance_ref`
+URL. `synthetic` and `TBD-audit` cannot substantiate implementation.
+
+Adding a host, channel, or capability axis MUST update schema, loader/parity
+tests, and the current-cycle ghost audit before CHANGELOG or human-facing
+claims. Unsupported capabilities stay explicitly `undeclared`, `designed`, or
+`broken`; derived views such as `manifest.yaml::install_profiles` require
+parity checks. New axes need a design artifact and evidence-backed tests, not
+empty placeholders. W-20 still governs environment flags; no new flag is
+authorized here.
+
+Source: v17.4.0 HSC design.
 
 # Style Rules (P4) — Documentation & Presentation
 

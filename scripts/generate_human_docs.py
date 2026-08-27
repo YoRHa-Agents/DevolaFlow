@@ -18,6 +18,8 @@ from pathlib import Path
 
 import yaml
 
+from devolaflow.host_contract import load_host_contract, profile_projection
+
 try:
     from devolaflow.writing_style import apply_transforms, profile_for_path
 
@@ -30,7 +32,7 @@ except ImportError:  # pragma: no cover - the package supplies writing_style
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "17.3.0"
+SOURCE_VERSION = "17.4.0"
 INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 HOST_BRIDGE_URL = (
     "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
@@ -78,6 +80,7 @@ class Inventory:
     reference_count: int
     rule_count: int
     context_profile_count: int
+    host_tiers: tuple[tuple[str, str], ...]
 
 
 def _read_yaml(path: Path) -> dict:
@@ -128,6 +131,12 @@ def _load_inventory(root: Path = ROOT) -> Inventory:
 
     context_profiles = _read_yaml(root / "workflow-system/agent/context_profiles.yaml")
     profile_count = len(context_profiles.get("profiles") or {})
+    contract = load_host_contract(root / "workflow-system/agent/hosts.yaml")
+    hsc_profiles = profile_projection(contract)
+    missing_hsc_profiles = sorted(set(name for name, _, _ in profiles) - set(hsc_profiles))
+    if missing_hsc_profiles:
+        raise ValueError(f"manifest profiles missing from hosts.yaml: {missing_hsc_profiles}")
+    host_tiers = tuple((str(name), str(entry["tier"])) for name, entry in contract["hosts"].items())
 
     return Inventory(
         seeds=seeds,
@@ -136,6 +145,7 @@ def _load_inventory(root: Path = ROOT) -> Inventory:
         reference_count=len(references),
         rule_count=len(rule_ids),
         context_profile_count=profile_count,
+        host_tiers=host_tiers,
     )
 
 
@@ -837,6 +847,17 @@ def _zh_customization() -> str:
 
 def _en_integration() -> str:
     return f"""\
+## Host Support Contract
+
+The canonical host contract is
+`workflow-system/agent/hosts.yaml`. Support is tiered; guaranteed hosts must
+declare the full delivery floor, while optional capabilities are never inferred
+from an unrelated install registry.
+
+| Tier | Hosts |
+|---|---|
+{chr(10).join(f"| `{tier}` | {', '.join(f'`{name}`' for name, item_tier in INVENTORY.host_tiers if item_tier == tier)} |" for tier in ("guaranteed", "community-installable", "community-build-only"))}
+
 ## Manifest-derived install profiles
 
 The profile names and file sets below come from
@@ -898,10 +919,10 @@ explicit `local` or `standalone` install target for those surfaces.
 
 ## Optional host bridge enforcement
 
-Skill copy makes Markdown discoverable. A host bridge separately routes
-Cursor, Claude Code, Codex, KimiCode, or DSH tool events through lifecycle
-boundary enforcement. Windsurf, Zed, Cline, Roo, and Copilot profiles do not
-claim bridge support.
+Skill copy makes Markdown discoverable. A host bridge separately routes host
+tool events through lifecycle boundary enforcement. Current bridge status and
+evidence are declared per host in `hosts.yaml`; Copilot is designed for the
+stdout-JSON bridge path and is not yet an implemented bridge in this release.
 
 Follow the [host-specific bridge procedure]({HOST_BRIDGE_URL}). For example:
 
@@ -925,6 +946,15 @@ Unsupported hosts remain skill-only; do not describe them as enforced.
 
 def _zh_integration() -> str:
     return f"""\
+## Host Support Contract
+
+规范宿主契约位于 `workflow-system/agent/hosts.yaml`。支持按档位定义；
+保证宿主必须声明完整 delivery floor，可选能力不会从其他安装注册表推断。
+
+| 档位 | 宿主 |
+|---|---|
+{chr(10).join(f"| `{tier}` | {'、'.join(f'`{name}`' for name, item_tier in INVENTORY.host_tiers if item_tier == tier)} |" for tier in ("guaranteed", "community-installable", "community-build-only"))}
+
 ## 从清单派生的安装 profile
 
 下列 profile 名称与文件集合来自 `workflow-system/agent/manifest.yaml`。
@@ -983,9 +1013,9 @@ curl -fsSL {INSTALLER_URL} | bash -s standalone
 
 ## 可选 host bridge 执行边界
 
-复制 skill 只让 Markdown 可发现。host bridge 另行把 Cursor、Claude Code、
-Codex、KimiCode 或 DSH 工具事件路由到生命周期边界执行。Windsurf、Zed、Cline、
-Roo 与 Copilot profile 不宣称 bridge 支持。
+复制 skill 只让 Markdown 可发现。host bridge 另行把宿主工具事件路由到生命周期
+边界执行。每个宿主的 bridge 状态与证据在 `hosts.yaml` 中声明；Copilot 的
+stdout-JSON bridge 路径已设计，但本版本尚未实现。
 
 按 [宿主专用 bridge 流程]({HOST_BRIDGE_URL}) 操作，例如：
 

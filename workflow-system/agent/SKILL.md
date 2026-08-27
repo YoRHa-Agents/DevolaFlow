@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.3.0"
+version: "17.4.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.3.0**
+> **Now Using DevolaFlow v17.4.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.3.0 — Check only on explicit update request:
+**Current version:** 17.4.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -418,6 +418,7 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/grill-mode.md` | Plan stress-testing |
 | `references/harness-construction.md` | Harness gap preflight and capability review |
 | `references/host-bridges.md` | wiring host-agent tool events (Cursor/Claude/Codex/Kimi/DSH hooks) into boundary enforcement, or configuring DEVOLAFLOW_HOST_ENFORCE |
+| `references/host-contract.md` | checking host support tiers, delivery floor, and evidence-backed capability declarations |
 | `references/human-surface.md` | Human input/output contracts |
 | `references/impeccable.md` | Design refinement checks |
 | `references/message-schemas.md` | Typed dispatch/report fields |
@@ -455,6 +456,5 @@ original request. The footer includes `DevolaFlow vX.Y.Z`.
 
 ## Operational Learnings
 
-Session learnings decay by confidence, promote when reused, and may be pinned
-for one session. Reserve pinning for blockers. Consolidation and decay operate
-on artifact state, never hidden conversation history.
+Session learnings decay by confidence, promote when reused, and may be pinned for one session; reserve pinning for blockers.
+Consolidation and decay operate on artifact state, never hidden conversation history.

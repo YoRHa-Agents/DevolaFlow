@@ -5,6 +5,35 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.4.0] - 2026-08-27 — MINOR — Host Support Contract
+
+Design contract: `.local/research/v17.4.0_host_contract_design.md` (W-1/SI-1;
+implementation follows the staged HSC plan). Ghost audit:
+`tests/ghost/test_features_v17_4.py` (W-18 — refreshed before this entry).
+
+### Added
+
+- **Host Support Contract**: `workflow-system/agent/hosts.yaml` is now the
+  canonical registry for 17 host identities, support tiers, delivery floors,
+  aliases, and declared optional capabilities.
+- **Contract schema and loader**: `schemas/host-contract.yaml` and
+  `devolaflow.host_contract` provide closed status/provenance validation,
+  alias resolution, install-profile projection, and evidence checks for
+  implemented bridge claims.
+- **Derived install and documentation parity**: the manifest install profiles,
+  bilingual integration guides, README support tiers, and host-bridge matrix
+  are checked against the HSC without changing the dispatch schema.
+- **Governance**: Workflow Rule W-25 records the evidence and revision
+  contract; Architecture Rule A-5 now names `hosts.yaml` as the host registry
+  owner.
+
+### Operator-visible behaviour change
+
+- Host support is now explicitly tiered as guaranteed, community-installable,
+  or community-build-only. `kimi` resolves to canonical host id `kimicode`.
+  Optional capabilities remain undeclared until evidence-backed implementation
+  exists. No new `DEVOLAFLOW_*` flag or dispatch schema field was introduced.
+
 ## [17.3.0] - 2026-08-27 — MINOR — Pathfinder Look-Ahead Reconnaissance
 
 Design contract: `.local/research/v17.3.0_pathfinder_design.md` (W-1/SI-1; implementation improvements and release hardening). Ghost audit: `tests/ghost/test_features_v17_3.py` (W-18 — refreshed before this entry). User intent origin: `.local/tasks/add_Pathfinder_design/add_Pathfinder_design.md`.

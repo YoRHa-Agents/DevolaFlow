@@ -115,6 +115,7 @@ silently move, but the view is NOT a second owner):
 | 2 | Shell-proxy whitelist | `src/devolaflow/shell_proxy/registry.py::WHITELIST` |
 | 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
+| 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
 
 Pre-v15.0.0 this table carried 5 rows — "Plugin catalog"
 (`plugins.yaml`) and "Runtime plugin registry" (`runtime-plugins.yaml`)

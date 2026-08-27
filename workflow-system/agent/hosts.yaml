@@ -1,0 +1,465 @@
+# DevolaFlow Host Support Contract (HSC) — the single source of truth for
+# host identity, support tier, delivery floor, and declared extras.
+schema_version: 1
+contract_version: "17.4.0"
+hosts:
+  cursor:
+    display_name: Cursor
+    aliases: []
+    tier: guaranteed
+    version_added: "0.1.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references, examples]
+        paths:
+          project: .cursor/skills/devola-flow
+          global: $HOME/.cursor/skills/devola-flow
+      instruction_format:
+        artifact: SKILL.md
+        frontmatter: c5-full
+        budget: {type: lines, max: 500}
+      install_channels: [install.sh, devola-init, npm]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: designed
+        scope: project
+        config: [.cursor/hooks.json, .cursor/hooks/devola-boundary.sh]
+        events: {file_write: [preToolUse], shell: [beforeShellExecution]}
+        response: {family: stdout-json, always_exit: 0, deny_key: permission}
+        host_fail_mode: open
+        automation: automated
+        fixtures: [tests/fixtures/hostbridge/cursor.json]
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+      session_resume: {status: implemented, event: sessionStart}
+      subagent_dispatch: {status: native, primitive: Task}
+      mcp: {status: undeclared}
+      tool_vocabulary:
+        status: implemented
+        write: [Write, StrReplace]
+        shell: [Bash]
+
+  claude:
+    display_name: Claude Code
+    aliases: []
+    tier: guaranteed
+    version_added: "0.1.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references, examples]
+        paths:
+          project: .claude/skills/devola-flow
+          global: $HOME/.claude/skills/devola-flow
+      instruction_format:
+        artifact: SKILL.md
+        frontmatter: c5-full
+        budget: {type: lines, max: 500}
+      install_channels: [install.sh, devola-init, npm]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: designed
+        scope: project
+        config: [.claude/settings.json, .claude/hooks/devola-boundary.sh]
+        events: {file_write: [PreToolUse], shell: [PreToolUse]}
+        response: {family: exit-code, deny_exit: 2}
+        host_fail_mode: open
+        automation: automated
+        fixtures: [tests/fixtures/hostbridge/claude.json]
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+      session_resume: {status: implemented, event: SessionStart}
+      subagent_dispatch: {status: native, primitive: Task}
+      mcp: {status: undeclared}
+      tool_vocabulary:
+        status: implemented
+        write: [Write, Edit, MultiEdit]
+        shell: [Bash]
+
+  codex:
+    display_name: OpenAI Codex
+    aliases: []
+    tier: guaranteed
+    version_added: "0.1.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths:
+          project: .codex/skills/devola-flow
+          global: $CODEX_HOME/skills/devola-flow
+      instruction_format:
+        artifact: SKILL.md
+        frontmatter: c5-full
+        budget: {type: lines, max: 500}
+      install_channels: [install.sh, devola-init, npm]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: designed
+        scope: project
+        config: [.codex/hooks.json, .codex/hooks/devola-boundary.sh]
+        events: {file_write: [PreToolUse], shell: [PreToolUse]}
+        response: {family: exit-code, deny_exit: 2}
+        host_fail_mode: open
+        automation: automated
+        fixtures: [tests/fixtures/hostbridge/codex.json]
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: native, primitive: Task}
+      mcp: {status: undeclared}
+      tool_vocabulary:
+        status: implemented
+        write: [apply_patch]
+        shell: [Bash]
+
+  copilot:
+    display_name: GitHub Copilot
+    aliases: []
+    tier: guaranteed
+    version_added: "17.4.0"
+    floor:
+      skill_delivery:
+        kind: rule-file
+        sets: [core]
+        paths:
+          project: .github/copilot-instructions.md
+      instruction_format:
+        artifact: copilot-instructions.md
+        frontmatter: none
+        budget: {type: chars, max: 4000}
+      install_channels: [install.sh]
+      doctor: {status: designed, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: designed
+        scope: [project, global]
+        config: [.github/hooks/devola-boundary.json, $COPILOT_HOME/hooks/]
+        events: {file_write: [preToolUse], shell: [preToolUse]}
+        response: {family: stdout-json, always_exit: 0, deny_key: permissionDecision}
+        host_fail_mode: closed
+        automation: automated
+        fixtures: [tests/fixtures/hostbridge/copilot.json, tests/fixtures/hostbridge/copilot_vscode.json]
+        fixture_provenance: vendor-doc
+        provenance_ref: https://docs.github.com/en/copilot/reference/hooks-configuration
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared, primitive: null}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  kimicode:
+    display_name: KimiCode
+    aliases: [kimi]
+    tier: guaranteed
+    version_added: "17.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references, examples]
+        paths:
+          project: .kimi-code/skills/devola-flow
+          global: $HOME/.kimi-code/skills/devola-flow
+      instruction_format:
+        artifact: SKILL.md
+        frontmatter: c5-full
+        budget: {type: lines, max: 500}
+      install_channels: [install.sh, devola-init, npm]
+      doctor: {status: designed, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: designed
+        scope: global
+        config: [$HOME/.kimi-code/config.toml]
+        events: {file_write: [PreToolUse], shell: [PreToolUse]}
+        response: {family: exit-code, deny_exit: 2}
+        host_fail_mode: open
+        automation: snippet
+        fixtures: [tests/fixtures/hostbridge/kimi.json]
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: native, primitive: Task}
+      mcp: {status: undeclared}
+      tool_vocabulary:
+        status: implemented
+        write: [WriteFile, StrReplaceFile]
+        shell: [Shell]
+
+  dsh:
+    display_name: DeepSeek Harness
+    aliases: []
+    tier: guaranteed
+    version_added: "17.4.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references, examples]
+        paths:
+          project: .dsh/skills/devola-flow
+          global: $DSH_HOME/skills/devola-flow
+      instruction_format:
+        artifact: SKILL.md
+        frontmatter: c5-full
+        budget: {type: lines, max: 500}
+      install_channels: [install.sh, npm]
+      doctor: {status: designed, kind: stamp}
+      tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
+    extras:
+      boundary_bridge:
+        status: broken
+        scope: plugin
+        config: [packages/dsh-plugin/]
+        events: {file_write: [tools/pre-execute], shell: [tools/pre-execute]}
+        response: {family: waterfall, deny_kind: deny}
+        host_fail_mode: open
+        automation: plugin-channel
+        fixtures: [tests/fixtures/hostbridge/dsh.json]
+        fixture_provenance: synthetic
+        provenance_ref: null
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: native, primitive: subagent}
+      mcp: {status: undeclared}
+      tool_vocabulary:
+        status: implemented
+        write: [write, edit, str_replace_editor]
+        shell: [bash, pwsh]
+
+  windsurf:
+    display_name: Windsurf
+    aliases: []
+    tier: community-installable
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: rule-file
+        sets: [core]
+        paths: {project: .windsurf/rules/devola-flow.md}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: [install.sh]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_windsurf_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  zed:
+    display_name: Zed
+    aliases: []
+    tier: community-installable
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: rule-tree
+        sets: [core, references]
+        paths: {project: .zed/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: [install.sh]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_zed_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  cline:
+    display_name: Cline
+    aliases: []
+    tier: community-installable
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: rule-tree
+        sets: [core, references]
+        paths: {project: .cline/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: [install.sh]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_cline_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  roo:
+    display_name: Roo Code
+    aliases: []
+    tier: community-installable
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: rule-tree
+        sets: [core, references]
+        paths: {project: .roo/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: [install.sh]
+      doctor: {status: implemented, kind: stamp}
+      tests: [tests/test_roo_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  continue:
+    display_name: Continue
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .continue/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  openclaw:
+    display_name: OpenClaw
+    aliases: []
+    tier: community-build-only
+    version_added: "17.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .openclaw/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  gemini:
+    display_name: Gemini
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .gemini/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  jetbrains:
+    display_name: JetBrains
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .jetbrains/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  amazon_q:
+    display_name: Amazon Q
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .amazon-q/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  augment:
+    display_name: Augment
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .augment/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}
+
+  trae:
+    display_name: Trae
+    aliases: []
+    tier: community-build-only
+    version_added: "6.0.0"
+    floor:
+      skill_delivery:
+        kind: skill-dir
+        sets: [core, references]
+        paths: {project: .trae/skills/devola-flow}
+      instruction_format: {artifact: SKILL.md, frontmatter: c5-full, budget: {type: lines, max: 500}}
+      install_channels: []
+      doctor: {status: undeclared, kind: stamp}
+      tests: [tests/test_data_driven_adapter.py]
+    extras:
+      boundary_bridge: {status: undeclared}
+      session_resume: {status: undeclared}
+      subagent_dispatch: {status: undeclared}
+      mcp: {status: undeclared}
+      tool_vocabulary: {status: undeclared}

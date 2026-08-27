@@ -48,6 +48,7 @@ references:
   - references/grill-mode.md
   - references/harness-construction.md
   - references/host-bridges.md
+  - references/host-contract.md
   - references/human-surface.md
   - references/impeccable.md
   - references/message-schemas.md

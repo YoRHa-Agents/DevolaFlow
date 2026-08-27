@@ -267,6 +267,9 @@ _SF4_REFERENCE_SET = frozenset(
         # `src/devolaflow/agent_workspace/archive.py`, and the seed
         # `workflow-system/agent/templates/seeds/harness-construction.yaml`.
         "harness-construction.md",
+        # v17.4.0 — Host Support Contract: canonical host identity,
+        # guaranteed floor, declared extras, and provenance obligations.
+        "host-contract.md",
         # v17.3.0 — Pathfinder look-ahead role contract (28th SF-4
         # canonical). Defines the read-only L2 reconnaissance protocol,
         # report schema, bounded handoff, and separation from preflight,
@@ -398,6 +401,10 @@ _SSOT_PYTHON_REGISTRIES: dict[str, str] = {
 _SSOT_YAML_REGISTRIES: dict[str, str] = {
     "plugins.yaml": "workflow-system/agent/plugins.yaml",
     "runtime-plugins.yaml": "workflow-system/agent/knowledge/runtime-plugins.yaml",
+    # v17.4.0 HSC: canonical host identity, support tiers, delivery floor,
+    # and declared extras. Install profiles remain a derived partial view
+    # until the later delivery phase adds the DSH profile.
+    "hosts.yaml": "workflow-system/agent/hosts.yaml",
     # v15.0.x (full_review_and_improve Track B-1, D-5): the install manifest —
     # single owner of the per-tool install file lists consumed by
     # scripts/install.sh, scripts/sync_cursor_skill.py::MIRRORED_FILES, and
