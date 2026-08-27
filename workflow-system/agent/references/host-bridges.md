@@ -68,7 +68,7 @@ answers in the host's own block protocol.
 | Codex | `.codex/hooks.json` + `.codex/hooks/devola-boundary.sh` | `PreToolUse` matcher `^(Bash\|apply_patch)$` | exit 2 + stderr | **Partial coverage** (upstream documents PreToolUse exemptions) and the project-level hooks file requires an interactive `/hooks` trust step before it fires |
 | KimiCode | user-level `~/.kimi-code/config.toml` `[[hooks]]` (Beta) — NO project file possible | `PreToolUse` matcher `WriteFile\|StrReplaceFile\|Shell` | exit 2 (hook timeout = fail-open) | Beta + user-level: run `python -m devolaflow.hostbridge install kimi` to print the TOML snippet; operator pastes it manually |
 | DSH | cordis plugin `packages/dsh-plugin/` (npm `@yorha-agents/devola-flow-dsh`) | `tools/pre-execute` waterfall (tool-level, all tools) | waterfall `{kind: 'deny', reason}` | Plugin channel required for blocking; sidecar/Center-only deployments degrade to post-hoc ledger audit (see the plugin README) |
-| GitHub Copilot | `.github/hooks/devola-boundary.json` + wrapper (project-level) | `preToolUse` command hook for file and shell tools | stdout JSON `{"permissionDecision": "deny", "message": ...}` (exit always 0) | Copilot's native command hook is fail-closed; the wrapper absorbs internal errors and normalizes DevolaFlow's fail-open contract |
+| GitHub Copilot | `.github/hooks/devola-boundary.json` + wrapper (project-level) | `preToolUse` command hook for file and shell tools | stdout JSON `{"permissionDecision": "deny", "permissionDecisionReason": ...}` (exit always 0) | Copilot's native command hook is fail-closed; the wrapper absorbs internal errors and normalizes DevolaFlow's fail-open contract |
 
 ## 3. Enforcement-flag contract (`DEVOLAFLOW_HOST_ENFORCE`)
 

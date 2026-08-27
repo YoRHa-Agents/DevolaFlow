@@ -4,8 +4,8 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:33:55Z"
-source_version: "17.4.0"
+last_synced: "2026-08-27T08:58:06Z"
+source_version: "17.4.1"
 ---
 
 # 集成指南
@@ -93,7 +93,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 复制 skill 只让 Markdown 可发现。host bridge 另行把宿主工具事件路由到生命周期
 边界执行。每个宿主的 bridge 状态与证据在 `hosts.yaml` 中声明；Copilot 的
-stdout-JSON bridge 路径已设计，但本版本尚未实现。
+stdout-JSON bridge 路径在本版本中为已实现。
 
 按 [宿主专用 bridge 流程](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md) 操作，例如：
 

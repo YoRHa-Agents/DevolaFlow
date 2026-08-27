@@ -140,7 +140,7 @@ hosts:
       tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
     extras:
       boundary_bridge:
-        status: designed
+        status: implemented
         scope: [project, global]
         config: [.github/hooks/devola-boundary.json, $COPILOT_HOME/hooks/]
         events: {file_write: [preToolUse], shell: [preToolUse]}

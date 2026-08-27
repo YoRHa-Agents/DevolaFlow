@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:33:55Z"
-source_version: "17.4.0"
+last_synced: "2026-08-27T08:58:06Z"
+source_version: "17.4.1"
 ---
 
 # Integration Guide
@@ -98,8 +98,9 @@ explicit `local` or `standalone` install target for those surfaces.
 
 Skill copy makes Markdown discoverable. A host bridge separately routes host
 tool events through lifecycle boundary enforcement. Current bridge status and
-evidence are declared per host in `hosts.yaml`; Copilot is designed for the
-stdout-JSON bridge path and is not yet an implemented bridge in this release.
+evidence are declared per host in `hosts.yaml`; Copilot's stdout-JSON bridge
+path is implemented
+in this release.
 
 Follow the [host-specific bridge procedure](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md). For example:
 

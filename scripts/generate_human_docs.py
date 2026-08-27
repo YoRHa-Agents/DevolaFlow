@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover - the package supplies writing_style
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "17.4.0"
+SOURCE_VERSION = "17.4.1"
 INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 HOST_BRIDGE_URL = (
     "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
@@ -81,6 +81,7 @@ class Inventory:
     rule_count: int
     context_profile_count: int
     host_tiers: tuple[tuple[str, str], ...]
+    copilot_bridge_status: str
 
 
 def _read_yaml(path: Path) -> dict:
@@ -146,6 +147,9 @@ def _load_inventory(root: Path = ROOT) -> Inventory:
         rule_count=len(rule_ids),
         context_profile_count=profile_count,
         host_tiers=host_tiers,
+        copilot_bridge_status=str(
+            contract["hosts"]["copilot"]["extras"]["boundary_bridge"]["status"]
+        ),
     )
 
 
@@ -921,8 +925,9 @@ explicit `local` or `standalone` install target for those surfaces.
 
 Skill copy makes Markdown discoverable. A host bridge separately routes host
 tool events through lifecycle boundary enforcement. Current bridge status and
-evidence are declared per host in `hosts.yaml`; Copilot is designed for the
-stdout-JSON bridge path and is not yet an implemented bridge in this release.
+evidence are declared per host in `hosts.yaml`; Copilot's stdout-JSON bridge
+path is {"implemented" if INVENTORY.copilot_bridge_status == "implemented" else "designed"}
+in this release.
 
 Follow the [host-specific bridge procedure]({HOST_BRIDGE_URL}). For example:
 
@@ -1015,7 +1020,7 @@ curl -fsSL {INSTALLER_URL} | bash -s standalone
 
 复制 skill 只让 Markdown 可发现。host bridge 另行把宿主工具事件路由到生命周期
 边界执行。每个宿主的 bridge 状态与证据在 `hosts.yaml` 中声明；Copilot 的
-stdout-JSON bridge 路径已设计，但本版本尚未实现。
+stdout-JSON bridge 路径在本版本中为{"已实现" if INVENTORY.copilot_bridge_status == "implemented" else "已设计"}。
 
 按 [宿主专用 bridge 流程]({HOST_BRIDGE_URL}) 操作，例如：
 

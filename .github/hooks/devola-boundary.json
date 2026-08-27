@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "command": ".github/hooks/devola-boundary.sh",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 """Per-host stdin normalization — host tool-event JSON → :class:`BridgeEvent`.
 
-v17.0.0 R2 (G17-B1 closure, design §D-R2-1). Each of the five supported
-hosts (Cursor, Claude Code, Codex, KimiCode, DSH) delivers its
+v17.0.0 R2 (G17-B1 closure, design §D-R2-1). Each of the six supported
+hosts (Cursor, Claude Code, Codex, KimiCode, DSH, Copilot) delivers its
 pre-tool-use payload as one JSON object on stdin, but the field
 spellings differ. This module is deliberately LIBERAL in what it
 accepts (unknown shapes fail-open as ``kind="unknown"``) and strict in
@@ -37,19 +37,28 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-KNOWN_HOSTS: tuple[str, ...] = ("cursor", "claude", "codex", "kimi", "dsh")
+KNOWN_HOSTS: tuple[str, ...] = ("cursor", "claude", "codex", "kimi", "dsh", "copilot")
 
 KIND_FILE_WRITE = "file_write"
 KIND_SHELL = "shell"
 KIND_UNKNOWN = "unknown"
 
-# Union of write-tool spellings across the five hosts (Cursor: Write /
-# StrReplace; Claude Code: Write / Edit / MultiEdit; Kimi: WriteFile /
-# StrReplaceFile). Matching is exact (host tool names are stable ids).
+# Union of write-tool spellings across the six hosts. Matching is exact
+# (host tool names are stable ids).
 _WRITE_TOOLS = frozenset(
-    {"Write", "StrReplace", "Edit", "MultiEdit", "WriteFile", "StrReplaceFile"}
+    {
+        "Write",
+        "StrReplace",
+        "Edit",
+        "MultiEdit",
+        "WriteFile",
+        "StrReplaceFile",
+        "write",
+        "edit",
+        "str_replace_editor",
+    }
 )
-_SHELL_TOOLS = frozenset({"Bash", "Shell"})
+_SHELL_TOOLS = frozenset({"Bash", "Shell", "bash", "shell", "exec"})
 _APPLY_PATCH_TOOL = "apply_patch"
 
 # tool_input path-key precedence (documented above).
@@ -125,6 +134,16 @@ def _normalize_dsh(data: dict[str, Any]) -> BridgeEvent:
     return BridgeEvent(host="dsh", kind=KIND_UNKNOWN, tool=tool)
 
 
+def _normalize_copilot(data: dict[str, Any]) -> dict[str, Any]:
+    """Map Copilot's native camelCase hook payload to the common spelling."""
+    if "toolName" not in data and "toolArgs" not in data:
+        return data
+    normalized = dict(data)
+    normalized["tool_name"] = data.get("toolName")
+    normalized["tool_input"] = data.get("toolArgs")
+    return normalized
+
+
 def normalize_event(
     host: str,
     data: Any,
@@ -142,6 +161,8 @@ def normalize_event(
 
     if host == "dsh" and isinstance(data.get("kind"), str):
         return _normalize_dsh(data)
+    if host == "copilot":
+        data = _normalize_copilot(data)
 
     tool_input_raw = data.get("tool_input")
     tool_input: dict[str, Any] = tool_input_raw if isinstance(tool_input_raw, dict) else {}

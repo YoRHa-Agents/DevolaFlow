@@ -1,5 +1,5 @@
 // DevolaFlow boundary bridge — DSH (DeepSeek Harness) cordis plugin.
-// v17.0.0 R2 (design §D-R2-4): intercepts the tools/pre-execute waterfall
+// v17.4.1 G3 (design §4.7): intercepts the tools/pre-execute waterfall
 // and asks `python -m devolaflow.hostbridge --host dsh` for a verdict.
 // Fail-open by contract: python missing, spawn error, timeout, or any
 // non-2 exit code all fall through to `next()` (the tool call proceeds).
@@ -16,6 +16,7 @@ const BRIDGE_TIMEOUT_MS = 5000;
 const WRITE_TOOLS = new Set([
   'write_file', 'str_replace', 'edit_file', 'create_file',
   'Write', 'StrReplace', 'Edit', 'MultiEdit',
+  'write', 'edit', 'str_replace_editor',
 ]);
 const SHELL_TOOLS = new Set(['shell', 'run_shell', 'bash', 'exec', 'Bash', 'Shell']);
 
@@ -28,7 +29,7 @@ function resolvePython(cwd) {
 // {tool, kind: "file_write"|"shell", path, command} (we own both ends).
 function toBridgePayload(exec) {
   const tool = exec?.name ?? '';
-  const input = exec?.args ?? exec?.input ?? {};
+  const input = exec?.arguments ?? exec?.args ?? exec?.input ?? {};
   const path = input.path ?? input.file_path ?? input.target_file ?? null;
   const command = input.command ?? input.cmd ?? null;
   // Only known WRITE tools become file_write: a bare `path` is NOT enough,
