@@ -38,6 +38,10 @@ jobs:
         run: python scripts/check_import_graph.py
       - name: Agent-facing language lint
         run: python scripts/check_agent_language.py
+      - name: Module size budget
+        run: |
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          python scripts/check_module_size.py --baseline-ref origin/main
       # v14.5.0 G-036 — D-5 CHANGELOG single-application lint (stdlib-only).
       # PR events: diff against the PR base sha (fetched explicitly — the
       # depth-1 checkout does not contain it). Push events (branch or tag,
@@ -68,16 +72,14 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install project (dev)
         run: pip install -e ".[dev]"
-      # Single-execution per Makefile v14.5.0 G-033: the coverage run excludes
-      # tests/harness because gate 5 runs that domain in the named step below.
-      # This preserves independent W-4 attribution without double execution.
+      # The coverage run includes tests/harness because the global 90% floor
+      # depends on that domain's coverage. Keeping this as one invocation
+      # avoids running the same tests twice in the shared CI job.
       - name: Pytest with coverage
         run: |
-          GHOST_FULL=1 pytest tests/ -v --tb=short --ignore=tests/harness \
+          GHOST_FULL=1 pytest tests/ -v --tb=short \
             --cov=devolaflow --cov-report=term-missing --cov-report=json
           python scripts/check_module_coverage.py coverage.json --minimum 70
-      - name: Run built-in harness contracts (W-9 gate 5)
-        run: make test-harness
 
   validate:
     runs-on: ubuntu-latest

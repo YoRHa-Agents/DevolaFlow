@@ -225,6 +225,19 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
     assert "git push origin HEAD" not in makefile
 
 
+def test_shared_ci_enforces_module_size_and_complete_coverage() -> None:
+    workflow = _load_workflow("ci-checks.yml")
+    check_steps = workflow["jobs"]["check"]["steps"]
+    module_size = next(step for step in check_steps if step.get("name") == "Module size budget")
+    assert "git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main" in module_size["run"]
+    assert "python scripts/check_module_size.py --baseline-ref origin/main" in module_size["run"]
+
+    test_steps = workflow["jobs"]["test"]["steps"]
+    coverage = next(step for step in test_steps if step.get("name") == "Pytest with coverage")
+    assert "--ignore=tests/harness" not in coverage["run"]
+    assert not any("make test-harness" in step.get("run", "") for step in test_steps)
+
+
 def test_release_design_matches_v17_pipeline_contract() -> None:
     design = (ROOT / "docs" / "designs" / "design_release_workflow.md").read_text(encoding="utf-8")
     assert "seven canonical sync locations across eight files" in design
