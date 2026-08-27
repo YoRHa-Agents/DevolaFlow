@@ -470,9 +470,9 @@ class TestComposeBehavioralBlock:
         block = _compose_behavioral_block(guidelines, fold_advisory=True)
 
         assert (
-            "advisory 约束 5 条已折叠"
-            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
-            "授权模型自行判断遵从"
+            "5 advisory constraints folded"
+            " (see workflow-system/agent/references/behavioral-guidelines.md); "
+            "the model decides how to comply"
         ) in block
         assert f"BG-003 surgical_scope = {scope!r}" in block
         for criterion in criteria:
@@ -751,9 +751,9 @@ class TestSelectContextIntegration:
         assert result["model_hint"] == model_hint
         assert result["behavioral_guidelines"]["advisory_folded"] is expected_folded
         authorization = (
-            "advisory 约束 1 条已折叠"
-            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
-            "授权模型自行判断遵从"
+            "1 advisory constraints folded"
+            " (see workflow-system/agent/references/behavioral-guidelines.md); "
+            "the model decides how to comply"
         )
         assert (authorization in result["assembled_text"]) is expected_folded
         assert ("BG-001 think_first ENABLED" in result["assembled_text"]) is not expected_folded

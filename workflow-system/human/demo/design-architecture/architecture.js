@@ -34,6 +34,7 @@
     reference("env-flags"),
     reference("evaluator-rosetta"),
     reference("execution-protocol"),
+    reference("wave-dispatch"),
     reference("grill-mode"),
     reference("harness-construction"),
     reference("host-bridges"),

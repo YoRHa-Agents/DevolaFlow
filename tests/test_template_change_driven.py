@@ -142,7 +142,7 @@ def test_template_has_four_stages(template: WorkflowTemplate) -> None:
     teams = {s.id: s.team for s in template.stages}
     assert teams == {
         "propose": "design",
-        "preflight": "review",
+        "preflight": "preflight",
         "round": "implement",
         "archive": "implement",
     }, f"Stage team mapping mismatch: {teams}"
@@ -260,6 +260,22 @@ def test_apply_stage_max_iterations_config(template: WorkflowTemplate) -> None:
     assert round_stage.config.get("runtime_limit_source") == "stage.md.max_rounds"
     assert round_stage.config.get("absolute_max_iterations") == 62
     assert round_stage.config.get("on_stagnation") == "escalate"
+    assert round_stage.config["blocker_remediation_task_type"] == "harness_build"
+    assert round_stage.config["blocker_remediation_owner"] == "l1_dispatches_separate_l2_task"
+
+
+def test_preflight_stage_is_drafting_only(template: WorkflowTemplate) -> None:
+    """Preflight labor is delegated without moving gate ownership to L2."""
+    preflight = template.stage_by_id("preflight")
+    assert preflight is not None
+    assert preflight.team == "preflight"
+    assert preflight.config == {
+        "task_type": "preflight",
+        "scope": "drafting_only",
+        "gate_owner": "l0_and_human",
+        "sign_off_owner": "human",
+        "stop_card_owner": "l0_and_human",
+    }
 
 
 def test_verify_stage_gate_profile_template(template: WorkflowTemplate) -> None:

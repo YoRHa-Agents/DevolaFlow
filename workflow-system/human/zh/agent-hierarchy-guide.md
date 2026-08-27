@@ -4,8 +4,8 @@ description: "Project、Wave、Task 的职责与升级链。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T11:32:38Z"
-source_version: "17.5.0"
+last_synced: "2026-08-27T15:20:13Z"
+source_version: "18.0.0"
 ---
 
 # Agent 层级指南

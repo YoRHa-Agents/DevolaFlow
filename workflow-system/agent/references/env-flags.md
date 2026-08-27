@@ -66,7 +66,16 @@ These flags are read by production code paths. Tests in
 `tests/test_task_adaptive_selector.py` codify the parsing contract
 (strict `"1"` matching; rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`).
 
-### 2.0 Counting basis (G-024 — machine-checkable as of v14.2.2)
+## 1.1 `GHOST_FULL` — test-only historical audit opt-in
+
+`GHOST_FULL` is not a `DEVOLAFLOW_*` runtime flag and is excluded from the
+active-flag inventory. The ghost suite skips immutable pre-v16 feature modules
+unless `GHOST_FULL=1` is set. Coverage and CI commands set it explicitly;
+ordinary test runs remain fast and deterministic. Its activation surface is
+test collection only, so W-20 reuse/orthogonality rules for runtime flags do
+not apply.
+
+### 2.0 Counting basis (machine-checkable)
 
 **"Active runtime flags" = the rows of THIS §2 table (the `### 2.N
 \`DEVOLAFLOW_*\`` sub-sections).** This row count is the ONLY

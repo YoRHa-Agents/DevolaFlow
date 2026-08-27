@@ -42,7 +42,6 @@ grill an ambiguous plan, then select Inline or Fan-Out for its ready items.
 |---|---|---|
 | 1. Inline Tool | L1 Wave dispatches one fresh L2 Task | Native |
 | 2. Fan-Out | L1 Wave dispatches 2–5 independent L2 Tasks, then synchronizes | Native |
-| 3. Agent Pool | Persistent workers with private state | Forward-compat verdict only |
 | 4. Teams | Shared state / direct cross-agent messaging | Permanently forbidden by P5 |
 
 Each checklist round has at most 7 waves. Each wave has at most 5 Tasks with
@@ -55,7 +54,6 @@ bounded context of approximately 8K tokens.
 PatternVerdict = Literal[
     "INLINE",
     "FAN_OUT",
-    "AGENT_POOL_FORWARD",
     "TEAMS_FORBIDDEN",
 ]
 ModelTier = Literal["small", "balanced", "frontier"]
@@ -71,7 +69,6 @@ select_pattern(
     model_tier,
     task_count,
     parallel_independence,
-    persistent_state_needed=False,
 ) -> PatternVerdict
 
 forbidden_pattern_rationale(pattern) -> str | None
@@ -83,13 +80,7 @@ forbidden_pattern_rationale(pattern) -> str | None
 `select_pattern` returns:
 
 ```text
-if persistent_state_needed
-   and model_tier == frontier
-   and complexity in {STANDARD, COMPLEX}:
-    AGENT_POOL_FORWARD
-elif persistent_state_needed:
-    INLINE
-elif task_count >= 2 and parallel_independence:
+if task_count >= 2 and parallel_independence:
     FAN_OUT
 else:
     INLINE
@@ -106,7 +97,7 @@ Choose `INLINE` when:
 - candidate tasks overlap writable files;
 - ordering requires one result before the next dispatch;
 - parallelism would cost more context than it saves;
-- persistent state was requested but no supported pool contract exists.
+- a request requires an unsupported persistent-state pool contract.
 
 Current execution:
 
@@ -158,26 +149,7 @@ Unsuitable examples:
 - migrations requiring output N before N+1;
 - ambiguity requiring a human decision.
 
-## 6. Pattern 3 — Agent Pool
-
-`AGENT_POOL_FORWARD` is a forward-compat signal, not an executable runtime.
-It can be selected only for STANDARD/COMPLEX work on a frontier model when
-`persistent_state_needed=True`.
-
-Current behavior falls back to bounded Inline dispatches and artifact-based
-continuity:
-
-```text
-fresh L2 Task
-  → evidence / append-only report
-  → fresh later L2 Task receives bounded predecessor facts
-```
-
-Landing a real pool would require an explicit persistent-state schema,
-ownership/lifetime rules, restart recovery, budget enforcement, and an SI-1
-architecture decision. A pool may not become hidden shared memory.
-
-## 7. Pattern 4 — Teams
+## 6. Pattern 4 — Teams
 
 `TEAMS_FORBIDDEN` names the unsupported external taxonomy row. DevolaFlow P5
 requires artifacts as contracts and prohibits direct cross-agent messaging
@@ -214,11 +186,10 @@ Forbidden cooperation:
 | SIMPLE, one task | `INLINE` | one L2 Task |
 | STANDARD, three independent tasks | `FAN_OUT` | one L1 wave, three L2 Tasks |
 | COMPLEX, eight independent tasks | `FAN_OUT` | at least two waves |
-| STANDARD, persistent state, frontier | `AGENT_POOL_FORWARD` | forward signal; bounded Inline fallback |
-| Any, persistent state, balanced | `INLINE` | artifact-mediated continuity |
+| Any, persistent state | `INLINE` | unsupported pool contract; artifact-mediated continuity |
 | Direct shared-state team request | education path | `forbidden_pattern_rationale("TEAMS_FORBIDDEN")` |
 
-## 9. Composition with Checklist Rounds
+## 8. Composition with Checklist Rounds
 
 Pattern selection happens after L0 selects ready checklist items:
 
@@ -232,7 +203,7 @@ Pattern selection happens after L0 selects ready checklist items:
 Checklist seeds contribute decomposition hints and `source_stages` provenance.
 They never force a role chain or executable workflow graph.
 
-## 10. Historical Compatibility
+## 9. Historical Compatibility
 
 The v11.4.0 source comments and archived analyses describe Pattern 2 as an
 “L2 wave dispatching L3 tasks” in the former hierarchy. Preserve those bytes
@@ -242,7 +213,7 @@ pair to L1 Wave dispatching L2 Tasks.
 The external taxonomy still has four rows. “Four” describes the upstream
 taxonomy, not DevolaFlow's number of agent layers.
 
-## 11. Invariants
+## 10. Invariants
 
 - Pattern selection performs zero filesystem I/O at import.
 - No new `DEVOLAFLOW_*` environment flag.
@@ -252,7 +223,7 @@ taxonomy, not DevolaFlow's number of agent layers.
 - Round planning always obeys max 7 waves.
 - Reports flow Task → Wave → Project; unresolved failures continue to Human.
 
-## 12. See Also
+## 11. See Also
 
 - `references/agent-hierarchy.md`
 - `references/decomposition-gate.md`

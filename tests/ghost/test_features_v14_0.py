@@ -84,7 +84,7 @@ def test_v14_0_0_human_surface_symbols(project_root: Path) -> None:
     )
 
     # --- (c) reporter.py FIFTH flavour -------------------------------
-    reporter_text = (project_root / "src/devolaflow/agent_workspace/reporter.py").read_text(
+    reporter_text = (project_root / "src/devolaflow/_workspace_reporter/renderers.py").read_text(
         encoding="utf-8"
     )
     assert "def render_human_report(" in reporter_text, (
@@ -95,8 +95,11 @@ def test_v14_0_0_human_surface_symbols(project_root: Path) -> None:
     )
 
     # --- (d) lint.py human rows --------------------------------------
-    lint_text = (project_root / "src/devolaflow/agent_workspace/lint.py").read_text(
-        encoding="utf-8"
+    lint_text = "\n".join(
+        (
+            (project_root / "src/devolaflow/_workspace_lint/common.py").read_text(encoding="utf-8"),
+            (project_root / "src/devolaflow/_workspace_lint/api.py").read_text(encoding="utf-8"),
+        )
     )
     assert "def lint_human(" in lint_text, "W-18 v14.0.0 violation: lint.py missing lint_human()."
     assert "HUMAN_ARTIFACT_BUDGETS" in lint_text, (

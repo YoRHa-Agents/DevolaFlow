@@ -455,7 +455,7 @@ def test_readme_test_count_and_coverage_current(project_root: Path) -> None:
     assert "python -m pytest tests/ -q" in readme
 
     pyproject = tomllib.loads(_read(project_root / "pyproject.toml"))
-    assert pyproject["tool"]["coverage"]["report"]["fail_under"] == 80
+    assert pyproject["tool"]["coverage"]["report"]["fail_under"] == 90
 
 
 def test_readme_workflow_type_count_bilingual(project_root: Path) -> None:

@@ -4,9 +4,8 @@ version: "1.0.0"
 purpose: >
   L0-only post-workflow scoring rubric extracted from SKILL.md (v12.3.0
   PV-03) so the section bytes load only at checklist-runtime CLOSE, not during the
-  per-dispatch execution loop. Closes feedback_for_v12.1.1.md #2 ("L0 的
-  任务分析打分能力，可以拆解一个单独的 skill，在运行完成最后一个阶段后
-  再进行加载，以优化上下文表现形式").
+  per-dispatch execution loop. Closes feedback_for_v12.1.1.md #2 (extract
+  task-analysis scoring into an on-demand skill loaded after the final stage).
 triggers:
   - "workflow end"
   - "final report"
@@ -39,7 +38,8 @@ the bytes out of lower-layer context.
 
 Before v12.3.0 PV-03, the §"Task Quality Score" body lived in SKILL.md (~25 lines / ~120 tokens). It was consumed only at workflow CLOSE but loaded into every dispatch context that included SKILL.md. Per `.local/feedbacks/feedback_for_v12.1.1.md` #2:
 
-> "可以拆解一个单独的 skill，在运行完成最后一个阶段后再进行加载，以优化上下文表现形式"
+> "Extract task-analysis scoring into a separate skill and load it after the
+> final stage to improve context efficiency."
 
 Extracting to this on-demand Tier 3 reference saves ~120 tokens × every
 dispatch that previously included the section and protects the L2 Task 8K

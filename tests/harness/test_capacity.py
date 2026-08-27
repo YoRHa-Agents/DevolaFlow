@@ -280,7 +280,7 @@ def test_telemetry_capacity_field_and_bound_follow_config(
         "max_concurrency": 4,
         "source": "config",
     }
-    assert list(record)[-1] == "capacity_profile"
+    assert list(record)[-2:] == ["capacity_profile", "agents_md_tokens"]
     with pytest.raises(ValueError, match="1 through 3 items"):
         build_dispatch_record(payload(4), change_id="capacity-config")
 

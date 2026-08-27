@@ -1,5 +1,5 @@
 ---
-description: "不可变核心约束 — 所有 AI 工具和开发者必须遵守"
+description: "Immutable core constraints for all AI tools and developers"
 priority: P0
 alwaysApply: true
 ---

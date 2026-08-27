@@ -2296,5 +2296,27 @@
       "Seed/reference/install parity — local-archive is wired consistently across the seed, operator reference, install manifest, registry, and current-cycle ghost coverage"
     ],
     "metrics": {}
+  },
+  {
+    "version": "18.0.0",
+    "date": "2026-08-27",
+    "era": "consolidation",
+    "headline": "MAJOR — Consolidation: coverage lock-in, governance slimming, module control, HSC alignment, and F-1 roles",
+    "summary": "v18.0.0 consolidates the repository around measurable quality and maintainability contracts. It raises coverage floors, controls module growth, splits oversized implementations, removes dead Pattern 3 prewiring, tiers historical ghost tests, enforces English-only agent-facing surfaces, aligns DSH host metadata, and adds preflight and harness_build L2 roles.",
+    "highlights": [
+      "90% global coverage floor plus 70% per-module floor and 800-line new-module gate",
+      "Slimmed normative governance corpus and removed AGENT_POOL_FORWARD advisory prewiring",
+      "Tiered ghost audit, import-cycle check, and hard agent-facing CJK lint",
+      "F-1 preflight and harness_build L2 roles with bounded profiles and seed wiring"
+    ],
+    "metrics": {
+      "tests": 5459,
+      "coverage_pct": 91.78,
+      "suite_wall_seconds": 145.389,
+      "cjk_violations": 0,
+      "ghost_loc": 15471,
+      "agents_md_tokens": 10076,
+      "harness_composite": 9.84
+    }
   }
 ]

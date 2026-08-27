@@ -384,29 +384,9 @@ def validate_intra_task_convergence_fields(
 # pairs with W03 (`gate/scorer.py::validate_cascade_gate_fields` soft
 # validator). Strict A-7 enforcement lands at PV-05.
 #
-# v12.0.0 PV-04 EXTENSION — Subagent-pattern NEST wiring
-#
-# The same helper now ALSO populates ``gate.subagent_pattern`` per the
-# v12.0.0 PV-04 NEST extension (sources: ``.local/research/v12.0.0_
-# gap_analysis.md`` §5 + ``docs/cycle-archive/v11.4.0/other/v11.4.0_
-# subagent_pattern_analysis.md`` §7.1 NEST verdict). The four input
-# axes (``model_tier`` / ``task_count`` / ``parallel_independence``
-# / ``persistent_state_needed``) are kw-only and OPTIONAL — when ANY
-# of the three required axes is omitted (``None``), the helper defaults
-# to ``"INLINE"`` (Pattern 1 — single L2 Task dispatch via the ``Task``
-# tool) per the L1 PV-04 prompt §6 graceful-degradation contract.
-# When ALL three are supplied, the helper invokes
-# :func:`devolaflow.skills.subagent_pattern.select_pattern` and writes
-# the verdict (one of ``"INLINE"`` / ``"FAN_OUT"`` /
-# ``"AGENT_POOL_FORWARD"``) to ``gate.subagent_pattern``. The verdict
-# ``"TEAMS_FORBIDDEN"`` is NEVER produced (``select_pattern`` is
-# guarded; it raises :class:`ValueError` for invalid inputs per S-5).
-#
-# Backward-compat: legacy v11.x callers that do NOT pass any of the
-# four axes get the original v11.1.0 behaviour byte-identically — the
-# new sub-field is OMITTED (canonical absence-as-default per A-2.3).
-# This preserves the 14 historical multi-baseline byte tests and the
-# S-10 hook-chain 10/10 byte-identical contract.
+# v18.0.0 cleanup — dispatch-payload population of the experimental
+# ``gate.subagent_pattern`` field is removed. The schema remains tolerant
+# of the historical field so immutable Tier-A witnesses can be replayed.
 # ---------------------------------------------------------------------------
 
 
@@ -429,21 +409,10 @@ def populate_cascade_gate_fields(
     For SIMPLE/TRIVIAL the cascade sub-fields are OMITTED (canonical
     absence-as-default per A-2.3 NEST contract).
 
-    .. versionchanged:: 12.0.0
-       v12.0.0 PV-04 — when the four optional kw-only axes
-       (``model_tier`` / ``task_count`` / ``parallel_independence`` /
-       ``persistent_state_needed``) are supplied, the helper ALSO
-       populates ``gate.subagent_pattern`` via
-       :func:`devolaflow.skills.subagent_pattern.select_pattern`.
-       Legacy callers that omit the axes get the v11.1.0 behaviour
-       byte-identically — the new sub-field is OMITTED (absence-
-       canonical per A-2.3 NEST contract). Per the L1 PV-04 prompt
-       graceful-degradation rule: when ANY of the three required
-       axes (``model_tier`` / ``task_count`` / ``parallel_independence``)
-       is ``None`` while at least one OTHER axis is supplied, the
-       helper defaults to ``"INLINE"`` (Pattern 1) rather than
-       raising. The verdict ``"TEAMS_FORBIDDEN"`` is NEVER produced
-       (W-24.3: Pattern 4 PERMANENTLY NOT_SUPPORTED).
+    The formerly experimental subagent-pattern arguments remain accepted
+    for source compatibility but are ignored. Dispatch payloads no longer
+    emit ``gate.subagent_pattern``; the schema remains tolerant so historical
+    Tier-A witnesses can still be replayed.
 
     Per S-10: this helper is OPT-IN.
     :meth:`ProposalGenerator.generate_round_dispatch` callers that do
@@ -456,44 +425,20 @@ def populate_cascade_gate_fields(
     Args:
       base_dispatch: dispatch payload dict; never mutated.
       complexity: one of TRIVIAL/SIMPLE/STANDARD/COMPLEX.
-      model_tier: optional Literal ``"small"`` / ``"balanced"`` /
-        ``"frontier"`` per
-        :data:`devolaflow.skills.subagent_pattern.ModelTier`. When
-        supplied along with ``task_count`` and ``parallel_independence``,
-        ``select_pattern`` is invoked to derive
-        ``gate.subagent_pattern``. ``None`` (default) → caller did not
-        opt in; subagent_pattern sub-field is OMITTED.
-      task_count: optional positive int — number of L2 Tasks the wave
-        will dispatch. Required (with ``model_tier`` and
-        ``parallel_independence``) for ``select_pattern``. Must be
-        ``>= 1`` per :func:`devolaflow.skills.subagent_pattern.validate_inputs`.
-      parallel_independence: optional bool — true when the L2 Tasks
-        own DISJOINT files and can run in parallel without
-        cross-coordination. Required (with ``model_tier`` and
-        ``task_count``) for ``select_pattern``.
-      persistent_state_needed: bool, default ``False``. When ``True``
-        AND ``model_tier == "frontier"`` AND complexity is
-        STANDARD/COMPLEX, the verdict is ``"AGENT_POOL_FORWARD"``
-        (Pattern 3 forward-compat). Otherwise the persistent-state
-        flag has no effect on the verdict.
+      model_tier, task_count, parallel_independence, and
+        persistent_state_needed: deprecated compatibility arguments; ignored.
 
     Returns:
       Deep copy of *base_dispatch* with ``gate.cascade_required`` and
       ``gate.cascade_min_layers`` populated when cascade is required,
-      AND ``gate.subagent_pattern`` populated when the four
-      v12.0.0 PV-04 axes are passed (or any subset when the
-      graceful-degradation INLINE default applies). When the input has
-      no ``gate`` block AND any sub-field is required, an empty
-      ``gate: {}`` dict is created and the sub-fields are added to it.
+      When the input has no ``gate`` block and cascade is required, an
+      empty ``gate: {}`` dict is created and the cascade fields are added.
 
     Raises:
       ValueError: when ``complexity`` is not a recognised
         :data:`devolaflow.skills.change_activation.Complexity` literal —
         re-raised verbatim from :func:`cascade_requirement` per S-5
-        (no silent coercion of unknown complexity tiers). When
-        ``select_pattern`` is invoked with invalid inputs (e.g.
-        ``model_tier`` not in ``("small", "balanced", "frontier")``),
-        ``ValueError`` is re-raised verbatim per S-5.
+        (no silent coercion of unknown complexity tiers).
     """
     from devolaflow.skills.change_activation import cascade_requirement
 
@@ -506,50 +451,6 @@ def populate_cascade_gate_fields(
             dispatch["gate"] = {}
         dispatch["gate"]["cascade_required"] = True
         dispatch["gate"]["cascade_min_layers"] = _CASCADE_MIN_LAYERS_DEFAULT
-
-    # v12.0.0 PV-04 — subagent_pattern NEST population.
-    #
-    # Caller opt-in is detected by ANY of the four axes being supplied
-    # (i.e. NOT all of model_tier / task_count / parallel_independence
-    # are None and persistent_state_needed is False — the v11.x default
-    # call signature). When opt-in is detected:
-    #
-    # * If all three REQUIRED axes are non-None → invoke select_pattern.
-    # * If any required axis is None → default to INLINE (graceful
-    #   degradation per the L1 PV-04 prompt §6 contract; mirrors the
-    #   "default to INLINE if any axis is unknown" requirement).
-    #
-    # When NO axes are supplied (the legacy v11.x call path), the new
-    # sub-field is OMITTED — canonical absence-as-default per A-2.3
-    # preserves the 14 historical multi-baseline byte-tests and the
-    # S-10 hook-chain 10/10 byte-identical contract.
-    caller_opted_in = (
-        model_tier is not None
-        or task_count is not None
-        or parallel_independence is not None
-        or persistent_state_needed
-    )
-    if caller_opted_in:
-        if model_tier is not None and task_count is not None and parallel_independence is not None:
-            from devolaflow.skills.subagent_pattern import select_pattern
-
-            subagent_verdict = select_pattern(
-                complexity=complexity,  # type: ignore[arg-type]
-                model_tier=model_tier,  # type: ignore[arg-type]
-                task_count=task_count,
-                parallel_independence=parallel_independence,
-                persistent_state_needed=persistent_state_needed,
-            )
-        else:
-            # Graceful-degradation: any required axis is None → INLINE
-            # (Pattern 1, single L2 Task via Task tool). Per the L1 PV-04
-            # prompt §6: "default to INLINE if any axis is unknown".
-            subagent_verdict = "INLINE"
-
-        gate_block = dispatch.get("gate")
-        if not isinstance(gate_block, dict):
-            dispatch["gate"] = {}
-        dispatch["gate"]["subagent_pattern"] = subagent_verdict
 
     return dispatch
 

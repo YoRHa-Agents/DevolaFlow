@@ -435,6 +435,27 @@ class TestMain:
         out = capsys.readouterr().out
         assert "ASSEMBLED CONTEXT" in out
 
+    def test_with_slice_flag(self, capsys: pytest.CaptureFixture) -> None:
+        old_argv = sys.argv
+        sys.argv = ["task_adaptive_selector.py", "hotfix", "--show-slice"]
+        try:
+            main()
+        finally:
+            sys.argv = old_argv
+        out = capsys.readouterr().out
+        assert "AGENTS.md SLICE" in out
+        assert "Slice enabled:" in out
+
+    def test_with_no_plan_mode_flag(self, capsys: pytest.CaptureFixture) -> None:
+        old_argv = sys.argv
+        sys.argv = ["task_adaptive_selector.py", "hotfix", "--verbose", "--no-plan-mode"]
+        try:
+            main()
+        finally:
+            sys.argv = old_argv
+        out = capsys.readouterr().out
+        assert "Plan mode: False" in out
+
 
 class TestAdvisorConfig:
     def test_advisor_enabled_for_feature(self) -> None:
@@ -1287,6 +1308,8 @@ _PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
     "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
     "entropy_scan": "d3c3c1ba7a0eda531da681ed34d9a85df124c32f079c435b369302426f750391",
     "pathfind": "5c1f6b6198d2d93f59ed31e9680f71af8f2fe8aecac0c2d79ddc7c14e351c287",
+    "preflight": "7c7171f7fe5d652cb9c2acf4f836900ec3ce15eeefca6da700fa05fcfb39f4e1",
+    "harness_build": "cd16f0cf370694dfad2851f46f1d7b4b8a7c04e45204492c1ebadd7a7df6161d",
 }
 
 _PRE_G026_PROFILE_HASHES: dict[str, str] = {
@@ -1315,6 +1338,8 @@ _PRE_G026_PROFILE_HASHES: dict[str, str] = {
     "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
     "entropy_scan": "1d68da96923c67dbe7004447b946aa3c42c72194076439729e71fd68473ca101",
     "pathfind": "ca81880c08c3e223d3799d3053ec60ff2aa6831343d7de9d7ef7291de61832a3",
+    "preflight": "bde6100b88dea8ef8cebbc02814b052f974523f2da9e1ac156b6f7038d92ae1c",
+    "harness_build": "3cdeb1d990c09fb2f7909c7e173f13bf788d4a37f77e66108869a352a9c4c1dc",
 }
 
 _PRE_G026_ORPHAN_HASHES: dict[str, str] = {
@@ -1438,6 +1463,8 @@ _G037_PROFILE_TIMEOUTS: dict[str, int] = {
     "verify_interaction": 900,
     "product_verification": 900,
     "pathfind": 2700,
+    "preflight": 1200,
+    "harness_build": 1800,
     "feature": 1800,
     "refactor": 1800,
 }

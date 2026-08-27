@@ -58,7 +58,7 @@ node_modules/
 !.local/memory/specs/
 !.local/memory/specs/**
 !.local/research/
-# clean_repo Phase A — narrow whitelist: only current-cycle research (v15*)
+# clean_repo Phase A — narrow whitelist: only current-cycle research (v18*)
 # stays tracked; archived history lives in docs/cycle-archive/ (W-19).
 # See .local/tasks/clean_repo/01-phase-A-untrack.md.
 # clean_repo Phase B2 + C1-1 — third narrowing: adr/ fully re-excluded. All
@@ -67,7 +67,7 @@ node_modules/
 # local copies are kept but no longer tracked.
 # See .local/tasks/clean_repo/04-phase-C-decouple-and-generalize.md §C1-1.
 .local/research/*
-!.local/research/v15*
+!.local/research/v18*
 # v14.0.0 — track the human INPUT zone ONLY (D-4 / ADR-2). The .local/human/*
 # re-exclusion keeps output/ + archive/ PRIVATE (D2 locked) while
 # !.local/human/input/** re-includes the authoritative INPUT zone.
@@ -92,6 +92,6 @@ node_modules/
 # never enters the index (like dist/).
 .github/copilot-instructions.md
 
-# clean_repo Phase A — untracked (kept locally / archived in docs/cycle-archive/).
+# Prior-cycle research remains local after W-19 archival in docs/cycle-archive/.
 .cursor/plans/
 MIGRATION-v6.md

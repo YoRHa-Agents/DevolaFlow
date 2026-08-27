@@ -757,7 +757,7 @@ runtime phases are not agent layers or checklist-seed execution order.
 | Phase | Primitive | Input | Output |
 |-------|-----------|-------|--------|
 | propose | research + design | user request + relevant SoT specs | unsigned checklist-layout change folder; first/full or inherited/delta preflight §0 |
-| preflight | validate + authorize | eight-section §0 + stop cards | signed `preflight.md` + sealed `.local/project_config.yaml` mirror |
+| preflight | validate + draft | eight-section §0 + stop-card inputs | drafted `preflight.md` + configuration/gap evidence; L0 and human sign |
 | checklist loop | select + implement + verify | priority-ordered open/reverted checklist items | evidence-backed checks, round history, immutable round checkpoint |
 | archive | release | gate-PASSED change | `.local/.agent/archive/<YYYY-MM-DD>-<id>/` + spec merge proposal to `.local/memory/specs/<domain>/spec.md` |
 
@@ -802,70 +802,26 @@ allowing the merge.
 * Reference: `references/agent-workspace.md` (canonical reference for
   the substrate)
 
-## 13. L2-Wave Async Dispatch Auto-Wire (v9.7.0+) — Historical Heading
+**L2 role wiring (PV-7 F-1).** The `preflight` phase may dispatch a
+`TaskDispatch.task.type: preflight` task for configuration inventory,
+gap-evidence assembly, and `preflight.md` drafting only. The task emits
+unsigned evidence; it MUST NOT authorize the change, sign the preflight,
+decide stop-card satisfaction, or bypass a blocker. The `preflight_gate` remains an L0 + human decision.
 
-The historical heading is a retained anchor; the current runtime boundary is
-the **L1 Wave** dispatcher.
+When Pathfinder reports a `BLOCKER`, L0/L1 route the finding to a separately
+owned `TaskDispatch.task.type: harness_build` task in a bounded later wave.
+That task owns the harness/fixture/schema/baseline remediation and its
+verification evidence; it does not rewrite the Pathfinder report or change
+gate semantics. The `harness_build` task type is a role specialization, not
+a plugin, environment flag, or dispatch-schema field. These additions are
+nest-aware metadata and leave `schemas/lean-dispatch.yaml` `canonical_order`
+at 17.
 
-v9.3.0 PV-05 shipped `AsyncDispatchExecutor` as a pure library — the
-class machinery (asyncio.gather + bounded `asyncio.Semaphore` +
-per-task `TaskOutcome` capture) was complete but no production caller
-actually invoked it. v9.7.0 PV-03 closes the gap by wiring it into a
-public dispatch entry point at the L1 Wave boundary via
-`devolaflow.dispatch.dispatch_wave_tasks(wave_definition,
-dispatch_factory)` (owner module since the v14.5.0 ADR-006 split; the
-`devolaflow.feedback` re-export shim was retired in v17.0.0).
+## 13. Wave dispatch
 
-**Entry point**:
-
-```python
-from devolaflow.dispatch import dispatch_wave_tasks
-
-outcomes = dispatch_wave_tasks(
-    wave_definition,    # parsed wave-definition.schema.yaml dict
-    dispatch_factory,   # callable: task_dict -> zero-arg callable
-    max_concurrency=4,  # optional override
-)
-```
-
-**Mode resolution** (per `wave_definition['sync_barrier']['mode']`):
-
-| Mode | Tasks | Path | Concurrency cap |
-|------|-------|------|-----------------|
-| `parallel` | ≥ 2 | `dispatch_parallel` (asyncio.gather + Semaphore) | `max_concurrency` keyword > `sync_barrier.max_parallelism` > `DEFAULT_MAX_CONCURRENCY` (4) |
-| `parallel` | 1 | `dispatch_sequential` (no asyncio.run cost) | n/a |
-| `all` (default) | any | `dispatch_sequential` | n/a |
-| `any` / `n_of(k)` | any | `dispatch_sequential` (executor TODO for quorum) | n/a |
-
-**P1 invariant — Dispatcher-Not-Implementer (Soul Rule S-1)**:
-`dispatch_wave_tasks` does NOT execute work itself — it only schedules
-the caller-provided callables. The factory pattern (factory builds
-the per-task callable; executor runs it) preserves the architectural
-boundary: the L1 Wave dispatcher is an orchestrator, never an
-implementer. Verified at test time by
-`tests/test_async_wave_dispatch_wired.py::test_dispatch_wave_tasks_preserves_p1`.
-
-**S-5 exception isolation**: failed tasks carry their exception inside
-`TaskOutcome.exception` rather than raising out of the wave. Other
-tasks in the same wave continue running. The caller decides whether
-to escalate per P4 (Bounded Retry — escalate up the layer hierarchy
-on any blocker-level failure). The wave-level dispatch itself never
-raises on individual task failure; only callable-shape errors
-(non-callable factory output, malformed wave_definition) raise
-eagerly so the caller can fail fast on contract violations.
-
-**Expected gain** (v9.7.0 PV-03 perf research §3.4): a 4-parallel-task
-wave wall-clock collapses from `4 × ~3 ms = 12 ms` (sequential per-task
-prep) to `max(~3 ms) = ~3 ms` (asyncio.gather under the bounded
-Semaphore) — roughly **4× speedup** on the wave dispatch latency.
-The absolute saving is small post-LRU (PV-03 of the v9.3.0 cycle
-already collapsed `select_context` from ~80 ms to ~2 ms), but the
-architectural pattern unlocks future asyncio extension at every
-Project/Wave dispatch surface.
-
-**Source**: v9.7.0 PV-03 spec — closes D-N-3 (AsyncDispatchExecutor
-library-only carry-forward) from `docs/cycle-archive/v10.0.0/v9.7.0_gap_analysis.md`
-§1.2.
+The L1 Wave async-dispatch boundary is documented in
+`references/wave-dispatch.md`. Load that reference when selecting a wave
+execution mode or reviewing task-outcome isolation.
 
 ## 14. Per-Task-Type Timeout Defaults Helper (v12.2.0 PV-04+ / surfaced v12.3.0 PV-04)
 

@@ -4,8 +4,8 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T11:32:38Z"
-source_version: "17.5.0"
+last_synced: "2026-08-27T15:20:13Z"
+source_version: "18.0.0"
 ---
 
 # 集成指南
@@ -26,7 +26,7 @@ source_version: "17.5.0"
 ## 从清单派生的安装 profile
 
 下列 profile 名称与文件集合来自 `workflow-system/agent/manifest.yaml`。
-`references` 集合当前包含 30 个文件；消费者从清单派生列表。
+`references` 集合当前包含 31 个文件；消费者从清单派生列表。
 
 | 目标 | 清单类型 | 文件集合 |
 |---|---|---|

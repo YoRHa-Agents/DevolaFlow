@@ -192,7 +192,16 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
         "check-cursor-skill",
         "iteration-delta-gate",
     ]
-    assert dependencies[: len(core)] == core
+    release_only = [
+        "validate-templates",
+        "build-skill",
+        "sync-human-docs",
+        "compile-rules",
+        "check-drift",
+        "check-rules-drift",
+    ]
+    first_release_only = min(dependencies.index(item) for item in release_only)
+    assert all(dependencies.index(item) < first_release_only for item in core)
     assert dependencies.index("sync-human-docs") < dependencies.index("compile-rules")
 
     recipe = _target_recipe(makefile, "release-preflight")

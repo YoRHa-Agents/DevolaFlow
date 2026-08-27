@@ -12,7 +12,7 @@ Pins the audit verdict from `.local/research/v12.4.0_l0_only_audit.md`
    MUST mark `skip`. The 60-token stub preserves the v12.1.0 D-1
    prohibition pins but only L0 acts on the rubric (which itself is
    Tier 3 on-demand per `references/task-quality-score.md`).
-3. `operational_learnings` — L0-only API-prose section. All 25 profiles
+3. `operational_learnings` — L0-only API-prose section. All 27 profiles
    MUST carry an EXPLICIT `operational_learnings: skip` row (NO
    implicit-skip via the legacy silent-fallback path) per the S-5
    compliance closure from the audit §A.3.
@@ -43,7 +43,7 @@ def context_profiles() -> dict[str, Any]:
 
 @pytest.fixture(scope="module")
 def profiles(context_profiles: dict[str, Any]) -> dict[str, Any]:
-    """Return the 25-profile dict from `context_profiles.yaml`."""
+    """Return the 27-profile dict from `context_profiles.yaml`."""
     return context_profiles["profiles"]
 
 
@@ -60,7 +60,7 @@ def test_version_update_skip_for_all_subagent_profiles(
     the `self_update` profile legitimately consumes the §"Version &
     Update" content (its whole purpose IS bumping version).
 
-    v12.4.0 PV-05 makes the discipline EXPLICIT: all 25 profiles MUST
+    v12.4.0 PV-05 makes the discipline EXPLICIT: all 27 profiles MUST
     have an explicit `version_update:` row (no implicit-skip fallback
     per the audit's S-5 cleanup discipline).
     """
@@ -104,7 +104,7 @@ def test_task_quality_score_skip_for_all_subagent_profiles(
 
     v12.4.0 PV-05 demotes the 14 historical leak profiles (8
     supplementary + 1 important + 2 critical — plus 3 supplementary
-    additions from the audit pass) to `skip`. ALL 25 profiles MUST
+    additions from the audit pass) to `skip`. ALL 27 profiles MUST
     end at `skip`.
     """
     for name, profile in profiles.items():
@@ -134,7 +134,7 @@ def test_operational_learnings_explicit_skip_for_all_profiles(
     path (S-5 violation per the audit).
 
     v12.4.0 PV-05 closes the S-5 violation by adding explicit
-    `operational_learnings: skip` rows to ALL 25 profiles. NO
+    `operational_learnings: skip` rows to ALL 27 profiles. NO
     implicit-skip path remains — the discipline is uniformly EXPLICIT
     across the YAML surface so future profile authors can't silently
     accidentally restore the section by adding content under
@@ -195,14 +195,14 @@ def test_operational_learnings_registered_in_sections_block(
 
 
 # ---------------------------------------------------------------------------
-# Cross-section invariant — all 25 profiles checked
+# Cross-section invariant — all 27 profiles checked
 # ---------------------------------------------------------------------------
 
 
 def test_all_24_profiles_have_l0_only_skip_discipline(
     profiles: dict[str, Any],
 ) -> None:
-    """Composite assertion: every one of the 25 named profiles MUST end
+    """Composite assertion: every one of the 27 named profiles MUST end
     PV-05 with the L0-only `skip` discipline across all 3 sections
     (task_quality_score, operational_learnings, version_update — the
     last with the `self_update` exception). This is the cycle plan §3
@@ -213,9 +213,9 @@ def test_all_24_profiles_have_l0_only_skip_discipline(
     into one test function) to keep the W-17 NEW-test-function cap at
     5 for this T2 file.
     """
-    assert len(profiles) == 25, (
+    assert len(profiles) == 27, (
         f"v12.4.0 PV-05 contract: `context_profiles.yaml` MUST declare "
-        f"exactly 25 named profiles for the Pathfinder addition. Got "
+        f"exactly 27 named profiles for the F-1 role additions. Got "
         f"{len(profiles)}."
     )
     legitimate_vu_critical = frozenset({"self_update"})

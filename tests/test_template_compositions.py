@@ -35,6 +35,7 @@ _REGISTRY_YAML = _TEMPLATES_ROOT / "registry.yaml"
 _SOURCE_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
     "change-driven": [
         ("propose", "design"),
+        ("preflight", "validate"),
         ("apply", "implement"),
         ("verify", "verify"),
         ("archive", "deploy"),
@@ -215,6 +216,7 @@ _SOURCE_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("gap_analysis", "analyze"),
         ("build_infra", "implement"),
         ("refine_infra", "refine"),
+        ("blocker_remediation", "implement"),
         ("capability_review", "validate"),
         ("verify_delta", "verify"),
     ],

@@ -18,7 +18,7 @@ from pathlib import Path
 # rationale. Constants are clustered alongside the v11.3.0 cluster so future
 # cycle-N+1 contributors find them in one place. v11.4.0 is the deliberate
 # analysis-and-lightweight-foundation prep cycle that codifies the philschmid
-# 4-pattern subagent taxonomy (Inline Tool / Fan-Out / Agent Pool / Teams) as
+# supported subagent patterns (Inline Tool / Fan-Out / Teams) as
 # a Tier-2 reference (`workflow-system/agent/references/subagent-patterns.md`)
 # + a pure-function selection helper (`src/devolaflow/skills/subagent_pattern.py`)
 # + a NEW workflow rule W-24 — leaving the schema NEST + helper wiring for the
@@ -56,7 +56,7 @@ _V11_4_0_SUBAGENT_REQUIRED_ALIASES: tuple[str, ...] = (
 
 
 # Required NEW test functions in tests/test_subagent_patterns.py — the
-# canonical 12-name subset the gap analysis §6 P1.3 enumerates. The L3
+# canonical subset the gap analysis §6 P1.3 enumerates. The L3
 # author may have added tests beyond this set; we DO NOT pin those so the
 # audit remains robust against later test-suite refactors that consolidate
 # or expand coverage without touching the contract surface (over-pinning
@@ -64,8 +64,6 @@ _V11_4_0_SUBAGENT_REQUIRED_ALIASES: tuple[str, ...] = (
 _V11_4_0_SUBAGENT_REQUIRED_NEW_TESTS: tuple[str, ...] = (
     "test_select_pattern_inline_for_simple_single_task",
     "test_select_pattern_fan_out_for_parallel_independent_tasks",
-    "test_select_pattern_agent_pool_forward_for_frontier_persistent",
-    "test_select_pattern_downgrades_to_inline_when_under_resourced",
     "test_select_pattern_inline_for_sequential_dependent_tasks",
     "test_select_pattern_never_returns_teams_forbidden",
     "test_validate_inputs_raises_on_invalid_complexity",
@@ -78,7 +76,7 @@ _V11_4_0_SUBAGENT_REQUIRED_NEW_TESTS: tuple[str, ...] = (
 
 
 # Positive substrings for subagent-patterns.md — the load-bearing concepts
-# from the upstream philschmid article (4 pattern names verbatim), the P5
+# from the upstream philschmid article, the P5
 # invariant citation + ``shared state`` keyword (the Pattern 4 forbidden
 # anchor), the 5 public symbol citations from the Python helper, and the
 # explicit R-11 disambiguation from grill-mode.md (gap analysis §8) +
@@ -89,11 +87,9 @@ _V11_4_0_SUBAGENT_REF_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
     "# Subagent Patterns",
     "Inline Tool",
     "Fan-Out",
-    "Agent Pool",
     "Teams",
     "P5",
     "shared state",
-    "AGENT_POOL_FORWARD",
     "TEAMS_FORBIDDEN",
     "select_pattern",
     "validate_inputs",

@@ -1,21 +1,25 @@
 # DevolaFlow Build System
 # Design ref: design_dual_system.md §4.5
 
-.PHONY: all test test-core test-version test-harness lint build-skill sync-human-docs \
+.PHONY: all test test-core test-cov test-version test-harness lint build-skill sync-human-docs \
        check-drift validate-templates clean install \
        generate-demo-seed-catalog check-demo-seed-catalog build-site \
        release-preflight release-dry-run scaffold-agent agent-reports \
-       compile-rules check-rules-drift precommit precommit-fast precommit-full \
-       scaffold-template scaffold-reference audit-references audit-long-references
+       compile-rules check-rules-drift check-module-size check-agent-language precommit precommit-fast precommit-full \
+       scaffold-template scaffold-reference audit-references audit-long-references \
+       check-import-graph
 
-all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift
+define RUN_TIMED
+start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; exit $$status
+endef
+
+all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift check-import-graph
 
 install:
 	pip install -e ".[dev]"
 
 lint:
-	ruff check src/ tests/
-	ruff format --check src/ tests/
+	@$(call RUN_TIMED,lint,ruff check src/ tests/ && ruff format --check src/ tests/)
 
 format:
 	ruff format src/ tests/
@@ -25,7 +29,7 @@ test:
 	pytest tests/ -v --tb=short
 
 test-cov:
-	pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing
+	@$(call RUN_TIMED,test-cov,GHOST_FULL=1 pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing --cov-report=json && python scripts/check_module_coverage.py coverage.json --minimum 70)
 
 # ---------------------------------------------------------------------------
 # v14.5.0 G-033 — SI-10 core gate targets (single-execution chain).
@@ -52,16 +56,16 @@ test-cov:
 # Each gate remains individually invocable; `make test` keeps the
 # undeduplicated full suite for developer convenience.
 test-core:
-	pytest tests/ -q --tb=short \
+	@$(call RUN_TIMED,test-core,pytest tests/ -q --tb=short \
 		--ignore=tests/harness \
 		--ignore=tests/test_version.py \
-		--ignore=tests/test_sichip_iteration_delta_gate.py
+		--ignore=tests/test_sichip_iteration_delta_gate.py)
 
 test-version:
-	python -m pytest tests/test_version.py -v
+	@$(call RUN_TIMED,test-version,python -m pytest tests/test_version.py -v)
 
 test-harness:
-	python -m pytest tests/harness/ -v
+	@$(call RUN_TIMED,test-harness,python -m pytest tests/harness/ -v)
 
 validate-templates:
 	validate-template --all
@@ -115,7 +119,7 @@ sync-cursor-skill:
 	python scripts/sync_cursor_skill.py
 
 check-cursor-skill:
-	python scripts/sync_cursor_skill.py --check
+	@$(call RUN_TIMED,check-cursor-skill,python scripts/sync_cursor_skill.py --check)
 
 .PHONY: sync-cursor-skill check-cursor-skill scaffold-agent
 
@@ -163,6 +167,15 @@ compile-rules:
 check-rules-drift:
 	check-rules-drift
 
+check-module-size:
+	@$(call RUN_TIMED,check-module-size,python scripts/check_module_size.py --baseline-ref origin/main)
+
+check-agent-language:
+	@$(call RUN_TIMED,check-agent-language,python scripts/check_agent_language.py)
+
+check-import-graph:
+	@$(call RUN_TIMED,check-import-graph,python3 scripts/check_import_graph.py)
+
 detect-repo-mode:
 	bash scripts/detect-repo-mode.sh
 
@@ -184,8 +197,7 @@ build-site:
 # §4 D-V-1.
 .PHONY: iteration-delta-gate
 iteration-delta-gate:
-	@echo "Si-Chip iteration_delta gate (SI-10 step 7, v10.2.0 cycle)"
-	@python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov
+	@$(call RUN_TIMED,iteration-delta-gate,echo "Si-Chip iteration_delta gate (SI-10 step 7)" && python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov)
 
 # v14.5.0 G-033 — release-preflight = SI-10 CORE (the 7 W-9 gates, in
 # W-9 order, single-execution per the `test-core` section above) plus
@@ -202,7 +214,7 @@ iteration-delta-gate:
 #
 # SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core lint test-version test-harness check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift
+release-preflight: test-core lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
 	$(MAKE) check-demo-seed-catalog
 	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"

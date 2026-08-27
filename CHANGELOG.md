@@ -5,6 +5,46 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.0.0] - 2026-08-27 — MAJOR — Consolidation
+
+Gap analysis: `.local/research/v18.0.0_gap_analysis.md` (W-1/SI-1).
+Ghost audit: `tests/ghost/test_features_v18_0.py` (W-18).
+Retrospective: `docs/cycle-archive/v18.0.0/v18.0.0_retrospective.md` (W-7).
+
+### Added
+
+- **F-1 L2 roles**: `preflight` and `harness_build` task types now have
+  explicit profiles, budgets, timeout classes, seeds, and change-driven
+  wiring. Gate semantics and human sign-off remain owned by L0 and the human.
+- **Coverage and maintainability gates**: the project now enforces a 90%
+  global coverage floor, a 70% per-module floor, an 800-line new-module
+  ceiling with grandfather ratcheting, and an import-cycle check.
+- **Harness accounting**: `agents_md_tokens` is recorded alongside dispatch
+  telemetry, with the settled v18 evidence archived under the cycle archive.
+
+### Changed
+
+- Governance rules were slimmed to normative content and generated surfaces
+  were recompiled.
+- Pattern 3 (`AGENT_POOL_FORWARD`) advisory prewiring was removed; the
+  persistent-state pool runtime remains explicitly deferred.
+- Legacy ghost tests now default to the active-cycle set; `GHOST_FULL=1`
+  enables the complete historical audit. Agent-facing CJK content now fails
+  the language gate.
+- Large implementation modules were split behind compatibility facades, and
+  DSH host metadata now reflects its vendor-backed implemented contract.
+
+### Metrics
+
+- 5,459 tests passed, 91.78% coverage, 145.389 seconds full coverage runtime.
+- 0 agent-facing CJK violations, 15,471 ghost-suite lines, 10,076
+  `AGENTS.md` tokens, and a W-3 composite of 9.84/10.
+
+### Deferred
+
+- DSH web/progress UI, Tier-C host retention, and the Pattern 3 persistent
+  state pool remain deferred pending new evidence and a separate proposal.
+
 ## [17.5.0] - 2026-08-27 — MINOR — Local Task Archive
 
 Gap analysis: `.local/research/v17.5.0_gap_analysis.md` (W-1/SI-1). Ghost

@@ -282,6 +282,9 @@ _SF4_REFERENCE_SET = frozenset(
         # report schema, bounded handoff, and separation from preflight,
         # research, review, and harness remediation.
         "pathfinder.md",
+        # v18.0.0 PV-6 — L1 Wave async dispatch boundary, bounded
+        # concurrency, failure isolation, and S-1 preservation.
+        "wave-dispatch.md",
     }
 )
 

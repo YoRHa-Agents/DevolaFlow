@@ -62,8 +62,8 @@ VERSION_LOCATIONS = [
     },
     {
         "path": "workflow-system/agent/workflow-skill.yaml",
-        "pattern": r'version:\s*"[^"]+"',
-        "replacement": 'version: "{version}"',
+        "pattern": r'^\s{2}version:\s*"[^"]+"',
+        "replacement": '  version: "{version}"',
     },
     {
         "path": "scripts/generate_human_docs.py",
@@ -297,13 +297,19 @@ def bump(
         pattern = re.compile(loc["pattern"], re.MULTILINE)
         replacement = loc["replacement"].format(version=new_version)
 
+        match_count = len(pattern.findall(text))
         new_text, count = pattern.subn(replacement, text, count=1)
-        if count > 0:
+        if match_count == 1 and count == 1:
             planned_text[fpath] = new_text
             matched_paths.append(loc["path"])
             updated.append(loc["path"])
         else:
-            print(f"  MISS  {loc['path']} (pattern not found: {loc['pattern']})")
+            reason = (
+                "pattern not found"
+                if match_count == 0
+                else f"expected exactly one match, found {match_count}"
+            )
+            print(f"  MISS  {loc['path']} ({reason}: {loc['pattern']})")
             missed.append((loc["path"], loc["pattern"]))
 
     if missed:

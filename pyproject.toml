@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "17.5.0"
+version = "18.0.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -76,12 +76,12 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
 
 [tool.coverage.run]
 source = ["devolaflow"]
-omit = ["tests/*"]
+omit = ["tests/*", "src/devolaflow/pre_decision/__main__.py"]
 # Keep deterministic local coverage probes on one data file. Subprocess-driven
 # checks must not leave uncombined `.coverage.*` shards that change the reported
 # total between identical runs.
 parallel = false
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 90
 show_missing = true

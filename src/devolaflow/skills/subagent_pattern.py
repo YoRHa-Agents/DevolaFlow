@@ -1,22 +1,18 @@
-"""Subagent-pattern selection heuristic (landed v11.4.0; schema-graduated v12.0.0).
+"""Subagent-pattern selection heuristic for inline and fan-out dispatch.
 
-Codifies the philschmid 4-pattern subagent taxonomy — **Inline Tool**,
-**Fan-Out**, **Agent Pool**, **Teams** — as pure-function selection
-heuristics for L0 / L1 / L2 dispatchers. Reframes (subagent-lifecycle
+Codifies the supported subset of the philschmid subagent taxonomy —
+**Inline Tool** and **Fan-Out** — as pure-function selection heuristics
+for L0 / L1 / L2 dispatchers. Reframes (subagent-lifecycle
 lens) the same architectural axis DevolaFlow already maps via the v7.x
 anthropic-coordination-blog mapping in
 ``workflow-system/agent/references/execution-protocol.md`` §7.3. Cited
 by workflow rule **W-24** ("Subagent Pattern Selection") alongside the
 Tier-2 reference ``workflow-system/agent/references/subagent-patterns.md``.
 
-Factual state per the v17.0.0 R5 verdict (W-24.2/W-24.5): v12.0.0
-landed the ``gate.subagent_pattern`` schema NEST with
-:func:`devolaflow.gate.cascade.populate_cascade_gate_fields` writing
-the :func:`select_pattern` verdict into dispatch payloads. The Pattern 3
-pool RUNTIME (a persistent-state pool executor path) remained deferred
-through v13–v17 — ``AGENT_POOL_FORWARD`` stays an advisory verdict with
-NO activating API path. Re-evaluation gate: v18+ SI-1 evidence plus a
-persistent-state schema design.
+Pattern 3 (Agent Pool) is intentionally removed from the runtime
+selection surface until a future cycle supplies a persistent-state
+schema and executor design. Pattern 4 (Teams) remains permanently
+unsupported by the P5 invariant.
 
 Design (mirrors :mod:`devolaflow.skills.change_activation` and
 :mod:`devolaflow.skills.grill_mode`): pure functions, zero filesystem
@@ -55,7 +51,7 @@ __all__ = [
 # from them via :func:`typing.get_args` so adding a new verdict / tier
 # requires editing exactly one Literal alias (single-source-of-truth per
 # A-5 spirit; mirrors change_activation.py lines 80-96).
-PatternVerdict = Literal["INLINE", "FAN_OUT", "AGENT_POOL_FORWARD", "TEAMS_FORBIDDEN"]
+PatternVerdict = Literal["INLINE", "FAN_OUT", "TEAMS_FORBIDDEN"]
 ModelTier = Literal["small", "balanced", "frontier"]
 
 
@@ -109,17 +105,11 @@ def select_pattern(
     model_tier: ModelTier,
     task_count: int,
     parallel_independence: bool,
-    persistent_state_needed: bool = False,
 ) -> PatternVerdict:
     """Select the philschmid pattern that best fits the wave shape.
 
     Decision rule (verbatim from gap analysis §5.2):
 
-    * ``persistent_state_needed`` AND ``model_tier == "frontier"`` AND
-      ``complexity in {"STANDARD", "COMPLEX"}`` → ``AGENT_POOL_FORWARD``
-      (Pattern 3 forward-compat; v11.4.0 reference-only).
-    * ``persistent_state_needed`` else → ``INLINE`` (under-resourced
-      downgrade to Pattern 1).
     * ``task_count >= 2`` AND ``parallel_independence`` → ``FAN_OUT``
       (Pattern 2 — L2 wave dispatch with disjoint owned files).
     * else → ``INLINE`` (Pattern 1 — single L2 dispatch via ``Task``).
@@ -132,15 +122,8 @@ def select_pattern(
     'INLINE'
     >>> select_pattern("STANDARD", "balanced", 3, True)
     'FAN_OUT'
-    >>> select_pattern("STANDARD", "frontier", 2, False, persistent_state_needed=True)
-    'AGENT_POOL_FORWARD'
     """
     validate_inputs(complexity, model_tier, task_count)
-
-    if persistent_state_needed:
-        if model_tier == "frontier" and complexity in ("STANDARD", "COMPLEX"):
-            return "AGENT_POOL_FORWARD"
-        return "INLINE"
 
     if task_count >= 2 and parallel_independence:
         return "FAN_OUT"
@@ -152,8 +135,8 @@ def forbidden_pattern_rationale(pattern: PatternVerdict) -> str | None:
     """Return rationale string for ``"TEAMS_FORBIDDEN"``; ``None`` for other verdicts.
 
     Operator-education path: only Pattern 4 (``"TEAMS_FORBIDDEN"``)
-    yields a non-None rationale — Patterns 1 and 2 are ADOPT-already-
-    native and Pattern 3 is forward-compat. Raises :class:`ValueError`
+    yields a non-None rationale — Patterns 1 and 2 are native. Raises
+    :class:`ValueError`
     on unrecognised :data:`PatternVerdict` literal (S-5).
 
     >>> rationale = forbidden_pattern_rationale("TEAMS_FORBIDDEN")
@@ -173,13 +156,8 @@ def forbidden_pattern_rationale(pattern: PatternVerdict) -> str | None:
 
 
 # v11.4.0 PV-01 — non-import references for ``scripts/detect_dead_apis.py``.
-# Factual state (v17.0.0 R5 verdict): v12.0.0 DID wire ``select_pattern``
-# into production via ``gate/cascade.py::populate_cascade_gate_fields``
-# (the ``gate.subagent_pattern`` NEST); ``validate_inputs`` runs inside it.
-# ``forbidden_pattern_rationale`` remains operator-education-only (invoked
-# on demand, never from a dispatcher), so the pin tuple stays. Mirrors the
-# v11.3.0 PV-01 ``_grill_mode_dead_api_pins`` pattern in
-# ``src/devolaflow/skills/grill_mode.py``.
+# ``select_pattern`` and ``forbidden_pattern_rationale`` remain public
+# operator APIs even though dispatch-payload population was removed in v18.
 _subagent_pattern_dead_api_pins = (
     select_pattern,
     validate_inputs,

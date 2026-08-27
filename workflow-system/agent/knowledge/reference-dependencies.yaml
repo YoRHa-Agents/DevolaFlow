@@ -150,7 +150,7 @@ active_tracking:
     last_known_version: "Phase 2 (no clone available for v9.6.0 PV-03 — manual review per W-2)"
     relevance_score: 3
     key_patterns:
-      - "mandatory pre-execution review (Menxia/门下省): approve/reject binary"
+      - "mandatory pre-execution review (Menxia): approve/reject binary"
       - "state machine enforcement with 9 states and _VALID_TRANSITIONS"
       - "strict permission matrix via allowAgents per agent"
       - "4-stage progressive recovery: retry→escalate L1→escalate L2→rollback"

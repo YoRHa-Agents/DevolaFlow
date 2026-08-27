@@ -180,8 +180,8 @@ _PLAN_MODE_OVERRIDES: dict[str, Any] = {
     "compression_intensity": "minimal",
     "model_hint_override": "quality",
     # v11.1.0 PV-04 — G-PLAN-2 cascade-required runtime carrier.
-    # Default True under v11.1.0 to match the user's "在 Plan 模式中，也需要
-    # 能够体现出多层级调度的原则" directive (cycle plan §1 verbatim block);
+    # Default True under v11.1.0 to match the user's plan-mode
+    # multi-layer-dispatch directive (cycle plan §1 verbatim block);
     # downstream consumers (L0 plan-render code, future PV-05 A-7 strict
     # validator) read this key from the merged profile dict to learn the
     # plan-mode default. The schema-side carrier is gate.cascade_required
@@ -211,8 +211,7 @@ def apply_plan_mode_overrides(profile: dict[str, Any]) -> dict[str, Any]:
     :data:`_PLAN_MODE_OVERRIDES` onto the returned profile dict so
     downstream L0 plan-render callers can read it without round-tripping
     through the override block. Default ``True`` under v11.1.0 (cascade
-    is the normative plan-mode default per the user feedback ‘在 Plan
-    模式中，也需要能够体现出多层级调度的原则’). Pre-v11.1.0 callers that
+    is the normative plan-mode default per the user feedback. Pre-v11.1.0 callers that
     never read the key see byte-stable behaviour (R5 strict additive
     contract).
     """
@@ -1061,9 +1060,9 @@ def _compose_behavioral_block(
     )
     if folded_count:
         lines.append(
-            f"advisory 约束 {folded_count} 条已折叠"
-            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
-            "授权模型自行判断遵从"
+            f"{folded_count} advisory constraints folded"
+            " (see workflow-system/agent/references/behavioral-guidelines.md); "
+            "the model decides how to comply"
         )
     return "\n".join(lines)
 

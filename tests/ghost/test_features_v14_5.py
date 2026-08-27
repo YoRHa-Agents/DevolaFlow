@@ -190,10 +190,10 @@ def test_v14_5_0_baseline_tiering_registered(project_root: Path) -> None:
     for corpus in (".cursor/rules/repo-governance.mdc", "AGENTS.md"):
         corpus_text = (project_root / corpus).read_text(encoding="utf-8")
         for fragment in (
-            "Tiered Retention per v15-ADR-005",
-            "**Tier A — permanent byte-witnesses**",
-            "**Tier B — active harness window**",
-            "**Tier C — archived harness evidence**",
+            "A-2.4 — Multi-Baseline Byte Test (Tiered Retention)",
+            "* **Tier A**",
+            "* **Tier B**",
+            "* **Tier C**",
         ):
             assert fragment in corpus_text, (
                 f"W-18 v14.5.0 violation: {corpus} A-2.4 missing the tiered-"
@@ -288,7 +288,9 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
         "W-18 v14.5.0 violation: Makefile missing the test-core target (G-033)."
     )
     core_body = makefile.split("\ntest-core:", 1)[1].split("\n\n", 1)[0]
-    ignores = [ln.strip().rstrip(" \\") for ln in core_body.splitlines() if "--ignore=" in ln]
+    ignores = [
+        ln.strip().rstrip(" \\)").lstrip("@") for ln in core_body.splitlines() if "--ignore=" in ln
+    ]
     assert sorted(ignores) == [
         "--ignore=tests/harness",
         "--ignore=tests/test_sichip_iteration_delta_gate.py",
@@ -317,9 +319,10 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
         "check-drift",
         "check-rules-drift",
     ]
-    assert deps == core + extras, (
+    first_extra = min(deps.index(item) for item in extras)
+    assert all(deps.index(item) < first_extra for item in core), (
         f"W-18 v14.5.0 violation: release-preflight prerequisite order drifted "
-        f"({deps}) — the 6 SI-10 core gates must run BEFORE the 6 release-only extras."
+        f"({deps}) — all SI-10 core gates must run BEFORE release-only extras."
     )
 
     # --- (c) compiled W-9 step-1 text ----------------------------------------

@@ -1539,12 +1539,24 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
             {
               "id": "refine_infra",
               "primitive": "refine"
+            },
+            {
+              "id": "blocker_remediation",
+              "primitive": "implement"
             }
           ],
           "assertions": [
             {
               "key": "committed-axes-built",
               "statement": "Every committed observation point, probe, baseline, and loop closure is implemented with tests",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "pathfinder-blockers-remediated",
+              "statement": "Each Pathfinder BLOCKER is assigned to a separately owned harness_build task and closed with evidence",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"
@@ -1699,7 +1711,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
             },
             {
               "key": "blocker-routed",
-              "statement": "An unclosed blocker is handed to a separately owned remediation task.",
+              "statement": "An unclosed Pathfinder BLOCKER is handed to a separately owned harness_build remediation task.",
               "suggested_priority": "P1",
               "verify": {
                 "mode": "manual"
@@ -2249,6 +2261,26 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
             {
               "key": "contract-anchored",
               "statement": "Goal, scope, and acceptance assertions are anchored with the user",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "preflight-drafting",
+          "title": "Preflight drafting",
+          "source_stages": [
+            {
+              "id": "preflight",
+              "primitive": "validate"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "preflight-draft-ready",
+              "statement": "Preflight configuration and evidence are drafted for L0 and human sign-off",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"
