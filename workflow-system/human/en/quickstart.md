@@ -4,8 +4,8 @@ description: "Install DevolaFlow, verify the correct channel, and run a first ch
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-26T19:27:02Z"
-source_version: "17.2.0"
+last_synced: "2026-08-27T05:10:31Z"
+source_version: "17.3.0"
 ---
 
 # Quick Start Guide
@@ -110,7 +110,7 @@ Fix the login timeout bug and verify the regression.
 
 Expected flow:
 
-1. DevolaFlow selects one of the 24 registry-derived
+1. DevolaFlow selects one of the 25 registry-derived
    checklist seeds as decomposition knowledge.
 2. You confirm the goal, measurable checklist, P0/P1/P2 priorities, and
    preflight decisions.

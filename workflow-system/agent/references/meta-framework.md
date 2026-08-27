@@ -32,11 +32,11 @@ user intent
 
 The shipped registry contains:
 
-- **24 checklist seeds**;
+- **25 checklist seeds**;
 - **1 executable path**, `builtin/change-driven.yaml`;
 - **0 executable composition DAGs**.
 
-The 24 workflow names remain useful as intent modes. They no
+The 25 workflow names remain useful as intent modes. They no
 longer prescribe stage order.
 
 ## 2. Registry v3 Contract
@@ -45,7 +45,7 @@ longer prescribe stage order.
 
 | Block | Count | Meaning |
 |---|---:|---|
-| `compositions` | 17 | Historical composition names, now seed-only |
+| `compositions` | 18 | Historical composition names, now seed-only |
 | `templates` | 7 | Historical survivor names, all with seeds |
 
 Every entry declares:
@@ -287,6 +287,7 @@ Select the seed whose intent keywords best match the user's goal:
 | user-facing demo/verification | `demo-showcase`, `product-verification`, `web-design` |
 | migration | `migration` |
 | harness/evaluation infrastructure | `harness-construction` |
+| look-ahead infrastructure reconnaissance | `pathfinder` |
 | agent-system optimization | `skill-optimization`, `self-update`, `nines-assisted` |
 | lifecycle-specific change | `change-driven` |
 
@@ -319,6 +320,7 @@ gate DAG.
 | product-verification | checklist-round |
 | entropy-cleanup | checklist-round |
 | harness-construction | checklist-round |
+| pathfinder | checklist-round |
 | migration | checklist-round |
 | skill-optimization | checklist-round |
 | self-update | checklist-round |
@@ -332,7 +334,7 @@ gate DAG.
 ```text
 REGISTRY
 □ schema_version is "3.0"
-□ 17 composition entries + 7 template entries = 24
+□ 18 composition entries + 7 template entries = 25
 □ Every entry has exactly one seeds/<name>.yaml
 □ Only change-driven declares builtin/change-driven.yaml
 

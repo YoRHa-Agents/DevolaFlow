@@ -586,7 +586,7 @@ class TestEntropyCleanupTemplate:
 
         reg = TemplateRegistry()
         names = [metadata.name for metadata in reg.discover()]
-        assert len(names) == 24
+        assert len(names) == 25
         assert all(reg.load_seed(name) is not None for name in names)
         executable = [
             entry

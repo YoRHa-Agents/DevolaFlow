@@ -52,6 +52,7 @@ references:
   - references/impeccable.md
   - references/message-schemas.md
   - references/meta-framework.md
+  - references/pathfinder.md
   - references/plan-mode-enforcement.md
   - references/repo-modes.md
   - references/shell-proxy.md

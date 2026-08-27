@@ -150,10 +150,11 @@ example: |
   | `STATUS.yaml` | Machine state — current truth, read first |
   | `owned_files.txt` | Legal write surface (Rule S-8) |
   | `harness_preflight.md` | OPTIONAL harness-flag + gap pre-analysis |
+  | `pathfinder_report.md` | OPTIONAL read-only look-ahead gap report |
   | `evidence/` | Per-item verification evidence |
 
   ## 4. Discipline Pointers
-  - Progress/blockers live in STATUS.yaml + stage.md; never mirrored here.
+  - Progress lives in STATUS.yaml + stage.md.
   - Writes: owned_files.txt per Rule S-8; only the user reverts [x] to [ ].
   - Handoff envelopes are append-only per Rule S-9.
   - Budgets and lint: `python -m devolaflow.agent_workspace.lint <change-id>`.

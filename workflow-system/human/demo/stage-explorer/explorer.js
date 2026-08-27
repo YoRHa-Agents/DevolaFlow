@@ -32,7 +32,7 @@
     'exp.link.io': 'Canonical I/O',
     'exp.link.ioDesc': 'typed messages and artifact boundaries',
     'exp.link.seeds': 'Seed Library ↗',
-    'exp.link.seedsDesc': '24 declarative checklist seeds',
+    'exp.link.seedsDesc': '25 declarative checklist seeds',
     'exp.link.system': 'System',
     'exp.link.systemDesc': 'current Project → Wave → Task model',
     'exp.link.skill': 'Read SKILL.md ↗',
@@ -49,11 +49,11 @@
     'exp.category.deliver': 'Deliver',
     'exp.category.control': 'Control',
     'exp.count.visible': '{visible} of {total} labels',
-    'exp.card.seedCount': '{count} / 24 seeds',
+    'exp.card.seedCount': '{count} / 25 seeds',
     'exp.card.open': 'Show {label} conceptual I/O and seed usage',
     'exp.seed.count': '{count} seeds reference this label',
     'exp.seed.none': 'No current seed references this label',
-    'exp.seed.note': 'Current source_stages references across the 24 shipped seeds.',
+    'exp.seed.note': 'Current source_stages references across the 25 shipped seeds.',
     'exp.seed.noneNote': 'Retained because SKILL.md and the meta-framework preserve it in the canonical historical taxonomy.',
     'exp.seed.noneItem': 'No current seed reference',
     'exp.catalog.error': 'The generated seed catalog is unavailable or malformed. Primitive membership cannot be shown.'
@@ -86,7 +86,7 @@
     'exp.link.io': '规范输入输出',
     'exp.link.ioDesc': '类型化消息与制品边界',
     'exp.link.seeds': '清单种子库 ↗',
-    'exp.link.seedsDesc': '24 个声明式清单种子',
+    'exp.link.seedsDesc': '25 个声明式清单种子',
     'exp.link.system': '系统',
     'exp.link.systemDesc': '当前 Project → Wave → Task 模型',
     'exp.link.skill': '阅读 SKILL.md ↗',
@@ -103,11 +103,11 @@
     'exp.category.deliver': '交付',
     'exp.category.control': '控制',
     'exp.count.visible': '显示 {visible} / {total} 个标签',
-    'exp.card.seedCount': '{count} / 24 个清单种子',
+    'exp.card.seedCount': '{count} / 25 个清单种子',
     'exp.card.open': '查看 {label} 的概念输入输出与清单种子用法',
     'exp.seed.count': '{count} 个清单种子引用此标签',
     'exp.seed.none': '当前没有清单种子引用此标签',
-    'exp.seed.note': '24 个已发布清单种子中的当前 source_stages 引用。',
+    'exp.seed.note': '25 个已发布清单种子中的当前 source_stages 引用。',
     'exp.seed.noneNote': 'SKILL.md 与元框架将其保留在规范历史分类中，因此本页仍予收录。',
     'exp.seed.noneItem': '当前无清单种子引用',
     'exp.catalog.error': '生成的清单种子目录不可用或格式错误，无法显示原语成员关系。'
@@ -407,9 +407,9 @@
   function buildSeedMembership(catalog) {
     if (!catalog ||
         catalog.schema_version !== '1.0' ||
-        catalog.record_count !== 24 ||
+        catalog.record_count !== 25 ||
         !Array.isArray(catalog.seeds) ||
-        catalog.seeds.length !== 24) {
+        catalog.seeds.length !== 25) {
       return null;
     }
 

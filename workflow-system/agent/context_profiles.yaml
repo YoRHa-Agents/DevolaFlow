@@ -255,6 +255,11 @@ meta:
         architecture: ["A-1"]
         conventions: ["C-1", "C-2", "C-3"]
         workflow: ["W-1", "W-2"]
+      pathfind:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
+        conventions: ["C-1", "C-2", "C-3", "C-4", "C-7", "C-9"]
+        workflow: ["W-1", "W-2", "W-4", "W-9", "W-16", "W-18", "W-19"]
       refactor:
         soul: all
         architecture: all
@@ -1017,6 +1022,53 @@ profiles:
       Research tasks are single-stage with minimal ceremony. No convergence
       loops, no gate mechanism, no repo mode. Focus on dispatch/report protocol
       and team roles for structuring research output.
+
+  pathfind:
+    description: "Pathfinder reconnaissance — look-ahead infrastructure and harness gap analysis"
+    goal_hints:
+      - "pathfinder"
+      - "path finder"
+      - "look-ahead"
+      - "look ahead"
+      - "harness reconnaissance"
+      - "infrastructure gap"
+    token_budget: 5000
+    timeout_class: research
+    model_hints:
+      default_tier: balanced
+    section_priorities:
+      <<: *default_section_priorities
+      mode_detection: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      rationalization_prevention: skip
+      wave_task_constraints: critical
+      gate_mechanism: skip
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      lifecycle_hooks: important
+      repo_mode: skip
+      reference_navigation: important
+      rules_dispatchers: critical
+      convergence_loop: skip
+      operational_learnings: skip
+    learnings:
+      <<: *learnings_standard
+      max_entries: 3
+    extra_context:
+      - "references/pathfinder.md"
+      - "references/team-roles.md"
+      - "references/harness-construction.md"
+      - "references/agent-workspace.md"
+      - "references/message-schemas.md"
+    decomposition: *decomposition_single
+    inline_review_checklist: false
+    rationale: >
+      Pathfinder needs hierarchy and dispatch context to reason about the next
+      wave, plus the report, workspace, harness, and role contracts. It is
+      read-only reconnaissance, so implementation gates and convergence are
+      excluded to preserve the 5K budget.
 
   refactor:
     description: "Refactoring — code structure context, safety nets"

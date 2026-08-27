@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Agent Workspace Schemas — Index
 # -----------------------------------------------------------------------------
-# Index of the 12 schema files that govern the agent workspace artifacts under
+# Index of the 13 schema files that govern the agent workspace artifacts under
 # `.local/.agent/` and `.local/memory/specs/`. Source of truth: every schema
 # listed here MUST exist as a file in this directory.
 #
@@ -17,7 +17,8 @@
 # History: v8.2.4 introduced the registry; v16.0.0 M1 extended it additively;
 # v17.0.0 removed the deprecated legacy acceptance/tasks schemas at their
 # declared removal_target (replacement: change-checklist); v17.2.0 added
-# change-entrance (agent onboarding entry point).
+# change-entrance (agent onboarding entry point); v17.3.0 added
+# pathfinder-report (look-ahead reconnaissance evidence).
 # -----------------------------------------------------------------------------
 
 design_reference: .local/research/v8.3.0_design.md §2
@@ -31,7 +32,7 @@ patch_slot: "v17.0.0 R1"
 gap_ids: [C-002, M-003, M-005, G17-A2]
 governing_rules: [S-8, S-9, C-9, A-4]
 
-# 12 schema files declaring the artifact contracts. Registry entries MUST be
+# 13 schema files declaring the artifact contracts. Registry entries MUST be
 # unique and resolve every non-index YAML file in this directory.
 schemas:
   - id: change-goal
@@ -133,6 +134,15 @@ schemas:
     format: markdown_with_frontmatter
     summary: "Agent onboarding entry point — static scenario router to the other artifacts; never mirrors dynamic state (missing pre-v17.2 folders lint as WARN until backfilled)."
     token_budget: { soft: 400, hard: 800, units: tokens }
+
+  - id: pathfinder-report
+    file: pathfinder-report.yaml
+    target_path_template: ".local/.agent/active/<change-id>/pathfinder_report.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/pathfinder_report.md"
+    format: markdown_with_frontmatter
+    optional: true
+    summary: "OPTIONAL read-only Pathfinder look-ahead report — records infrastructure gaps and bounded remediation handoffs."
+    token_budget: { soft: 800, hard: 1600, units: tokens }
 
 # Cross-references — each rule below cites the section of design.md that
 # motivates it. The verbatim rule text lives in `.rules/` and the compiled

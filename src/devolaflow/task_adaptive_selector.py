@@ -55,13 +55,13 @@ VALID_COMPRESSION_INTENSITIES = {"minimal", "standard", "aggressive"}
 # library-level (no env flag).
 #
 # Source: `.local/research/v12.2.0_gap_analysis.md` §2 D-4; v12.0.0
-# CHANGELOG §v12.1.0+ telegraph deferred work item #2.
 TASK_TYPE_TIMEOUT_DEFAULTS: dict[str, int] = {
     "research": 2700,
     "impl": 1800,
     "test": 900,
     "review": 1200,
     "hotfix": 600,
+    "pathfind": 2700,
 }
 
 TASK_TYPE_TIMEOUT_FALLBACK: int = 7200

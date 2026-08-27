@@ -164,6 +164,10 @@ class TestMatchProfile:
         assert match_profile("FIX BUG", config) == "hotfix"
         assert match_profile("REFACTOR", config) == "refactor"
 
+    def test_bare_next_wave_does_not_route_to_pathfind(self, config: dict) -> None:
+        """A generic wave reference is not enough to select reconnaissance."""
+        assert match_profile("prepare the next wave", config) != "pathfind"
+
 
 class TestSelectContext:
     def test_hotfix_profile(self) -> None:
@@ -1282,6 +1286,7 @@ _PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
     "repo-init": "2858037d83647ce0e067cf92f57ed6e712b2086bec2861401c46fe10d07c4b3d",
     "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
     "entropy_scan": "d3c3c1ba7a0eda531da681ed34d9a85df124c32f079c435b369302426f750391",
+    "pathfind": "5c1f6b6198d2d93f59ed31e9680f71af8f2fe8aecac0c2d79ddc7c14e351c287",
 }
 
 _PRE_G026_PROFILE_HASHES: dict[str, str] = {
@@ -1309,6 +1314,7 @@ _PRE_G026_PROFILE_HASHES: dict[str, str] = {
     "repo-init": "82dfa7335f3175dc69079ab6286eb6391e02cb19c675ad7c0e0088a72867aa46",
     "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
     "entropy_scan": "1d68da96923c67dbe7004447b946aa3c42c72194076439729e71fd68473ca101",
+    "pathfind": "ca81880c08c3e223d3799d3053ec60ff2aa6831343d7de9d7ef7291de61832a3",
 }
 
 _PRE_G026_ORPHAN_HASHES: dict[str, str] = {
@@ -1431,6 +1437,7 @@ _G037_PROFILE_TIMEOUTS: dict[str, int] = {
     "verify_acceptance": 900,
     "verify_interaction": 900,
     "product_verification": 900,
+    "pathfind": 2700,
     "feature": 1800,
     "refactor": 1800,
 }
@@ -1456,7 +1463,8 @@ class TestG037TimeoutClassResolution:
             "hotfix": 600,
             "fallback": 7200,
         }
-        for cls, seconds in TASK_TYPE_TIMEOUT_DEFAULTS.items():
+        for cls in ("research", "impl", "test", "review", "hotfix"):
+            seconds = TASK_TYPE_TIMEOUT_DEFAULTS[cls]
             assert timeout_map[cls] == seconds, (
                 f"timeout_class_map[{cls!r}] drifted from TASK_TYPE_TIMEOUT_DEFAULTS"
             )

@@ -89,6 +89,11 @@ compositions:
     category: composite
     tags: [harness, evaluation-infrastructure, observability, telemetry, coverage, gap-analysis, baseline]
     description: "Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review."
+  - name: pathfinder
+    seed: seeds/pathfinder.yaml
+    category: control
+    tags: [pathfinder, path-find, look-ahead, infrastructure, harness, gap-analysis, reconnaissance]
+    description: "Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave."
 
 # Keep templates as the final top-level block.
 templates:

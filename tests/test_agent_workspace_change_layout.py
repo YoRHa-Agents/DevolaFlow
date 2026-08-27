@@ -317,6 +317,8 @@ def test_checklist_lint_uses_v16_budgets_and_evidence_limits(tmp_path: Path) -> 
         "harness_preflight.md": (800, 1600),
         # Agent onboarding router (v17.2.0 change-entrance design).
         "entrance.md": (400, 800),
+        # Read-only look-ahead report (v17.3.0 Pathfinder design).
+        "pathfinder_report.md": (800, 1600),
     }
     assert EVIDENCE_FILE_MAX_BYTES == 10_240
     assert EVIDENCE_DIRECTORY_MAX_BYTES == 51_200

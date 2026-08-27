@@ -5,6 +5,24 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.3.0] - 2026-08-27 — MINOR — Pathfinder Look-Ahead Reconnaissance
+
+Design contract: `.local/research/v17.3.0_pathfinder_design.md` (W-1/SI-1; implementation improvements and release hardening). Ghost audit: `tests/ghost/test_features_v17_3.py` (W-18 — refreshed before this entry). User intent origin: `.local/tasks/add_Pathfinder_design/add_Pathfinder_design.md`.
+
+### Added
+
+- **Pathfinder L2 role**: the `pathfind` specialization performs read-only
+  look-ahead scans for infrastructure and harness gaps, records findings in
+  `pathfinder_report.md`, and routes remediation to separately owned tasks.
+  Its context profile, checklist seed, report schema, activation classifier,
+  and C-9 budget are wired through the reference, manifest, registry, and
+  ghost-audit surfaces.
+
+### Fixed
+
+- **Pathfinder timeout dispatch**: direct `pathfind` task types now resolve to
+  the 2700-second research timeout instead of the unknown-task fallback ceiling.
+
 ## [17.2.0] - 2026-08-27 — MINOR — Change-Workspace Entrance Router (`entrance.md`)
 
 Design contract: `.local/research/v17.2.0_change_entrance_design.md` (W-1/SI-1; §8 records the two as-built adjustments). Ghost audit: `tests/ghost/test_features_v17_2.py` (W-18 — refreshed before this entry). User intent origin: the `plan_mode_full_update` follow-up ("除了 checklist goal等文件外，还要额外补充一个 entrance.md 以方便各种 agent快速接入").
