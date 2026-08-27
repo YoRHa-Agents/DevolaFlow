@@ -229,7 +229,9 @@ def test_shared_ci_enforces_module_size_and_complete_coverage() -> None:
     workflow = _load_workflow("ci-checks.yml")
     check_steps = workflow["jobs"]["check"]["steps"]
     module_size = next(step for step in check_steps if step.get("name") == "Module size budget")
-    assert "git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main" in module_size["run"]
+    assert (
+        "git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main" in module_size["run"]
+    )
     assert "python scripts/check_module_size.py --baseline-ref origin/main" in module_size["run"]
 
     test_steps = workflow["jobs"]["test"]["steps"]
