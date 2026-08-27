@@ -37,6 +37,7 @@
     reference("grill-mode"),
     reference("harness-construction"),
     reference("host-bridges"),
+    reference("host-contract"),
     reference("human-surface"),
     reference("impeccable"),
     reference("message-schemas"),

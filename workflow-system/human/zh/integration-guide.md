@@ -4,18 +4,29 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T05:19:13Z"
-source_version: "17.3.0"
+last_synced: "2026-08-27T08:33:55Z"
+source_version: "17.4.0"
 ---
 
 # 集成指南
 
 从清单派生的宿主配置、安装渠道与可选 host bridge。
 
+## Host Support Contract
+
+规范宿主契约位于 `workflow-system/agent/hosts.yaml`。支持按档位定义；
+保证宿主必须声明完整 delivery floor，可选能力不会从其他安装注册表推断。
+
+| 档位 | 宿主 |
+|---|---|
+| `guaranteed` | `cursor`、`claude`、`codex`、`copilot`、`kimicode`、`dsh` |
+| `community-installable` | `windsurf`、`zed`、`cline`、`roo` |
+| `community-build-only` | `continue`、`openclaw`、`gemini`、`jetbrains`、`amazon_q`、`augment`、`trae` |
+
 ## 从清单派生的安装 profile
 
 下列 profile 名称与文件集合来自 `workflow-system/agent/manifest.yaml`。
-`references` 集合当前包含 28 个文件；消费者从清单派生列表。
+`references` 集合当前包含 29 个文件；消费者从清单派生列表。
 
 | 目标 | 清单类型 | 文件集合 |
 |---|---|---|
@@ -80,9 +91,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ## 可选 host bridge 执行边界
 
-复制 skill 只让 Markdown 可发现。host bridge 另行把 Cursor、Claude Code、
-Codex、KimiCode 或 DSH 工具事件路由到生命周期边界执行。Windsurf、Zed、Cline、
-Roo 与 Copilot profile 不宣称 bridge 支持。
+复制 skill 只让 Markdown 可发现。host bridge 另行把宿主工具事件路由到生命周期
+边界执行。每个宿主的 bridge 状态与证据在 `hosts.yaml` 中声明；Copilot 的
+stdout-JSON bridge 路径已设计，但本版本尚未实现。
 
 按 [宿主专用 bridge 流程](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md) 操作，例如：
 

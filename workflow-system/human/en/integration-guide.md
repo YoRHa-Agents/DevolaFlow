@@ -4,19 +4,32 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T05:10:31Z"
-source_version: "17.3.0"
+last_synced: "2026-08-27T08:33:55Z"
+source_version: "17.4.0"
 ---
 
 # Integration Guide
 
 Manifest-derived host profiles, installation channels, and optional host bridges.
 
+## Host Support Contract
+
+The canonical host contract is
+`workflow-system/agent/hosts.yaml`. Support is tiered; guaranteed hosts must
+declare the full delivery floor, while optional capabilities are never inferred
+from an unrelated install registry.
+
+| Tier | Hosts |
+|---|---|
+| `guaranteed` | `cursor`, `claude`, `codex`, `copilot`, `kimicode`, `dsh` |
+| `community-installable` | `windsurf`, `zed`, `cline`, `roo` |
+| `community-build-only` | `continue`, `openclaw`, `gemini`, `jetbrains`, `amazon_q`, `augment`, `trae` |
+
 ## Manifest-derived install profiles
 
 The profile names and file sets below come from
 `workflow-system/agent/manifest.yaml`. The `references` set currently contains
-28 files; consumers derive the list from the manifest.
+29 files; consumers derive the list from the manifest.
 
 | Target | Manifest kind | File sets |
 |---|---|---|
@@ -83,10 +96,10 @@ explicit `local` or `standalone` install target for those surfaces.
 
 ## Optional host bridge enforcement
 
-Skill copy makes Markdown discoverable. A host bridge separately routes
-Cursor, Claude Code, Codex, KimiCode, or DSH tool events through lifecycle
-boundary enforcement. Windsurf, Zed, Cline, Roo, and Copilot profiles do not
-claim bridge support.
+Skill copy makes Markdown discoverable. A host bridge separately routes host
+tool events through lifecycle boundary enforcement. Current bridge status and
+evidence are declared per host in `hosts.yaml`; Copilot is designed for the
+stdout-JSON bridge path and is not yet an implemented bridge in this release.
 
 Follow the [host-specific bridge procedure](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md). For example:
 
