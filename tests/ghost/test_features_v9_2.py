@@ -447,7 +447,7 @@ _V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS: int = 6
 # the exact membership here catches a silent widening / narrowing of
 # which dispatch paths require the on-disk workflow-system/agent/ tree.
 _V9_2_2_AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset(
-    {"cursor", "claude", "copilot", "codex"}
+    {"cursor", "claude", "copilot", "codex", "kimicode", "dsh"}
 )
 
 
@@ -521,8 +521,8 @@ def test_v9_2_2_new_symbols_have_coverage(project_root: Path) -> None:
     assert AGENT_DIR_REQUIRED_TARGETS == _V9_2_2_AGENT_DIR_REQUIRED_TARGETS, (
         f"W-18 v9.2.2 violation: AGENT_DIR_REQUIRED_TARGETS = "
         f"{AGENT_DIR_REQUIRED_TARGETS!r}; expected "
-        f"{_V9_2_2_AGENT_DIR_REQUIRED_TARGETS!r} (exactly the 4 historical "
-        f"agent-dir consumers — cursor / claude / copilot / codex). "
+        f"{_V9_2_2_AGENT_DIR_REQUIRED_TARGETS!r} (the guaranteed "
+        f"agent-dir consumers). "
         f"`local` is intentionally absent — the I-001 closure invariant"
     )
     assert "local" not in AGENT_DIR_REQUIRED_TARGETS, (

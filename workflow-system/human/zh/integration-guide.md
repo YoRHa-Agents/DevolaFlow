@@ -4,8 +4,8 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:58:06Z"
-source_version: "17.4.1"
+last_synced: "2026-08-27T09:07:22Z"
+source_version: "17.4.2"
 ---
 
 # 集成指南
@@ -34,6 +34,7 @@ source_version: "17.4.1"
 | `claude` | `skill-dir` | `core`, `references`, `examples` |
 | `codex` | `skill-dir` | `core`, `references` |
 | `kimicode` | `skill-dir` | `core`, `references`, `examples` |
+| `dsh` | `skill-dir` | `core`, `references`, `examples` |
 | `copilot` | `rule-file` | `core` |
 | `windsurf` | `rule-file` | `core` |
 | `zed` | `rule-tree` | `core`, `references` |

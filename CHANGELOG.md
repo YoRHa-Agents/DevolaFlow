@@ -5,6 +5,28 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.4.2] - 2026-08-27 — PATCH — Host Delivery Parity
+
+Ghost audit: `tests/ghost/test_features_v17_4.py` (W-18 — refreshed before
+this entry).
+
+### Added
+
+- **Guaranteed host delivery parity**: `devola-init`, `install.sh`, and the
+  npm installer now cover Codex, KimiCode, and DSH consistently; the skills
+  doctor reports project/global DSH installations.
+- **Host-native delegation vocabulary**: the skill contract maps `Task` for
+  hosts that expose it, DSH's `subagent` primitive, and Copilot's currently
+  undeclared recursive-dispatch surface.
+- **Session-resume evidence**: the HSC records explicit downgrade reasons for
+  hosts without a stable session-start event; Cursor and Claude remain wired.
+
+### Operator-visible behaviour change
+
+- `all` now includes all six guaranteed skill-delivery hosts on the Python and
+  curl installation channels, while npm supports its five user-level skill
+  targets. DSH's global home may be overridden with `DSH_HOME`.
+
 ## [17.4.1] - 2026-08-27 — PATCH — DSH Bridge Repair
 
 Ghost audit: `tests/ghost/test_features_v17_4.py` (W-18 — refreshed before

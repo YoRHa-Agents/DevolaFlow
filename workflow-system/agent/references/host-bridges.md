@@ -196,10 +196,11 @@ matcher `startup|resume` in `.claude/settings.json` →
 installers. **Deliberately NOT wired this round**: Codex (project-level
 hooks require the interactive `/hooks` trust step — session injection
 would silently no-op for most operators), KimiCode (user-level Beta
-config only; no project-level session surface to install), and DSH
-(session context goes through the cordis plugin channel — deferred to a
-later plugin release). These hosts degrade gracefully: no session hook
-means no injected context, and boundary enforcement (§2) is unaffected.
+config only; no project-level session surface to install), DSH (session
+context goes through the Cordis plugin channel — deferred to a later
+plugin release), and Copilot (its `preToolUse` hook has no session-start
+event). These hosts degrade gracefully: no session hook means no injected
+context, and boundary enforcement (§2) is unaffected.
 
 ## Cross-References
 
@@ -221,3 +222,6 @@ means no injected context, and boundary enforcement (§2) is unaffected.
   downgrade rationale (§D-R4-1).
 - v17.4.0 — HSC matrix adds Copilot's `preToolUse` bridge and links host
   declarations to the canonical `hosts.yaml` contract.
+- v17.4.2 — HSC records the explicit session-resume downgrade reasons and
+  the skill vocabulary maps DSH's `subagent` primitive separately from
+  hosts that expose `Task`.

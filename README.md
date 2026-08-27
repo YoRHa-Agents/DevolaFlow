@@ -25,28 +25,32 @@ natural-language request
 The installation channels have different scopes. In particular, `all` does
 not mean the same thing in npm, curl, and `devola-init`.
 
-### npm / npx: user-level Cursor and Claude
+### npm / npx: user-level guaranteed skill hosts
 
 Requires Node 18 or newer and works on Windows.
 
 ```bash
 npx @yorha-agents/devola-flow install cursor
 npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install codex
+npx @yorha-agents/devola-flow install kimicode
+npx @yorha-agents/devola-flow install dsh
 npx @yorha-agents/devola-flow install all
 npx @yorha-agents/devola-flow doctor
 npx @yorha-agents/devola-flow update all
 ```
 
-npm `all` means the two user-level targets supported by the package: Cursor
-and Claude. Downloads default to the tag matching the npm package version;
+npm `all` means the five user-level skill targets supported by the package:
+Cursor, Claude, Codex, KimiCode, and DSH. Downloads default to the tag matching
+the npm package version;
 `DEVOLA_FLOW_REF` can intentionally select another branch, tag, or SHA.
 
 ### curl: broad project/global installer
 
 The curl installer defaults to project scope and covers the target set
 implemented by [`scripts/install.sh`](scripts/install.sh): Cursor, Claude,
-Codex, Copilot, KimiCode, Windsurf, Zed, Cline, Roo, local workspace, and a
-standalone file.
+Codex, Copilot, KimiCode, DSH, Windsurf, Zed, Cline, Roo, local workspace, and
+a standalone file.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
@@ -91,8 +95,8 @@ devola-init-doctor
 ```
 
 A wheel supplies the Python runtime, CLIs, and `devola-init local`. It does not
-bundle `workflow-system/agent/`, so wheel-only installs cannot copy Cursor,
-Claude, Copilot, or Codex skill files.
+bundle `workflow-system/agent/`, so wheel-only installs cannot copy guaranteed
+host skill files.
 
 Use a clone plus editable install for non-local `devola-init` targets:
 
@@ -104,9 +108,9 @@ devola-init cursor
 devola-init all
 ```
 
-Python `all` means Cursor, Claude, Copilot, and Codex; it excludes the local
-scaffold. With `--global`, registered plugin installation is attempted unless
-`--no-plugins` is passed.
+Python `all` means Cursor, Claude, Copilot, Codex, KimiCode, and DSH; it
+excludes the local scaffold. With `--global`, registered plugin installation
+is attempted unless `--no-plugins` is passed.
 
 ### Manual fallback
 
@@ -205,8 +209,8 @@ connected to lifecycle boundary enforcement.
 
 Follow the
 [host bridge reference](workflow-system/agent/references/host-bridges.md) for
-Cursor, Claude Code, Codex, KimiCode, or DSH. Confirm the host-specific config,
-exercise a known-allowed event, and inspect
+Cursor, Claude Code, Codex, KimiCode, DSH, or GitHub Copilot. Confirm the
+host-specific config, exercise a known-allowed event, and inspect
 `.local/telemetry/hostbridge.jsonl` before persistently setting:
 
 ```bash
@@ -294,7 +298,7 @@ The source plus those sync locations make eight files. The README badge reads
 entry at load time.
 
 ```bash
-devola-version  # prints "DevolaFlow v17.4.1"
+devola-version  # prints "DevolaFlow v17.4.2"
 python scripts/bump_version.py X.Y.Z --dry-run
 python -m pytest tests/test_version.py -v
 ```

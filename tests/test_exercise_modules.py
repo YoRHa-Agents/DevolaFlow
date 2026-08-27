@@ -235,15 +235,18 @@ def test_init_project_all_target(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sys, "argv", ["devola-init", "all"])
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / ".codex"))
+    monkeypatch.setenv("DSH_HOME", str(tmp_path / ".dsh-global"))
     from devolaflow.init_project import main
 
     main()
     out = capsys.readouterr().out
-    # All 4 built-in installers should leave a trace in stdout.
+    # All guaranteed host installers should leave a trace in stdout.
     assert "Cursor" in out
     assert "Claude" in out
     assert "Copilot" in out
     assert "Codex" in out
+    assert "KimiCode" in out
+    assert "DSH" in out
 
 
 def test_init_project_missing_agent_dir(monkeypatch, tmp_path, capsys):

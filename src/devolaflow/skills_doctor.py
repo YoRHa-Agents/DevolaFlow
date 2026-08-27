@@ -84,6 +84,7 @@ def scan_installed_skills(
     cwd: Path | None = None,
     home: Path | None = None,
     codex_home: Path | None = None,
+    dsh_home: Path | None = None,
     current_version: str | None = None,
 ) -> list[SkillInstall]:
     """Return every detected DevolaFlow skill install with its version status.
@@ -94,6 +95,7 @@ def scan_installed_skills(
     cwd = cwd or Path.cwd()
     home = home or Path.home()
     codex_home = codex_home or Path(os.environ.get("CODEX_HOME", str(home / ".codex")))
+    dsh_home = dsh_home or Path(os.environ.get("DSH_HOME", str(home / ".dsh")))
     if current_version is None:
         from devolaflow import __version__ as current_version
 
@@ -119,6 +121,8 @@ def scan_installed_skills(
         ("codex", "global", codex_home / "skills" / "devola-flow"),
         ("kimicode", "project", cwd / ".kimi" / "skills" / "devola-flow"),
         ("kimicode", "global", home / ".kimi" / "skills" / "devola-flow"),
+        ("dsh", "project", cwd / ".dsh" / "skills" / "devola-flow"),
+        ("dsh", "global", dsh_home / "skills" / "devola-flow"),
     ]
     for tool, scope, skill_dir in skill_dirs:
         if (skill_dir / "SKILL.md").is_file():

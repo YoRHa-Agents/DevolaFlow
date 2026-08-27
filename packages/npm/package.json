@@ -1,6 +1,6 @@
 {
   "name": "@yorha-agents/devola-flow",
-  "version": "17.4.1",
+  "version": "17.4.2",
   "description": "Thin installer for the DevolaFlow agent skill: downloads the version-matched skill file set from GitHub into the Cursor / Claude Code user-level skill directories. Zero runtime dependencies; works on Windows.",
   "bin": {
     "devola-flow": "./bin/devola-flow.js"

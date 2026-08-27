@@ -13,6 +13,8 @@ Usage:
                                     Global install WITHOUT the bundled
                                     runtime-plugin install (skill files only)
   devola-init copilot               Install for Copilot only
+  devola-init kimicode              Install for KimiCode only
+  devola-init dsh                   Install for DeepSeek Harness only
   devola-init local                 Initialize .local/ workspace + .rules/
                                     (auto-compiles .rules/ to .cursor/rules/
                                     repo-governance.mdc + AGENTS.md)
@@ -372,6 +374,36 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
         return
     copied = _copy_profile_files(agent_dir, skill_dir, files)
     print(f"  ({copied}/{len(files)} files per manifest profile 'codex')")
+
+
+def _install_skill_dir(agent_dir: Path, skill_dir: Path, profile: str, label: str) -> None:
+    """Install one manifest profile into a host skill directory."""
+    print(f"\n  {label} -> {skill_dir}/")
+    files = _profile_file_list(agent_dir, profile)
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+        print(f"  ({refs} references, {examples} examples)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile '{profile}')")
+
+
+def install_kimicode(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow skill files for KimiCode."""
+    base_dir = Path.home() / ".kimi" if scope == "global" else cwd / ".kimi"
+    _install_skill_dir(agent_dir, base_dir / "skills" / "devola-flow", "kimicode", "KimiCode")
+
+
+def install_dsh(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow skill files for DeepSeek Harness."""
+    import os
+
+    base_dir = Path(os.environ.get("DSH_HOME", Path.home() / ".dsh"))
+    if scope != "global":
+        base_dir = cwd / ".dsh"
+    _install_skill_dir(agent_dir, base_dir / "skills" / "devola-flow", "dsh", "DSH")
 
 
 def install_local(
@@ -898,6 +930,8 @@ TOOLS = {
     "claude": install_claude,
     "copilot": install_copilot,
     "codex": install_codex,
+    "kimicode": install_kimicode,
+    "dsh": install_dsh,
     "local": install_local,
 }
 
@@ -923,7 +957,9 @@ TOOLS = {
 # Membership is pinned by `tests/test_no_ghost_features.py::
 # test_v9_2_2_new_symbols_have_coverage` so future PVs cannot silently
 # add a target to the set without bumping the W-18 ghost-audit lint.
-AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset({"cursor", "claude", "copilot", "codex"})
+AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset(
+    {"cursor", "claude", "copilot", "codex", "kimicode", "dsh"}
+)
 
 
 def _auto_detect(cwd: Path) -> list[str]:
@@ -943,6 +979,10 @@ def _auto_detect(cwd: Path) -> list[str]:
         found.append("copilot")
     if Path.home().joinpath(".codex").is_dir():
         found.append("codex")
+    if (cwd / ".kimi").is_dir():
+        found.append("kimicode")
+    if (cwd / ".dsh").is_dir():
+        found.append("dsh")
     if not (cwd / ".local").is_dir():
         found.append("local")
     return found
@@ -978,7 +1018,7 @@ def main() -> None:
     if "--list" in sys.argv:
         detected = _auto_detect(cwd)
         print("Detected tools:", ", ".join(detected) if detected else "(none)")
-        print("\nAvailable targets: cursor, claude, copilot, codex, local, all")
+        print("\nAvailable targets: cursor, claude, copilot, codex, kimicode, dsh, local, all")
         print(f"Scope: {scope}")
         print(f"Agent source: {agent_dir}")
         print(f"SKILL.md exists: {(agent_dir / 'SKILL.md').exists()}")
@@ -1047,7 +1087,10 @@ def main() -> None:
                 extra["with_examples"] = with_examples
             TOOLS[t](agent_dir, cwd, scope, **extra)
         else:
-            print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, local, all)")
+            print(
+                f"  Unknown target: {t} "
+                "(use: cursor, claude, copilot, codex, kimicode, dsh, local, all)"
+            )
 
     # v13.0.0 — bundled runtime-plugin install. Default-ON for --global
     # (the cycle ask: "make devola install also install all plugins"),

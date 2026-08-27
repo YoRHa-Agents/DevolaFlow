@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:58:06Z"
-source_version: "17.4.1"
+last_synced: "2026-08-27T09:07:22Z"
+source_version: "17.4.2"
 ---
 
 # Integration Guide
@@ -37,6 +37,7 @@ The profile names and file sets below come from
 | `claude` | `skill-dir` | `core`, `references`, `examples` |
 | `codex` | `skill-dir` | `core`, `references` |
 | `kimicode` | `skill-dir` | `core`, `references`, `examples` |
+| `dsh` | `skill-dir` | `core`, `references`, `examples` |
 | `copilot` | `rule-file` | `core` |
 | `windsurf` | `rule-file` | `core` |
 | `zed` | `rule-tree` | `core`, `references` |

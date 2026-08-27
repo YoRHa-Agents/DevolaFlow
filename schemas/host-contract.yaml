@@ -120,6 +120,7 @@ $defs:
       event: {type: string}
       primitive: {type: [string, "null"]}
       config: {type: [string, "null"]}
+      reason: {type: string}
   vocabulary:
     type: object
     additionalProperties: false

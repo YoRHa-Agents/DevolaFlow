@@ -27,6 +27,7 @@ def _scan(tmp_path: Path) -> list:
         cwd=cwd,
         home=home,
         codex_home=home / ".codex",
+        dsh_home=home / ".dsh",
         current_version=CURRENT,
     )
 
@@ -62,6 +63,12 @@ def test_missing_or_date_stamp_reports_unknown_version(tmp_path: Path) -> None:
     statuses = {(i.tool, i.scope): i.status for i in _scan(tmp_path)}
     assert statuses[("claude", "project")] == "unknown-version"
     assert statuses[("kimicode", "global")] == "unknown-version"
+
+
+def test_dsh_install_reports_current(tmp_path: Path) -> None:
+    _mk_skill_dir(tmp_path / "home" / ".dsh", stamp=CURRENT)
+    (found,) = _scan(tmp_path)
+    assert (found.tool, found.scope, found.status) == ("dsh", "global", "current")
 
 
 def test_copilot_version_derives_from_frontmatter(tmp_path: Path) -> None:
