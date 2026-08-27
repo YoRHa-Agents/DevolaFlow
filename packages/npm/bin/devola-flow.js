@@ -22,7 +22,7 @@ const DEFAULT_REF = `v${pkg.version}`;
 const STAMP = '.devola-flow-version';
 
 // npm-surface targets. install.sh covers more tools; this package covers the
-// two user-level skill directories that exist on every OS.
+// five user-level skill directories selected by the Host Support Contract.
 const TARGETS = {
   cursor: {
     profile: 'cursor',
@@ -31,6 +31,19 @@ const TARGETS = {
   claude: {
     profile: 'claude',
     dir: () => path.join(os.homedir(), '.claude', 'skills', 'devola-flow'),
+  },
+  codex: {
+    profile: 'codex',
+    dir: () =>
+      path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'skills', 'devola-flow'),
+  },
+  kimicode: {
+    profile: 'kimicode',
+    dir: () => path.join(os.homedir(), '.kimi', 'skills', 'devola-flow'),
+  },
+  dsh: {
+    profile: 'dsh',
+    dir: () => path.join(process.env.DSH_HOME || path.join(os.homedir(), '.dsh'), 'skills', 'devola-flow'),
   },
 };
 
@@ -265,11 +278,13 @@ async function cmdDoctor(opts) {
 
 function resolveTargets(name) {
   if (!name) {
-    throw new CliError("missing target: expected 'cursor', 'claude', or 'all'");
+    throw new CliError("missing target: expected 'cursor', 'claude', 'codex', 'kimicode', 'dsh', or 'all'");
   }
   if (name === 'all') return Object.keys(TARGETS);
   if (!TARGETS[name]) {
-    throw new CliError(`unknown target '${name}': expected 'cursor', 'claude', or 'all'`);
+    throw new CliError(
+      `unknown target '${name}': expected 'cursor', 'claude', 'codex', 'kimicode', 'dsh', or 'all'`,
+    );
   }
   return [name];
 }
@@ -280,7 +295,7 @@ function resolveTargets(name) {
 async function cmdFiles(targetArg, opts) {
   const targets = resolveTargets(targetArg);
   if (targets.length !== 1) {
-    throw new CliError("'files' takes a single target ('cursor' or 'claude')");
+    throw new CliError("'files' takes a single target ('cursor', 'claude', 'codex', 'kimicode', or 'dsh')");
   }
   const manifest = await loadManifest(opts);
   console.log(profileFiles(manifest, TARGETS[targets[0]].profile).join('\n'));
@@ -293,9 +308,9 @@ Usage:
   npx @yorha-agents/devola-flow <command> [target]
 
 Commands:
-  install <cursor|claude|all>   Download the DevolaFlow skill file set into
+  install <cursor|claude|codex|kimicode|dsh|all>   Download the DevolaFlow skill file set into
                                 the user-level skill directory
-  update  <cursor|claude|all>   Re-install (overwrite) and report the
+  update  <cursor|claude|codex|kimicode|dsh|all>   Re-install (overwrite) and report the
                                 previous -> new version
   doctor                        Report installed targets, stamp versions, and
                                 whether files match the install manifest
@@ -305,6 +320,9 @@ Commands:
 Install locations:
   cursor   <home>/.cursor/skills/devola-flow/
   claude   <home>/.claude/skills/devola-flow/
+  codex    <CODEX_HOME or home>/.codex/skills/devola-flow/
+  kimicode <home>/.kimi/skills/devola-flow/
+  dsh      <DSH_HOME or home>/.dsh/skills/devola-flow/
 
 Environment:
   DEVOLA_FLOW_REF   Git ref to download from (branch, tag, or SHA).

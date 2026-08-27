@@ -97,7 +97,7 @@ def test_bin_help_and_version_offline() -> None:
 
 
 @requires_node
-@pytest.mark.parametrize("target", ["cursor", "claude"])
+@pytest.mark.parametrize("target", ["cursor", "claude", "codex", "kimicode", "dsh"])
 def test_bin_file_list_derives_from_manifest(target: str) -> None:
     """JS manifest resolution == devolaflow.install_manifest resolution (A-5)."""
     from devolaflow.install_manifest import load_manifest, profile_files

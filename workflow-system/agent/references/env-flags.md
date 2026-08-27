@@ -360,7 +360,7 @@ count.
 | **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: HOST_ENFORCE activates a different runtime surface (interception of HOST-agent tool events — Cursor/Claude/Codex/Kimi/DSH pre-tool-use hooks) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` (§2.15) activates workspace scaffolding + the framework-internal `fire_file_write` / `fire_task_stop` write adapters — framework code paths, not host tool events. The two compose meaningfully on BOTH diagonals: `HOST_ENFORCE=1` alone = enforce host boundaries without workspace auto-scaffolding; `AGENT_WORKSPACE=1` alone = scaffold + framework adapters with hosts unbridged (the pre-v17 behaviour). REUSING `AGENT_WORKSPACE` would have conflated the two surfaces and made host enforcement inseparable from scaffolding. No other flag is remotely adjacent (RTK_PROXY is shell-rewrite compression; the plugin flags gate installer hooks) |
 | **R5 strict?** | YES — `is_host_enforce_active` is a pure `os.environ.get` comparison; the OFF path performs zero filesystem IO and zero `run_hooks` dispatch, codified by `tests/test_hostbridge_disabled_is_noop.py` (Path watcher + nonexistent-repo-root probes) |
 | **Fail-open contract** | Internal bridge errors NEVER block the host tool call: verdict `error_allow` + an audit-ledger line (S-5 — logged, not silent). Host configs set no fail-closed option |
-| **Reference** | `references/host-bridges.md` (five-host matrix, install guide, ledger schema); `tests/test_hostbridge.py`; §7 checklist walk below |
+| **Reference** | `references/host-bridges.md` (six-host matrix, install guide, ledger schema); `tests/test_hostbridge.py`; §7 checklist walk below |
 
 ## 3. Test-fixture flags (NOT runtime flags)
 

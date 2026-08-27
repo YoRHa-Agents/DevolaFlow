@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.4.1"
+version: "17.4.2"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.4.1**
+> **Now Using DevolaFlow v17.4.2**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.4.1 — Check only on explicit update request:
+**Current version:** 17.4.2 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -238,13 +238,15 @@ warning. See `references/codegraph.md`.
 | **L0 Project** | ~5K | Goal/checklist/preflight; round selection; wave plan; gates; reinforcement; reporting | Perform delegated task work |
 | **L1 Wave** | ~5K | Dispatch ≤5 parallel tasks; detect conflicts; aggregate evidence | Implement, edit Task output, mark checklist |
 | **L2 Task** | ~8K | Implement one atomic task; self-verify; report evidence | Spawn agents, self-score, exceed ownership |
-
-Escalation: **Task → Wave → Project → Human**. Every loop has a ceiling and
+Escalation: **Task → Wave → Project → Human**; every loop has a ceiling and
 classifies failure as retry, escalate, or abort.
+Wave constraints: ≤5 tasks/wave, ≤7 waves/round, pairwise-disjoint writable ownership. Full contract: `references/agent-hierarchy.md`.
 
-Wave constraints: ≤5 tasks/wave, ≤7 waves/round, pairwise-disjoint writable
-ownership. Full contract: `references/agent-hierarchy.md`.
+### Host Dispatch Vocabulary
 
+Native delegation follows the HSC: Cursor/Claude Code/Codex/KimiCode use
+`Task`; DSH uses `subagent`; Copilot is `undeclared`. Host syntax maps to
+L0 → L1 → L2 without bypassing ownership or cascade checks.
 ### Rationalization Prevention
 
 | Rationalization | Reality |
@@ -255,7 +257,6 @@ ownership. Full contract: `references/agent-hierarchy.md`.
 | "One more retry" | Respect the declared ceiling |
 | "The Task says done" | L1 aggregates; L0 adjudicates |
 | "Tests can come later" | L2 self-verifies before reporting |
-
 ### Wave Coordination Modes
 
 L1 chooses from the current dependency and ownership map:
@@ -266,10 +267,8 @@ L1 chooses from the current dependency and ownership map:
 | Item dependency/shared writable file | sequential waves |
 | High-risk producer output | generator-verifier |
 | Mixed | independent partitions then integration |
-
 Pattern 3 Agent Pool remains forward-only; shared-state Teams remain forbidden
 by P5. See `references/subagent-patterns.md`.
-
 ## Stage Primitives Index (Seed Provenance)
 
 These 14 historical labels preserve seed provenance; they are not executable:
@@ -338,25 +337,26 @@ Teams are L2 task specializations, not hierarchy layers:
 
 ## Context Isolation
 
-Budgets are 5K Project / 5K Wave / 8K Task. Each L2 Task starts fresh with
-only its TaskDispatch, owned/read-only files, relevant contracts, rules, and
-bounded predecessor summaries.
+Budgets are 5K Project / 5K Wave / 8K Task. Each L2 Task starts fresh with only
+its TaskDispatch, owned/read-only files, relevant contracts, rules, and bounded
+predecessor summaries.
 
-Never leak conversation history, sibling internals, full predecessor
-artifacts, unrelated errors/scores, or deferred items. Share interface
-contracts, decisions, naming, thresholds, and item acceptance criteria by
-artifact reference. See `references/context-isolation.md`.
+Never leak conversation history, sibling internals, full predecessor artifacts,
+unrelated errors/scores, or deferred items. Share interface contracts, decisions,
+naming, thresholds, and item acceptance criteria by artifact reference. See
+`references/context-isolation.md`.
 
 ## Subagent Hang Prevention
 
-Set task-type timeouts: research 2700s, implementation 1800s, test 900s,
-review 1200s, hotfix 600s. L2 `AskQuestion` is forbidden because agents below
-L0 have no human channel. Recursive `Task` re-entry is forbidden by P5.
-Unbounded `Shell` is forbidden; every call carries `block_until_ms`.
-Unbounded `WebFetch` and `WebSearch` are forbidden; require an upstream
-`timeout` or escalate. Internal loops require `max_iterations`. Long tasks
-report progress at least every five minutes. Timeout or ten minutes without
-progress is cancelled and escalated Task → Wave → Project → Human.
+Set task-type timeouts: research 2700s, implementation 1800s, test 900s, review
+1200s, hotfix 600s. L2 `AskQuestion` is forbidden because agents below L0 have
+no direct human channel; Recursive `Task` re-entry is forbidden because no
+child-agent spawning.
+Unbounded `Shell` is forbidden; every call carries `block_until_ms` for bounded
+Shell execution. Unbounded `WebFetch` and `WebSearch` are forbidden; require an
+upstream `timeout` or escalation. Internal loops require `max_iterations`.
+Long tasks report progress at least every five minutes; timeout or ten minutes
+without progress escalates Task → Wave → Project → Human.
 
 ## Dispatch & Report Protocol
 
@@ -367,7 +367,7 @@ compression intensity, and optional verification config.
 L2 StatusReport includes state, progress, artifacts, item-keyed `ac_results`,
 command/metric evidence, diff stats, self-check, findings, and reinforcement
 closure. L1 WaveReport adds conflict results and checklist evidence proposals.
-Subagents DO NOT include `quality_score`. L2 emits falsifiable evidence, not a
+Subagents DO NOT include `quality_score`; L2 emits falsifiable evidence, not a
 numeric score; L0 alone supplies it to `evaluate_gate(artifact_evidence=...)`.
 
 All inter-layer messages use typed YAML. Paths are repository-relative.

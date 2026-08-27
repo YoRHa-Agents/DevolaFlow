@@ -323,6 +323,23 @@ install_kimicode() {
   ok "KimiCode installed (manifest profile 'kimicode')"
 }
 
+install_dsh() {
+  local dir
+  if [ "$SCOPE" = "global" ]; then
+    dir="${DSH_HOME:-$HOME/.dsh}/skills/devola-flow"
+    info "DSH (global) -> $dir/"
+  else
+    dir=".dsh/skills/devola-flow"
+    info "DSH (project) -> $dir/"
+  fi
+
+  mkdir -p "$dir"
+  info "files (manifest profile 'dsh'):"
+  install_skill_files dsh "$dir"
+  stamp "$dir"
+  ok "DSH installed (manifest profile 'dsh')"
+}
+
 install_windsurf() {
   info "Windsurf -> .windsurfrules"
   # Download the canonical SKILL.md, then strip its YAML frontmatter for the
@@ -513,6 +530,17 @@ do_update() {
     maybe_update "$HOME/.kimi/skills/devola-flow" "KimiCode (global)" install_kimicode
     found=1
   fi
+  local dshdir="${DSH_HOME:-$HOME/.dsh}/skills/devola-flow"
+  if [ -f ".dsh/skills/devola-flow/SKILL.md" ]; then
+    SCOPE="project"
+    maybe_update ".dsh/skills/devola-flow" "DSH (project)" install_dsh
+    found=1
+  fi
+  if [ -f "$dshdir/SKILL.md" ]; then
+    SCOPE="global"
+    maybe_update "$dshdir" "DSH (global)" install_dsh
+    found=1
+  fi
   if [ -f ".windsurfrules" ] && head -20 ".windsurfrules" 2>/dev/null | grep -q "devola-flow"; then
     maybe_update "." "Windsurf" install_windsurf
     found=1
@@ -580,7 +608,8 @@ do_uninstall() {
   for d in ".cursor/skills/devola-flow" "$HOME/.cursor/skills/devola-flow" \
            "${CODEX_HOME:-$HOME/.codex}/skills/devola-flow" \
            ".claude/skills/devola-flow" "$HOME/.claude/skills/devola-flow" \
-           ".kimi/skills/devola-flow" "$HOME/.kimi/skills/devola-flow"; do
+           ".kimi/skills/devola-flow" "$HOME/.kimi/skills/devola-flow" \
+           ".dsh/skills/devola-flow" "${DSH_HOME:-$HOME/.dsh}/skills/devola-flow"; do
     if [ -f "$d/SKILL.md" ]; then
       rm_path "$d"
       found=1
@@ -627,6 +656,8 @@ auto_detect() {
     SCOPE="global"; install_claude; found=1
   fi
   if [ -d ".github" ]; then install_copilot; found=1; fi
+  if [ -d ".kimi" ]; then install_kimicode; found=1; fi
+  if [ -d ".dsh" ]; then install_dsh; found=1; fi
   # Auto-init .local/ when missing — feedback #1 root cause (v7.4.2).
   # Track C-1 follow-up: propagate the scaffold's failure instead of
   # swallowing it (S-5) — a broken .gitignore scaffold must not exit 0.
@@ -665,6 +696,7 @@ case "$TARGET" in
   claude)   install_claude ;;
   copilot)  install_copilot ;;
   kimicode) install_kimicode ;;
+  dsh)      install_dsh ;;
   windsurf) install_windsurf ;;
   zed)      install_zed ;;
   cline)    install_cline ;;
@@ -677,7 +709,7 @@ case "$TARGET" in
   update)    do_update ;;
   uninstall) do_uninstall ;;
   all)     install_cursor; install_codex; install_claude; install_copilot; \
-           install_kimicode; install_windsurf; \
+           install_kimicode; install_dsh; install_windsurf; \
            install_zed; install_cline; install_roo; install_local || exit 1 ;;
   auto)    auto_detect || exit 1 ;;
   help|--help|-h)
@@ -690,6 +722,7 @@ case "$TARGET" in
     claude      Claude Code (manifest profile: SKILL.md + refs + examples)
     copilot     Copilot (SKILL.md as instructions)
     kimicode    KimiCode (manifest profile: SKILL.md + refs + examples)
+    dsh         DeepSeek Harness (manifest profile: SKILL.md + refs + examples)
     windsurf    Windsurf (.windsurfrules, frontmatter stripped)
     zed         Zed (.rules/devola-flow.md + references; --global supported)
     cline       Cline (.clinerules/devola-flow.md + references; project-only)

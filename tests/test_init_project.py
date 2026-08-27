@@ -470,22 +470,23 @@ def test_main_local_target_succeeds_without_skill_md(
 
 
 def test_agent_dir_required_targets_membership_pinned():
-    """v9.2.2 I-001 surface pin: AGENT_DIR_REQUIRED_TARGETS = exact 4 targets.
+    """v17.4.0 surface pin: all guaranteed hosts need agent source files.
 
     The deferred-check gate is keyed off this constant; adding (or
     removing) a target here changes which dispatch paths require the
     on-disk ``workflow-system/agent/`` tree. Membership MUST stay at
-    exactly the 4 historical agent-dir consumers (cursor / claude /
-    copilot / codex). ``local`` is intentionally absent (the I-001
+    exactly the 6 guaranteed host consumers (cursor / claude / copilot /
+    codex / kimicode / dsh). ``local`` is intentionally absent (the I-001
     closure invariant).
 
     A regression here would silently widen or narrow the deferred-check
     surface — caught here BEFORE the W-18 ghost-audit lint runs.
     """
-    assert frozenset({"cursor", "claude", "copilot", "codex"}) == AGENT_DIR_REQUIRED_TARGETS, (
+    expected = frozenset({"cursor", "claude", "copilot", "codex", "kimicode", "dsh"})
+    assert expected == AGENT_DIR_REQUIRED_TARGETS, (
         f"v9.2.2 I-001 surface drift: AGENT_DIR_REQUIRED_TARGETS = "
         f"{AGENT_DIR_REQUIRED_TARGETS!r}; expected exactly "
-        f"frozenset({{'cursor', 'claude', 'copilot', 'codex'}})"
+        f"{expected!r}"
     )
     assert "local" not in AGENT_DIR_REQUIRED_TARGETS, (
         "v9.2.2 I-001 invariant violation: `local` MUST NOT appear in "

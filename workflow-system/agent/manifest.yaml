@@ -82,6 +82,7 @@ install_profiles:
   claude:   {kind: skill-dir, sets: [core, references, examples]}
   codex:    {kind: skill-dir, sets: [core, references]}
   kimicode: {kind: skill-dir, sets: [core, references, examples]}
+  dsh:      {kind: skill-dir, sets: [core, references, examples]}
   copilot:  {kind: rule-file, sets: [core]}
   windsurf: {kind: rule-file, sets: [core]}
   zed:      {kind: rule-tree, sets: [core, references]}

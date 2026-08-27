@@ -42,11 +42,11 @@ def test_guaranteed_hosts_declare_complete_floor_and_extras() -> None:
         assert entry["floor"]["install_channels"], name
 
 
-def test_manifest_is_a_partial_view_until_dsh_delivery_phase() -> None:
+def test_manifest_includes_dsh_after_delivery_phase() -> None:
     manifest = load_manifest(AGENT_DIR)
     contract = load_host_contract()
     assert "dsh" in contract["hosts"]
-    assert "dsh" not in manifest["install_profiles"]
+    assert manifest["install_profiles"]["dsh"] == profile_projection(contract)["dsh"]
 
 
 def test_claims_match_contract_tiers(project_root: Path) -> None:

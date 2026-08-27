@@ -112,7 +112,9 @@ hosts:
         fixtures: [tests/fixtures/hostbridge/codex.json]
         fixture_provenance: TBD-audit
         provenance_ref: null
-      session_resume: {status: undeclared}
+      session_resume:
+        status: undeclared
+        reason: project hooks expose no stable session-start event; /hooks trust is interactive
       subagent_dispatch: {status: native, primitive: Task}
       mcp: {status: undeclared}
       tool_vocabulary:
@@ -150,7 +152,9 @@ hosts:
         fixtures: [tests/fixtures/hostbridge/copilot.json, tests/fixtures/hostbridge/copilot_vscode.json]
         fixture_provenance: vendor-doc
         provenance_ref: https://docs.github.com/en/copilot/reference/hooks-configuration
-      session_resume: {status: undeclared}
+      session_resume:
+        status: undeclared
+        reason: preToolUse hooks expose no session-start event
       subagent_dispatch: {status: undeclared, primitive: null}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
@@ -186,7 +190,9 @@ hosts:
         fixtures: [tests/fixtures/hostbridge/kimi.json]
         fixture_provenance: TBD-audit
         provenance_ref: null
-      session_resume: {status: undeclared}
+      session_resume:
+        status: undeclared
+        reason: beta config exposes no project-level session-start hook
       subagent_dispatch: {status: native, primitive: Task}
       mcp: {status: undeclared}
       tool_vocabulary:
@@ -210,7 +216,7 @@ hosts:
         artifact: SKILL.md
         frontmatter: c5-full
         budget: {type: lines, max: 500}
-      install_channels: [install.sh, npm]
+      install_channels: [install.sh, devola-init, npm]
       doctor: {status: designed, kind: stamp}
       tests: [tests/test_install_manifest.py, tests/test_build_skill.py]
     extras:
@@ -225,7 +231,9 @@ hosts:
         fixtures: [tests/fixtures/hostbridge/dsh.json]
         fixture_provenance: synthetic
         provenance_ref: null
-      session_resume: {status: undeclared}
+      session_resume:
+        status: undeclared
+        reason: session context requires a Cordis plugin event adapter; deferred
       subagent_dispatch: {status: native, primitive: subagent}
       mcp: {status: undeclared}
       tool_vocabulary:
