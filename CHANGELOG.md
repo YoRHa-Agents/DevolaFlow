@@ -5,6 +5,23 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.4.1] - 2026-08-27 — PATCH — DSH Bridge Repair
+
+Ghost audit: `tests/ghost/test_features_v17_4.py` (W-18 — refreshed before
+this entry). Runtime evidence:
+`.local/research/v17.4.1_dsh_smoke.md`.
+
+### Fixed
+
+- **DSH bundle installation**: the plugin now declares
+  `dsh.bundle.patch` and ships `cordis.patch.yml`, so `dsh plugin add
+  @yorha-agents/devola-flow-dsh` mounts the boundary bridge into a profile.
+- **DSH S-8 enforcement**: the bridge recognizes the native `write`, `edit`,
+  and `str_replace_editor` tools and reads `exec.arguments` for their paths.
+  The former v17.0.0 plugin claim was functional only against a synthetic
+  payload and is corrected here with vendor-doc provenance plus a live
+  `dsh 0.1.1-rc.2` deny smoke.
+
 ## [17.4.0] - 2026-08-27 — MINOR — Host Support Contract
 
 Design contract: `.local/research/v17.4.0_host_contract_design.md` (W-1/SI-1;

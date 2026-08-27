@@ -93,7 +93,7 @@ def test_v17_0_0_r4_web_experience_shell_wired(project_root: Path) -> None:
 
 
 def test_v17_0_0_r2_hostbridge_surface_registered(project_root: Path) -> None:
-    """W-18 v17.0.0 R2: the five-host bridge core and its flag are wired."""
+    """W-18 v17.0.0 R2: the host-bridge core and its flag are wired."""
     from devolaflow.hostbridge import (
         ENV_FLAG,
         KNOWN_HOSTS,
@@ -104,7 +104,7 @@ def test_v17_0_0_r2_hostbridge_surface_registered(project_root: Path) -> None:
     )
 
     assert ENV_FLAG == "DEVOLAFLOW_HOST_ENFORCE"
-    assert set(KNOWN_HOSTS) == {"cursor", "claude", "codex", "kimi", "dsh"}
+    assert set(KNOWN_HOSTS) == {"cursor", "claude", "codex", "kimi", "dsh", "copilot"}
     assert callable(decide) and callable(normalize_event)
     assert callable(install_cursor) and callable(kimi_snippet)
     # CLI entry point is importable without side effects (guarded main).

@@ -4,8 +4,8 @@ description: "Project, Wave, and Task responsibilities and escalation."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:33:55Z"
-source_version: "17.4.0"
+last_synced: "2026-08-27T08:58:06Z"
+source_version: "17.4.1"
 ---
 
 # Agent Hierarchy Guide

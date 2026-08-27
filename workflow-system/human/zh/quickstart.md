@@ -4,8 +4,8 @@ description: "安装 DevolaFlow，按正确渠道验证，并运行第一个清�
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T08:33:55Z"
-source_version: "17.4.0"
+last_synced: "2026-08-27T08:58:06Z"
+source_version: "17.4.1"
 ---
 
 # 快速入门指南

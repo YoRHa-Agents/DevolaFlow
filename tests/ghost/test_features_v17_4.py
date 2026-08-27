@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -40,3 +41,10 @@ def test_host_contract_surfaces_are_wired(project_root: Path) -> None:
         "kimicode",
         "dsh",
     }
+    dsh_package = json.loads(
+        (project_root / "packages/dsh-plugin/package.json").read_text(encoding="utf-8")
+    )
+    assert dsh_package["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
+    dsh_plugin = (project_root / "packages/dsh-plugin/index.mjs").read_text(encoding="utf-8")
+    assert "exec?.arguments" in dsh_plugin
+    assert "str_replace_editor" in dsh_plugin

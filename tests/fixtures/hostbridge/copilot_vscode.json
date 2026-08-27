@@ -1,0 +1,25 @@
+{
+  "host": "copilot",
+  "provenance": "vendor-doc",
+  "provenance_ref": "https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode",
+  "cases": [
+    {
+      "name": "vscode_write",
+      "input": {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "src/demo.py", "content": "print('hi')"}
+      },
+      "expected": {"kind": "file_write", "path": "src/demo.py"}
+    },
+    {
+      "name": "vscode_bash",
+      "input": {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "make test-harness"}
+      },
+      "expected": {"kind": "shell", "command": "make test-harness"}
+    }
+  ]
+}

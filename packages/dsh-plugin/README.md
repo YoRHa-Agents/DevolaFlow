@@ -7,8 +7,8 @@ each tool event (file writes, shell commands) through
 boundary enforcement.
 
 > **Pre-release** — version `0.1.0`, versioned independently of the
-> DevolaFlow Python package. v17.0.0 R2 ships the plugin skeleton +
-> smoke coverage; npm publication rides the R6 release channel.
+> DevolaFlow Python package. v17.4.1 repairs the DSH bundle manifest and
+> real tool payload mapping; npm publication rides the R6 release channel.
 
 ## How it works
 
@@ -28,6 +28,9 @@ boundary enforcement.
 ```bash
 dsh plugin add @yorha-agents/devola-flow-dsh
 ```
+
+The package is a DSH bundle: its `dsh.bundle.patch` metadata points to
+`cordis.patch.yml`, which mounts the plugin into the active profile.
 
 The plugin resolves Python as `.venv/bin/python` under the workspace
 root when present, else `python3` on PATH. The `devolaflow` Python
@@ -52,3 +55,7 @@ requires the plugin channel.
 - Audit ledger: `.local/telemetry/hostbridge.jsonl` (JSONL; schema in
   `workflow-system/agent/references/host-bridges.md`).
 - Shell events are advisory-only in this release (allowed + audited).
+
+The DSH tool vocabulary is `write`, `edit`, and `str_replace_editor` for
+file writes, plus `bash` and `pwsh` for shell commands. The plugin reads
+the native `exec.arguments` object before falling back to legacy aliases.

@@ -44,6 +44,7 @@ from devolaflow.hostbridge.install import (
     INSTALL_HOSTS,
     install_claude,
     install_codex,
+    install_copilot,
     install_cursor,
     kimi_snippet,
 )
@@ -75,6 +76,7 @@ __all__ = [
     "decide",
     "install_claude",
     "install_codex",
+    "install_copilot",
     "install_cursor",
     "is_host_enforce_active",
     "kimi_snippet",

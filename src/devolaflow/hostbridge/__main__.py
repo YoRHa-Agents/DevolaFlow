@@ -8,6 +8,8 @@ normalizes it, decides, and responds using the host's block protocol:
   Always exit 0 (Cursor consumes the JSON, not the exit code).
 * ``claude`` / ``codex`` / ``kimi`` / ``dsh`` — allow → silent exit 0;
   deny → reason on stderr + exit 2.
+* ``copilot`` — stdout JSON with ``permissionDecision`` and
+  ``permissionDecisionReason``; always exit 0.
 
 ``python -m devolaflow.hostbridge install <host>`` delegates to
 :mod:`devolaflow.hostbridge.install`. ``python -m devolaflow.hostbridge
@@ -36,6 +38,7 @@ from devolaflow.hostbridge.normalize import (
 )
 
 _CURSOR_ALLOW_JSON = '{"permission": "allow"}'
+_COPILOT_ALLOW_JSON = '{"permissionDecision": "allow"}'
 
 
 def _respond(host: str, decision: BridgeDecision) -> int:
@@ -44,6 +47,19 @@ def _respond(host: str, decision: BridgeDecision) -> int:
             print(_CURSOR_ALLOW_JSON)
         else:
             print(json.dumps({"permission": "deny", "agent_message": decision.reason}))
+        return 0
+    if host == "copilot":
+        if decision.allow:
+            print(_COPILOT_ALLOW_JSON)
+        else:
+            print(
+                json.dumps(
+                    {
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": decision.reason,
+                    }
+                )
+            )
         return 0
     if decision.allow:
         return 0
@@ -55,7 +71,22 @@ def _allow_fallback(host: str | None) -> int:
     """Universal allow for degraded paths (bad argv, internal error)."""
     if host == "cursor":
         print(_CURSOR_ALLOW_JSON)
+    elif host == "copilot":
+        print(_COPILOT_ALLOW_JSON)
     return 0
+
+
+def _host_hint(argv: list[str]) -> str:
+    """Recover a response protocol when argument parsing itself fails."""
+    candidate = "cursor"
+    for index, value in enumerate(argv):
+        if value == "--host" and index + 1 < len(argv):
+            candidate = argv[index + 1]
+            break
+        if value.startswith("--host="):
+            candidate = value.partition("=")[2]
+            break
+    return "copilot" if candidate == "copilot" else "cursor"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -89,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit:
         # Bad argv MUST NOT block the host tool call: emit the most
         # conservative allow shape (harmless stdout for exit-code hosts).
-        return _allow_fallback("cursor")
+        return _allow_fallback(_host_hint(argv))
 
     try:
         try:
