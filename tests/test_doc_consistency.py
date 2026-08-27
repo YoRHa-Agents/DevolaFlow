@@ -207,7 +207,7 @@ def test_registry_template_count(project_root: Path):
     disk_runtimes = {path.name for path in (templates_root / "builtin").glob("*.yaml")}
 
     assert raw["schema_version"] == "3.0"
-    assert len(entries) == len(registry_names) == 25
+    assert len(entries) == len(registry_names) == 26
     assert registry_names == disk_seeds
     assert seed_paths == {f"seeds/{name}.yaml" for name in registry_names}
     assert runtime_entries == [
@@ -230,7 +230,7 @@ def test_demo_seed_catalogs_match_registry(project_root: Path):
     explorer_text = (demo_root / "stage-explorer" / "explorer.js").read_text(encoding="utf-8")
     generated_names = set(re.findall(r'^\s{6}"name": "([^"]+)",$', generated_text, re.MULTILINE))
 
-    assert len(registered) == 25
+    assert len(registered) == 26
     assert generated_names == registered
     assert "window.DEVOLAFLOW_SEED_CATALOG" in home_text
     assert "window.DEVOLAFLOW_SEED_CATALOG" in seed_library_text

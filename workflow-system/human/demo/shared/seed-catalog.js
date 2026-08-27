@@ -6,7 +6,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
     "schema_version": "3.0",
     "source_path": "workflow-system/agent/templates/registry.yaml"
   },
-  "record_count": 25,
+  "record_count": 26,
   "seeds": [
     {
       "registry_schema_version": "3.0",
@@ -1280,6 +1280,172 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
               "verify": {
                 "mode": "metric",
                 "template": "remaining_targeted_drift == 0"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "registry_schema_version": "3.0",
+      "seed_schema_version": "1.0",
+      "source": {
+        "kind": "composition",
+        "name": "local-archive",
+        "path": "workflow-system/agent/templates/registry.yaml",
+        "schema_version": "2.0"
+      },
+      "name": "local-archive",
+      "category": "control",
+      "tags": [
+        "local-archive",
+        "task-archive",
+        "archive",
+        "tasks",
+        "clustering",
+        "mapping",
+        "index",
+        "report-only"
+      ],
+      "description": "Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge.",
+      "seed_path": "workflow-system/agent/templates/seeds/local-archive.yaml",
+      "partitions": [
+        {
+          "key": "inventory",
+          "title": "Task inventory",
+          "source_stages": [
+            {
+              "id": "inventory",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "inventory-bounded",
+              "statement": "Task folders are inventoried without modification, and task inventory stays out of default scan_workspace discovery.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "classify",
+          "title": "Lifecycle and protection classification",
+          "source_stages": [
+            {
+              "id": "classify",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "classification-independent",
+              "statement": "Each candidate has one active, done, stale, or unknown lifecycle value plus a separate protection verdict.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "report-only-plan",
+          "title": "Report-only archive plan",
+          "source_stages": [
+            {
+              "id": "plan",
+              "primitive": "plan"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "report-only-plan",
+              "statement": "The exact source, destination, classification, and report-only action are rendered before any path changes.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "human-approval",
+          "title": "Explicit human approval",
+          "source_stages": [
+            {
+              "id": "approval",
+              "primitive": "review"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "explicit-approval",
+              "statement": "A human explicitly approves the exact proposed entries before any archive move is considered.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "strict-clean-gate",
+          "title": "Strict clean gate",
+          "source_stages": [
+            {
+              "id": "clean-gate",
+              "primitive": "gate"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "clean-gate-passed",
+              "statement": "Every approved candidate passes strict boundary, symlink, nested-repository, worktree, and git-status checks.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "approved-move",
+          "title": "Approved non-deletion move",
+          "source_stages": [
+            {
+              "id": "move",
+              "primitive": "implement"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "non-deletion-move",
+              "statement": "Only approved candidates move while task context is preserved and no deletion action is performed.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "mapping-index-verification",
+          "title": "Append-only mapping and index verification",
+          "source_stages": [
+            {
+              "id": "mapping-index",
+              "primitive": "verify"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "mapping-index-verified",
+              "statement": "Each move appends a complete old-path-to-new-path mapping and verifies unique destinations and index coverage.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
               }
             }
           ]

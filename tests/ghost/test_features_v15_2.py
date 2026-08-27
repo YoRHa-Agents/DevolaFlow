@@ -97,7 +97,7 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     registry = TemplateRegistry(template_dir)
     reg = yaml.safe_load((template_dir / "registry.yaml").read_text(encoding="utf-8"))
     entries = reg["compositions"] + reg["templates"]
-    assert len(entries) == 25
+    assert len(entries) == 26
     for entry in entries:
         seed_path = template_dir / entry["seed"]
         text = seed_path.read_text(encoding="utf-8")

@@ -401,11 +401,11 @@
 
         <div class="release-window">
           <article class="release-entry">
-            <h3 data-i18n="home.release.v17.heading">New in v17.4.2</h3>
+            <h3 data-i18n="home.release.v17.heading">New in v17.5.0 · Local Task Archive</h3>
             <ul>
-              <li data-i18n="home.release.v17.entrance">Every change folder now scaffolds an entrance.md onboarding router so fresh sessions, external agent tools, and human auditors know what to read first.</li>
-              <li data-i18n="home.release.v17.router">The router is static by contract: it maps each scenario to a minimal read order and always points at STATUS.yaml and stage.md instead of mirroring progress.</li>
-              <li data-i18n="home.release.v17.parity">A parity lint locks the router's artifact inventory to the budget registry; folders from earlier releases lint as a warning until backfilled.</li>
+              <li data-i18n="home.release.v17.entrance">The Local-Archive workflow independently inventories local task folders, classifies each candidate by lifecycle and protection status, and keeps unrelated workspace surfaces out of scope.</li>
+              <li data-i18n="home.release.v17.router">Planning is report-only by default; physical organization requires explicit approval and is limited to safe non-deletion moves.</li>
+              <li data-i18n="home.release.v17.parity">Append-only mapping and generated-index verification preserve archive provenance, while the normal workspace scan remains unchanged and does not enumerate .local/tasks/.</li>
             </ul>
           </article>
 
@@ -508,10 +508,10 @@
       'home.seeds.compat': 'The nines-assisted filename remains an opaque compatibility ID. It does not activate or recommend an evaluator.',
       'home.release.heading': 'Current release window',
       'home.release.desc': 'Home now keeps a compact v17/v16 window. The former 73-entry release stack belongs in Timeline, where older history can retain its original context.',
-      'home.release.v17.heading': 'New in v17.4.2',
-      'home.release.v17.entrance': 'Every change folder now scaffolds an entrance.md onboarding router so fresh sessions, external agent tools, and human auditors know what to read first.',
-      'home.release.v17.router': 'The router is static by contract: it maps each scenario to a minimal read order and always points at STATUS.yaml and stage.md instead of mirroring progress.',
-      'home.release.v17.parity': "A parity lint locks the router's artifact inventory to the budget registry; folders from earlier releases lint as a warning until backfilled.",
+      'home.release.v17.heading': 'New in v17.5.0 · Local Task Archive',
+      'home.release.v17.entrance': 'The Local-Archive workflow independently inventories local task folders, classifies each candidate by lifecycle and protection status, and keeps unrelated workspace surfaces out of scope.',
+      'home.release.v17.router': 'Planning is report-only by default; physical organization requires explicit approval and is limited to safe non-deletion moves.',
+      'home.release.v17.parity': 'Append-only mapping and generated-index verification preserve archive provenance, while the normal workspace scan remains unchanged and does not enumerate .local/tasks/.',
       'home.release.v16.heading': 'v16.0.0 · Checklist rounds become the product model',
       'home.release.v16.model': 'Project → Wave → Task replaced the previous hierarchy, while priority-driven checklist rounds replaced ordered template execution.',
       'home.release.v16.preflight': 'Twenty-three templates became non-executable checklist seeds; one change-driven runtime and signed preflight govern execution.',
@@ -583,10 +583,10 @@
       'home.seeds.compat': 'nines-assisted 文件名仅作为不透明的兼容 ID 保留，不会激活或推荐任何评估器。',
       'home.release.heading': '当前发布窗口',
       'home.release.desc': '首页现在只保留紧凑的 v17/v16 窗口。原先 73 条发布内容已归入时间线，让更早历史保留其原始上下文。',
-      'home.release.v17.heading': 'v17.4.2 新变化',
-      'home.release.v17.entrance': '每个 change 文件夹现在都会生成 entrance.md 入口路由，让新会话、外部 agent 工具与人工审计者知道先读什么。',
-      'home.release.v17.router': '入口是静态契约：它把每种场景映射到最小阅读顺序，并始终指向 STATUS.yaml 与 stage.md，而不镜像进度。',
-      'home.release.v17.parity': '奇偶校验 lint 把入口的工件清单锁定到预算注册表；旧版本创建的文件夹在回填前仅以警告提示。',
+      'home.release.v17.heading': 'v17.5.0 新变化 · 本地任务归档',
+      'home.release.v17.entrance': 'Local-Archive 工作流独立盘点本地任务文件夹，按生命周期与保护状态分类每个候选项，并将无关工作区表面排除在范围之外。',
+      'home.release.v17.router': '规划默认仅生成报告；实际整理必须获得明确批准，且仅限安全的非删除移动。',
+      'home.release.v17.parity': '追加式映射与生成索引校验保留归档来源；正常工作区扫描保持不变，不会枚举 .local/tasks/。',
       'home.release.v16.heading': 'v16.0.0 · 清单轮次成为产品模型',
       'home.release.v16.model': 'Project → Wave → Task 取代此前层级，优先级驱动的清单轮次取代有序模板执行。',
       'home.release.v16.preflight': '二十三个模板成为不可执行清单种子；一个 change-driven 运行时与已签署预检共同约束执行。',

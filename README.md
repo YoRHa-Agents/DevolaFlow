@@ -131,7 +131,7 @@ make test
 make validate-templates
 ```
 
-The validation covers 25 non-executable seeds and the sole runtime. The
+The validation covers 26 non-executable seeds and the sole runtime. The
 registry and on-disk seed files are parity-tested rather than copied into build
 scripts.
 
@@ -221,7 +221,7 @@ Unsupported hosts remain skill-only and must not be described as enforced.
 
 ## What's Inside
 
-### 25 Non-Executable Checklist Seeds + One Runtime
+### 26 Non-Executable Checklist Seeds + One Runtime
 
 The registry exposes these seeds through `TemplateRegistry.load_seed(<name>)`.
 Seeds carry decomposition knowledge and provenance; they do not define an
@@ -246,6 +246,7 @@ sole runtime.
 | `demo-showcase` | Build a presentation-ready demonstration |
 | `product-verification` | Verify visual, interaction, accessibility, and acceptance quality |
 | `entropy-cleanup` | Repair stale documentation or drift |
+| `local-archive` | Inventory and archive local tasks with approved non-deletion moves |
 | `harness-construction` | Build harness infrastructure with machine-grounded gap analysis and a capability review |
 | `pathfinder` | Look ahead for infrastructure and harness gaps before a later wave |
 | `migration` | Upgrade or port with rollback readiness |
@@ -298,7 +299,7 @@ The source plus those sync locations make eight files. The README badge reads
 entry at load time.
 
 ```bash
-devola-version  # prints "DevolaFlow v17.4.2"
+devola-version  # prints "DevolaFlow v17.5.0"
 python scripts/bump_version.py X.Y.Z --dry-run
 python -m pytest tests/test_version.py -v
 ```
