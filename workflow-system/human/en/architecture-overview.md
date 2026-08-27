@@ -4,8 +4,8 @@ description: "Three-layer checklist-round architecture, provenance primitives, a
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-26T19:27:02Z"
-source_version: "17.2.0"
+last_synced: "2026-08-27T05:10:31Z"
+source_version: "17.3.0"
 ---
 
 # Architecture Overview
@@ -24,7 +24,7 @@ Escalation moves Task → Wave → Project → Human. Every retry loop is bounde
 
 ## Seeds and runtime
 
-The registry currently supplies 24 non-executable checklist
+The registry currently supplies 25 non-executable checklist
 seeds. Their 12 primitive labels
 (`analyze`, `deploy`, `design`, `implement`, `plan`, `refine`, `release`, `research`, `review`, `test`, `validate`, `verify`) preserve historical
 decomposition provenance; list order is not runtime order. `change-driven` is
@@ -38,7 +38,7 @@ Composite scores remain trend signals; they do not replace item evidence.
 
 ## Context and governance
 
-Task-adaptive selection derives from 24 profiles
+Task-adaptive selection derives from 25 profiles
 in `workflow-system/agent/context_profiles.yaml`. The canonical `.rules/`
 sources currently contain 56 rule IDs; generated surfaces
 must be compiled rather than hand-edited.

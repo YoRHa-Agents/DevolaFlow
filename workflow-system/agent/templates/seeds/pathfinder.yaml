@@ -1,0 +1,87 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: pathfinder
+  version: "1.0.0"
+  category: control
+  applicable_scenarios: [look-ahead, harness-reconnaissance, infrastructure-gap]
+  intent_keywords:
+    - pathfinder
+    - path finder
+    - look-ahead
+    - look ahead
+    - harness gap
+    - infrastructure gap
+    - missing fixture
+    - next wave
+  description: >-
+    Look-ahead reconnaissance for infrastructure, harness, fixture, schema,
+    and baseline gaps that may block a later workflow wave.
+  source:
+    kind: composition
+    name: pathfinder
+    path: workflow-system/agent/references/pathfinder.md
+    schema_version: "3.0"
+placeholders: {}
+partitions:
+  - key: initial-scan
+    title_template: "Initial capability scan"
+    source_stages:
+      - id: inspect-horizon
+        primitive: analyze
+      - id: inspect-contracts
+        primitive: review
+    assertions:
+      - key: horizon-defined
+        statement_template: "The next wave, gate, or dependent artifact is named."
+        suggested_priority: P0
+        verify:
+          mode: manual
+      - key: evidence-grounded
+        statement_template: "Each finding cites repository evidence with relative paths."
+        suggested_priority: P0
+        verify:
+          mode: manual
+  - key: incremental-scan
+    title_template: "Incremental delta scan"
+    source_stages:
+      - id: compare-prior-report
+        primitive: analyze
+      - id: classify-delta
+        primitive: validate
+    assertions:
+      - key: prior-report-compared
+        statement_template: "New, changed, resolved, and still-open findings are distinguished."
+        suggested_priority: P1
+        verify:
+          mode: command
+          template: "python -m devolaflow.harness gap --ledger .local/telemetry/harness.jsonl --repo . --output evidence/pathfinder_gap_round_<n>.json --compare evidence/pathfinder_gap_round_<n-1>.json"
+      - key: no-duplicate-gap
+        statement_template: "Existing gap IDs remain stable within the active change folder."
+        suggested_priority: P1
+        verify:
+          mode: manual
+  - key: report-and-escalate
+    title_template: "Report and bounded handoff"
+    source_stages:
+      - id: write-report
+        primitive: validate
+      - id: route-remediation
+        primitive: review
+    assertions:
+      - key: report-complete
+        statement_template: "The Pathfinder report records severity, impact, owner, and closure signal."
+        suggested_priority: P0
+        verify:
+          mode: command
+          template: "python -m devolaflow.agent_workspace.lint <change-id>"
+      - key: read-only-boundary
+        statement_template: "Pathfinder does not repair the reported gap or modify product/test files."
+        suggested_priority: P0
+        verify:
+          mode: manual
+      - key: blocker-routed
+        statement_template: "An unclosed blocker is handed to a separately owned remediation task."
+        suggested_priority: P1
+        verify:
+          mode: manual

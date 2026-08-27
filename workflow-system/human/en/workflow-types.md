@@ -4,8 +4,8 @@ description: "Registry-derived checklist seeds and the sole change-driven runtim
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-26T19:27:02Z"
-source_version: "17.2.0"
+last_synced: "2026-08-27T05:10:31Z"
+source_version: "17.3.0"
 ---
 
 # Checklist Seed Catalog
@@ -36,6 +36,7 @@ membership is not maintained in this guide.
 | `product-verification` | `composite` | User-facing verification across visual, interaction, accessibility, and acceptance axes. | `verify`, `visual`, `acceptance`, `interaction`, `accessibility`, `uat`, `e2e`, `product`, `quality` |
 | `entropy-cleanup` | `control` | Stale-documentation and drift cleanup knowledge. | `entropy`, `gc`, `cleanup`, `freshness`, `drift`, `maintenance`, `meta`, `documentation` |
 | `harness-construction` | `composite` | Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review. | `harness`, `evaluation-infrastructure`, `observability`, `telemetry`, `coverage`, `gap-analysis`, `baseline` |
+| `pathfinder` | `control` | Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave. | `pathfinder`, `path-find`, `look-ahead`, `infrastructure`, `harness`, `gap-analysis`, `reconnaissance` |
 | `migration` | `build` | Systematic migration with validation, cutover, and rollback readiness. | `migrate`, `upgrade`, `transition`, `port` |
 | `skill-optimization` | `composite` | Agent-skill profiling, optimization, validation, and documentation knowledge. | `skill`, `optimize`, `benchmark`, `context`, `compress`, `iterate`, `density` |
 | `self-update` | `control` | Reference dependency research, integration, testing, and evaluation knowledge. | `self-update`, `update`, `upgrade`, `refs`, `validate`, `meta` |

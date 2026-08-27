@@ -74,6 +74,7 @@ __all__ = [
     "EVIDENCE_DIRECTORY_MAX_BYTES",
     "EVIDENCE_FILE_MAX_BYTES",
     "HUMAN_ARTIFACT_BUDGETS",
+    "PATHFINDER_REPORT_FILENAME",
     "BudgetReport",
     "BudgetViolation",
     "HumanBudgetExceededError",
@@ -109,6 +110,8 @@ CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     # WARN (ENTRANCE_MISSING) until backfilled on first resume — see
     # _check_entrance for the semantic checks.
     "entrance.md": (400, 800),
+    # Optional read-only look-ahead artifact per the Pathfinder role contract.
+    "pathfinder_report.md": (800, 1600),
 }
 
 # learnings.jsonl: enforced as a file-size ceiling rather than tokens.
@@ -144,6 +147,25 @@ _HARNESS_PREFLIGHT_HEADINGS: Final[tuple[str, ...]] = (
     "## 5. Build Order",
 )
 _HARNESS_NUMBERED_HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^## \d+\. ")
+
+# OPTIONAL Pathfinder look-ahead artifact — schemas/agent-workspace/
+# pathfinder-report.yaml. PFR_* finding kinds are the register for
+# :func:`_check_pathfinder_report`.
+PATHFINDER_REPORT_FILENAME: Final[str] = "pathfinder_report.md"
+_PATHFINDER_REQUIRED_KEYS: Final[tuple[str, ...]] = (
+    "schema_version",
+    "change_id",
+    "scan_mode",
+    "scan_round",
+    "horizon",
+    "gap_report",
+)
+_PATHFINDER_SCAN_MODES: Final[frozenset[str]] = frozenset({"initial", "incremental"})
+_PATHFINDER_HEADINGS: Final[tuple[str, ...]] = (
+    "## Scan Scope",
+    "## Findings",
+    "## Handoff",
+)
 
 
 # Per the v14.0.0 design §4c — NEW C-9 rows for the ``.local/human/`` surface.
@@ -923,8 +945,9 @@ def _check_harness_reference(
     change_folder: Path,
     repo_root: Path,
     report: BudgetReport,
+    filename: str = HARNESS_PREFLIGHT_FILENAME,
 ) -> None:
-    """Validate one frontmatter path reference of ``harness_preflight.md``."""
+    """Validate one frontmatter path reference of a harness artifact."""
     if field_name not in frontmatter:
         return  # Missing key already reported as HPF_FRONTMATTER.
     value = frontmatter[field_name]
@@ -933,7 +956,7 @@ def _check_harness_reference(
     if not isinstance(value, str) or not value:
         report.violations.append(
             SemanticViolation(
-                HARNESS_PREFLIGHT_FILENAME,
+                filename,
                 kind,
                 f"{field_name} must be a non-empty change- or repo-relative path"
                 + (" or null" if nullable else ""),
@@ -943,7 +966,7 @@ def _check_harness_reference(
     if Path(value).is_absolute():
         report.violations.append(
             SemanticViolation(
-                HARNESS_PREFLIGHT_FILENAME,
+                filename,
                 kind,
                 f"{field_name} must be a relative path (S-2), got {value!r}",
             )
@@ -952,7 +975,7 @@ def _check_harness_reference(
     if _resolve_harness_reference(value, change_folder=change_folder, repo_root=repo_root) is None:
         report.violations.append(
             SemanticViolation(
-                HARNESS_PREFLIGHT_FILENAME,
+                filename,
                 kind,
                 f"{field_name} {value!r} does not exist relative to the change "
                 "folder or the repo root",
@@ -1043,6 +1066,150 @@ def _check_harness_preflight(
         repo_root=repo_root,
         report=report,
     )
+
+
+_PATHFINDER_ABSOLUTE_PATH_RE: Final[re.Pattern[str]] = re.compile(
+    r"(?<![A-Za-z0-9:])/(?!/)[^\s`'\",)\]]*"
+)
+_PATHFINDER_FINDING_START_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*-\s+gap_id\s*:", re.MULTILINE
+)
+_PATHFINDER_SEVERITY_BLOCKER_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*severity\s*:\s*BLOCKER\s*$", re.MULTILINE
+)
+_PATHFINDER_ACCEPTANCE_SIGNAL_RE: Final[re.Pattern[str]] = re.compile(
+    r"^[ \t]*acceptance_signal[ \t]*:[ \t]*([^\r\n]*)$", re.MULTILINE
+)
+
+
+def _pathfinder_value_is_empty(value: str) -> bool:
+    """Return whether a scalar Pathfinder field has no meaningful value."""
+    return value.strip().strip("\"'") in {"", "null", "None", "[]", "{}"}
+
+
+def _check_pathfinder_report(
+    change_folder: Path,
+    *,
+    repo_root: Path,
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> None:
+    """Validate the OPTIONAL Pathfinder report when present.
+
+    Absence is a clean no-op: only a dispatched Pathfinder task creates this
+    artifact.  A present report is fail-closed because its contract is the
+    evidence consumed by later waves.
+    """
+    result = _read_artifact(change_folder, PATHFINDER_REPORT_FILENAME, report, cache)
+    if result.state == "missing":
+        return
+    if result.text is None:
+        return  # READ_ERROR already recorded by _read_artifact (S-5).
+
+    try:
+        artifact = round_parser.parse_frontmatter(result.text, filename=PATHFINDER_REPORT_FILENAME)
+    except round_parser.RoundArtifactParseError as exc:
+        report.violations.append(
+            SemanticViolation(PATHFINDER_REPORT_FILENAME, "PFR_FRONTMATTER", exc.message)
+        )
+        return
+
+    frontmatter = artifact.frontmatter
+    missing = [key for key in _PATHFINDER_REQUIRED_KEYS if key not in frontmatter]
+    if missing:
+        report.violations.append(
+            SemanticViolation(
+                PATHFINDER_REPORT_FILENAME,
+                "PFR_FRONTMATTER",
+                f"frontmatter is missing required key(s): {', '.join(missing)}",
+            )
+        )
+
+    schema_version = frontmatter.get("schema_version")
+    if not _strict_frontmatter_equal(schema_version, 1):
+        report.violations.append(
+            SemanticViolation(
+                PATHFINDER_REPORT_FILENAME,
+                "PFR_SCHEMA_VERSION",
+                f"schema_version={schema_version!r}; the only supported version is 1",
+            )
+        )
+
+    scan_mode = frontmatter.get("scan_mode")
+    scan_round = frontmatter.get("scan_round")
+    if (
+        not isinstance(scan_mode, str)
+        or scan_mode not in _PATHFINDER_SCAN_MODES
+        or not isinstance(scan_round, int)
+        or isinstance(scan_round, bool)
+        or scan_round < 1
+    ):
+        report.violations.append(
+            SemanticViolation(
+                PATHFINDER_REPORT_FILENAME,
+                "PFR_FRONTMATTER",
+                "scan_mode must be initial/incremental and scan_round must be "
+                "an integer greater than or equal to 1",
+            )
+        )
+
+    body_lines = artifact.body.splitlines()
+    heading_positions = [
+        next((index for index, line in enumerate(body_lines) if line == heading), -1)
+        for heading in _PATHFINDER_HEADINGS
+    ]
+    if (
+        any(position < 0 for position in heading_positions)
+        or len(set(heading_positions)) != len(_PATHFINDER_HEADINGS)
+        or heading_positions != sorted(heading_positions)
+    ):
+        report.violations.append(
+            SemanticViolation(
+                PATHFINDER_REPORT_FILENAME,
+                "PFR_SECTION_ORDER",
+                f"required headings must appear once in order: {list(_PATHFINDER_HEADINGS)}",
+            )
+        )
+
+    _check_harness_reference(
+        frontmatter,
+        "gap_report",
+        "PFR_GAP_REPORT",
+        nullable=False,
+        change_folder=change_folder,
+        repo_root=repo_root,
+        report=report,
+        filename=PATHFINDER_REPORT_FILENAME,
+    )
+
+    in_findings_or_handoff = False
+    for line in body_lines:
+        if line.startswith("## "):
+            in_findings_or_handoff = line in {"## Findings", "## Handoff"}
+        if in_findings_or_handoff and re.search(r"\b(?:evidence|artifact_path)\s*:", line):
+            field_value = line.split(":", 1)[1]
+            if _PATHFINDER_ABSOLUTE_PATH_RE.search(field_value):
+                report.violations.append(
+                    SemanticViolation(
+                        PATHFINDER_REPORT_FILENAME,
+                        "PFR_ABSOLUTE_PATH",
+                        "evidence and handoff paths must be relative (S-2)",
+                    )
+                )
+                break
+
+    for block in _PATHFINDER_FINDING_START_RE.split(artifact.body)[1:]:
+        if not _PATHFINDER_SEVERITY_BLOCKER_RE.search(block):
+            continue
+        signal = _PATHFINDER_ACCEPTANCE_SIGNAL_RE.search(block)
+        if signal is None or _pathfinder_value_is_empty(signal.group(1)):
+            report.violations.append(
+                SemanticViolation(
+                    PATHFINDER_REPORT_FILENAME,
+                    "PFR_BLOCKER_SIGNAL",
+                    "every BLOCKER finding must include a non-empty acceptance_signal",
+                )
+            )
 
 
 # entrance.md Section 3 inventory row — backtick-quoted filename in the first cell.
@@ -1316,6 +1483,7 @@ def lint_change(
     _lint_learnings_size(change_folder, report)
     _lint_evidence_sizes(change_folder, report)
     _check_harness_preflight(change_folder, repo_root=root, report=report, cache=cache)
+    _check_pathfinder_report(change_folder, repo_root=root, report=report, cache=cache)
     if layout is ChangeLayout.CHECKLIST:
         _lint_checklist_semantics(
             change_folder,

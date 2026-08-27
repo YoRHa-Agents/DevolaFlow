@@ -267,6 +267,11 @@ _SF4_REFERENCE_SET = frozenset(
         # `src/devolaflow/agent_workspace/archive.py`, and the seed
         # `workflow-system/agent/templates/seeds/harness-construction.yaml`.
         "harness-construction.md",
+        # v17.3.0 — Pathfinder look-ahead role contract (28th SF-4
+        # canonical). Defines the read-only L2 reconnaissance protocol,
+        # report schema, bounded handoff, and separation from preflight,
+        # research, review, and harness remediation.
+        "pathfinder.md",
     }
 )
 

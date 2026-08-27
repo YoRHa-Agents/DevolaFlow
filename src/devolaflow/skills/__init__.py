@@ -31,8 +31,10 @@ operator and by L0 dispatchers when steering toward the
   ``workflow-system/agent/references/subagent-patterns.md``; the
   integration design is in
   ``.local/research/v11.4.0_subagent_pattern_analysis.md`` §6 P1.2.
+* :mod:`devolaflow.skills.pathfinder` — pure-function natural-language
+  activation for the read-only v17.3.0 Pathfinder L2 look-ahead role.
 
-All four modules are R5-strict additive:
+All five modules are R5-strict additive:
 
 * No existing public symbol is mutated.
 * No new top-level dispatch key lands in
@@ -74,6 +76,11 @@ from devolaflow.skills.grill_mode import (
     propose_canonical_term,
     qualifies_as_adr,
 )
+from devolaflow.skills.pathfinder import (
+    PathfindVerdict,
+    classify_pathfind_intent,
+    should_schedule_pathfind,
+)
 from devolaflow.skills.subagent_pattern import (
     ModelTier,
     PatternVerdict,
@@ -90,8 +97,11 @@ __all__: list[str] = [
     "FuzzyTerm",
     "GrillVerdict",
     "ModelTier",
+    "PathfindVerdict",
     "PatternVerdict",
     "classify_grill_intent",
+    "classify_pathfind_intent",
+    "should_schedule_pathfind",
     "detect_fuzzy_terms",
     "forbidden_pattern_rationale",
     "infer_context_layout",

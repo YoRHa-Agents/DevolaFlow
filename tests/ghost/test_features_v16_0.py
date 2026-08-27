@@ -181,6 +181,8 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         # Agent onboarding router (v17.2.0 change-entrance design);
         # not part of the v16 C-9 rules table.
         "entrance.md": (400, 800),
+        # Read-only look-ahead report (v17.3.0 Pathfinder design).
+        "pathfinder_report.md": (800, 1600),
     }
     assert expected_c9_budgets == CHECKLIST_ARTIFACT_BUDGETS
     assert _CHECKLIST_HYDRATE_BUDGETS == {

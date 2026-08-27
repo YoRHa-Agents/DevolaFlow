@@ -6,7 +6,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
     "schema_version": "3.0",
     "source_path": "workflow-system/agent/templates/registry.yaml"
   },
-  "record_count": 24,
+  "record_count": 25,
   "seeds": [
     {
       "registry_schema_version": "3.0",
@@ -1403,6 +1403,137 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
             {
               "key": "capability-delta-recorded",
               "statement": "The archive review records the before and after gap reports and the capability delta",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "registry_schema_version": "3.0",
+      "seed_schema_version": "1.0",
+      "source": {
+        "kind": "composition",
+        "name": "pathfinder",
+        "path": "workflow-system/agent/references/pathfinder.md",
+        "schema_version": "3.0"
+      },
+      "name": "pathfinder",
+      "category": "control",
+      "tags": [
+        "pathfinder",
+        "path-find",
+        "look-ahead",
+        "infrastructure",
+        "harness",
+        "gap-analysis",
+        "reconnaissance"
+      ],
+      "description": "Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave.",
+      "seed_path": "workflow-system/agent/templates/seeds/pathfinder.yaml",
+      "partitions": [
+        {
+          "key": "initial-scan",
+          "title": "Initial capability scan",
+          "source_stages": [
+            {
+              "id": "inspect-horizon",
+              "primitive": "analyze"
+            },
+            {
+              "id": "inspect-contracts",
+              "primitive": "review"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "horizon-defined",
+              "statement": "The next wave, gate, or dependent artifact is named.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "evidence-grounded",
+              "statement": "Each finding cites repository evidence with relative paths.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "incremental-scan",
+          "title": "Incremental delta scan",
+          "source_stages": [
+            {
+              "id": "compare-prior-report",
+              "primitive": "analyze"
+            },
+            {
+              "id": "classify-delta",
+              "primitive": "validate"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "prior-report-compared",
+              "statement": "New, changed, resolved, and still-open findings are distinguished.",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "command",
+                "template": "python -m devolaflow.harness gap --ledger .local/telemetry/harness.jsonl --repo . --output evidence/pathfinder_gap_round_<n>.json --compare evidence/pathfinder_gap_round_<n-1>.json"
+              }
+            },
+            {
+              "key": "no-duplicate-gap",
+              "statement": "Existing gap IDs remain stable within the active change folder.",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "report-and-escalate",
+          "title": "Report and bounded handoff",
+          "source_stages": [
+            {
+              "id": "write-report",
+              "primitive": "validate"
+            },
+            {
+              "id": "route-remediation",
+              "primitive": "review"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "report-complete",
+              "statement": "The Pathfinder report records severity, impact, owner, and closure signal.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "command",
+                "template": "python -m devolaflow.agent_workspace.lint <change-id>"
+              }
+            },
+            {
+              "key": "read-only-boundary",
+              "statement": "Pathfinder does not repair the reported gap or modify product/test files.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "blocker-routed",
+              "statement": "An unclosed blocker is handed to a separately owned remediation task.",
               "suggested_priority": "P1",
               "verify": {
                 "mode": "manual"

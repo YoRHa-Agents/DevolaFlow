@@ -12,7 +12,7 @@ tier: 2
 token_estimate: 2200
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-25"
+last_updated: "2026-08-27"
 ---
 
 # Team Roles Reference
@@ -22,10 +22,10 @@ last_updated: "2026-08-25"
 ```text
 L0 Project
   └── L1 Wave
-        └── L2 Task (research | design | implement | test | review)
+        └── L2 Task (research | design | implement | test | pathfind | review)
 ```
 
-The five names are L2 Task specializations, not agent layers or persistent
+The six names are L2 Task specializations, not agent layers or persistent
 teams. `TaskDispatch.task.type` selects a role profile for one fresh,
 context-isolated Task. Roles never message each other directly; L1 aggregates
 their StatusReports and evidence.
@@ -41,6 +41,7 @@ The hierarchy budget remains L0 5K / L1 5K / L2 8K. One wave contains at most
 | Design | Produce interfaces, decisions, or data models | requirements trace, alternatives, open questions |
 | Implement | Modify production files in owned scope | diff summary, build/lint/unit-check results |
 | Test | Execute checks or author test-only changes | exact commands, counts, metrics, regressions |
+| Pathfind | Look ahead for infrastructure and harness gaps | gap report, horizon, closure signal |
 | Review | Evaluate an artifact without modifying it | located findings, severity, verdict |
 
 Checklist seeds may suggest role/order through task hints and preserve
@@ -54,7 +55,7 @@ Every role receives:
 ```yaml
 task:
   id: T-<round>-<wave>-<task>
-  type: research | design | implement | test | review
+  type: research | design | implement | test | pathfind | review
   objective: <one atomic outcome>
   checklist_items: [C-Gn.m]
   owned_files:
@@ -210,7 +211,45 @@ Quality:
 - new tests follow repository conventions;
 - measured values are compared with declared thresholds.
 
-## 8. Review Task
+## 8. Pathfind Task
+
+Purpose: proactively identify infrastructure, harness, fixture, schema, or
+baseline gaps that could block a later wave.
+
+Pathfind is read-only for product and test implementation. It may write only
+the owned `pathfinder_report.md` artifact and its append-only handoff. It does
+not repair findings, alter the checklist, or change the dispatch schema.
+
+Workflow:
+
+1. define the look-ahead horizon and inspect its dependency chain;
+2. read relevant repository artifacts and existing gap/harness evidence;
+3. classify findings as `BLOCKER`, `RISK`, `BACKLOG`, or `NO_GAP`;
+4. record evidence, impact, suggested owner, and closure signal;
+5. write the bounded Pathfinder report;
+6. emit a `StatusReport`, escalating only an unassignable blocker.
+
+Output:
+
+```yaml
+pathfind_evidence:
+  artifact_paths:
+    - .local/.agent/active/<change-id>/pathfinder_report.md
+  horizon: <next wave or gate>
+  findings:
+    - gap_id: PF001
+      severity: BLOCKER | RISK | BACKLOG | NO_GAP
+      evidence: []
+      impact: <downstream consequence>
+      suggested_owner: harness-build | test | design | null
+      acceptance_signal: <closure evidence>
+  scan_mode: initial | incremental
+```
+
+The report is advisory evidence. A `BLOCKER` triggers a separately owned
+harness-build or design task; Pathfinder never fixes it in place.
+
+## 9. Review Task
 
 Purpose: evaluate an artifact without modifying it.
 
@@ -264,7 +303,7 @@ The implementer receives both typed verdicts through L1. `DONE` means both
 passes succeeded; `DONE_WITH_CONCERNS` carries non-blocking evidence;
 `NEEDS_CONTEXT` requests missing bounded context; `BLOCKED` escalates to L1.
 
-## 9. Role Participation by Intent
+## 10. Role Participation by Intent
 
 Seed names route intent and decomposition knowledge; all execute through
 `change-driven`.
@@ -276,12 +315,13 @@ Seed names route intent and decomposition knowledge; all execute through
 | Feature / migration / refactor | Design, Implement, Test, Review as needed |
 | Hotfix / dependency setup | Implement, Test; focused Review when risk warrants |
 | Verification / audit / performance | Test or Review; Research for external baselines |
+| Look-ahead reconnaissance | Pathfinder; Harness-build or Design for remediation |
 | Self/skill optimization | Research, Implement, Test, Review |
 
 “Typical” is advisory. Readiness, dependency, risk, and ownership determine
 the actual wave composition.
 
-## 10. Handoff Protocol
+## 11. Handoff Protocol
 
 Roles communicate through the append-only envelope ledger documented in
 `references/agent-workspace.md`.
@@ -300,6 +340,7 @@ Research evidence ─┐
 Design evidence   ─┼─► L1 aggregation ─► next ready wave
 Implement evidence─┤
 Test evidence     ─┤
+Pathfinder evidence┤
 Review evidence   ─┘
 ```
 
@@ -313,12 +354,13 @@ compliance, and blocker state. On rejection:
 
 No role performs an in-memory direct handoff or edits another role's output.
 
-## 11. See Also
+## 12. See Also
 
 - `references/agent-hierarchy.md`
 - `references/agent-workspace.md`
 - `references/decomposition-gate.md`
 - `references/message-schemas.md`
 - `references/artifact-quality.md`
+- `references/pathfinder.md`
 - `schemas/lean-dispatch.yaml`
 - `schemas/lean-report.yaml`

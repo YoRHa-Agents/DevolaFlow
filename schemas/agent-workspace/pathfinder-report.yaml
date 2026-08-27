@@ -1,0 +1,134 @@
+# Schema: pathfinder-report
+# Read-only L2 look-ahead reconnaissance artifact.
+design_reference: ".local/research/v17.3.0_pathfinder_design.md"
+schema_name: pathfinder-report
+schema_version: 1
+last_updated: "2026-08-27"
+governing_rules: [S-2, S-5, S-8, S-9, C-3, C-9]
+status: active
+optional: true
+presence_semantics: >-
+  The artifact is present when a Pathfinder task has run for the active
+  change. Its presence is evidence of a scan, not evidence that a gap exists.
+instance_path_template: ".local/.agent/active/<change-id>/pathfinder_report.md"
+owner: L2-pathfind
+writer: "Pathfinder task only"
+readers:
+  - L1-wave
+  - L0-project
+  - harness-build
+  - test
+  - design
+token_budget:
+  soft: 800
+  hard: 1600
+  units: tokens
+  enforcement:
+    - lint: "python -m devolaflow.agent_workspace.lint <change-id>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+frontmatter:
+  delimiter: "---"
+  required:
+    - schema_version
+    - change_id
+    - scan_mode
+    - scan_round
+    - horizon
+    - gap_report
+  properties:
+    schema_version:
+      type: int
+      enum: [1]
+    change_id:
+      type: string
+      pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+    scan_mode:
+      type: string
+      enum: [initial, incremental]
+    scan_round:
+      type: integer
+      minimum: 1
+    horizon:
+      type: string
+      min_length: 1
+    gap_report:
+      type: string
+      relative_path: true
+    previous_report:
+      type: [string, "null"]
+      relative_path: true
+body:
+  required_sections:
+    - "## Scan Scope"
+    - "## Findings"
+    - "## Handoff"
+  finding_contract:
+    required:
+      - gap_id
+      - severity
+      - horizon
+      - evidence
+      - impact
+      - suggested_owner
+      - acceptance_signal
+    severity_enum: [BLOCKER, RISK, BACKLOG, NO_GAP]
+    evidence:
+      type: list
+      items:
+        type: string
+        relative_path_or_observation: true
+    suggested_owner_enum: [harness-build, test, design, review, null]
+    gap_id:
+      type: string
+      pattern: "^PF[0-9]{3,}$"
+  constraints:
+    - "Every BLOCKER includes a non-empty acceptance_signal."
+    - "Every finding names a concrete horizon."
+    - "A NO_GAP report still records inspected evidence sources."
+    - "The report does not authorize Pathfinder to repair a finding."
+handoff:
+  required_fields:
+    - artifact_path
+    - status
+    - next_owner
+  status_enum: [DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED]
+  next_owner_enum: [harness-build, test, design, review, l1-wave, l0-project, null]
+invariants:
+  - "Pathfinder writes only its owned report and append-only handoff artifacts."
+  - "Finding evidence uses repository-relative paths and preserves observed text."
+  - "A report is advisory evidence and never authorizes an in-place repair."
+  - "A Pathfinder report must not claim product or test edits performed by Pathfinder."
+lint_findings:
+  - "Reject absolute filesystem paths in evidence or handoff fields (S-2)."
+  - "Reject a missing closure signal for BLOCKER findings."
+example: |
+  ---
+  schema_version: 1
+  change_id: "add-pathfinder-design"
+  scan_mode: initial
+  scan_round: 1
+  horizon: "next harness-evaluation wave"
+  gap_report: "evidence/pathfinder_gap_round_1.json"
+  previous_report: null
+  ---
+
+  # Pathfinder Report
+
+  ## Scan Scope
+  - Horizon: next harness-evaluation wave
+  - Sources: `schemas/`, `tests/fixtures/`, `.local/telemetry/`
+
+  ## Findings
+  - gap_id: PF001
+    severity: RISK
+    horizon: next harness-evaluation wave
+    evidence: [`tests/fixtures/harness/example.yaml`]
+    impact: "The next wave may lack a settled comparison fixture."
+    suggested_owner: harness-build
+    acceptance_signal: "Active cycle baseline exists and passes the fixture contract."
+
+  ## Handoff
+  - artifact_path: `.local/.agent/active/add-pathfinder-design/pathfinder_report.md`
+  - status: DONE_WITH_CONCERNS
+  - next_owner: harness-build

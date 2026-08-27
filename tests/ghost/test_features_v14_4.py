@@ -235,6 +235,7 @@ def test_v14_4_0_context_profile_consolidation_registered(project_root: Path) ->
     )
     assert exempt == [
         "feedback",
+        "pathfind",
         "product_verification",
         "research",
         "review",

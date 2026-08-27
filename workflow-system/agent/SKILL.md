@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.2.0"
+version: "17.3.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v17.2.0**
+> **Now Using DevolaFlow v17.3.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.2.0 — Check only on explicit update request:
+**Current version:** 17.3.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -152,6 +152,15 @@ ledger. Auto-writes to `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` require
 explicit consent. Offer an ADR only when Hard to reverse + Surprising without
 context + Real trade-off all pass. See `references/grill-mode.md`.
 
+### PATHFINDER ROLE — Look Ahead Without Implementing
+
+When the operator requests a Pathfinder or look-ahead reconnaissance, select
+the `pathfind` L2 task specialization. It inspects the next wave's
+infrastructure shape and writes only `pathfinder_report.md`; a separate
+owned task handles every repair. Natural-language activation is classified by
+`devolaflow.skills.pathfinder.classify_pathfind_intent`. See
+`references/pathfinder.md`. If `harness_preflight.md` is present, `should_schedule_pathfind` automatically offers Pathfinder in the first execution wave; the operator may opt out naturally.
+
 ## Quick Start — Workflow Selection
 
 Match intent to a registry-v3 checklist seed. Every row uses
@@ -182,6 +191,7 @@ Match intent to a registry-v3 checklist seed. Every row uses
 | change lifecycle explicitly | `change-driven` |
 | stale docs or drift cleanup | `entropy-cleanup` |
 | harness construction, evaluation infrastructure, observation coverage | `harness-construction` |
+| look-ahead infrastructure or harness reconnaissance | `pathfinder` |
 | frontend/web design | `web-design` |
 
 Seeds are non-executable decomposition knowledge. `source_stages` retain
@@ -412,6 +422,7 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/impeccable.md` | Design refinement checks |
 | `references/message-schemas.md` | Typed dispatch/report fields |
 | `references/meta-framework.md` | Registry v3 and seeds |
+| `references/pathfinder.md` | selecting the Pathfinder L2 role or look-ahead harness reconnaissance |
 | `references/plan-mode-enforcement.md` | Three-draft Plan Mode contract |
 | `references/repo-modes.md` | Repository capability detection |
 | `references/shell-proxy.md` | Shell proxy and routing |
