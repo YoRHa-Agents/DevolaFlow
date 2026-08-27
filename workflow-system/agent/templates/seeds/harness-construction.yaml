@@ -5,7 +5,7 @@ metadata:
   version: "1.0.0"
   description: "Seed for building harness infrastructure with machine-grounded gap analysis at preflight and a capability review at archive."
   category: composite
-  intent_keywords: [harness, evaluation-infrastructure, observability, telemetry, coverage, gap-analysis, baseline]
+  intent_keywords: [harness, harness_build, harness-build, evaluation-infrastructure, observability, telemetry, coverage, gap-analysis, baseline, blocker-remediation, Pathfinder BLOCKER]
   source:
     kind: composition
     name: harness-construction
@@ -41,9 +41,14 @@ partitions:
     source_stages:
       - {id: build_infra, primitive: implement}
       - {id: refine_infra, primitive: refine}
+      - {id: blocker_remediation, primitive: implement}
     assertions:
       - key: committed-axes-built
         statement_template: "Every committed observation point, probe, baseline, and loop closure is implemented with tests"
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: pathfinder-blockers-remediated
+        statement_template: "Each Pathfinder BLOCKER is assigned to a separately owned harness_build task and closed with evidence"
         suggested_priority: P0
         verify: {mode: manual}
   - key: capability-review

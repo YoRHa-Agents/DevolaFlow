@@ -38,6 +38,20 @@ def _make_minimal_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def _make_complete_repo(tmp_path: Path) -> Path:
+    """Build a fixture containing one match for every canonical location."""
+    root = _make_minimal_repo(tmp_path)
+    by_path: dict[str, list[str]] = {}
+    for location in VERSION_LOCATIONS:
+        marker = location["replacement"].format(version="1.0.0")
+        by_path.setdefault(location["path"], []).append(marker)
+    for path, markers in by_path.items():
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("\n".join(markers) + "\n", encoding="utf-8")
+    return root
+
+
 def _git(root: Path, *args: str) -> str:
     return subprocess.run(
         ["git", *args],
@@ -128,6 +142,40 @@ def test_dry_run_pattern_miss_also_hard_fails_without_writing(tmp_path: Path) ->
     assert '__version__ = "1.0.0"' in (root / "src/devolaflow/__init__.py").read_text()
     assert 'version = "1.0.0"' in (root / "pyproject.toml").read_text()
     assert readme.read_text() == "no version badge in here\n"
+
+
+def test_complete_fixture_dry_run_matches_all_canonical_patterns(tmp_path: Path) -> None:
+    """A full fixture proves every canonical pattern is matched exactly once."""
+    root = _make_complete_repo(tmp_path)
+    before = {
+        path: (root / path).read_bytes()
+        for path in {location["path"] for location in VERSION_LOCATIONS}
+    }
+
+    updated = bump("1.1.0", dry_run=True, root=root)
+
+    assert len(updated) == len(VERSION_LOCATIONS)
+    assert updated.count("workflow-system/agent/SKILL.md") == 3
+    assert {
+        path: (root / path).read_bytes()
+        for path in {location["path"] for location in VERSION_LOCATIONS}
+    } == before
+
+
+def test_duplicate_canonical_pattern_hard_fails(tmp_path: Path, capsys) -> None:
+    """A duplicated canonical marker cannot be silently partially bumped."""
+    root = _make_minimal_repo(tmp_path)
+    readme = root / "README.md"
+    readme.write_text(
+        'example prints "DevolaFlow v1.0.0"\nanother prints "DevolaFlow v1.0.0"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        bump("1.1.0", root=root)
+
+    assert excinfo.value.code == 1
+    assert "expected exactly one match, found 2" in capsys.readouterr().out
 
 
 def test_tag_refuses_pre_bump_before_any_file_write(tmp_path: Path, capsys) -> None:

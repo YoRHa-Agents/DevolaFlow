@@ -1,5 +1,5 @@
 ---
-description: "架构约束 — 项目核心架构决策"
+description: "Architecture constraints — core project decisions"
 priority: P1
 alwaysApply: true
 ---
@@ -32,11 +32,15 @@ Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dis
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+The first 12 positions of `canonical_order` are the **FROZEN PREFIX**. Their
+byte-stable rendering is the LLM cache prefix; reordering, renaming, or
+removing any of these keys is a release blocker. Enforced by
+`devolaflow.compressor.assert_layout_spec_invariant`.
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
-Per v9-ADR-002 D2, positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at position N+1 where N is the current `len(canonical_order)`, never inserted into a lower slot. Each schema-version bump (12 → 13 → 14 → 15 → 16) added exactly ONE key at the tail in chronological order (`repos` → `behavioral_guidelines` → `acceptance_criteria_v2` → `change_context`).
+Positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at
+position N+1, never in a lower slot.
 
 ### A-2.3 — Nest-vs-Append Decision Rule
 
@@ -51,19 +55,18 @@ Per v9-ADR-002 D3, when introducing a new dispatch behaviour, authors choose bet
 | Is the new field always present together with an existing block? | NEST as a sub-field |
 | Is the new field independently optional? | Either is acceptable; prefer NEST when the data shape allows |
 
-Historical NEST decisions (correct because each modified an existing block's interpretation): `gate.token_budget` (v8.0.0 P-03), `pred[*].compact_directive` (v8.0.0 P-02), `pred[*].summary_mode` (v7.0.2+ ADR-003 §2.5), `compression_rules.bypass_conditions` (v7.2.0 C-002), `compression_rules.data_envelope_required` (v7.2.4 P-02).
+### A-2.4 — Multi-Baseline Byte Test (Tiered Retention)
 
-Historical APPEND decisions (correct because each carried orthogonal cross-block payload): `repos` → pos 13 (v7.2.6 P-06), `behavioral_guidelines` → pos 14 (v8.0.0 P-08), `acceptance_criteria_v2` → pos 15 (v8.0.0 P-10), `change_context` → pos 16 (v8.3.0 PV-05).
+CI runs `tests/test_layout_invariant_multi_baseline.py` against the
+`layout_invariant_v*.yaml` golden set. Any witness drift fails CI. Schema bumps
+must add a new golden and keep all existing witnesses passing.
 
-### A-2.4 — Multi-Baseline Byte Test (Tiered Retention per v15-ADR-005)
-
-Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseline.py` which pins ALL historical schema-bump witnesses (the `layout_invariant_v*.yaml` golden set under `benchmarks/devolaflow_context/baselines/`). Any drift in any witness fails CI immediately. Future schema bumps MUST add a new golden YAML for the new baseline AND keep all Tier-A witnesses passing.
-
-Baseline retention is TIERED per v15-ADR-005 (G-014), replacing the former keep-all-forever wording:
-
-* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test at their historical `benchmarks/devolaflow_context/baselines/` paths. IMMUTABLE — never moved, renamed, regenerated, or pruned; they cannot be reconstructed from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
-* **Tier B — active harness window**: W-16 settlement artifacts named `harness_baseline_<cycle>.json` for the current + previous 2 cycles stay under `.local/telemetry/baselines/` as the active comparison window. They are derived from aggregated harness telemetry; they are not schema witnesses and MUST NOT be copied into the Tier-A directory.
-* **Tier C — archived harness evidence**: harness baselines older than the Tier-B window move to `docs/cycle-archive/<cycle>/harness/` (W-19's committed-archive surface) — history preserved, never deleted. Retired pre-v16 benchmark JSON remains historical archive evidence only and never returns to a live reader.
+* **Tier A**: immutable layout witnesses under
+  `benchmarks/devolaflow_context/baselines/`.
+* **Tier B**: the current and previous two `harness_baseline_<cycle>.json`
+  files under `.local/telemetry/baselines/`.
+* **Tier C**: older harness baselines under
+  `docs/cycle-archive/<cycle>/harness/`; history is never deleted.
 
 ## A-3 — Context Token Budgets
 
@@ -74,8 +77,6 @@ Context profiles (`workflow-system/agent/context_profiles.yaml`) must define exp
 | L0 Project | ~5K tokens | Workflow template + round status |
 | L1 Wave | ~5K tokens | Task list + dependency map + evidence summaries |
 | L2 Task | ~8K tokens | Task spec + owned files + rules |
-
-Source: CO-3, SI-6.
 
 ## A-4 — Source-of-Truth Spec Location (M-004 ADR)
 
@@ -88,11 +89,6 @@ Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
 runs the explicit `mergeability_check` (v8.2.5 reporter module) before
 allowing the merge.
 
-Rationale: separates lifecycle of in-flight proposals from agreed contracts;
-preserves W-3 / SI-3 + W-4 / SI-4 invariants by NOT auto-merging on archive.
-
-Source: v15-ADR-008 §A-4.
-
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
 Every domain registry surface (whitelist / recipe / value-type cache /
@@ -101,13 +97,8 @@ source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
 
-The current 4 SSOT registries (live inventory: the parametrized
-`_SSOT_PYTHON_REGISTRIES` + `_SSOT_YAML_REGISTRIES` fixtures in
-`tests/ghost/test_registries.py` — the AST/path parity tests there are the
-enforcement surface; this table mirrors the OWNER set. Note
-`_SSOT_YAML_REGISTRIES` still path-pins BOTH plugin YAMLs: the derived
-view's location stays pinned so the loader's verbatim path cannot
-silently move, but the view is NOT a second owner):
+The current SSOT registries are listed below. Parity is enforced by
+`tests/ghost/test_registries.py`; derived views are not owners:
 
 | # | Registry surface | Owner module / file |
 |---|---|---|
@@ -117,16 +108,10 @@ silently move, but the view is NOT a second owner):
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
 | 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
 
-Pre-v15.0.0 this table carried 5 rows — "Plugin catalog"
-(`plugins.yaml`) and "Runtime plugin registry" (`runtime-plugins.yaml`)
-as two sibling owners. v15.0.0 G-021 unified them: the runtime registry
-is the sole registration owner; the catalog became its derived view
-(per `docs/cycle-archive/v15.0.0/v14.2.0_gap_analysis.md` §2.4, F-P5-1/F-P5-6).
-
 ### A-5.1 — Single-Owner Invariant
 
-Adding a NEW whitelist / recipe / registry surface requires picking
-**ONE** owner module and routing every consumer through it. Splitting
+Adding a registry surface requires picking **ONE** owner module and routing
+every consumer through it. Splitting
 the registration data across two modules (e.g. half the whitelist in
 `shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
 invalidates cache reasoning and is a release blocker. Enforced by
@@ -136,16 +121,9 @@ module-level definition for the same registry name.
 
 ### A-5.2 — DEFAULT_ALLOWLIST Hygiene
 
-`scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST` is the registry of
-public APIs that intentionally lack an in-repo production caller. A
-domain-SSOT registry symbol (anything in the table above) MUST NOT
-appear in `DEFAULT_ALLOWLIST` — by definition such symbols ARE
-consumed in-repo by their owner module's siblings. Enforced at script
-import time by `_check_allowlist_domain_overlap(DEFAULT_ALLOWLIST)`
-and at test time by
-`tests/test_dead_apis.py::test_default_allowlist_no_ssot_overlap`.
-
-Source: v15-ADR-008 §A-5.
+`DEFAULT_ALLOWLIST` contains public APIs without in-repo callers. SSOT registry
+symbols MUST NOT appear there. Enforced by
+`_check_allowlist_domain_overlap` and `tests/test_dead_apis.py`.
 
 ## A-6 — Workspace Engagement Auto-Activation
 
@@ -180,8 +158,6 @@ rule. CI-side: `tests/test_change_activation_heuristic.py` pins the
 three verdict cases + opt-out behaviour + byte-stable no-op when env
 flag absent.
 
-Source: v15-ADR-008 §A-6.
-
 ## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
 
 When a dispatch payload's `gate.cascade_required` field is `true`
@@ -200,14 +176,10 @@ Strict enforcement is conditioned on `cascade_requirement(complexity)`:
   `validate_cascade_gate_fields` enforces the contract in STRICT mode:
   it returns `None` on pass and raises `CascadeViolationError` on the
   first invalid field or depth violation. Declared `cascade_min_layers`
-  values are validated at face value; the v16 compatibility
-  reinterpretation of a legacy `4` as effective `3` (WARNING + fold)
-  was removed in v17.0.0 (G17-A5).
+  values are validated at face value.
 * `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
-  validation is skipped; legacy v11.0.x dispatches with no L1/L2 trace
-  pass byte-identically. Verified by
-  `tests/test_cascade_enforcement.py::test_legacy_dispatch_without_cascade_fields_passes_byte_identically`
-  and the 3 sibling backward-compat tests.
+  validation is skipped; legacy dispatches without cascade fields pass
+  byte-identically.
 
 ### A-7.2 — Trivial waiver
 
@@ -216,25 +188,17 @@ trivially waived from the cascade-depth check. The waiver is verified
 at the dispatch payload level: when `gate.cascade_required` is omitted
 (default for v11.0.x dispatches), no validation runs. The
 `populate_cascade_gate_fields` opt-in helper preserves this default by
-returning a deep copy of the base dispatch unchanged when complexity
-is SIMPLE/TRIVIAL — canonical absence-as-default per A-2.3 NEST contract.
+  returning a deep copy of the base dispatch unchanged when complexity
+  is SIMPLE/TRIVIAL.
 
 ### A-7.3 — Operator override
 
-Operators may pass `force_no_change=True` to `activation_verdict()`
-(per A-6.3 / D-A-4) to bypass workspace activation; this is orthogonal
-to A-7 — `cascade_requirement(complexity)` is evaluated independently
-of `force_no_change` (verified by
-`tests/test_cascade_enforcement.py::test_cascade_signal_orthogonal_to_force_no_change`).
-The cascade-shape verdict and the workspace-activation verdict are
-two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
+`force_no_change=True` bypasses workspace activation and is orthogonal to A-7.
 
 ### A-7.4 — Enforcement surface
 
 * CI-side: `tests/test_cascade_enforcement.py` covers strict mode,
-  backward compatibility, skip paths, truth-table propagation, and the
-  v17 face-value semantics for explicit `cascade_min_layers`
-  declarations (no legacy fold), all without input mutation.
+  backward compatibility, skip paths, propagation, and input immutability.
 * Runtime: `validate_cascade_gate_fields` returns `None` on pass and
   raises `CascadeViolationError` on the first violation;
   `populate_cascade_gate_fields` writes the default minimum of 3 when
@@ -243,9 +207,5 @@ two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
   ratchet by default and returns exit 1 when cycle-doc cascade_ratio is
   below N; `--no-strict` is the explicit compatibility opt-out. The
   default threshold is 0.30.
-* Schema (PV-04): `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
-  NESTed under the existing `gate` block (canonical_order length stays
-  at 17 per A-2.3); A-2.4 multi-baseline byte test 32/32 GREEN
-  unchanged because the new sub-fields are absence-canonical.
-
-Source: v15-ADR-008 §A-7.
+* Schema: `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
+  are nested under the existing `gate` block; absence is canonical.

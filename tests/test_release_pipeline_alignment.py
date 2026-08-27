@@ -192,7 +192,16 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
         "check-cursor-skill",
         "iteration-delta-gate",
     ]
-    assert dependencies[: len(core)] == core
+    release_only = [
+        "validate-templates",
+        "build-skill",
+        "sync-human-docs",
+        "compile-rules",
+        "check-drift",
+        "check-rules-drift",
+    ]
+    first_release_only = min(dependencies.index(item) for item in release_only)
+    assert all(dependencies.index(item) < first_release_only for item in core)
     assert dependencies.index("sync-human-docs") < dependencies.index("compile-rules")
 
     recipe = _target_recipe(makefile, "release-preflight")
@@ -214,6 +223,21 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
     ]
     assert "git push origin main" not in makefile
     assert "git push origin HEAD" not in makefile
+
+
+def test_shared_ci_enforces_module_size_and_complete_coverage() -> None:
+    workflow = _load_workflow("ci-checks.yml")
+    check_steps = workflow["jobs"]["check"]["steps"]
+    module_size = next(step for step in check_steps if step.get("name") == "Module size budget")
+    assert (
+        "git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main" in module_size["run"]
+    )
+    assert "python scripts/check_module_size.py --baseline-ref origin/main" in module_size["run"]
+
+    test_steps = workflow["jobs"]["test"]["steps"]
+    coverage = next(step for step in test_steps if step.get("name") == "Pytest with coverage")
+    assert "--ignore=tests/harness" not in coverage["run"]
+    assert not any("make test-harness" in step.get("run", "") for step in test_steps)
 
 
 def test_release_design_matches_v17_pipeline_contract() -> None:

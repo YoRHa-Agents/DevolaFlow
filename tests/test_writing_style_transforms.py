@@ -66,6 +66,21 @@ def test_emdash_preserves_code_block() -> None:
     assert "code -- stays -- here" in out
 
 
+def test_emdash_document_density_cap_demotes_excess() -> None:
+    paragraphs = [
+        f"Paragraph {i} contains enough ordinary prose words for density checks — pause here."
+        for i in range(20)
+    ]
+    out = emdash.apply("\n\n".join(paragraphs), DOCUMENTATION_NATURAL)
+    assert out.count("\u2014") == 1
+    assert out.count(", ") >= 19
+
+
+def test_emdash_demote_helper_clamps_negative_budget() -> None:
+    out = emdash._demote_excess_emdashes("left — middle — right", -1)
+    assert out == "left, middle, right"
+
+
 def test_bullets_collapses_single_item_list_after_colon() -> None:
     text = "Here are the options:\n\n- Use emdash\n\nNext paragraph."
     out = bullets.apply(text, DOCUMENTATION_NATURAL)

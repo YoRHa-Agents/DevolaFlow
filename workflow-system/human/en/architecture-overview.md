@@ -4,8 +4,8 @@ description: "Three-layer checklist-round architecture, provenance primitives, a
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-27T11:32:38Z"
-source_version: "17.5.0"
+last_synced: "2026-08-27T15:20:13Z"
+source_version: "18.0.0"
 ---
 
 # Architecture Overview
@@ -38,7 +38,7 @@ Composite scores remain trend signals; they do not replace item evidence.
 
 ## Context and governance
 
-Task-adaptive selection derives from 25 profiles
+Task-adaptive selection derives from 27 profiles
 in `workflow-system/agent/context_profiles.yaml`. The canonical `.rules/`
 sources currently contain 57 rule IDs; generated surfaces
 must be compiled rather than hand-edited.

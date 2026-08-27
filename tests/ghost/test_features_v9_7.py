@@ -75,8 +75,8 @@ _V9_7_0_ENV_FLAG_DOC_LITERALS: tuple[str, ...] = (
 # v9.7.0 PV-03 auto-wire reference doc anchor.
 _V9_7_0_REFERENCE_DOC_ANCHORS: tuple[tuple[str, str], ...] = (
     (
-        "workflow-system/agent/references/execution-protocol.md",
-        "## 13. L2-Wave Async Dispatch Auto-Wire (v9.7.0+)",
+        "workflow-system/agent/references/wave-dispatch.md",
+        "# Wave Dispatch Reference",
     ),
 )
 

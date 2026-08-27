@@ -47,6 +47,8 @@ EXPECTED_RECORD_KEYS = [
     # v17.0.0 R5 (G17-B6 / D-R5-1) — resolved capacity profile with
     # aggregate provenance, appended AFTER slice_savings_pct.
     "capacity_profile",
+    # v18.0.0 — explicit full AGENTS.md token metric.
+    "agents_md_tokens",
 ]
 
 # The dark-config capacity view (the shipped context_profiles.yaml declares
@@ -134,6 +136,7 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
         "slice_savings_pct": 0.0,
         # Dark meta.capacity → hardcoded defaults with source "default" (D-R5-1).
         "capacity_profile": DEFAULT_CAPACITY_PROFILE,
+        "agents_md_tokens": FULL_AGENTS_MD_TOKENS,
     }
     assert rendered == [
         yaml.safe_dump(
@@ -327,10 +330,12 @@ def test_slice_accounting_e2e_real_ledger_carries_positive_savings(tmp_path: Pat
     assert len(records) == 1
     record = records[0]
     assert record["host_rule_tokens"] > 0
+    assert record["agents_md_tokens"] == record["host_rule_tokens"]
     assert record["slice_savings_pct"] > 0
 
     summary = aggregate_ledger(folder)
     assert summary["tokens"]["host_rule_tokens_mean"] == record["host_rule_tokens"]
+    assert summary["tokens"]["agents_md_tokens_mean"] == record["agents_md_tokens"]
     assert summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(record["slice_savings_pct"])
 
 

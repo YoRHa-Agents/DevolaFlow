@@ -23,12 +23,15 @@ def test_pathfinder_role_surfaces_are_wired(project_root: Path) -> None:
     )
     assert reference.is_file()
     assert "references/pathfinder.md" in skill
-    assert "type: research | design | implement | test | pathfind | review" in roles
+    assert (
+        "type: research | design | implement | test | pathfind | review | preflight | harness_build"
+        in roles
+    )
     assert "references/pathfinder.md" in manifest["references"]
     assert classify_pathfind_intent("run Pathfinder look-ahead") == "PATHFIND_REQUESTED"
     assert callable(should_schedule_pathfind)
     assert "should_schedule_pathfind" in skill
-    lint_source = (project_root / "src/devolaflow/agent_workspace/lint.py").read_text(
+    lint_source = (project_root / "src/devolaflow/_workspace_lint/advanced_semantics.py").read_text(
         encoding="utf-8"
     )
     assert workspace_lint.PATHFINDER_REPORT_FILENAME == "pathfinder_report.md"

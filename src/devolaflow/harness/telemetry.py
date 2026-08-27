@@ -349,6 +349,9 @@ def build_dispatch_record(
             "max_concurrency": capacity_view.max_concurrency,
             "source": capacity_view.source,
         },
+        # v18.0.0 — explicit full AGENTS.md token metric for rule-slimming
+        # comparisons; retain host_rule_tokens for backward compatibility.
+        "agents_md_tokens": host_rule_tokens,
     }
     if advisory_folded:
         record["fold_trace"] = {

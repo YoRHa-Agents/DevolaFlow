@@ -108,9 +108,9 @@ def test_v17_1_0_harness_construction_branch_wired(project_root: Path) -> None:
     assert LINT_HARNESS_PREFLIGHT_FILENAME == "harness_preflight.md"
     assert CHECKLIST_ARTIFACT_BUDGETS["harness_preflight.md"] == (800, 1600)
     assert callable(_check_harness_preflight)
-    lint_source = (project_root / "src" / "devolaflow" / "agent_workspace" / "lint.py").read_text(
-        encoding="utf-8"
-    )
+    lint_source = (
+        project_root / "src" / "devolaflow" / "_workspace_lint" / "advanced_semantics.py"
+    ).read_text(encoding="utf-8")
     for finding_code in (
         "HPF_FRONTMATTER",
         "HPF_SCHEMA_VERSION",

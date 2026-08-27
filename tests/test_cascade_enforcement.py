@@ -911,36 +911,6 @@ class TestCascadePatternConsistency:
             f"cascade_required=True + subagent_pattern=FAN_OUT; got {result!r}."
         )
 
-    def test_cascade_required_with_subagent_agent_pool_forward_consistent(self) -> None:
-        """``cascade_required=True`` + ``subagent_pattern="AGENT_POOL_FORWARD"`` is consistent.
-
-        Pattern 3 AGENT_POOL_FORWARD is forward-compat-only at v12.0.0
-        — no API path activates Pattern 3; callers fall back to INLINE
-        round-robin via the ``change-driven`` workflow's apply ↔ verify
-        convergence loop (per ``references/execution-protocol.md``
-        §12). The schema NEST allows the literal so future cycles
-        (v12.x+ when Pattern 3 graduates from forward-compat) can
-        emit it without an additive schema change. The cascade
-        validator returns ``None`` cleanly — pattern sub-field is
-        orthogonal to the depth check.
-
-        Source: W-24.2 forward-compat policy.
-        """
-        gate_block = {
-            "cascade_required": True,
-            "cascade_min_layers": 3,
-            "subagent_pattern": "AGENT_POOL_FORWARD",
-        }
-
-        result = validate_cascade_gate_fields(gate_block, actual_layers=3)
-        assert result is None, (
-            f"validate_cascade_gate_fields drifted from None on "
-            f"cascade_required=True + subagent_pattern=AGENT_POOL_FORWARD; "
-            f"got {result!r}. Pattern 3 forward-compat literal MUST pass "
-            "the cascade validator cleanly — the schema NEST reserves "
-            "the verdict for future v12.x+ Pattern 3 graduation per W-24.2."
-        )
-
     def test_cascade_required_with_subagent_teams_forbidden_raises(self) -> None:
         """``subagent_pattern="TEAMS_FORBIDDEN"`` is internally inconsistent (S-5).
 
@@ -973,22 +943,17 @@ class TestCascadePatternConsistency:
             for tier in ("small", "balanced", "frontier"):
                 for tc in (1, 2, 5):
                     for parallel in (False, True):
-                        for persist in (False, True):
-                            verdict = select_pattern(
-                                complexity=complexity,  # type: ignore[arg-type]
-                                model_tier=tier,  # type: ignore[arg-type]
-                                task_count=tc,
-                                parallel_independence=parallel,
-                                persistent_state_needed=persist,
-                            )
-                            assert verdict != "TEAMS_FORBIDDEN", (
-                                f"select_pattern({complexity!r}, {tier!r}, "
-                                f"{tc!r}, {parallel!r}, {persist!r}) "
-                                f"returned {verdict!r} — W-24.1 invariant "
-                                "broken: the helper MUST NEVER produce "
-                                "TEAMS_FORBIDDEN; the verdict is reserved "
-                                "for forbidden_pattern_rationale only."
-                            )
+                        verdict = select_pattern(
+                            complexity=complexity,  # type: ignore[arg-type]
+                            model_tier=tier,  # type: ignore[arg-type]
+                            task_count=tc,
+                            parallel_independence=parallel,
+                        )
+                        assert verdict != "TEAMS_FORBIDDEN", (
+                            f"select_pattern({complexity!r}, {tier!r}, "
+                            f"{tc!r}, {parallel!r}) returned {verdict!r} — "
+                            "the helper MUST NEVER produce TEAMS_FORBIDDEN."
+                        )
 
         # Operator-education surface: forbidden_pattern_rationale
         # returns a non-None rationale ONLY for TEAMS_FORBIDDEN; the
@@ -1012,7 +977,7 @@ class TestCascadePatternConsistency:
         # The 3 valid verdicts MUST NOT trigger the rationale path
         # (the operator-education surface is reserved for the
         # forbidden literal alone).
-        for valid_verdict in ("INLINE", "FAN_OUT", "AGENT_POOL_FORWARD"):
+        for valid_verdict in ("INLINE", "FAN_OUT"):
             assert forbidden_pattern_rationale(valid_verdict) is None, (
                 f"forbidden_pattern_rationale({valid_verdict!r}) drifted "
                 "from None — only TEAMS_FORBIDDEN is the operator-"
@@ -1060,17 +1025,8 @@ class TestCascadePatternConsistency:
             "contract broken."
         )
 
-    def test_populate_cascade_gate_fields_adds_subagent_pattern(self) -> None:
-        """``populate_cascade_gate_fields`` populates ``gate.subagent_pattern``.
-
-        v12.0.0 PV-04 helper extension: when the caller passes the
-        four input axes (``model_tier`` / ``task_count`` /
-        ``parallel_independence`` / ``persistent_state_needed``), the
-        helper invokes :func:`select_pattern` and writes the verdict
-        to ``gate.subagent_pattern``. This test pins the population
-        contract for the canonical cascade-required + FAN_OUT case
-        (the typical v12.0.0 cascaded-fan-out dispatch shape).
-        """
+    def test_populate_cascade_gate_fields_ignores_removed_pattern_axes(self) -> None:
+        """Cascade population no longer emits the removed pattern NEST."""
         base = {"gate": {"coverage": 85}}
 
         # Canonical FAN_OUT case: STANDARD complexity, 3 parallel L2
@@ -1095,15 +1051,7 @@ class TestCascadePatternConsistency:
             "gate.cascade_min_layers = 3 — M2-W1-B contract broken."
         )
 
-        # Subagent-pattern sub-field populated per v12.0.0 PV-04
-        # contract: select_pattern("STANDARD", "balanced", 3, True) → FAN_OUT.
-        assert result["gate"]["subagent_pattern"] == "FAN_OUT", (
-            f"populate_cascade_gate_fields(STANDARD, balanced, 3, True) "
-            f"did NOT set gate.subagent_pattern = FAN_OUT; got "
-            f"{result['gate'].get('subagent_pattern')!r}. v12.0.0 PV-04 "
-            "wiring broken — see select_pattern decision rule + "
-            "feedback.py::populate_cascade_gate_fields."
-        )
+        assert "subagent_pattern" not in result["gate"]
 
         # Pre-existing gate sub-fields preserved (deep copy + sub-field add).
         assert result["gate"]["coverage"] == 85, (
@@ -1118,20 +1066,18 @@ class TestCascadePatternConsistency:
         )
 
     def test_subagent_pattern_consistency_check_does_not_raise_on_simple(self) -> None:
-        """SIMPLE complexity dispatches don't trigger the consistency check.
+        """SIMPLE complexity dispatches don't trigger the cascade check.
 
-        Per A-7.1 (cascade is OPTIONAL for SIMPLE/TRIVIAL): even when
-        the L2 Task caller passes the four v12.0.0 PV-04 axes for a SIMPLE
-        complexity dispatch, the cascade validator MUST NOT raise
+        Per A-7.1 (cascade is OPTIONAL for SIMPLE/TRIVIAL), the cascade
+        validator MUST NOT raise
         because the ``cascade_required`` sub-field is OMITTED (the
         helper short-circuits at the
         ``cascade_requirement(complexity) == "CASCADE_OPTIONAL"`` guard
         for SIMPLE/TRIVIAL).
 
-        This test pins the end-to-end skip path: the helper populates
-        ``subagent_pattern`` (since the caller opted in via the four
-        axes) BUT skips the cascade sub-fields (since complexity is
-        OPTIONAL). The cascade validator then short-circuits at the
+        This test pins the end-to-end skip path: the helper skips the
+        cascade sub-fields because complexity is OPTIONAL. The validator
+        then short-circuits at the
         ``if not cascade_required: return None`` guard and returns
         ``None`` regardless of the subagent pattern verdict.
         """
@@ -1156,24 +1102,11 @@ class TestCascadePatternConsistency:
             "cascade_min_layers — A-7.1 CASCADE_OPTIONAL skip path broken."
         )
 
-        # subagent_pattern STILL populated (the caller opted in via
-        # the four axes; pattern selection is orthogonal to cascade).
-        # FAN_OUT for task_count=3 + parallel_independence=True.
-        assert result["gate"]["subagent_pattern"] == "FAN_OUT", (
-            f"populate_cascade_gate_fields(SIMPLE, balanced, 3, True) "
-            f"did NOT set gate.subagent_pattern = FAN_OUT; got "
-            f"{result['gate'].get('subagent_pattern')!r}. Pattern selection "
-            "is orthogonal to cascade depth per W-24."
-        )
-
         # Cascade validator short-circuits cleanly: no cascade_required
-        # in the gate block → the validator's early-return fires and
-        # returns None. The subagent_pattern sub-field is IGNORED by
-        # the cascade validator (pattern is orthogonal to depth).
+        # in the gate block → the validator's early-return fires.
         result_check = validate_cascade_gate_fields(result["gate"], actual_layers=1)
         assert result_check is None, (
-            f"validate_cascade_gate_fields drifted from None on a SIMPLE "
-            f"dispatch with subagent_pattern populated; got {result_check!r}. "
+            "validate_cascade_gate_fields drifted from None on a SIMPLE "
             "A-7.1 CASCADE_OPTIONAL skip-path broken — the validator MUST "
             "short-circuit before any depth check when cascade_required "
             "is absent."

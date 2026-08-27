@@ -9,7 +9,7 @@ triggers:
   - "selecting a task role"
   - "reviewing role-specific evidence"
 tier: 2
-token_estimate: 2200
+token_estimate: 2700
 dependencies:
   - "agent/SKILL.md"
 last_updated: "2026-08-27"
@@ -22,10 +22,10 @@ last_updated: "2026-08-27"
 ```text
 L0 Project
   └── L1 Wave
-        └── L2 Task (research | design | implement | test | pathfind | review)
+        └── L2 Task (research | design | implement | test | pathfind | review | preflight | harness_build)
 ```
 
-The six names are L2 Task specializations, not agent layers or persistent
+The eight names are L2 Task specializations, not agent layers or persistent
 teams. `TaskDispatch.task.type` selects a role profile for one fresh,
 context-isolated Task. Roles never message each other directly; L1 aggregates
 their StatusReports and evidence.
@@ -43,6 +43,8 @@ The hierarchy budget remains L0 5K / L1 5K / L2 8K. One wave contains at most
 | Test | Execute checks or author test-only changes | exact commands, counts, metrics, regressions |
 | Pathfind | Look ahead for infrastructure and harness gaps | gap report, horizon, closure signal |
 | Review | Evaluate an artifact without modifying it | located findings, severity, verdict |
+| Preflight | Draft configuration and evidence for the signed gate | draft sections, evidence, unsigned state |
+| HarnessBuild | Remediate a Pathfinder blocker in owned harness scope | blocker IDs, diff, checks, closure signals |
 
 Checklist seeds may suggest role/order through task hints and preserve
 `source_stages` as historical provenance. They do not instantiate static role
@@ -55,7 +57,7 @@ Every role receives:
 ```yaml
 task:
   id: T-<round>-<wave>-<task>
-  type: research | design | implement | test | pathfind | review
+  type: research | design | implement | test | pathfind | review | preflight | harness_build
   objective: <one atomic outcome>
   checklist_items: [C-Gn.m]
   owned_files:
@@ -249,7 +251,65 @@ pathfind_evidence:
 The report is advisory evidence. A `BLOCKER` triggers a separately owned
 harness-build or design task; Pathfinder never fixes it in place.
 
-## 9. Review Task
+## 9. Preflight Task
+
+Purpose: perform the drafting labor needed to prepare a change for the
+preflight gate.
+
+The `preflight` task may inventory project configuration, assemble the
+machine-grounded gap evidence, and draft `preflight.md` content inside its
+owned change folder. It MUST NOT authorize the change, sign the preflight,
+decide whether a stop card is satisfied, or bypass a blocker. Gate semantics, human sign-off, and stop-card decisions remain owned by L0 and the human operator.
+
+Output:
+
+```yaml
+preflight_evidence:
+  artifact_paths: []
+  drafted_sections: []
+  configuration_facts: []
+  gap_evidence: []
+  authorization_state: NOT_AUTHORIZED
+```
+
+Quality:
+
+- every draft fact cites repository-relative evidence;
+- unsigned or missing inputs remain explicit;
+- no authorization field is self-attested;
+- the L0/human preflight gate remains the only release decision.
+
+## 10. Harness-Build Task
+
+Purpose: remediate a bounded Pathfinder `BLOCKER` with an independently owned
+harness, fixture, schema, baseline, or verification change.
+
+The `harness_build` task is dispatched only as a separately owned remediation
+task. It consumes the Pathfinder finding and its acceptance signal, implements
+the smallest repair in scope, and self-verifies it. It MUST NOT rewrite the
+Pathfinder report, close the blocker without evidence, alter gate semantics,
+or turn a non-blocking finding into an authorization decision.
+
+Output:
+
+```yaml
+harness_build_evidence:
+  blocker_ids: []
+  files_created: []
+  files_modified: []
+  checks: []
+  closure_signals: []
+  concerns: []
+```
+
+Quality:
+
+- every changed file is inside the task's owned set;
+- each cited blocker has a matching verification result or explicit concern;
+- the Pathfinder acceptance signal is preserved verbatim;
+- unresolved blockers escalate through L1 → L0 → human.
+
+## 11. Review Task
 
 Purpose: evaluate an artifact without modifying it.
 
@@ -303,7 +363,7 @@ The implementer receives both typed verdicts through L1. `DONE` means both
 passes succeeded; `DONE_WITH_CONCERNS` carries non-blocking evidence;
 `NEEDS_CONTEXT` requests missing bounded context; `BLOCKED` escalates to L1.
 
-## 10. Role Participation by Intent
+## 12. Role Participation by Intent
 
 Seed names route intent and decomposition knowledge; all execute through
 `change-driven`.
@@ -316,12 +376,14 @@ Seed names route intent and decomposition knowledge; all execute through
 | Hotfix / dependency setup | Implement, Test; focused Review when risk warrants |
 | Verification / audit / performance | Test or Review; Research for external baselines |
 | Look-ahead reconnaissance | Pathfinder; Harness-build or Design for remediation |
+| Change preflight preparation | Preflight; L0/human retain authorization and stop-card decisions |
+| Pathfinder blocker remediation | Harness-build; Test or Review for independent verification |
 | Self/skill optimization | Research, Implement, Test, Review |
 
 “Typical” is advisory. Readiness, dependency, risk, and ownership determine
 the actual wave composition.
 
-## 11. Handoff Protocol
+## 13. Handoff Protocol
 
 Roles communicate through the append-only envelope ledger documented in
 `references/agent-workspace.md`.
@@ -354,7 +416,7 @@ compliance, and blocker state. On rejection:
 
 No role performs an in-memory direct handoff or edits another role's output.
 
-## 12. See Also
+## 14. See Also
 
 - `references/agent-hierarchy.md`
 - `references/agent-workspace.md`

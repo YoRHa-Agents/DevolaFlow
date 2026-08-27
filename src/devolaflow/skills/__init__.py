@@ -23,9 +23,10 @@ operator and by L0 dispatchers when steering toward the
   and **W-23** (Domain Glossary Maintenance); the integration design
   is in ``.local/research/v11.3.0_gap_analysis.md`` §4 P1.3.
 * :mod:`devolaflow.skills.subagent_pattern` — pure-function selection
-  heuristic for the v11.4.0 philschmid 4-pattern subagent taxonomy
-  (Inline Tool, Fan-Out, Agent Pool, Teams). The three public
-  functions plus two Literal aliases are forward-defined by workflow
+  heuristic for the supported Inline Tool and Fan-Out dispatch patterns.
+  Pattern 3 was removed until a persistent-state contract exists; Teams
+  remains forbidden. The three public functions plus two Literal aliases
+  are defined by workflow
   rule **W-24** ("Subagent Pattern Selection") authored in v11.4.0
   Wave 2 alongside the new Tier-2 reference
   ``workflow-system/agent/references/subagent-patterns.md``; the

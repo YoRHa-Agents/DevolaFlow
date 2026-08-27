@@ -5,7 +5,7 @@ metadata:
   version: "1.0.0"
   description: "Seed for an evidence-backed change lifecycle."
   category: composite
-  intent_keywords: [change, propose, apply, verify, archive, lifecycle, agent-workspace]
+  intent_keywords: [change, propose, preflight, preflight-draft, apply, verify, archive, lifecycle, agent-workspace, harness-build, blocker-remediation]
   source:
     kind: template
     name: change-driven
@@ -20,6 +20,15 @@ partitions:
     assertions:
       - key: contract-anchored
         statement_template: "Goal, scope, and acceptance assertions are anchored with the user"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: preflight-drafting
+    title_template: "Preflight drafting"
+    source_stages:
+      - {id: preflight, primitive: validate}
+    assertions:
+      - key: preflight-draft-ready
+        statement_template: "Preflight configuration and evidence are drafted for L0 and human sign-off"
         suggested_priority: P0
         verify: {mode: manual}
   - key: execution

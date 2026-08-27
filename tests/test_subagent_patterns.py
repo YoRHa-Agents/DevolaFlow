@@ -11,8 +11,8 @@ test file pins:
 
 1. :func:`select_pattern` — operator-facing decision rule mapping
    ``(complexity, model_tier, task_count, parallel_independence,
-   persistent_state_needed)`` to one of three verdicts (INLINE,
-   FAN_OUT, AGENT_POOL_FORWARD); never returns TEAMS_FORBIDDEN.
+   )`` to one of two verdicts (INLINE, FAN_OUT); never returns
+   TEAMS_FORBIDDEN.
 2. :func:`validate_inputs` — S-5 explicit-error contract for invalid
    inputs (no silent coercion).
 3. :func:`forbidden_pattern_rationale` — operator-education path that
@@ -77,47 +77,6 @@ def test_select_pattern_fan_out_for_parallel_independent_tasks() -> None:
     assert select_pattern("COMPLEX", "frontier", 5, True) == "FAN_OUT"
 
 
-def test_select_pattern_agent_pool_forward_for_frontier_persistent() -> None:
-    """STANDARD+ / frontier model / persistent_state_needed=True → AGENT_POOL_FORWARD.
-
-    Pins gap-analysis §5.4 row "STANDARD or COMPLEX / any / any /
-    frontier / True" → AGENT_POOL_FORWARD: the Pattern 3 forward-compat
-    verdict. Factual state per the v17.0.0 R5 verdict (W-24.2): v12.0.0
-    landed the ``gate.subagent_pattern`` schema NEST, but the pool
-    RUNTIME remained deferred through v13–v17 — the helper does NOT
-    activate Pattern 3; it merely surfaces the advisory verdict so
-    operators can fall back to INLINE round-robin via ``change-driven``
-    workflow's ``apply ↔ verify`` convergence loop. Re-evaluation gate:
-    v18+ SI-1 evidence plus a persistent-state schema design.
-    """
-    assert (
-        select_pattern("STANDARD", "frontier", 2, False, persistent_state_needed=True)
-        == "AGENT_POOL_FORWARD"
-    )
-    assert (
-        select_pattern("COMPLEX", "frontier", 1, True, persistent_state_needed=True)
-        == "AGENT_POOL_FORWARD"
-    )
-
-
-def test_select_pattern_downgrades_to_inline_when_under_resourced() -> None:
-    """persistent_state_needed=True with small/balanced model → INLINE downgrade.
-
-    Pins gap-analysis §5.4 row "any / any / any / small or balanced /
-    True" → INLINE (downgrade — Pattern 3 needs frontier model). The
-    decision rule's persistent-state branch is GUARDED on ``model_tier
-    == "frontier"``; everything else falls through to ``return "INLINE"``
-    inside the persistent branch (the under-resourced downgrade).
-    Mirrors the article's "with a smaller or cheaper model, stay with
-    Pattern 1 or 2" recommendation verbatim.
-    """
-    assert select_pattern("STANDARD", "small", 1, False, persistent_state_needed=True) == "INLINE"
-    assert select_pattern("STANDARD", "balanced", 2, True, persistent_state_needed=True) == "INLINE"
-    # Even with frontier model, SIMPLE/TRIVIAL complexity downgrades
-    # because Pattern 3 is reserved for STANDARD/COMPLEX workflows.
-    assert select_pattern("SIMPLE", "frontier", 1, False, persistent_state_needed=True) == "INLINE"
-
-
 def test_select_pattern_inline_for_sequential_dependent_tasks() -> None:
     """STANDARD / >=2 tasks / parallel_independence=False → INLINE.
 
@@ -137,32 +96,29 @@ def test_select_pattern_never_returns_teams_forbidden() -> None:
     Pins the gap-analysis §5.2 invariant: TEAMS_FORBIDDEN is reserved
     for :func:`forbidden_pattern_rationale` (operator-education path),
     not for :func:`select_pattern`. This exhaustive sweep exercises
-    every combination of the 5 input axes — 4 complexities × 3 model
-    tiers × 3 task_counts × 2 parallel_independence × 2
-    persistent_state_needed = 144 combinations — and asserts none
+    every combination of the 4 supported input axes — 4 complexities ×
+    3 model tiers × 3 task_counts × 2 parallel_independence = 72
+    combinations — and asserts none returns TEAMS_FORBIDDEN.
     returns TEAMS_FORBIDDEN. Cheap O(144) check on pure-function paths.
     """
     complexities = ("TRIVIAL", "SIMPLE", "STANDARD", "COMPLEX")
     model_tiers = ("small", "balanced", "frontier")
     task_counts = (1, 2, 5)
-    bools = (False, True)
-
     seen: set[str] = set()
     for c in complexities:
         for m in model_tiers:
             for n in task_counts:
-                for p in bools:
-                    for s in bools:
-                        verdict = select_pattern(c, m, n, p, persistent_state_needed=s)
-                        assert verdict != "TEAMS_FORBIDDEN", (
-                            f"select_pattern returned TEAMS_FORBIDDEN for "
-                            f"(c={c!r}, m={m!r}, n={n!r}, p={p!r}, s={s!r})"
-                        )
-                        seen.add(verdict)
+                for p in (False, True):
+                    verdict = select_pattern(c, m, n, p)
+                    assert verdict != "TEAMS_FORBIDDEN", (
+                        f"select_pattern returned TEAMS_FORBIDDEN for "
+                        f"(c={c!r}, m={m!r}, n={n!r}, p={p!r})"
+                    )
+                    seen.add(verdict)
 
-    # All three legitimate verdicts must be reachable through the sweep
+    # Both legitimate verdicts must be reachable through the sweep
     # (otherwise the decision rule has a dead branch).
-    assert seen == {"INLINE", "FAN_OUT", "AGENT_POOL_FORWARD"}
+    assert seen == {"INLINE", "FAN_OUT"}
 
 
 # ── validate_inputs — S-5 explicit-error paths ─────────────────────────
@@ -255,18 +211,6 @@ def test_forbidden_pattern_rationale_returns_none_for_fan_out() -> None:
     assert forbidden_pattern_rationale("FAN_OUT") is None
 
 
-def test_forbidden_pattern_rationale_returns_none_for_agent_pool_forward() -> None:
-    """``"AGENT_POOL_FORWARD"`` is forward-compat → rationale is ``None``.
-
-    Pins the no-rationale verdict for Pattern 3: forward-compat plans
-    are NOT forbidden, so no rationale is emitted. Operators consuming
-    this verdict are expected to fall back to INLINE round-robin via
-    ``change-driven`` workflow's ``apply ↔ verify`` convergence loop
-    (per gap-analysis §5.5 worked example).
-    """
-    assert forbidden_pattern_rationale("AGENT_POOL_FORWARD") is None
-
-
 def test_forbidden_pattern_rationale_raises_on_invalid_pattern() -> None:
     """Invalid PatternVerdict literal raises :class:`ValueError` (S-5).
 
@@ -334,7 +278,6 @@ def test_subagent_pattern_literal_string_values_are_stable() -> None:
     assert get_args(PatternVerdict) == (
         "INLINE",
         "FAN_OUT",
-        "AGENT_POOL_FORWARD",
         "TEAMS_FORBIDDEN",
     )
     assert get_args(ModelTier) == ("small", "balanced", "frontier")

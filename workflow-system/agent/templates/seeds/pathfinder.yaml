@@ -81,7 +81,7 @@ partitions:
         verify:
           mode: manual
       - key: blocker-routed
-        statement_template: "An unclosed blocker is handed to a separately owned remediation task."
+        statement_template: "An unclosed Pathfinder BLOCKER is handed to a separately owned harness_build remediation task."
         suggested_priority: P1
         verify:
           mode: manual

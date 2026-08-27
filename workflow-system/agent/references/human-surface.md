@@ -40,7 +40,7 @@ and the per-cycle research tier (`.local/research/`). It exists to close
 two long-standing gaps the v13.0.0 driver feedback named:
 
 1. **Immutable long-term human INPUT** — durable requirements + constraints
-   with regression value (引导回测). Immutability comes from an append-only
+   with regression replay value. Immutability comes from an append-only
    amendment ledger (Rule S-9 discipline), NOT from write-locking files.
 2. **Concise human OUTPUT** — conclusion-first, budget-capped convergence
    reports + a read-first digest, so human-facing output never floods.
@@ -79,7 +79,7 @@ relative to the repository root (Rule S-2 — never absolute).
 │   ├── requirements.md                # REQ-<DOMAIN>-NN entries + Traceability matrix + Out-of-Scope; shards on overflow (§3b)
 │   ├── requirements/                  # (overflow only) per-domain REQ shards, one REQ-<DOMAIN>-* family per file
 │   │   └── <domain>.md                #   created lazily when the aggregate would exceed the §4 hard ceiling
-│   └── amendments/                    # append-only amendment ledger (Rule S-9 discipline) — the 引导回测 lineage
+│   └── amendments/                    # append-only amendment ledger (Rule S-9 discipline) — the regression-replay lineage
 │       └── <YYYY-MM-DD>-<slug>.md      #   one amendment per file; NEVER edited or deleted
 ├── output/                            # WRITE-OWNER: agent drafts → human approves (§4). Anti-flooding.
 │   ├── README.md                      # write-owner conventions for the OUTPUT zone
@@ -222,7 +222,7 @@ warns in `lite`, blocks in `full` / STRICT — mirroring
 `check_envelope_append_only` (S-9) + `check_file_ownership` (S-8). A
 `Lifecycle: DRAFT` block is exempt, so the hook never inspects `Status`.
 
-### 3d. Regression / 引导回测 lineage
+### 3d. Regression-replay lineage
 
 Each requirement carries a checkable lineage so coverage is provable and
 drift is auditable (Rule A-4: truth + delta + dated archive):
@@ -538,7 +538,7 @@ coverage SSOT is `requirements.md`'s Traceability matrix
 ## Principle 2: Human intent is immutable post-ratification
 The project MUST treat a ratified requirement as immutable: changes are recorded by
 APPENDING a dated amendment, never by editing the ratified text in place.
-Rationale: preserves regression/引导回测 value — the original intent stays auditable.
+Rationale: preserves regression-replay value — the original intent stays auditable.
 
 **Version**: 1.0.0 | **Ratified**: 2026-06-03 | **Last Amended**: 2026-06-03
 

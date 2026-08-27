@@ -794,6 +794,8 @@ _G006_AC_ENABLED_PROFILES: tuple[str, ...] = (
     "self_update",
     "repo-init",
     "entropy_scan",
+    "preflight",
+    "harness_build",
 )
 _G006_AC_EXEMPT_PROFILES: tuple[str, ...] = (
     "research",

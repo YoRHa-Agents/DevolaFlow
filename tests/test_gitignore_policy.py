@@ -1,12 +1,12 @@
-"""Verify the v12.2.0 selective whitelist `.local/` gitignore policy.
+"""Verify the current-cycle selective whitelist `.local/` gitignore policy.
 
 Closes `.local/feedbacks/feedback_for_v12.1.0.md`: the DevolaFlow local
 workspace is private by default, but two team-collab subdirs are explicitly
 tracked under git so PR reviewers see them mid-cycle:
 
 * `.local/memory/specs/` — A-4 source-of-truth contracts (per Rule A-4)
-* `.local/research/`     — narrowed by clean_repo Phase A + B2 + C1-1:
-                            only current-cycle (v15*) research stays
+* `.local/research/`     — narrowed by the cycle archive policy:
+                            only current-cycle (v18*) research stays
                             tracked; archived history (incl. all ADRs)
                             lives in docs/cycle-archive/ (W-19)
 
@@ -115,11 +115,9 @@ LOCAL_WHITELISTED_PATHS: list[str] = [
     ".local/memory/specs/auth/spec.md",
     ".local/memory/specs/agent_workspace/spec.md",
     ".local/memory/specs/example_domain/spec.md",
-    # W-7/W-19 research artifacts — narrowed by clean_repo Phase A + B2 +
-    # C1-1: only current-cycle v15* loose files (via !.local/research/v15*)
-    # stay re-enabled; the 2 formerly hard-read v15 ADRs moved to the
-    # archived bucket once Phase C1-1 landed the ghost-test archive fallback.
-    ".local/research/v15.0.0_retrospective.md",
+    # W-7/W-19 research artifacts — only current-cycle v18* loose files
+    # stay re-enabled; prior-cycle files live in docs/cycle-archive/.
+    ".local/research/v18.0.0_gap_analysis.md",
     # v14.0.0 — human INPUT zone (authoritative, durable, PR-reviewable)
     # re-enabled via !.local/human/input/** (D-4 / ADR-2). output/ + archive/
     # stay PRIVATE (D2 locked) — see LOCAL_HUMAN_PRIVATE_PATHS below.
@@ -355,19 +353,18 @@ def test_gitignore_documents_v12_2_0_whitelist_policy() -> None:
 
 
 def test_real_existing_research_file_now_tracked() -> None:
-    """Spot-check: an actual file currently on disk under `.local/research/` is TRACKED.
+    """Spot-check: an actual current-cycle file under `.local/research/` is TRACKED.
 
-    Inverted from the v9.2.3 expectation — under v12.2.0, research artifacts
-    are visible to PR reviewers mid-cycle. The matching negation rule
-    `!.local/research/v15*` re-includes the file.
+    Current-cycle research artifacts are visible to PR reviewers mid-cycle.
+    The matching negation rule `!.local/research/v18*` re-includes the file.
     """
-    target = REPO_ROOT / ".local/research/v15.0.0_retrospective.md"
+    target = REPO_ROOT / ".local/research/v18.0.0_gap_analysis.md"
     if not target.exists():
-        pytest.skip("v15.0.0_retrospective.md not present (run from a clean checkout?)")
-    status, rule = _check_ignore(".local/research/v15.0.0_retrospective.md")
+        pytest.skip("v18.0.0_gap_analysis.md not present (run from a clean checkout?)")
+    status, rule = _check_ignore(".local/research/v18.0.0_gap_analysis.md")
     assert status == "TRACKED", (
-        f".local/research/v15.0.0_retrospective.md unexpectedly IGNORED under v12.2.0 "
-        f"whitelist (rule: {rule!r}). The negation `!.local/research/v15*` MUST "
+        f".local/research/v18.0.0_gap_analysis.md unexpectedly IGNORED under "
+        f"current-cycle whitelist (rule: {rule!r}). The negation `!.local/research/v18*` MUST "
         f"re-include the file."
     )
 

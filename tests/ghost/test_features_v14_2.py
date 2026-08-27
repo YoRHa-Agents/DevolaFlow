@@ -30,8 +30,11 @@ def test_v14_2_0_digest_budget_blocking_symbols(project_root: Path) -> None:
     Source: .local/research/v14.0.0_design.md §8b (advisory finding).
     """
     # --- (a) lint.py enforcement symbols ------------------------------
-    lint_text = (project_root / "src/devolaflow/agent_workspace/lint.py").read_text(
-        encoding="utf-8"
+    lint_text = "\n".join(
+        (
+            (project_root / "src/devolaflow/_workspace_lint/common.py").read_text(encoding="utf-8"),
+            (project_root / "src/devolaflow/_workspace_lint/api.py").read_text(encoding="utf-8"),
+        )
     )
     assert "def enforce_digest_budget(" in lint_text, (
         "W-18 v14.2.0 violation: lint.py missing enforce_digest_budget()."
@@ -41,8 +44,18 @@ def test_v14_2_0_digest_budget_blocking_symbols(project_root: Path) -> None:
     )
 
     # --- (b) reporter.py emission-path enforcement --------------------
-    reporter_text = (project_root / "src/devolaflow/agent_workspace/reporter.py").read_text(
-        encoding="utf-8"
+    reporter_text = "\n".join(
+        (
+            (project_root / "src/devolaflow/_workspace_reporter/common.py").read_text(
+                encoding="utf-8"
+            ),
+            (project_root / "src/devolaflow/_workspace_reporter/paths.py").read_text(
+                encoding="utf-8"
+            ),
+            (project_root / "src/devolaflow/_workspace_reporter/rules_cli.py").read_text(
+                encoding="utf-8"
+            ),
+        )
     )
     assert "enforce_digest_budget" in reporter_text, (
         "W-18 v14.2.0 violation: reporter.py does not consume enforce_digest_budget."
@@ -249,7 +262,7 @@ def test_v14_2_2_g024_env_flag_inventory_matches_runtime(project_root: Path) -> 
 
 
 def test_v14_2_2_g024_rule_prose_cites_inventory_not_numerals(project_root: Path) -> None:
-    """G-024: W-22.4 / W-24.4 cite the §2 inventory; no hand-pinned counts.
+    """G-024: W-22.4 cites the §2 inventory; no hand-pinned counts.
 
     The stale "env-flag count remains/stays at 8 per v11.x baseline"
     literals were replaced at v14.2.2; the canonical count lives ONLY in
@@ -259,7 +272,7 @@ def test_v14_2_2_g024_rule_prose_cites_inventory_not_numerals(project_root: Path
     hand_pin = re.compile(r"count (?:remains|stays) at \d+")
     for rel in (".rules/workflow.mdc", ".cursor/rules/repo-governance.mdc", "AGENTS.md"):
         text = (project_root / rel).read_text(encoding="utf-8")
-        for rule_id in ("W-22.4", "W-24.4"):
+        for rule_id in ("W-22.4",):
             start = text.index(f"### {rule_id}")
             next_heading = re.search(r"\n##+ ", text[start + 4 :])
             end = start + 4 + next_heading.start() if next_heading else len(text)

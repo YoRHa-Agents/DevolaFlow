@@ -747,88 +747,21 @@ uses `pathlib.Path.exists()` only — no reads of file content.
 
 ## §11 — Cross-References
 
-### 11.1 SKILL.md sections (lands in Wave 2)
+The Python contract is implemented in
+`src/devolaflow/skills/grill_mode.py`:
+`classify_grill_intent`, `detect_fuzzy_terms`, `qualifies_as_adr`,
+`propose_canonical_term`, and `infer_context_layout`.
 
-- `## Mode Awareness` — NEW sub-section §"GRILL MODE —
-  Interrogate the Plan, Sharpen the Domain" points at this
-  reference (gap analysis P1.4 Edit 1).
-- `## Reference Navigation Guide` Tier-2 sub-table — adds 2 NEW
-  rows for `references/domain-awareness.md` and
-  `references/grill-mode.md` (P1.4 Edit 2).
-- `## Quick Start — Workflow Selection` — adds 1 NEW row for
-  `grill-driven` workflow type (P2.1).
+Cross-load `references/domain-awareness.md` for glossary structure, lazy
+file creation, project-specific scope, and ADR formatting. Cross-load
+`references/plan-mode-enforcement.md` when PLAN MODE is active. The
+`behavioral_guidelines` block remains orthogonal to grill mode; no schema keys
+are added and `canonical_order` remains 17.
 
-### 11.2 Source files (Python API)
-
-- `src/devolaflow/skills/grill_mode.py` — prompt-side
-  codification module. Public functions: `classify_grill_intent`,
-  `detect_fuzzy_terms`, `qualifies_as_adr`,
-  `propose_canonical_term`, `infer_context_layout`.
-- `src/devolaflow/skills/change_activation.py` — design-pattern
-  reference (A-6.1); grill_mode mirrors its R5-strict pure-
-  function pattern.
-
-### 11.3 Companion references
-
-- `references/domain-awareness.md` — `CONTEXT.md` required
-  structure, "Be opinionated" rule, "Only project-specific" rule,
-  single-vs-multi-context inference, lazy file-creation
-  discipline, ADR format + numbering scheme. Cross-load whenever
-  a glossary or ADR write is on the line.
-- `references/plan-mode-enforcement.md` — PLAN MODE contract
-  (plan template, constraints checklist, reinforcement rules,
-  convergence loop). Cross-load when both modes are active per §8.
-- `references/behavioral-guidelines.md` — L2 think_first /
-  simplicity_check / surgical_scope / goal_loop primitives.
-  Orthogonal axis to grill mode (operator-facing vs. dispatch-
-  payload-facing); the two compose freely.
-- `references/agent-workspace.md` — per-change `spec.md` (A-4
-  source-of-truth) vs. CONTEXT.md (vocabulary) distinction
-  (§6.2 above).
-
-### 11.4 Rules
-
-- **W-22 — Grill Mode Activation Contract** (forward reference;
-  lands in Wave 2 via `.rules/workflow.mdc` + compile-rules).
-  Codifies NL triggers, parallel-orthogonal relationship with
-  PLAN MODE, R5 strict default-OFF, and the 3-condition ADR gate.
-  NOT YET in `AGENTS.md` as of v11.1.3 baseline.
-- **W-23 — Domain Glossary Maintenance** (forward reference;
-  lands in Wave 2). Lazy file-creation discipline, "Only
-  project-specific" rule, "Be opinionated" rule, A-4 composition
-  invariant. NOT YET in `AGENTS.md` as of v11.1.3 baseline.
-- **W-21 — Soul-Set Freeze** preserved at 10; grill invariants
-  land at Workflow per gap analysis R-4.
-- **W-20 — Env-Flag Reuse** preserved; NO new env flag (R-7).
-- **A-2.x cache-layout** preserved; NO new dispatch keys (R-5).
-
-### 11.5 Schemas
-
-**None.** Grill mode introduces no new schema fields.
-`canonical_order` stays at 17. Multi-baseline byte test
-(`tests/test_layout_invariant_multi_baseline.py`) 32/32 unchanged.
-Future grill-mode dispatch metadata NESTS under
-`behavioral_guidelines` (canonical position 14) per A-2.3.
-
-### 11.6 Testing surface
-
-- `tests/test_grill_mode.py` — owned by Wave 1.T1 (sibling task;
-  this reference does NOT author tests). Pins all five public
-  `grill_mode.py` functions + R5 strict default-OFF assertion.
-- `tests/test_no_ghost_features.py::test_v11_3_0_new_surfaces_have_coverage` —
-  W-18 ghost-audit refresh (lands in Wave 2 per gap analysis
-  P1.7). Pins this reference's `# Grill Mode` first-line and
-  `tier: 2` frontmatter substrings + 5 AST function symbols.
-
-### 11.7 External
-
-- DevolaFlow repository: `https://github.com/YoRHa-Agents/DevolaFlow`
-- Built-in evaluation authority: `python -m devolaflow.harness evaluate`;
-  grill evidence has no external evaluator dependency.
-- Upstream `grill-with-docs`:
-  `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`
-  (source of the 7 primitives + 7 format primitives this
-  reference embeds)
+The relevant governance surfaces are W-20 (no new environment flag), W-21
+(Soul freeze), W-22 (activation and ADR gate), W-23 (glossary maintenance),
+and A-2 (cache layout). Tests live in `tests/test_grill_mode.py` and the
+current-cycle ghost audit.
 
 ## §12 — Anti-Patterns + Common Mistakes
 

@@ -203,21 +203,26 @@ def test_optional_slice_metrics_are_none_when_absent_and_partial_mean_otherwise(
 
     legacy_summary = aggregate_ledger(tmp_path)
     assert "host_rule_tokens_mean" in legacy_summary["tokens"]
+    assert "agents_md_tokens_mean" in legacy_summary["tokens"]
     assert "slice_savings_pct_mean" in legacy_summary["tokens"]
     assert legacy_summary["tokens"]["host_rule_tokens_mean"] is None
+    assert legacy_summary["tokens"]["agents_md_tokens_mean"] is None
     assert legacy_summary["tokens"]["slice_savings_pct_mean"] is None
 
     carrying_a = _record("carrying-a")
     carrying_a["host_rule_tokens"] = 12_000
+    carrying_a["agents_md_tokens"] = 12_000
     carrying_a["slice_savings_pct"] = 70.0
     carrying_b = _record("carrying-b")
     carrying_b["host_rule_tokens"] = 10_000
+    carrying_b["agents_md_tokens"] = 10_000
     carrying_b["slice_savings_pct"] = 80.0
     _write_jsonl(tmp_path / "harness.jsonl", [legacy, carrying_a, carrying_b])
 
     mixed_summary = aggregate_ledger(tmp_path)
     assert mixed_summary["records"] == 3
     assert mixed_summary["tokens"]["host_rule_tokens_mean"] == pytest.approx(11_000)
+    assert mixed_summary["tokens"]["agents_md_tokens_mean"] == pytest.approx(11_000)
     assert mixed_summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(75.0)
 
     invalid = _record("invalid-savings")

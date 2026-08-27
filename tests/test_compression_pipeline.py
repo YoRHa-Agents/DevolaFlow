@@ -460,3 +460,31 @@ class TestAllStagesImplementProtocol:
         full_sr = StageResult(name="boom", error="network", telemetry={"latency_ms": 500.0})
         assert full_sr.error == "network"
         assert full_sr.telemetry["latency_ms"] == 500.0
+
+
+def test_legacy_pipeline_stage_wrappers_forward_context(tmp_path) -> None:
+    """The split facade wrappers pass defaults and context to each transform."""
+    from devolaflow.compressor import compression_pipeline_stages
+
+    stages = compression_pipeline_stages()
+    assert [stage.name for stage in stages] == [
+        "truncate_tool_output",
+        "summarise_predecessor",
+        "directed_compact",
+    ]
+
+    truncated = stages[0].transform("0123456789" * 20, {"head_chars": 5, "tail_chars": 5})
+    assert truncated.startswith("01234")
+    assert truncated.endswith("56789")
+
+    artifact = tmp_path / "artifact.md"
+    artifact.write_text("## Decision\nUse the auth middleware.\n", encoding="utf-8")
+    summary = stages[1].transform(str(artifact), {"max_tokens": 100})
+    assert summary["mode"] == "extractive"
+    assert "Decision" in summary["covered_sections"]
+
+    compacted = stages[2].transform(
+        "Auth middleware handles requests.\nUnrelated implementation detail.",
+        {"focus_keywords": ["auth"], "max_drop_pct": 0.5},
+    )
+    assert "Auth middleware" in compacted

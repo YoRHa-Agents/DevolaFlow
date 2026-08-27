@@ -11,7 +11,7 @@ metadata:
   applicable_scenarios:
     - "Run an in-flight change from proposal through evidence-backed archive"
     - "Execute any historical workflow mode through its checklist seed"
-  tags: [change, propose, preflight, round, archive, lifecycle, agent-workspace]
+  tags: [change, propose, preflight, round, archive, lifecycle, agent-workspace, harness-build]
 
 stages:
   - id: propose
@@ -21,9 +21,15 @@ stages:
     duration_class: quick
   - id: preflight
     primitive: validate
-    description: "Verify signed project configuration and blocker preauthorization"
-    team: review
+    description: "Draft project configuration and evidence; L0 and human retain authorization"
+    team: preflight
     duration_class: quick
+    config:
+      task_type: preflight
+      scope: drafting_only
+      gate_owner: l0_and_human
+      sign_off_owner: human
+      stop_card_owner: l0_and_human
   - id: round
     primitive: implement
     description: "Run one bounded checklist evidence round"
@@ -33,6 +39,8 @@ stages:
       runtime_limit_source: "stage.md.max_rounds"
       absolute_max_iterations: 62
       on_stagnation: escalate
+      blocker_remediation_task_type: harness_build
+      blocker_remediation_owner: l1_dispatches_separate_l2_task
   - id: archive
     primitive: deploy
     description: "Archive only after checklist, evidence, and quality gates pass"

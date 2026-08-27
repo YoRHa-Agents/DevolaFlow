@@ -140,7 +140,7 @@ def test_v17_0_0_r2_dogfood_host_configs_present(project_root: Path) -> None:
 
 
 def test_v17_0_0_r5_capacity_and_probe_table_wired(project_root: Path) -> None:
-    """W-18 v17.0.0 R5: capacity SSOT reader + probe model table + W-24.2 record."""
+    """W-18 v17.0.0 R5: capacity/probe wiring survives Pattern 3 cleanup."""
     from devolaflow.harness.capacity import (
         CAPACITY_TARGET_RANGES,
         CapacityConfigError,
@@ -177,11 +177,11 @@ def test_v17_0_0_r5_capacity_and_probe_table_wired(project_root: Path) -> None:
     assert load_probe_model_table() == ()
     assert sanitize_model_for_filename("m/1") == "m_1"
 
-    # W-24.2 verdict: stale forward-looking phrasing is gone from the
-    # compiled corpus; the re-deferral gate is recorded.
+    # v18 cleanup: the obsolete Pattern 3 forward signal is gone from the
+    # compiled corpus while historical archives remain immutable.
     agents_md = (project_root / "AGENTS.md").read_text(encoding="utf-8")
     assert "landing deferred to v12.0.0+ SI-1" not in agents_md
-    assert "v18+" in agents_md
+    assert "AGENT_POOL_FORWARD" not in agents_md
 
 
 def test_v17_0_0_r4_focus_loop_wired(project_root: Path) -> None:

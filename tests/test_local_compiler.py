@@ -643,7 +643,6 @@ class TestV822RulesFoundationCompile:
         cursor = repo_compile_results["cursor"]
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in cursor.content
         assert ".local/memory/specs/" in cursor.content
-        assert "v15-ADR-008 §A-4" in cursor.content
 
     def test_c9_in_cursor_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]

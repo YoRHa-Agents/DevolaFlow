@@ -256,6 +256,14 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
             field="host_rule_tokens",
             minimum=0,
         )
+    if "agents_md_tokens" in record:
+        _integer(
+            record["agents_md_tokens"],
+            path=path,
+            line=line,
+            field="agents_md_tokens",
+            minimum=0,
+        )
     if "slice_savings_pct" in record:
         savings = record["slice_savings_pct"]
         if (
@@ -349,6 +357,9 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         token_metrics["host_rule_tokens_mean"] = _optional_mean(
             dispatch_records, "host_rule_tokens"
         )
+        token_metrics["agents_md_tokens_mean"] = _optional_mean(
+            dispatch_records, "agents_md_tokens"
+        )
         token_metrics["slice_savings_pct_mean"] = _optional_mean(
             dispatch_records, "slice_savings_pct"
         )
@@ -371,6 +382,7 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "budget_compliance_ratio": 0.0,
             "p95_budget_utilization": 0.0,
             "host_rule_tokens_mean": None,
+            "agents_md_tokens_mean": None,
             "slice_savings_pct_mean": None,
             "by_layer": {},
         }

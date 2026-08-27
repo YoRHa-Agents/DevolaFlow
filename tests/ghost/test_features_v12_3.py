@@ -219,7 +219,9 @@ _V12_3_0_PV04_AGENTS_MD: Path = Path("AGENTS.md")
 _V12_3_0_PV04_EXEC_PROTOCOL: Path = Path("workflow-system/agent/references/execution-protocol.md")
 
 
-_V12_3_0_PV04_W16_LITERAL: str = "v12.3.0 PV-04 clarification"
+_V12_3_0_PV04_W16_LITERAL: str = (
+    "Each MAJOR or MINOR cycle MUST settle its harness evidence exactly once"
+)
 
 
 _V12_3_0_PV04_TROUBLESHOOTING: Path = Path("workflow-system/agent/references/troubleshooting.md")

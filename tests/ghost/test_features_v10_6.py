@@ -46,11 +46,11 @@ _V10_6_0_DQ1_HELPERS: tuple[tuple[str, str], ...] = (
     ("src/devolaflow/lifecycle/pre_plugin_invocation.py", "_parse_plugin_ids_list"),
     ("src/devolaflow/lifecycle/pre_plugin_invocation.py", "_parse_plugin_id_single"),
     ("src/devolaflow/lifecycle/pre_plugin_invocation.py", "_parse_workflow_plugins"),
-    ("src/devolaflow/plugins/installer.py", "_handle_already_installed_path"),
-    ("src/devolaflow/plugins/installer.py", "_handle_install_path"),
-    ("src/devolaflow/plugins/installer.py", "_iter_workflow_matches"),
-    ("src/devolaflow/plugins/installer.py", "_validate_required_keys"),
-    ("src/devolaflow/plugins/installer.py", "_validate_npm_then_init_keys"),
+    ("src/devolaflow/_plugin_installer/lifecycle.py", "_handle_already_installed_path"),
+    ("src/devolaflow/_plugin_installer/lifecycle.py", "_handle_install_path"),
+    ("src/devolaflow/_plugin_installer/specs.py", "_iter_workflow_matches"),
+    ("src/devolaflow/_plugin_installer/specs.py", "_validate_required_keys"),
+    ("src/devolaflow/_plugin_installer/specs.py", "_validate_npm_then_init_keys"),
 )
 
 

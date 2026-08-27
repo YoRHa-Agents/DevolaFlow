@@ -260,6 +260,16 @@ meta:
         architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
         conventions: ["C-1", "C-2", "C-3", "C-4", "C-7", "C-9"]
         workflow: ["W-1", "W-2", "W-4", "W-9", "W-16", "W-18", "W-19"]
+      preflight:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5"]
+        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-7", "C-9"]
+        workflow: ["W-3", "W-4", "W-5", "W-9"]
+      harness_build:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5"]
+        conventions: ["C-1", "C-2", "C-3", "C-4", "C-7", "C-9"]
+        workflow: ["W-4", "W-9"]
       refactor:
         soul: all
         architecture: all
@@ -1069,6 +1079,109 @@ profiles:
       wave, plus the report, workspace, harness, and role contracts. It is
       read-only reconnaissance, so implementation gates and convergence are
       excluded to preserve the 5K budget.
+
+  preflight:
+    description: "Preflight drafting — configuration inventory and evidence preparation"
+    goal_hints:
+      - "preflight"
+      - "preflight draft"
+      - "draft preflight"
+      - "preflight preparation"
+      - "configuration inventory"
+      - "change readiness"
+    token_budget: 4000
+    timeout_class: review
+    model_hints:
+      default_tier: balanced
+      overrides:
+        configuration_analysis: quality
+        evidence_drafting: balanced
+    section_priorities:
+      <<: *default_section_priorities
+      mode_detection: skip
+      quick_start_workflows: skip
+      hierarchy_table: important
+      wave_task_constraints: critical
+      rationalization_prevention: skip
+      gate_mechanism: important
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      lifecycle_hooks: important
+      repo_mode: important
+      reference_navigation: important
+      rules_dispatchers: critical
+      convergence_loop: skip
+    learnings: *learnings_standard
+    ac_generation: *ac_generation_impl
+    extra_context:
+      - "references/agent-workspace.md"
+      - "references/message-schemas.md"
+      - "references/execution-protocol.md"
+      - "references/team-roles.md"
+    decomposition: *decomposition_single
+    rationale: >
+      Preflight tasks prepare configuration and evidence for the signed gate.
+      They receive enough workspace and protocol context to draft accurately,
+      while gate authorization, human sign-off, and stop-card decisions remain
+      with L0 and the human operator.
+
+  harness_build:
+    description: "Harness-build remediation — close bounded Pathfinder blockers"
+    goal_hints:
+      - "harness_build"
+      - "harness-build"
+      - "harness build"
+      - "Pathfinder blocker"
+      - "harness blocker remediation"
+      - "fix harness gap"
+      - "close harness gap"
+      - "missing harness fixture"
+    token_budget: 5000
+    timeout_class: impl
+    model_hints:
+      default_tier: balanced
+      overrides:
+        harness_remediation: quality
+        test_execution: budget
+    section_priorities:
+      <<: *default_section_priorities
+      plan_mode_template: critical
+      quick_start_workflows: skip
+      hierarchy_table: important
+      wave_task_constraints: critical
+      rationalization_prevention: important
+      gate_mechanism: important
+      agent_teams: critical
+      context_isolation: critical
+      dispatch_report: critical
+      lifecycle_hooks: important
+      repo_mode: important
+      reference_navigation: important
+      rules_dispatchers: critical
+      convergence_loop: important
+    learnings: *learnings_standard
+    extra_context:
+      - "references/pathfinder.md"
+      - "references/harness-construction.md"
+      - "references/agent-workspace.md"
+      - "references/message-schemas.md"
+      - "references/team-roles.md"
+    decomposition: *decomposition_single
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
+    behavioral_guidelines:
+      tier: standard
+      think_first: true
+      simplicity_check: true
+      surgical_scope: function
+      goal_loop: false
+    ac_generation: *ac_generation_impl
+    rationale: >
+      Harness-build tasks are bounded implementation repairs selected from a
+      Pathfinder BLOCKER. They need the Pathfinder and harness contracts,
+      independent ownership, implementation verification, and escalation
+      context, but they do not own gate authorization or the Pathfinder report.
 
   refactor:
     description: "Refactoring — code structure context, safety nets"

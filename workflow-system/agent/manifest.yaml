@@ -62,6 +62,7 @@ references:
   - references/task-quality-score.md
   - references/team-roles.md
   - references/troubleshooting.md
+  - references/wave-dispatch.md
 
 # Tier-3 worked traces — must stay in exact parity with
 # workflow-system/agent/examples/*.md.

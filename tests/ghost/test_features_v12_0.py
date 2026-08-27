@@ -552,12 +552,9 @@ def test_v12_0_0_pv04_subagent_nest_schema(project_root: Path) -> None:
       A-2.3 NEST decision rule. canonical_order length stays at 17,
       schema version stays at 6 (no top-level dispatch key added).
 
-    * ``src/devolaflow/feedback.py`` contains a CALL to
-      ``select_pattern`` (AST FunctionCall pin) — the dispatcher-side
-      wiring that populates ``gate.subagent_pattern`` from the four
-      v12.0.0 PV-04 input axes (model_tier / task_count /
-      parallel_independence / persistent_state_needed) per the helper
-      extension to ``populate_cascade_gate_fields``.
+    * ``src/devolaflow/feedback.py`` contains no CALL to
+      ``select_pattern`` (AST FunctionCall pin) — v18 removes the
+      experimental dispatcher-side ``gate.subagent_pattern`` wiring.
 
     * ``benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml``
       EXISTS on disk (file pin) — the 15th multi-baseline byte-test
@@ -636,7 +633,7 @@ def test_v12_0_0_pv04_subagent_nest_schema(project_root: Path) -> None:
         "bump)."
     )
 
-    # ----- 2. src/devolaflow/feedback.py — select_pattern call AST pin -----
+    # ----- 2. src/devolaflow/feedback.py — select_pattern removal pin -----
     feedback_path = project_root / _V12_0_0_PV04_FEEDBACK_FILE
     assert feedback_path.is_file(), (
         f"W-18 v12.0.0 PV-04 violation: {_V12_0_0_PV04_FEEDBACK_FILE} missing — "
@@ -644,11 +641,8 @@ def test_v12_0_0_pv04_subagent_nest_schema(project_root: Path) -> None:
     )
     feedback_module = ast.parse(feedback_path.read_text(encoding="utf-8"))
 
-    # AST walk: find the ``select_pattern(...)`` call inside any
-    # function body. The call MUST appear in
-    # ``populate_cascade_gate_fields`` (the helper extension), but we
-    # do not pin the enclosing function name here — only that
-    # ``select_pattern`` IS called somewhere in feedback.py.
+    # AST walk: the removed experimental wiring must no longer call
+    # ``select_pattern`` from the dispatcher-side feedback module.
     select_pattern_calls: list[ast.Call] = []
     for node in ast.walk(feedback_module):
         if (
@@ -657,13 +651,10 @@ def test_v12_0_0_pv04_subagent_nest_schema(project_root: Path) -> None:
             and node.func.id == "select_pattern"
         ):
             select_pattern_calls.append(node)
-    assert select_pattern_calls, (
-        f"W-18 v12.0.0 PV-04 violation: {_V12_0_0_PV04_FEEDBACK_FILE} contains "
-        "no AST call to ``select_pattern``. The v12.0.0 PV-04 NEST extension "
-        "wires the dispatcher-side helper to invoke "
-        "``devolaflow.skills.subagent_pattern.select_pattern`` to derive "
-        "``gate.subagent_pattern`` from the four input axes; this lint "
-        "verifies the wiring landed."
+    assert not select_pattern_calls, (
+        f"v18 Pattern 3 cleanup violation: {_V12_0_0_PV04_FEEDBACK_FILE} "
+        "still calls ``select_pattern``; experimental dispatcher wiring "
+        "must be removed while historical schema witnesses remain readable."
     )
 
     # ----- 3. v12.0.0 baseline file — fixture existence pin -----

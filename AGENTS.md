@@ -147,11 +147,15 @@ Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dis
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+The first 12 positions of `canonical_order` are the **FROZEN PREFIX**. Their
+byte-stable rendering is the LLM cache prefix; reordering, renaming, or
+removing any of these keys is a release blocker. Enforced by
+`devolaflow.compressor.assert_layout_spec_invariant`.
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
-Per v9-ADR-002 D2, positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at position N+1 where N is the current `len(canonical_order)`, never inserted into a lower slot. Each schema-version bump (12 → 13 → 14 → 15 → 16) added exactly ONE key at the tail in chronological order (`repos` → `behavioral_guidelines` → `acceptance_criteria_v2` → `change_context`).
+Positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at
+position N+1, never in a lower slot.
 
 ### A-2.3 — Nest-vs-Append Decision Rule
 
@@ -166,19 +170,18 @@ Per v9-ADR-002 D3, when introducing a new dispatch behaviour, authors choose bet
 | Is the new field always present together with an existing block? | NEST as a sub-field |
 | Is the new field independently optional? | Either is acceptable; prefer NEST when the data shape allows |
 
-Historical NEST decisions (correct because each modified an existing block's interpretation): `gate.token_budget` (v8.0.0 P-03), `pred[*].compact_directive` (v8.0.0 P-02), `pred[*].summary_mode` (v7.0.2+ ADR-003 §2.5), `compression_rules.bypass_conditions` (v7.2.0 C-002), `compression_rules.data_envelope_required` (v7.2.4 P-02).
+### A-2.4 — Multi-Baseline Byte Test (Tiered Retention)
 
-Historical APPEND decisions (correct because each carried orthogonal cross-block payload): `repos` → pos 13 (v7.2.6 P-06), `behavioral_guidelines` → pos 14 (v8.0.0 P-08), `acceptance_criteria_v2` → pos 15 (v8.0.0 P-10), `change_context` → pos 16 (v8.3.0 PV-05).
+CI runs `tests/test_layout_invariant_multi_baseline.py` against the
+`layout_invariant_v*.yaml` golden set. Any witness drift fails CI. Schema bumps
+must add a new golden and keep all existing witnesses passing.
 
-### A-2.4 — Multi-Baseline Byte Test (Tiered Retention per v15-ADR-005)
-
-Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseline.py` which pins ALL historical schema-bump witnesses (the `layout_invariant_v*.yaml` golden set under `benchmarks/devolaflow_context/baselines/`). Any drift in any witness fails CI immediately. Future schema bumps MUST add a new golden YAML for the new baseline AND keep all Tier-A witnesses passing.
-
-Baseline retention is TIERED per v15-ADR-005 (G-014), replacing the former keep-all-forever wording:
-
-* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test at their historical `benchmarks/devolaflow_context/baselines/` paths. IMMUTABLE — never moved, renamed, regenerated, or pruned; they cannot be reconstructed from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
-* **Tier B — active harness window**: W-16 settlement artifacts named `harness_baseline_<cycle>.json` for the current + previous 2 cycles stay under `.local/telemetry/baselines/` as the active comparison window. They are derived from aggregated harness telemetry; they are not schema witnesses and MUST NOT be copied into the Tier-A directory.
-* **Tier C — archived harness evidence**: harness baselines older than the Tier-B window move to `docs/cycle-archive/<cycle>/harness/` (W-19's committed-archive surface) — history preserved, never deleted. Retired pre-v16 benchmark JSON remains historical archive evidence only and never returns to a live reader.
+* **Tier A**: immutable layout witnesses under
+  `benchmarks/devolaflow_context/baselines/`.
+* **Tier B**: the current and previous two `harness_baseline_<cycle>.json`
+  files under `.local/telemetry/baselines/`.
+* **Tier C**: older harness baselines under
+  `docs/cycle-archive/<cycle>/harness/`; history is never deleted.
 
 ## A-3 — Context Token Budgets
 
@@ -189,8 +192,6 @@ Context profiles (`workflow-system/agent/context_profiles.yaml`) must define exp
 | L0 Project | ~5K tokens | Workflow template + round status |
 | L1 Wave | ~5K tokens | Task list + dependency map + evidence summaries |
 | L2 Task | ~8K tokens | Task spec + owned files + rules |
-
-Source: CO-3, SI-6.
 
 ## A-4 — Source-of-Truth Spec Location (M-004 ADR)
 
@@ -203,11 +204,6 @@ Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
 runs the explicit `mergeability_check` (v8.2.5 reporter module) before
 allowing the merge.
 
-Rationale: separates lifecycle of in-flight proposals from agreed contracts;
-preserves W-3 / SI-3 + W-4 / SI-4 invariants by NOT auto-merging on archive.
-
-Source: v15-ADR-008 §A-4.
-
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
 Every domain registry surface (whitelist / recipe / value-type cache /
@@ -216,13 +212,8 @@ source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
 
-The current 4 SSOT registries (live inventory: the parametrized
-`_SSOT_PYTHON_REGISTRIES` + `_SSOT_YAML_REGISTRIES` fixtures in
-`tests/ghost/test_registries.py` — the AST/path parity tests there are the
-enforcement surface; this table mirrors the OWNER set. Note
-`_SSOT_YAML_REGISTRIES` still path-pins BOTH plugin YAMLs: the derived
-view's location stays pinned so the loader's verbatim path cannot
-silently move, but the view is NOT a second owner):
+The current SSOT registries are listed below. Parity is enforced by
+`tests/ghost/test_registries.py`; derived views are not owners:
 
 | # | Registry surface | Owner module / file |
 |---|---|---|
@@ -232,16 +223,10 @@ silently move, but the view is NOT a second owner):
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
 | 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
 
-Pre-v15.0.0 this table carried 5 rows — "Plugin catalog"
-(`plugins.yaml`) and "Runtime plugin registry" (`runtime-plugins.yaml`)
-as two sibling owners. v15.0.0 G-021 unified them: the runtime registry
-is the sole registration owner; the catalog became its derived view
-(per `docs/cycle-archive/v15.0.0/v14.2.0_gap_analysis.md` §2.4, F-P5-1/F-P5-6).
-
 ### A-5.1 — Single-Owner Invariant
 
-Adding a NEW whitelist / recipe / registry surface requires picking
-**ONE** owner module and routing every consumer through it. Splitting
+Adding a registry surface requires picking **ONE** owner module and routing
+every consumer through it. Splitting
 the registration data across two modules (e.g. half the whitelist in
 `shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
 invalidates cache reasoning and is a release blocker. Enforced by
@@ -251,16 +236,9 @@ module-level definition for the same registry name.
 
 ### A-5.2 — DEFAULT_ALLOWLIST Hygiene
 
-`scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST` is the registry of
-public APIs that intentionally lack an in-repo production caller. A
-domain-SSOT registry symbol (anything in the table above) MUST NOT
-appear in `DEFAULT_ALLOWLIST` — by definition such symbols ARE
-consumed in-repo by their owner module's siblings. Enforced at script
-import time by `_check_allowlist_domain_overlap(DEFAULT_ALLOWLIST)`
-and at test time by
-`tests/test_dead_apis.py::test_default_allowlist_no_ssot_overlap`.
-
-Source: v15-ADR-008 §A-5.
+`DEFAULT_ALLOWLIST` contains public APIs without in-repo callers. SSOT registry
+symbols MUST NOT appear there. Enforced by
+`_check_allowlist_domain_overlap` and `tests/test_dead_apis.py`.
 
 ## A-6 — Workspace Engagement Auto-Activation
 
@@ -295,8 +273,6 @@ rule. CI-side: `tests/test_change_activation_heuristic.py` pins the
 three verdict cases + opt-out behaviour + byte-stable no-op when env
 flag absent.
 
-Source: v15-ADR-008 §A-6.
-
 ## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
 
 When a dispatch payload's `gate.cascade_required` field is `true`
@@ -315,14 +291,10 @@ Strict enforcement is conditioned on `cascade_requirement(complexity)`:
   `validate_cascade_gate_fields` enforces the contract in STRICT mode:
   it returns `None` on pass and raises `CascadeViolationError` on the
   first invalid field or depth violation. Declared `cascade_min_layers`
-  values are validated at face value; the v16 compatibility
-  reinterpretation of a legacy `4` as effective `3` (WARNING + fold)
-  was removed in v17.0.0 (G17-A5).
+  values are validated at face value.
 * `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
-  validation is skipped; legacy v11.0.x dispatches with no L1/L2 trace
-  pass byte-identically. Verified by
-  `tests/test_cascade_enforcement.py::test_legacy_dispatch_without_cascade_fields_passes_byte_identically`
-  and the 3 sibling backward-compat tests.
+  validation is skipped; legacy dispatches without cascade fields pass
+  byte-identically.
 
 ### A-7.2 — Trivial waiver
 
@@ -331,25 +303,17 @@ trivially waived from the cascade-depth check. The waiver is verified
 at the dispatch payload level: when `gate.cascade_required` is omitted
 (default for v11.0.x dispatches), no validation runs. The
 `populate_cascade_gate_fields` opt-in helper preserves this default by
-returning a deep copy of the base dispatch unchanged when complexity
-is SIMPLE/TRIVIAL — canonical absence-as-default per A-2.3 NEST contract.
+  returning a deep copy of the base dispatch unchanged when complexity
+  is SIMPLE/TRIVIAL.
 
 ### A-7.3 — Operator override
 
-Operators may pass `force_no_change=True` to `activation_verdict()`
-(per A-6.3 / D-A-4) to bypass workspace activation; this is orthogonal
-to A-7 — `cascade_requirement(complexity)` is evaluated independently
-of `force_no_change` (verified by
-`tests/test_cascade_enforcement.py::test_cascade_signal_orthogonal_to_force_no_change`).
-The cascade-shape verdict and the workspace-activation verdict are
-two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
+`force_no_change=True` bypasses workspace activation and is orthogonal to A-7.
 
 ### A-7.4 — Enforcement surface
 
 * CI-side: `tests/test_cascade_enforcement.py` covers strict mode,
-  backward compatibility, skip paths, truth-table propagation, and the
-  v17 face-value semantics for explicit `cascade_min_layers`
-  declarations (no legacy fold), all without input mutation.
+  backward compatibility, skip paths, propagation, and input immutability.
 * Runtime: `validate_cascade_gate_fields` returns `None` on pass and
   raises `CascadeViolationError` on the first violation;
   `populate_cascade_gate_fields` writes the default minimum of 3 when
@@ -358,12 +322,8 @@ two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
   ratchet by default and returns exit 1 when cycle-doc cascade_ratio is
   below N; `--no-strict` is the explicit compatibility opt-out. The
   default threshold is 0.30.
-* Schema (PV-04): `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
-  NESTed under the existing `gate` block (canonical_order length stays
-  at 17 per A-2.3); A-2.4 multi-baseline byte test 32/32 GREEN
-  unchanged because the new sub-fields are absence-canonical.
-
-Source: v15-ADR-008 §A-7.
+* Schema: `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
+  are nested under the existing `gate` block; absence is canonical.
 
 # Conventions Rules (P2) — Coding & Format Standards
 
@@ -489,15 +449,15 @@ Before starting any version iteration, produce a research/analysis artifact iden
 
 ## W-2 — Harness-Driven Analysis (SI-2)
 
-Iteration analysis, including work informed by external references, MUST be
-grounded in repository evidence and the built-in harness evaluator:
+Iteration analysis MUST be grounded in repository evidence and the built-in
+harness evaluator:
 ```
 python -m devolaflow.harness evaluate --ledger .local/telemetry/harness.jsonl --repo . --output .local/research/<cycle>_harness_evaluation.json
 ```
-Run the same built-in evaluator for end-of-iteration self-evaluation and store
-its raw JSON output in `.local/research/`. There is no external-tool or manual
-fallback: missing or insufficient harness evidence MUST remain explicit as an
-`INSUFFICIENT` result and be resolved or escalated before release.
+Run the evaluator again for end-of-iteration self-evaluation and store its raw
+JSON output in `.local/research/`. Missing or insufficient evidence MUST remain
+explicit as `INSUFFICIENT` and be resolved or escalated before release.
+There is no external-tool or manual fallback.
 
 ## W-3 — Evaluation Before Release (SI-3)
 
@@ -505,24 +465,19 @@ Every pre-release requires an evaluation report covering: Code quality (0.20), A
 
 ## W-4 — Harness Regression Guard (SI-4)
 
-Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean
-message schemas, SKILL.md sections, gate modules, or harness modules requires:
+Changes to selector/config/schema/SKILL/gate/harness modules require:
 ```
 make test-harness
 ```
-The deterministic harness domain tests MUST pass. Context optimization changes
-must also compare the measured token-injection distributions,
-`quantifiable_ratio`, checklist completion, and reversion/blocker trends
-against the active W-16 harness baseline. Any configured regression threshold
-breach is a release blocker; the comparison evidence belongs in the
-iteration's harness evaluation under `.local/research/`.
+Harness tests MUST pass. Context optimization must compare token-injection
+distributions, `quantifiable_ratio`, checklist completion, and
+reversion/blocker trends against the active W-16 harness baseline. Threshold breaches
+are release blockers and belong in the iteration evaluation.
 
-Changes to `src/devolaflow/gate/` require running the full gate test suite:
+Changes to `src/devolaflow/gate/` also require:
 ```
 python -m pytest tests/test_gate.py -v
 ```
-
-Absorbs W-11 (CP-4), W-13 (CP-6), W-14 (CO-5) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
 
 ## W-5 — Skill Format Coupling (SI-5)
 
@@ -536,15 +491,11 @@ Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running
 `workflow-system/agent/hosts.yaml` and `adapter_configs/*.yaml` build
 successfully and stay within their budgets.
 
-Absorbs W-12 (CP-5) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
-
 ## W-6 — Context Budget Enforcement (SI-6)
 
 Changes to `context_profiles.yaml` require running `python -m devolaflow.task_adaptive_selector <task_type> --verbose` for all affected task types and verifying no section marked `critical` was dropped.
 
 Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
-
-Absorbs W-15 (CO-6) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
 
 ## W-7 — Iteration Retrospective (SI-8)
 
@@ -586,17 +537,14 @@ Schema bumps still require a new immutable `layout_invariant_v*.yaml` witness
 and all existing Tier-A witnesses to pass per A-2.4. Harness settlement never
 regenerates, relocates, or prunes those byte witnesses.
 
-Historical note: the **v12.3.0 PV-04 clarification** governed timing for the
-retired wholesale benchmark regime. Harness settlement supersedes that regime
-without weakening its once-per-cycle anti-drift intent.
-
-Source: v15-ADR-008 §W-16.
-
 ## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
 
-Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `tests/fixtures/harness/*.yaml` fixture surfacing through the existing parametrized assertions in `tests/harness/test_fixtures.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the vX.Y.0 → vX.(Y+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern.
+Each PV may add at most **+30 NEW test functions**. Parametrized expansions
+of existing tests do not count. The cycle delta MUST stay ≤ **+150 NEW test
+functions**.
 
-**Mid-cycle audit at PV-05** (or the cycle's halfway point if the PV count differs from 10): the cycle-lead L0 MUST report cumulative NEW test function delta against the cycle baseline and forecast the remaining-PV budget. If the projection exceeds +150, defer non-essential tests to the next cycle.
+At the cycle midpoint, L0 MUST report cumulative delta and forecast the
+remaining budget. If projected above +150, defer non-essential tests.
 
 Verify with:
 ```bash
@@ -607,25 +555,21 @@ python -m pytest tests/ --collect-only -q | tail -1
 git diff <previous-tag>..HEAD -- tests/ | grep -cE '^\+\s*def test_'
 ```
 
-Source: v15-ADR-008 §W-17.
-
 ## W-18 — Ghost-Audit Refresh Precondition
 
-Per S-4 (No Ghost Features), every CHANGELOG entry mentioning a feature MUST have working code + tests. W-18 sharpens S-4 with a **PRECONDITION**: before a PV authors a CHANGELOG entry mentioning a feature, the **ghost-audit** — the `tests/ghost/` package (aggregator shim `tests/test_no_ghost_features.py` until v15.0.0) — MUST be refreshed to include a coverage check for that feature's code path.
+Before a CHANGELOG entry mentions a feature, the `tests/ghost/` audit MUST
+contain a coverage check for that feature. This is a hard precondition to S-4.
 
-Refresh mechanism:
-
-1. Add the new feature's primary symbol to the ghost-audit's coverage set (a new test function or a parametrize entry) in the CURRENT cycle's `tests/ghost/test_features_v<MAJOR>_<MINOR>.py` (domain lints live in `tests/ghost/test_{rules,schema,registries}.py` per v15-ADR-001).
-2. Run `python -m pytest tests/ghost/ -v` to confirm the new entry passes.
-3. ONLY THEN add the CHANGELOG entry that mentions the feature.
-
-The `test_ghost_audit_refresh_present` lint (`tests/ghost/test_rules.py`) enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
-
-Source: v15-ADR-008 §W-18.
+Refresh mechanism: add the primary symbol to the current-cycle ghost module,
+run `python -m pytest tests/ghost/ -v`, then author the CHANGELOG entry.
+`tests/ghost/test_rules.py::test_ghost_audit_refresh_present` enforces the
+presence of the audit.
 
 ## W-19 — Research Artifact Archive at Cycle End
 
-After a MAJOR or MINOR cycle ships, the L0 cycle-lead MUST run `python scripts/archive_research_artifacts.py <cycle-version>` to copy the `.local/research/<cycle-prefix>*` artifacts into `docs/cycle-archive/<cycle-version>/`. The archive is COMMITTED to the repo.
+After a MAJOR or MINOR cycle ships, L0 MUST run
+`python scripts/archive_research_artifacts.py <cycle-version>` and commit the
+result under `docs/cycle-archive/<cycle-version>/`.
 
 Archive format (per cycle):
 
@@ -640,15 +584,11 @@ docs/cycle-archive/v<MAJOR>.<MINOR>.0/
 └── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
 ```
 
-The archive is created at cycle CLOSE (after the final patch of a MINOR series ships) and committed as part of the cycle-rollup release commit. Mid-cycle archive runs are no-ops if the destination already exists (idempotent). Pre-v16 archives MAY retain `nines/` or benchmark-named evidence as immutable history; those folders are not current evaluation inputs.
-
-Source: v15-ADR-008 §W-19.
-
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
 Before authoring a NEW `DEVOLAFLOW_*` environment variable, the proposing L2 Task Agent MUST consult `workflow-system/agent/references/env-flags.md` (the canonical inventory) and apply the **reuse-first** test:
 
-1. Does an existing flag activate the SAME runtime surface? → REUSE the existing flag (the v8.3.4 PV-04 command-mapping layer is the canonical example: it REUSES `DEVOLAFLOW_RTK_PROXY` rather than adding `DEVOLAFLOW_COMMAND_MAPPING` because the activation surface is the same).
+1. Does an existing flag activate the SAME runtime surface? → REUSE it.
 2. Does an existing flag's R5 strict pattern apply (env-var read EXACTLY `"1"` + companion runtime probe)? → If yes, the new flag MUST adopt the same parsing + zero-IO design.
 3. Is the new behaviour BEHAVIOURALLY ORTHOGONAL to every existing flag (i.e. would activate independently regardless of any other flag's state)? → ONLY THEN may a new flag be authored.
 
@@ -660,51 +600,26 @@ Authoring requirements for a justified new flag:
 * Author an R5-strict zero-IO test in `tests/test_<feature>_disabled_is_noop.py`.
 * Cite the new flag by name in the CHANGELOG `## [vX.Y.Z]` entry under "Operator-visible behaviour change".
 
-Source: v15-ADR-008 §W-20; checklist in `references/env-flags.md` §7.
-
 ## W-21 — Soul-Set Freeze Governance
 
 The Soul rule layer (S-1..S-N) is FROZEN at the count established by the
 most recent MAJOR or MINOR cycle release. Any proposed addition (S-(N+1))
 MUST satisfy ALL of the following BEFORE landing:
 
-1. **2-cycle telegraph**: the proposing L0 / human authors a deferral note
-   in cycle N's retrospective (§3 "What was deferred and why") flagging
-   the proposed S-(N+1) for cycle N+2 review. Cycle N+1 explicitly
-   does NOT consider the addition — the 2-cycle gap is mandatory and
-   forces deliberate consideration across at least one full release
-   cadence.
-2. **SI-1 gap-analysis entry in cycle N+2** documenting: (a) the
-   immutable invariant the new rule enforces, (b) why no existing
-   S-* / A-* / W-* rule covers the invariant, (c) the proposed CI-time
-   enforcement surface (test name + module path), (d) the per-cycle
-   review trail (the §3 deferral note from cycle N).
-3. **SI-3 evaluation §3.2 architecture-rationality score ≥ 9.5/10**
-   from cycle N+2's L0. Soul additions are architectural decisions of
-   the highest priority — the score floor is stricter than the
-   minor-release composite ≥ 8.5 / major ≥ 9.0 thresholds because
-   every Soul rule is an immutable invariant whose lifetime cost is
-   the multiplicative product of (every future agent dispatch) ×
-   (every future code change) × (every future audit).
-4. **Soul cap**: post-addition Soul layer count MUST stay ≤ 12. Beyond
-   that the immutable-invariant semantics weaken because the cumulative
-   invariant set becomes unmemorable. Future invariants beyond cap 12
-   move to Architecture (P1) instead.
+1. **2-cycle telegraph**: record the proposal in cycle N's retrospective;
+   cycle N+1 does not consider it.
+2. **SI-1 entry in cycle N+2**: document the invariant, coverage gap,
+   enforcement surface, and prior deferral.
+3. **SI-3 architecture score ≥ 9.5/10** in cycle N+2.
+4. **Soul cap**: keep the Soul layer at ≤12 entries; later invariants belong
+   in Architecture.
 
-Current Soul-set freeze locks at **10 entries** (S-1..S-10) at v9.0.0
-release.
-
-Enforcement: W-21 is a HUMAN-side gating rule (no automated CI lint —
-the gating IS the multi-cycle deliberation requirement). The
-`tests/ghost/test_rules.py::test_rule_count_under_cap` lint
-enforces the broader 60-rule cap (per ADR-007 D5) but does NOT separately
-enforce the Soul-specific 12-cap; that gate IS the SI-3 review.
-
-Source: v15-ADR-008 §W-21.
+The current freeze is S-1..S-10. W-21 is human-gated; the broader 60-rule cap
+is enforced by `tests/ghost/test_rules.py::test_rule_count_under_cap`.
 
 ## W-22 — Grill Mode Activation Contract
 
-DevolaFlow's grill mode (introduced v11.3.0; codified by
+DevolaFlow's grill mode (codified by
 `workflow-system/agent/references/grill-mode.md` and
 `src/devolaflow/skills/grill_mode.py`) is the parallel-orthogonal
 sibling of plan mode that conducts a one-question-at-a-time
@@ -765,8 +680,6 @@ surface-distinct from the existing flags — the W-20
 orthogonality test is satisfied because grill mode does NOT
 share an env-flag activation surface with any existing
 DEVOLAFLOW_* flag.
-
-Source: v15-ADR-008 §W-22.
 
 ## W-23 — Domain Glossary Maintenance
 
@@ -833,8 +746,6 @@ pure function returns one of `SINGLE_CONTEXT` /
 touches disk; it raises `FileNotFoundError` when `repo_root`
 itself does not exist (S-5: no silent failure).
 
-Source: v15-ADR-008 §W-23; format spec in `references/domain-awareness.md`.
-
 ## W-24 — Subagent Pattern Selection
 
 The subagent-pattern selection (v11.4.0+; codified by
@@ -842,68 +753,27 @@ The subagent-pattern selection (v11.4.0+; codified by
 `src/devolaflow/skills/subagent_pattern.py`) is the AGENT-to-AGENT
 dispatch pattern decision rule that operators consult at L0/L1/L2
 wave-decomposition time. Pairs with W-22 (HUMAN-facing grill mode)
-on the orthogonal natural-language activation axis. The 4-pattern
-philschmid-2026 taxonomy maps to the L0..L2 hierarchy as:
+on the orthogonal natural-language activation axis. The supported
+patterns map to the L0..L2 hierarchy as:
 **Pattern 1 Inline Tool** (native — one L2 Task via `Task`);
 **Pattern 2 Fan-Out** (native — one L1 Wave, max 5 parallel L2 Tasks
-per `references/agent-hierarchy.md` §5);
-**Pattern 3 Agent Pool** (schema NEST landed v12.0.0; the pool RUNTIME
-remains deferred — see W-24.2); **Pattern 4 Teams** (PERMANENTLY NOT
-SUPPORTED — Soul-level P5 invariant forbids cross-agent shared
+per `references/agent-hierarchy.md` §5); **Pattern 4 Teams**
+(PERMANENTLY NOT SUPPORTED — Soul-level P5 invariant forbids cross-agent shared
 state; reversal requires SI-1 + ADR + W-21 cadence + SI-3 §3.2 ≥ 9.5/10).
 
 ### W-24.1 — Selection contract
 
 Operators invoke `select_pattern(complexity, model_tier, task_count,
-parallel_independence, persistent_state_needed)` →
-`"INLINE" | "FAN_OUT" | "AGENT_POOL_FORWARD"`. The verdict NEVER
+parallel_independence)` →
+`"INLINE" | "FAN_OUT"`. The verdict NEVER
 returns `"TEAMS_FORBIDDEN"` — that literal is reserved for
 `forbidden_pattern_rationale("TEAMS_FORBIDDEN")` (operator-education).
-
-### W-24.2 — Pattern 3 forward-compat policy (pool runtime re-deferred)
-
-`AGENT_POOL_FORWARD` returns when `persistent_state_needed=True` AND
-`model_tier="frontier"` AND `complexity in ("STANDARD", "COMPLEX")`.
-Factual state per the v17.0.0 R5 verdict: v12.0.0 landed the schema
-NEST under `gate.subagent_pattern` with
-`populate_cascade_gate_fields` writing the selection verdict, but the
-Pattern 3 pool RUNTIME (a persistent-state pool executor path)
-remained deferred through v13–v17 — NO API path activates Pattern 3.
-Callers fall back to INLINE round-robin via `change-driven` workflow's
-`apply ↔ verify` convergence loop (see
-`references/execution-protocol.md` §12). Re-evaluation gate: v18+
-SI-1 evidence PLUS a persistent-state schema design; until both
-exist the verdict stays advisory-only.
-
 ### W-24.3 — Pattern 4 permanent-NOT-SUPPORTED rationale
 
 `TEAMS_FORBIDDEN` is reserved for the operator-education path; the
 helper NEVER auto-returns it. Callers explicitly invoke
 `forbidden_pattern_rationale("TEAMS_FORBIDDEN")` for the P5-invariant
 rationale citing `repo-governance.mdc` §A-1 P5 verbatim.
-
-### W-24.4 — W-20 env-flag reuse-first preservation
-
-NO new `DEVOLAFLOW_*` env flag introduced. Activation is purely
-natural-language via `select_pattern()` invocation; the active-flag
-count remains unchanged — see
-`workflow-system/agent/references/env-flags.md` §2, the canonical
-inventory. Mirrors W-22.4 verbatim.
-
-### W-24.5 — v12.0.0 graduation record
-
-v12.0.0 LANDED the schema NEST under `gate.subagent_pattern` per A-2.3
-NEST-vs-APPEND (parallel to the v11.1.0 PV-04 cascade NEST precedent
-at `gate.cascade_required` + `gate.cascade_min_layers`), populated by
-`populate_cascade_gate_fields` in `src/devolaflow/gate/cascade.py`;
-canonical_order length stayed at 17 and the A-2.4 multi-baseline byte
-suite stayed GREEN. The same release landed D-1 (A-7 STRICT), D-2
-(`SHORTCUT_SIMPLE` retirement; flags 8→7), and D-5 (CHANGELOG CI
-lint) per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph —
-subagent-pattern was the **fourth** v12.0.0 graduation. The Pattern 3
-pool RUNTIME did NOT graduate with the schema; it remains deferred per
-W-24.2 pending v18+ SI-1 evidence and a persistent-state schema
-design.
 
 Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.
 
