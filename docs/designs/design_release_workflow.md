@@ -152,7 +152,7 @@ Triggers: push to `main`, PR to `main`.
 | Job | Steps |
 |-----|-------|
 | `check` | ruff format --check, ruff check |
-| `test` | non-harness pytest with coverage, `make test-harness` as the standalone W-9 gate 5 |
+| `test` | full pytest with coverage, including `tests/harness`, as the standalone W-9 verification |
 | `validate` | regenerate and diff human docs, check the seed catalog, build `_site/`, validate templates, build adapters, and run drift/mirror checks |
 | `npm-package` | syntax and offline package smoke checks, then `npm pack --dry-run` |
 
