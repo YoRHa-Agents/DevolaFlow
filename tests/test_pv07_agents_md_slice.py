@@ -401,20 +401,21 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     # subagent-patterns-2026 prep cycle targeting v12.0.0 graduation).
     # v17.4.0 grows Workflow rules 24 → 25 by appending W-25 "Host Support
     # Contract Evidence and Revision"; v19.0.0 adds W-26..W-28 and folds
-    # W-19 into W-7, leaving W-28 last and 21 live Workflow rules.
+    # W-19 into W-7; v20.1.0 appends W-29 "Retro-Digest Evidence and Consent",
+    # leaving W-29 last and 22 live Workflow rules.
     # All three rules land at the Workflow layer (not Soul) per ADR-007
     # §"Soul-vs-Architecture" decision-rule on conditional + activation-
     # coupled invariants — mirrors the v11.0.5 PV-05 A-7 landing
     # rationale. W-21 Soul-set freeze preserved at 10 entries.
-    assert workflow_rules[-1] == "W-28", (
-        f"W-28 (Local-Archive Index-Generation Honesty) "
+    assert workflow_rules[-1] == "W-29", (
+        f"W-29 (Retro-Digest Evidence and Consent) "
         f"should be last Workflow rule, got {workflow_rules[-1]}"
     )
     # v15.0.0 rule-diet (v15-ADR-004): W-10..W-15 folded into W-4/W-5/W-6/
-    # C-6; v19.0.0 folds W-19 into W-7 and adds W-26..W-28. Retired ids
-    # remain unused, so the layer carries 21 live rules.
-    assert len(workflow_rules) == 21, (
-        f"Workflow should have 21 rules after v19 consolidation, got {len(workflow_rules)}"
+    # C-6; v19.0.0 folds W-19 into W-7 and adds W-26..W-28. v20.1.0 adds
+    # W-29; retired ids remain unused, so the layer carries 22 live rules.
+    assert len(workflow_rules) == 22, (
+        f"Workflow should have 22 rules after v20.1 consolidation, got {len(workflow_rules)}"
     )
 
 

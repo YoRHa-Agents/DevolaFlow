@@ -42,9 +42,9 @@
   function validateCatalog(candidate) {
     if (!candidate ||
         candidate.schema_version !== '1.0' ||
-        candidate.record_count !== 25 ||
+        candidate.record_count !== 27 ||
         !Array.isArray(candidate.seeds) ||
-        candidate.seeds.length !== 25) {
+        candidate.seeds.length !== 27) {
       return false;
     }
     const names = new Set();

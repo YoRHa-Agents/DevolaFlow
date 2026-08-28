@@ -4,8 +4,8 @@ description: "安装 DevolaFlow，按正确渠道验证，并运行第一个清�
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-28T15:33:00Z"
-source_version: "20.0.0"
+last_synced: "2026-08-28T20:22:32Z"
+source_version: "20.1.0"
 ---
 
 # 快速入门指南
@@ -106,7 +106,7 @@ skill 复制成功不代表 host bridge 已接线。host bridge 是可选且独�
 
 预期流程：
 
-1. DevolaFlow 从注册表派生的 26 个清单种子中选择一个，
+1. DevolaFlow 从注册表派生的 27 个清单种子中选择一个，
    作为分解知识。
 2. 你确认目标、可测清单、P0/P1/P2 优先级与 preflight 决策。
 3. 唯一的 `change-driven` 运行时通过 L0 Project → L1 Wave → L2 Task 执行

@@ -109,10 +109,10 @@ def test_rules_source_directory_exists(project_root: Path) -> None:
 
 # 60 HARD cap (ADR-007 D5, denominator re-based by v15-ADR-004 D1/D2 to the
 # full `.rules/` source corpus). The pre-v19 baseline census was Soul 10 +
-# Arch 7 + Conv 8 + Workflow 19 + Style 13 = 57; PV-0 lands three accepted
-# Workflow rules before the approved consolidations settle the corpus at 50.
-# The cap is the forcing function — a future PV adding a rule MUST first confirm
-# `full-corpus total + 1 ≤ 60`; raising the cap requires a new ADR.
+# Arch 7 + Conv 8 + Workflow 19 + Style 13 = 57; approved v19
+# consolidations settled the corpus at 50, and v20.1 adds W-29 for 51.
+# The cap is the forcing function — a future PV adding a rule MUST first
+# confirm `full-corpus total + 1 ≤ 60`; raising the cap requires a new ADR.
 _RULE_COUNT_CAP_HARD: int = 60
 
 

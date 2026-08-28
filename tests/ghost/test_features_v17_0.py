@@ -60,7 +60,10 @@ def test_v17_0_0_r4_web_experience_shell_wired(project_root: Path) -> None:
     """W-18 v17.0.0 R4: five-destination shell and Harness I/O are present."""
     demo_root = project_root / "workflow-system" / "human" / "demo"
     page_markers = {
-        "index.html": ("Five destinations, one current story", "25 seeds, one generated catalog"),
+        "index.html": (
+            "Five destinations, one current story",
+            "27 registry entries, one generated catalog",
+        ),
         "framework-chain/index.html": ("Canonical system model", "Project → Wave → Task"),
         "context-flow/index.html": ("Canonical I/O", "TaskDispatch", "StatusReport"),
         "benchmark-results/index.html": (

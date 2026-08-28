@@ -35,7 +35,8 @@ def test_v19_release_review_contracts_are_present(
     """Parity, coverage, and settled evaluator contracts remain executable."""
     parity = check_template_metadata_parity(project_root)
     assert parity.passed, parity.issues
-    assert (parity.registry_count, parity.workflow_count, parity.seed_count) == (26, 26, 26)
+    # This checks the live parity surfaces; v20.1 adds one registered seed.
+    assert (parity.registry_count, parity.workflow_count, parity.seed_count) == (27, 27, 27)
 
     makefile = (project_root / "Makefile").read_text(encoding="utf-8")
     assert "check-template-metadata-parity:" in makefile

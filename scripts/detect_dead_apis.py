@@ -296,6 +296,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.learnings:decay_confidence",
         "devolaflow.learnings:pin_learning_for_session",
         "devolaflow.learnings:capture_session_reflection",
+        # Retro-Digest is an operator/L0 external activation and
+        # report/persistence surface; persistence is intentionally explicit
+        # and there is no CLI.
+        "devolaflow.skills.retro_digest:classify_retro_digest_intent",
+        "devolaflow.skills.retro_digest:extract_digest_records",
+        "devolaflow.skills.retro_digest:to_learning_entries",
+        "devolaflow.skills.retro_digest:render_digest_report",
+        "devolaflow.skills.retro_digest:capture_digest_entries",
         # ---- Agent workspace public API (v8.2.5 PV-05) ----
         # `serialize_delta_spec` renders a delta-spec structure back to the
         # per-change spec.md DELTA format (A-4). It remains external-facing:

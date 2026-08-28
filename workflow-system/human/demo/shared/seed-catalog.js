@@ -6,7 +6,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
     "schema_version": "3.0",
     "source_path": "workflow-system/agent/templates/registry.yaml"
   },
-  "record_count": 26,
+  "record_count": 27,
   "seeds": [
     {
       "registry_schema_version": "3.0",
@@ -1712,6 +1712,135 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
             {
               "key": "blocker-routed",
               "statement": "An unclosed Pathfinder BLOCKER is handed to a separately owned harness_build remediation task.",
+              "suggested_priority": "P1",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "registry_schema_version": "3.0",
+      "seed_schema_version": "1.0",
+      "source": {
+        "kind": "composition",
+        "name": "retro-digest",
+        "path": "workflow-system/agent/templates/registry.yaml",
+        "schema_version": "3.0"
+      },
+      "name": "retro-digest",
+      "category": "composite",
+      "tags": [
+        "retro-digest",
+        "retrospective",
+        "digest",
+        "learnings",
+        "lessons",
+        "cycle-close",
+        "report-only"
+      ],
+      "description": "Deterministic retrospective extraction with optional curation and report-only cycle learning.",
+      "seed_path": "workflow-system/agent/templates/seeds/retro-digest.yaml",
+      "partitions": [
+        {
+          "key": "grilling-decision-contract",
+          "title": "Grilling decision contract",
+          "source_stages": [
+            {
+              "id": "grill-decision",
+              "primitive": "review"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "decision-contract-anchored",
+              "statement": "The digest scope, persistence boundary, and operator decision are clarified before extraction or storage",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "no-new-activation-surface",
+              "statement": "The method adds no new environment flag or CLI surface",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "phase-0-read-only-audits",
+          "title": "Phase 0 read-only audits",
+          "source_stages": [
+            {
+              "id": "phase-0-audits",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "deterministic-verbatim-extraction",
+              "statement": "Base extraction is deterministic and preserves verbatim source text with repository-relative provenance",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "report-only-default",
+              "statement": "Phase 0 audits are read-only and report-only by default",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "bounded-pv-implementation",
+          "title": "Bounded PV implementation",
+          "source_stages": [
+            {
+              "id": "bounded-pv",
+              "primitive": "implement"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "curation-optional",
+              "statement": "L0 curation is optional metadata over immutable source records and cannot rewrite extracted text",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "cycle-close-and-digest",
+          "title": "Cycle close and digest",
+          "source_stages": [
+            {
+              "id": "cycle-close",
+              "primitive": "release"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "persistence-consent",
+              "statement": "Persistence of selected digest entries occurs only after explicit operator consent",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "digest-close-evidence",
+              "statement": "Cycle-close output separates lessons from report-only benefits and records complete source evidence",
               "suggested_priority": "P1",
               "verify": {
                 "mode": "manual"

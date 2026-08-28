@@ -298,12 +298,13 @@ def test_verify_stage_gate_profile_template(template: WorkflowTemplate) -> None:
 
 
 def test_template_registered_in_registry() -> None:
-    """Registry v3 keeps 26 seeds and exactly one executable path."""
+    """Registry v3 keeps every seed and exactly one executable path."""
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     templates = data["templates"]
     assert data["schema_version"] == "3.0"
     assert len(templates) == 7
-    assert len(templates) + len(data["compositions"]) == 26
+    entries = templates + data["compositions"]
+    assert len(entries) == len({entry["name"] for entry in entries})
     assert sum("path" in entry for entry in templates + data["compositions"]) == 1
 
     cd = next((e for e in templates if e["name"] == "change-driven"), None)

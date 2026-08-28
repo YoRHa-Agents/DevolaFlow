@@ -249,6 +249,7 @@ sole runtime.
 | `local-archive` | Inventory and archive local tasks with approved non-deletion moves |
 | `harness-construction` | Build harness infrastructure with machine-grounded gap analysis and a capability review |
 | `pathfinder` | Look ahead for infrastructure and harness gaps before a later wave |
+| `retro-digest` | Extract retrospective evidence and report cycle learning without implicit persistence |
 | `migration` | Upgrade or port with rollback readiness |
 | `skill-optimization` | Profile and improve an agent skill |
 | `self-update` | Research and integrate reference updates |
@@ -299,7 +300,7 @@ The source plus those sync locations make eight files. The README badge reads
 entry at load time.
 
 ```bash
-devola-version  # prints "DevolaFlow v20.0.0"
+devola-version  # prints "DevolaFlow v20.1.0"
 python scripts/bump_version.py X.Y.Z --dry-run
 python -m pytest tests/test_version.py -v
 ```

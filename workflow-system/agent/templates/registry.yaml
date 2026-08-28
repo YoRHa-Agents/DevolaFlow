@@ -5,7 +5,7 @@ last_updated: "2026-08-24T00:00:00Z"
 
 # Metadata ownership contract:
 # - This registry owns catalog identity, seed paths, categories, discovery tags,
-#   and catalog descriptions for all 26 historical IDs.
+#   and catalog descriptions for all 27 historical IDs.
 # - workflow-skill.yaml#content.templates.seeds and each seed's metadata.name /
 #   metadata.category are retained derived or compatibility views. Their
 #   identity/path/category parity is checked by
@@ -110,6 +110,11 @@ compositions:
     category: control
     tags: [pathfinder, path-find, look-ahead, infrastructure, harness, gap-analysis, reconnaissance]
     description: "Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave."
+  - name: retro-digest
+    seed: seeds/retro-digest.yaml
+    category: composite
+    tags: [retro-digest, retrospective, digest, learnings, lessons, cycle-close, report-only]
+    description: "Deterministic retrospective extraction with optional curation and report-only cycle learning."
 
 # Keep templates as the final top-level block.
 templates:

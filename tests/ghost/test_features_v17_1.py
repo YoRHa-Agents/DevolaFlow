@@ -70,8 +70,10 @@ def test_v17_1_0_harness_construction_branch_wired(project_root: Path) -> None:
     compositions = registry["compositions"]
     composition_names = {entry["name"] for entry in compositions}
     assert "harness-construction" in composition_names
-    assert len(compositions) == 19
-    assert len(compositions) + len(registry["templates"]) == 26
+    # The v17.1 feature claim above remains historical; these are live
+    # registry-parity checks and must follow later seed additions.
+    assert len(compositions) == 20
+    assert len(compositions) + len(registry["templates"]) == 27
     seed_entry = next(e for e in compositions if e["name"] == "harness-construction")
     assert (template_dir / seed_entry["seed"]).is_file()
     assert seed_entry["seed"] == "seeds/harness-construction.yaml"

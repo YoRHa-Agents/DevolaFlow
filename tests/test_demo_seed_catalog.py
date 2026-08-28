@@ -35,7 +35,7 @@ def _load_generated_catalog(project_root: Path) -> tuple[bytes, dict]:
 
 
 def test_generated_catalog_preserves_registry_and_seed_provenance(project_root: Path):
-    """All 26 records must preserve registry order and seed YAML decomposition bytes."""
+    """All 27 records must preserve registry order and seed YAML decomposition bytes."""
     _, catalog = _load_generated_catalog(project_root)
     templates_root = project_root / "workflow-system/agent/templates"
     registry = yaml.safe_load((templates_root / "registry.yaml").read_text(encoding="utf-8"))
@@ -46,7 +46,7 @@ def test_generated_catalog_preserves_registry_and_seed_provenance(project_root: 
         "schema_version": "3.0",
         "source_path": "workflow-system/agent/templates/registry.yaml",
     }
-    assert catalog["record_count"] == len(catalog["seeds"]) == len(entries) == 26
+    assert catalog["record_count"] == len(catalog["seeds"]) == len(entries) == 27
     assert [record["name"] for record in catalog["seeds"]] == [entry["name"] for entry in entries]
 
     for entry, record in zip(entries, catalog["seeds"], strict=True):

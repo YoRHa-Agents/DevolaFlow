@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -85,7 +86,11 @@ def test_scan_compositions_derives_from_registry(tmp_path: Path) -> None:
 
     repo_root = Path(__file__).resolve().parents[1]
     live = audit.scan_compositions(repo_root)
-    assert len(live) == 19, f"expected the 19 collapsed names, got {len(live)}: {live}"
+    registry = yaml.safe_load(
+        (repo_root / "workflow-system" / "agent" / "templates" / "registry.yaml").read_text()
+    )
+    expected = sorted(entry["name"] for entry in registry["compositions"])
+    assert live == expected, f"composition inventory drifted: expected {expected}, got {live}"
 
 
 def test_count_cycle_mentions_counts_across_globs(tmp_path: Path) -> None:

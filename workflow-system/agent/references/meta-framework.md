@@ -325,6 +325,7 @@ gate DAG.
 | local-archive | checklist-round |
 | harness-construction | checklist-round |
 | pathfinder | checklist-round |
+| retro-digest | checklist-round |
 | migration | checklist-round |
 | skill-optimization | checklist-round |
 | self-update | checklist-round |

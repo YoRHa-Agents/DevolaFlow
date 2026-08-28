@@ -586,7 +586,13 @@ class TestEntropyCleanupTemplate:
 
         reg = TemplateRegistry()
         names = [metadata.name for metadata in reg.discover()]
-        assert len(names) == 26
+        registry = yaml.safe_load(
+            Path("workflow-system/agent/templates/registry.yaml").read_text(encoding="utf-8")
+        )
+        expected_names = {
+            entry["name"] for key in ("compositions", "templates") for entry in registry[key]
+        }
+        assert set(names) == expected_names
         assert all(reg.load_seed(name) is not None for name in names)
         executable = [
             entry

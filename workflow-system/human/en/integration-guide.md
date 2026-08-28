@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-28T15:33:00Z"
-source_version: "20.0.0"
+last_synced: "2026-08-28T20:13:47Z"
+source_version: "20.1.0"
 ---
 
 # Integration Guide
@@ -29,7 +29,7 @@ from an unrelated install registry.
 
 The profile names and file sets below come from
 `workflow-system/agent/manifest.yaml`. The `references` set currently contains
-31 files; consumers derive the list from the manifest.
+32 files; consumers derive the list from the manifest.
 
 | Target | Manifest kind | File sets |
 |---|---|---|

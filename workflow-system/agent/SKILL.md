@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "20.0.0"
+version: "20.1.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v20.0.0**
+> **Now Using DevolaFlow v20.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 20.0.0 — Check only on explicit update request:
+**Current version:** 20.1.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -193,6 +193,7 @@ Match intent to a registry-v3 checklist seed. Every row uses
 | local task archive or clustering | `local-archive` |
 | harness construction, evaluation infrastructure, observation coverage | `harness-construction` |
 | look-ahead infrastructure or harness reconnaissance | `pathfinder` |
+| retrospective digest, cycle learning, loop-improve | `retro-digest` |
 | frontend/web design | `web-design` |
 
 Seeds are non-executable decomposition knowledge. `source_stages` retain
@@ -426,12 +427,13 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/pathfinder.md` | selecting the Pathfinder L2 role or look-ahead harness reconnaissance |
 | `references/plan-mode-enforcement.md` | Three-draft Plan Mode contract |
 | `references/repo-modes.md` | Repository capability detection |
+| `references/retro-digest.md` | Running the approved loop-improve retrospective digest workflow |
 | `references/shell-proxy.md` | Shell proxy and routing |
 | `references/subagent-patterns.md` | Wave dispatch patterns |
-| `references/wave-dispatch.md` | L1 Wave async dispatch boundary |
 | `references/task-quality-score.md` | Workflow-close L0 rubric |
 | `references/team-roles.md` | L2 task specializations |
 | `references/troubleshooting.md` | Failure diagnostics |
+| `references/wave-dispatch.md` | L1 Wave async dispatch boundary |
 
 **Tier 3 — On-demand knowledge and examples**
 
