@@ -1853,7 +1853,7 @@ def validate_matrix_payload(
         )
 
     seen_ids: set[str] = set()
-    seen_surfaces: set[tuple[str, str | None]] = set()
+    seen_surfaces: set[tuple[str, str, str | None]] = set()
     for index, raw_row in enumerate(rows):
         _, row_diagnostics = _validate_row(raw_row, index, root, seen_ids, seen_surfaces)
         diagnostics.extend(row_diagnostics)

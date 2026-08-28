@@ -312,18 +312,13 @@ def collect_signals(
     if w17_run is None:
         w17 = _unavailable(w17_error)
     elif w17_run.returncode != 0:
-        command = " ".join(["git", "diff", base_ref, "--", "tests/"])
-        command_error = (w17_run.stderr or w17_run.stdout or "").strip()
         w17 = _unavailable(
-            f"W-17 probe failed (returncode={w17_run.returncode}, command={command!r}): "
-            f"{command_error or 'command produced no diagnostic output'}"
+            f"W-17 probe failed (returncode={w17_run.returncode}, "
+            f"command={' '.join(['git', 'diff', base_ref, '--', 'tests/'])!r}): "
+            f"{(w17_run.stderr or w17_run.stdout or '').strip() or 'no diagnostic output'}"
         )
     else:
-        w17 = SignalResult(
-            available=True,
-            value=len(_ADDED_TEST_RE.findall(w17_run.stdout or "")),
-        )
-
+        w17 = SignalResult(available=True, value=len(_ADDED_TEST_RE.findall(w17_run.stdout or "")))
     measurements: dict[str, SignalResult] = {
         "agents_md_tokens": _agents_md_tokens(root),
         "suite_wall_seconds": (
