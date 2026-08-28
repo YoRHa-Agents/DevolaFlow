@@ -2062,10 +2062,8 @@ def _network_policy_details() -> dict[str, str]:
 
 def outcome_satisfies_row(row: MatrixRow, outcome: FunctionalOutcome) -> bool:
     """Return whether an observed outcome satisfies required/optional policy."""
-    if outcome.status is not row.expected_status:
-        return False
     if row.required:
-        return outcome.status is OutcomeStatus.PASS
+        return outcome.status is row.expected_status is OutcomeStatus.PASS
     if outcome.status is OutcomeStatus.SKIP_OPTIONAL:
         return bool(row.prerequisite and outcome.prerequisite == row.prerequisite)
     return outcome.status is row.expected_status
