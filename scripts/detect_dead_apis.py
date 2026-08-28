@@ -109,6 +109,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `devolaflow.si_chip_bridge.runner.run_dogfood_cycle` with no
         # registration data of its own.
         "devolaflow.dispatch:dispatch_dogfood_cycle",
+        # Loop v3 (B4-DISP-003 closure) — ``async_dispatch_wave_tasks`` is
+        # the awaitable companion to ``dispatch_wave_tasks`` for callers
+        # that already run inside an active event loop (where the sync
+        # wrapper's ``asyncio.run`` would raise). In-repo dispatch paths
+        # are synchronous and use the wrapper, so the companion has no
+        # production caller by design; the functional matrix row
+        # ``pv5.o05.dispatch-async`` and ``tests/test_loop3_dispatch_gate``
+        # exercise its behavioral contract. NOT a domain-SSOT registry
+        # symbol per A-5.2 — pure delegation around AsyncDispatchExecutor.
+        "devolaflow.dispatch:async_dispatch_wave_tasks",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
         # ``clear_hooks`` and ``registered_events`` are test-harness /
         # introspection helpers with no production caller by design:

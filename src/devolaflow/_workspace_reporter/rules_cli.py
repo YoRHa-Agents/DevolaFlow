@@ -259,6 +259,9 @@ def main(argv: list[str] | None = None) -> int:
                          refresh the digest (pair with ``--requirements``).
       ``--requirements`` path to ``requirements.md`` for ``--human``.
       ``--repo-root``    pin the repo root (default: cwd).
+      ``--now <iso>``    pin the render clock (ISO-8601, e.g.
+                         ``2026-08-28T00:00:00Z``); a fixed value yields
+                         byte-identical output across invocations (AC-5).
       ``--print``        write to stdout instead of disk (only valid with
                          a single ``--workspace`` / ``--memory`` /
                          ``--rules`` / ``--change`` flag).
@@ -299,6 +302,14 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="Path to requirements.md for --human (REQ-ID -> evidence trace).",
+    )
+    parser.add_argument(
+        "--now",
+        type=str,
+        default=None,
+        metavar="ISO_DATETIME",
+        help="Pin the render clock to an ISO-8601 instant (e.g. "
+        "2026-08-28T00:00:00Z) for byte-identical repeated output.",
     )
     parser.add_argument(
         "--print",
@@ -343,11 +354,18 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--print is only valid with a single non-`--all` flavour")
 
     root = _resolve_repo_root(args.repo_root)
+    pinned_now: datetime | None = None
+    if args.now is not None:
+        try:
+            pinned_now = datetime.fromisoformat(args.now)
+        except ValueError:
+            parser.error(f"--now must be an ISO-8601 datetime, got: {args.now!r}")
 
     try:
         if args.all:
             results = regenerate_all(
                 repo_root=root,
+                now=pinned_now,
                 archive_window_days=args.archive_window_days,
                 memory_window_days=args.memory_window_days,
             )
@@ -358,6 +376,7 @@ def main(argv: list[str] | None = None) -> int:
                 render_workspace_report(
                     repo_root=root,
                     archive_window_days=args.archive_window_days,
+                    now=pinned_now,
                 ),
                 root / WORKSPACE_REPORT_PATH_DEFAULT,
                 to_stdout=args.print_to_stdout,
@@ -367,18 +386,19 @@ def main(argv: list[str] | None = None) -> int:
                 render_memory_report(
                     repo_root=root,
                     window_days=args.memory_window_days,
+                    now=pinned_now,
                 ),
                 root / MEMORY_REPORT_PATH_DEFAULT,
                 to_stdout=args.print_to_stdout,
             )
         if args.rules:
             return _emit_one(
-                render_rules_report(repo_root=root),
+                render_rules_report(repo_root=root, now=pinned_now),
                 root / RULES_REPORT_PATH_DEFAULT,
                 to_stdout=args.print_to_stdout,
             )
         if args.change:
-            text = render_change_report(args.change, repo_root=root)
+            text = render_change_report(args.change, repo_root=root, now=pinned_now)
             target = _change_report_target(root, args.change)
             return _emit_one(text, target, to_stdout=args.print_to_stdout)
         if args.human:
@@ -386,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.human,
                 repo_root=root,
                 requirements_path=args.requirements,
+                now=pinned_now,
             )
             if args.print_to_stdout:
                 return _emit_one(
@@ -397,6 +418,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.human,
                 repo_root=root,
                 requirements_path=args.requirements,
+                now=pinned_now,
             )
             # REQ-OUT-01 (BLOCKING since v14.2.0): checked before either
             # write so a failed run leaves no partial OUTPUT pair.

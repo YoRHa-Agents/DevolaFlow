@@ -11,9 +11,10 @@
 # Token budget (per pipeline declaration block): soft 400 / hard 800 tokens
 # -----------------------------------------------------------------------------
 # A "compression pipeline" is an ordered list of named stages, each of which
-# implements ``CompressionStage.transform(payload, context) -> payload``.
+# implements ``CompressionStage.should_bypass(payload, context) -> bool`` and
+# ``CompressionStage.transform(payload, context) -> payload``.
 # Stages are composed sequentially: the output of stage N is the input of
-# stage N+1. Empty stages list (or every stage's bypass predicate firing)
+# stage N+1. Empty stages list (or every stage's should_bypass predicate firing)
 # yields a byte-identical pass-through (R5 strict invariant — pinned by
 # tests/test_compression_pipeline.py::test_*_byte_identical).
 #
@@ -35,8 +36,8 @@
 #     — overrides the default global compression chain
 #
 # This preserves the FROZEN_PREFIX_V7 (positions 1-12) AND the v7.x-v8.x
-# append-only tail (positions 13-16) byte-identically. The
-# layout_invariant.canonical_order length stays 16, version stays 5.
+# append-only tail (positions 13-17) byte-identically. The
+# layout_invariant.canonical_order length stays 17, version stays 6.
 #
 # P6-safe: schema additions to existing blocks (NEST) preserve the LLM
 # cache prefix; this is the canonical example of A-2.3 D3 nest-vs-append.

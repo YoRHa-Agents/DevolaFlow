@@ -162,7 +162,7 @@ FROZEN_PREFIX_V7: tuple[str, ...] = (
 
 Reordering any of these keys is a release blocker — the LLM cache prefix
 invalidates from the first divergent byte. New top-level dispatch keys MUST
-be appended at position 13+ (positions 13-16 are append-only). Authors who
+be appended at position 13+ (all positions after 12 are append-only). Authors who
 need a new field SHOULD prefer NEST under an existing key per the
 nest-vs-append decision rule (v9-ADR-002 D3) whenever the data shape allows.
 """
@@ -210,8 +210,8 @@ def assert_layout_spec_invariant(spec: list[str] | tuple[str, ...] | None = None
     Append-only check (D2): if ``len(spec) > 12``, NO check is performed
     on positions 13+. Those slots are append-only by contract; the
     validator does NOT freeze them. Adding a new key past position 12 is
-    allowed; reordering positions 13-16 is allowed (though not currently
-    practiced); REMOVING a position 13-16 key is allowed only via the
+    allowed; reordering positions 13+ is allowed (though not currently
+    practiced); REMOVING an append-only key is allowed only via the
     full deprecation path documented in v9-ADR-002 M4.
     """
     if spec is None:
@@ -252,7 +252,7 @@ def assert_dispatch_layout(
 
     P6 cache-layout invariant — backward-compat (R5):
 
-    * ``DEFAULT_DISPATCH_LAYOUT`` is the v5 canonical (16 keys, version 5).
+    * ``DEFAULT_DISPATCH_LAYOUT`` is the live v6 canonical (17 keys, version 6).
     * v4 payloads (15 keys, omitting ``change_context``) validate exactly
       as before — the new key is optional and absent v4 dispatchers are
       treated as canonical (v4-to-v5 additivity).

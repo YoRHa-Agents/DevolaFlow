@@ -1,11 +1,11 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
 # Design reference: docs/designs/design_decomposition_gate.md §6.2
-# DependencyMatrix — the L2 Wave Agent's planning artifact: an adjacency list
+# DependencyMatrix — the L1 Wave Agent's planning artifact: an adjacency list
 # over task_ids plus a file-ownership map (P5 disjoint-scope verification) and
 # a critical-path projection used to order intra-wave dispatches.
 # -----------------------------------------------------------------------------
-# TODO(v7.6.x P-07 Option β): add `cycle_detection` block emitted by the L2
+# TODO(v7.6.x P-07 Option β): add `cycle_detection` block emitted by the L1
 # planner so cyclic dependencies surface as gate findings before dispatch.
 # TODO(v7.6.x P-07 Option β): formalise `critical_path` as a list of task_ids
 # (currently free-form) and connect it to the gate composite-score

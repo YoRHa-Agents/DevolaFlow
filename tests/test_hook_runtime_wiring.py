@@ -96,8 +96,10 @@ def _status_report_envelope(metrics: dict) -> object:
 def test_file_write_fires_at_change_write_surface(tmp_path, monkeypatch) -> None:
     """ADR-003 locus: every ``to_active_folder`` artifact write fires the hook.
 
-    With the env flag ON, all 7 artifact writes (``learnings.jsonl`` is
-    absent here) run through ``run_hooks("file_write", ...)`` BEFORE
+    With the env flag ON, all 8 artifact writes (``learnings.jsonl`` is
+    absent here; ``entrance.md`` is backfilled from the scaffold template
+    per the v20.0.x always-generated fix) run through
+    ``run_hooks("file_write", ...)`` BEFORE
     touching disk — in STRICT mode since v15.0.0 (the call site defers
     to the adapter's strict default per G-038 flip 5) — with the
     owned_files manifest from the change attached AND the S-8 §2
@@ -111,7 +113,7 @@ def test_file_write_fires_at_change_write_surface(tmp_path, monkeypatch) -> None
     with patch(_RUN_HOOKS_TARGET, side_effect=fake):
         _make_change(owned_files=["src/foo.py"]).to_active_folder(folder)
 
-    assert [event for event, _, _ in calls] == ["file_write"] * 7
+    assert [event for event, _, _ in calls] == ["file_write"] * 8
     written_names = {Path(payload["path"]).name for _, payload, _ in calls}
     assert written_names == {
         "goal.md",
@@ -119,6 +121,7 @@ def test_file_write_fires_at_change_write_surface(tmp_path, monkeypatch) -> None
         "stage.md",
         "preflight.md",
         "spec.md",
+        "entrance.md",
         "STATUS.yaml",
         "owned_files.txt",
     }

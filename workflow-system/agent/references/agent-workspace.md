@@ -117,9 +117,11 @@ next round before ordinary P0/P1/P2 work.
 
 Agents joining outside this protocol (fresh sessions, non-DevolaFlow-aware
 tools, human auditors) read `entrance.md` FIRST — its scenario routing table
-maps each onboarding case to the minimal artifact read order. A pre-v17.2
-folder without one is backfilled from the scaffold template on first resume
-(lint reports `ENTRANCE_MISSING` as WARN until then).
+maps each onboarding case to the minimal artifact read order. The canonical
+store write (`Change.to_active_folder`) always materializes the router with
+the planning artifacts: a pre-v17.2 folder without one is backfilled from
+the scaffold template on the next write (lint reports `ENTRANCE_MISSING` as
+WARN until then).
 
 `force_no_change=True` on `activation_verdict()` remains the explicit
 operator escape hatch for an ad-hoc dispatch.

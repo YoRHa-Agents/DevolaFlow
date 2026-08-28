@@ -245,12 +245,15 @@ def test_checklist_load_roundtrip_uses_only_v16_artifacts_and_verbatim_evidence(
         assert (target / filename).read_bytes() == (source / filename).read_bytes()
     for basename, text in evidence.items():
         assert (target / "evidence" / basename).read_text(encoding="utf-8") == text
+    # entrance.md joins the write set (v20.0.x fix: the onboarding router is
+    # always written with the planning artifacts, backfilled when absent).
     assert hooked == [
         "goal.md",
         "checklist.md",
         "stage.md",
         "preflight.md",
         "spec.md",
+        "entrance.md",
         "STATUS.yaml",
         "owned_files.txt",
         "evidence/C-G1.1.txt",

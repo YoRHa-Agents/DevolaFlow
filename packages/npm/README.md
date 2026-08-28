@@ -6,13 +6,17 @@ requires Node 18 or newer and works on Windows.
 
 ## Scope
 
-This package installs only user-level Cursor and Claude skill profiles:
+This package installs the five maintained user-level skill profiles:
 
 - Cursor: `~/.cursor/skills/devola-flow/`
 - Claude: `~/.claude/skills/devola-flow/`
+- Codex: `$CODEX_HOME/skills/devola-flow/` (or `~/.codex/skills/devola-flow/`)
+- KimiCode: `~/.kimi/skills/devola-flow/`
+- DSH: `$DSH_HOME/skills/devola-flow/` (or `~/.dsh/skills/devola-flow/`)
 
-npm `all` means those two targets. It does not mean the broader target set
-supported by the repository's curl installer.
+npm `all` means these five targets. It does not mean the broader target set
+supported by the repository's curl installer, and it does not include
+Copilot's project-level rule-file installation.
 
 ## Install, update, and doctor
 
@@ -26,8 +30,8 @@ npx @yorha-agents/devola-flow update all
 npx @yorha-agents/devola-flow doctor
 ```
 
-`doctor` reports both supported user locations, installed version stamps, and
-file parity against `workflow-system/agent/manifest.yaml`.
+`doctor` reports all five supported user locations, installed version stamps,
+and file parity against `workflow-system/agent/manifest.yaml`.
 
 ## Download ref and file list
 
@@ -44,9 +48,9 @@ the npm package, curl installer, and source checkout on one profile contract.
 
 ## More targets and Python tooling
 
-For project-local installation, Codex, Copilot, KimiCode, Windsurf, Zed,
-Cline, Roo, local workspace scaffolding, or Python doctor commands, use the
-canonical repository guides:
+For project-local installation, Copilot, Windsurf, Zed, Cline, Roo, local
+workspace scaffolding, or Python doctor commands, use the canonical repository
+guides:
 
 - [Quickstart](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md)
 - [Integration guide](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/integration-guide.md)

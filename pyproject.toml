@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "19.0.0"
+version = "20.0.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -53,6 +53,9 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "persistence_probe: v7.0.3 cross-stage persistence probe (ADR-004)",
+    "functional: offline matrix-driven functional contract",
+    "fast: fast functional matrix tier",
+    "slow: slow functional matrix tier",
     # v8.5.0 PV-05 — second marker class per M-05 (T10). Use
     # `@pytest.mark.deferred(strict=True, reason="...")` on a test the
     # owner explicitly wants to defer to a future PV. `strict=True`

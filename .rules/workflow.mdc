@@ -111,7 +111,7 @@ Every iteration follows this strict pre-commit sequence — all 7 must pass:
 
 Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps its own red/green attribution. `make test` stays the undeduplicated full suite (not a chain gate).
 
-`make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus 6 release-only extras (NOT SI-10 gates): `validate-templates`, `build-skill`, `sync-human-docs`, `compile-rules`, `check-drift`, `check-rules-drift`.
+`make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus the release-only extras (NOT SI-10 gates) enumerated in the Makefile's `release-preflight` section — rule prose does not hand-pin the extras count. The extras include `check-functional-matrix` (Loop v3): the hard-fail functional-matrix contract gate (`scripts/check_functional_matrix.py`); functional row execution itself stays inside `test-core` via pytest markers per G-033 single-execution.
 
 ## W-16 — Harness Baseline Settlement
 

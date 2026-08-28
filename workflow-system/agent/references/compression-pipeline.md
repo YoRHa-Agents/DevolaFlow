@@ -41,19 +41,20 @@ last_updated: "2026-08-25"
 
 The `CompressionPipeline` orchestrator + `CompressionStage` protocol unify the
 six compression transforms that ship across the v8.x cycle behind one
+`should_bypass(payload, context) -> bool` plus
 `transform(payload, context) -> payload` contract. Three design goals:
 
 1. **One protocol, six transforms.** Callers stop hand-wiring argument lists
    per-transform; they thread per-stage kwargs through the pipeline `context`
    dict and read the aggregate verdict off `PipelineRunResult`.
-2. **Byte-identical bypass is declarative.** When every stage's `bypass`
+2. **Byte-identical bypass is declarative.** When every stage's `should_bypass`
    predicate returns `True` (or the pipeline is empty), the pipeline is an
    identity reducer. This is the **R5 strict** invariant pinned by
    `tests/test_compression_pipeline.py::test_*_byte_identical`.
 3. **P6-safe cache behaviour.** The pipeline adds **zero** top-level dispatch
    keys, zero new env-flags, and zero new nested dispatch fields. The
-   16-key `canonical_order` + schema version 5 stay byte-identical (verified
-   by `tests/test_layout_invariant_multi_baseline.py` against all 6 historical
+   17-key `canonical_order` + schema version 6 stay byte-identical (verified
+   by `tests/test_layout_invariant_multi_baseline.py` against all historical
    baselines).
 
 Design source: `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
@@ -132,8 +133,8 @@ invariants (pinned by `tests/test_compression_pipeline.py`):
    `applied=True` — telemetry hygiene requires a real mutation to count as
    applied.
 4. **Stages run in declaration order** — the pipeline is a deterministic
-   sequential reducer, not a DAG. Stages receive only the running payload +
-   the shared `context` mapping; they do **not** see each other's inputs.
+   sequential reducer, not a DAG. Each stage receives the running payload
+   produced by its predecessor plus the shared `context` mapping.
 
 ### 3.1 `run(payload, context=None, *, strict=True)`
 

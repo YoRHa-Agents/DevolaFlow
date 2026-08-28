@@ -1,0 +1,1 @@
+{"ts":"2026-08-28T00:00:00+00:00","change_id":"functional-fixture","round":1,"layer":"L0","dispatch_id":"functional-fixture","tokens_injected_measured":1,"tokens_budget":2,"constraint_count":1,"quantifiable_ratio":1.0,"tier_breakdown":{"invariant":1,"guard":0,"advisory":0},"advisory_folded":false,"model_hint":"fixture"}

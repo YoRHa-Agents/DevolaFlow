@@ -11,6 +11,9 @@
 #     order (tests/test_plugins.py::TestV15PluginRegistryUnification).
 #   - `min_version` / `repo_url` MUST agree with the owner's
 #     `min_version` / `canonical_url` for the same id.
+#   - `devolaflow.plugins.loader.create_default_registry()` overlays all
+#     operational fields from the owner at load time; values below are
+#     presentation metadata and compatibility hints only.
 #   - Add a plugin to the OWNER first; only then mirror it here.
 # Unique-to-this-view fields (capabilities, role, stage_mapping,
 # plugin_roles, platform_install, skill_install_command) are presentation

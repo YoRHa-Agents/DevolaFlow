@@ -37,7 +37,9 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -396,18 +398,32 @@ class HandoffStore:
         if envelope.envelope_kind == "StatusReport":
             _fire_task_stop_hook(envelope)
         target = self.handoff_root / envelope.filename
-        if target.exists():
-            raise EnvelopeImmutableError(
-                f"envelope {target!s} already exists at seq={envelope.seq}; "
-                f"author a new envelope at seq={envelope.seq + 1} per Rule S-9 "
-                f"(append-only ledger)"
-            )
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Atomic write: temp file + rename.
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(envelope.to_yaml(), encoding="utf-8", newline="\n")
-        tmp.replace(target)
-        return target
+        # Write to a unique sibling, then atomically install it with a hard
+        # link.  Unlike replace/rename, link creation is exclusive: a
+        # concurrent author cannot clobber an envelope that won the race.
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            dir=target.parent,
+        )
+        tmp = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+                stream.write(envelope.to_yaml())
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(tmp, target)
+            except FileExistsError as exc:
+                raise EnvelopeImmutableError(
+                    f"envelope {target!s} already exists at seq={envelope.seq}; "
+                    f"author a new envelope at seq={envelope.seq + 1} per Rule S-9 "
+                    f"(append-only ledger)"
+                ) from exc
+            return target
+        finally:
+            tmp.unlink(missing_ok=True)
 
     def next_seq(self, change_id: str) -> int:
         """Return the next seq number to author for ``change_id``.

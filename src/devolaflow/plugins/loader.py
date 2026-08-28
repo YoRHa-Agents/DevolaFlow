@@ -12,6 +12,7 @@ IDs are registered in the owner first; the view mirrors them 1:1 (pinned by
 from __future__ import annotations
 
 import logging
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from devolaflow.plugins.registry import PluginRegistry
 log = logging.getLogger(__name__)
 
 _REPO_PLUGINS_YAML = "workflow-system/agent/plugins.yaml"
+_RUNTIME_PLUGINS_YAML = "workflow-system/agent/knowledge/runtime-plugins.yaml"
 
 # v15.2.0 B-6 (04 §8.3) — session-scoped one-time-suggestion cache. The
 # probe/suggestion surface is centralised HERE (single owner per A-5): a
@@ -71,6 +73,84 @@ def _dict_to_spec(data: dict[str, Any]) -> PluginSpec:
     )
 
 
+def _runtime_registry_for_view(view_path: Path) -> Path | None:
+    """Find the runtime SSOT paired with a legacy capability view."""
+    candidates = [view_path.parent / "knowledge" / "runtime-plugins.yaml"]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _runtime_entries(path: Path) -> dict[str, dict[str, Any]]:
+    """Load runtime registration rows without making the view an owner."""
+    import yaml
+
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    entries = raw.get("plugins", [])
+    return {
+        entry["id"]: entry
+        for entry in entries
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"]
+    }
+
+
+def _overlay_runtime_registration(
+    view_data: dict[str, Any],
+    *,
+    runtime_path: Path | None,
+) -> dict[str, Any]:
+    """Overlay operational fields from runtime SSOT onto view metadata.
+
+    The legacy view remains useful to callers that need capabilities, roles,
+    and stage recipes.  Detection, version floors, workflow wiring, and
+    installer commands are always taken from ``runtime-plugins.yaml`` when
+    the paired SSOT is available, so stale view values cannot affect runtime
+    behavior.
+    """
+    if runtime_path is None:
+        return view_data
+
+    runtime = _runtime_entries(runtime_path)
+    normalized: dict[str, Any] = {}
+    for plugin_id, presentation in view_data.get("plugins", {}).items():
+        if not isinstance(presentation, dict):
+            continue
+        entry = runtime.get(plugin_id)
+        if entry is None:
+            log.warning("Plugin %s exists only in the presentation view", plugin_id)
+            continue
+        data = {"name": plugin_id, **presentation}
+        version_command = str(entry["version_check_cmd"])
+        command_words = shlex.split(version_command)
+        data["cli_binary"] = command_words[0] if command_words else data.get("cli_binary", "")
+        data["version_command"] = version_command
+        data["repo_url"] = entry.get("canonical_url", "")
+        data["min_version"] = entry["min_version"]
+        data["workflows"] = list(entry.get("invoked_by_workflows") or [])
+        data["update_command"] = entry.get("upgrade_cmd")
+
+        backend = entry.get("backend")
+        install_key = {"pip": "pip", "npm_then_init": "npm", "curl_install_script": "script"}.get(
+            backend
+        )
+        if install_key:
+            methods = dict(data.get("install_methods") or {})
+            methods[install_key] = entry["install_cmd"]
+            data["install_methods"] = methods
+
+        init_template = entry.get("init_cmd_template")
+        if init_template and not data.get("skill_install_command"):
+            targets = entry.get("init_targets") or []
+            target = targets[0] if targets else "auto"
+            data["skill_install_command"] = init_template.format(ai_platform=target)
+        normalized[plugin_id] = data
+
+    merged = dict(view_data)
+    merged["plugins"] = normalized
+    return merged
+
+
 def load_plugin_specs(yaml_path: str | Path) -> list[PluginSpec]:
     """Load plugin specs from a YAML file."""
     import yaml  # deferred so the module works without PyYAML at import time
@@ -81,6 +161,11 @@ def load_plugin_specs(yaml_path: str | Path) -> list[PluginSpec]:
         return []
 
     raw = yaml.safe_load(path.read_text()) or {}
+    if path.name == "plugins.yaml":
+        raw = _overlay_runtime_registration(
+            raw,
+            runtime_path=_runtime_registry_for_view(path),
+        )
     plugins_section = raw.get("plugins", {})
 
     if isinstance(plugins_section, list):
@@ -114,7 +199,11 @@ def _find_repo_plugins_yaml() -> Path | None:
     return None
 
 
-def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginRegistry:
+def create_default_registry(
+    plugins_yaml: str | Path | None = None,
+    *,
+    profile: str | None = None,
+) -> PluginRegistry:
     """Create a registry populated from the derived capability view ``plugins.yaml``.
 
     When *plugins_yaml* is ``None`` (the common case), the function looks for
@@ -124,6 +213,9 @@ def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginReg
     and IDs mirror the owner. If the YAML is absent, a warning is logged and
     an empty registry is returned; missing metadata must never invent a
     partially registered plugin.
+
+    When *profile* is supplied, only the explicitly selected runtime plugin
+    profile is registered (``all``/``global`` or a singleton plugin ID).
     """
     registry = PluginRegistry()
 
@@ -136,8 +228,52 @@ def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginReg
         yaml_path = _find_repo_plugins_yaml()
 
     if yaml_path is not None:
-        for spec in load_plugin_specs(yaml_path):
-            registry.register(spec)
+        specs_data: list[dict[str, Any]]
+        runtime_path: Path | None = None
+        if yaml_path.name == "plugins.yaml":
+            import yaml
+
+            view = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+            runtime_path = _runtime_registry_for_view(yaml_path)
+            view = _overlay_runtime_registration(view, runtime_path=runtime_path)
+            specs_data = [
+                {"name": name, **entry}
+                for name, entry in (view.get("plugins") or {}).items()
+                if isinstance(entry, dict)
+            ]
+        else:
+            specs_data = [
+                {
+                    "name": spec.name,
+                    "description": spec.description,
+                    "cli_binary": spec.cli_binary,
+                    "version_command": spec.version_command,
+                    "version_regex": spec.version_regex,
+                    "install_methods": spec.install_methods,
+                    "capabilities": spec.capabilities,
+                    "role": spec.role,
+                    "repo_url": spec.repo_url,
+                    "min_version": spec.min_version,
+                    "skill_install_command": spec.skill_install_command,
+                    "stage_mapping": spec.stage_mapping,
+                    "workflows": spec.workflows,
+                    "update_command": spec.update_command,
+                    "uninstall_command": spec.uninstall_command,
+                }
+                for spec in load_plugin_specs(yaml_path)
+            ]
+        selected = None
+        if profile is not None:
+            from devolaflow.plugins.installer import select_plugin_profile
+
+            selected = set(
+                select_plugin_profile(profile, registry_path=runtime_path)
+                if runtime_path is not None
+                else [data["name"] for data in specs_data]
+            )
+        for data in specs_data:
+            if selected is None or data["name"] in selected:
+                registry.register(_dict_to_spec(data))
     else:
         log.warning(
             "plugins.yaml not found; returning an empty plugin registry. "

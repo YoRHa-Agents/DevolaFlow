@@ -1,12 +1,13 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
 # Design reference: docs/designs/design_decomposition_gate.md §3.5
-# WaveDefinition — a parallel batch of L3 Task Agent dispatches grouped by an
-# L2 Wave Agent. Encodes the task list, sync barrier, and per-wave gate that
+# WaveDefinition — a parallel batch of L2 Task Agent dispatches grouped by an
+# L1 Wave Agent under an L0 Project Agent. Encodes the task list, sync barrier,
+# and per-wave gate that
 # blocks downstream waves until composite acceptance is reached.
 # -----------------------------------------------------------------------------
 # TODO(v7.6.x P-07 Option β): add `dependency_matrix_ref` field linking to
-# the dependency-matrix.schema.yaml instance for this wave (currently the L2
+# the dependency-matrix.schema.yaml instance for this wave (currently the L1
 # Wave Agent assembles dependencies inline in the dispatch payload).
 # TODO(v7.6.x P-07 Option β): document the `sync_barrier` semantics — current
 # composer treats every wave as `all` (block until all tasks PASS); the schema
@@ -28,7 +29,7 @@ fields:
 
   tasks:
     type: list
-    description: L3 Task Agent dispatches in this wave.
+    description: L2 Task Agent dispatches in this wave, coordinated by L1.
     item_fields:
       task_id: { type: string, description: Task id (e.g. W01-T01). }
       title: { type: string }
@@ -38,7 +39,7 @@ fields:
   sync_barrier:
     children:
       mode: { type: string, description: all | any | n_of(k) — currently composer only supports `all`. }
-      max_parallelism: { type: int, optional: true, description: Concurrent L3 dispatches cap. }
+      max_parallelism: { type: int, optional: true, description: Concurrent L2 dispatches cap. }
 
   gate:
     children:

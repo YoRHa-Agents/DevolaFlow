@@ -74,19 +74,41 @@ def _is_locked(target_file: str) -> bool:
     return basename.startswith("test_")
 
 
-def _inside_devolaflow(target_file: str) -> bool:
-    """Return True if *target_file* lives within the DevolaFlow tree.
+def _canonical_repo_root(repo_root: str | Path | None = None) -> Path:
+    """Return the canonical repository root used for proposal containment."""
+    root = Path.cwd() if repo_root is None else Path(repo_root)
+    return root.resolve()
 
-    Accepts relative paths (rooted at repo), or paths containing
-    'devolaflow', 'workflow-system', 'schemas', or '.cursor/rules'.
+
+def _inside_devolaflow(
+    target_file: str,
+    *,
+    repo_root: str | Path | None = None,
+) -> bool:
+    """Return whether *target_file* is a safe, repository-relative target.
+
+    Absolute paths, any explicit traversal component, symlink escapes, and
+    paths outside the supplied canonical repository root are rejected before
+    the allowed DevolaFlow subtrees are checked.
     """
+    try:
+        target = Path(target_file)
+        if not target_file or target.is_absolute() or ".." in target.parts:
+            return False
+        root = _canonical_repo_root(repo_root)
+        candidate = (root / target).resolve()
+        candidate.relative_to(root)
+        relative = candidate.relative_to(root)
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return False
+
     allowed_prefixes = (
-        "src/devolaflow/",
-        "workflow-system/",
-        "schemas/",
-        ".cursor/rules/",
+        Path("src") / "devolaflow",
+        Path("workflow-system"),
+        Path("schemas"),
+        Path(".cursor") / "rules",
     )
-    return any(target_file.startswith(p) or f"/{p}" in target_file for p in allowed_prefixes)
+    return any(relative == prefix or prefix in relative.parents for prefix in allowed_prefixes)
 
 
 class FeedbackCollector:
@@ -248,14 +270,18 @@ def _make_proposal(
     }
 
 
-def _filter_valid_proposals(proposals: list[dict]) -> list[dict]:
+def _filter_valid_proposals(
+    proposals: list[dict],
+    *,
+    repo_root: str | Path | None = None,
+) -> list[dict]:
     valid: list[dict] = []
     for p in proposals:
         tf = p.get("target_file", "")
         if _is_locked(tf):
             logger.info("Rejecting proposal for locked file: %s", tf)
             continue
-        if not _inside_devolaflow(tf):
+        if not _inside_devolaflow(tf, repo_root=repo_root):
             logger.info("Rejecting proposal for out-of-scope file: %s", tf)
             continue
         valid.append(p)
@@ -269,10 +295,16 @@ class ProposalGenerator:
     - Max ``MAX_PROPOSALS_PER_WORKFLOW`` (3) proposals per invocation
     - Confidence floor ``CONFIDENCE_FLOOR`` (0.7) on source evidence
     - Scope-lock: proposals targeting locked files are rejected
-    - DevolaFlow scope: proposals for files outside the repo are rejected
+    - DevolaFlow scope: canonical ``repo_root`` containment rejects absolute,
+      traversal, symlink-escaping, and outside-repository targets
     """
 
-    def __init__(self, *, pre_dispatch_strict: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        pre_dispatch_strict: bool = True,
+        repo_root: str | Path | None = None,
+    ) -> None:
         """Initialize the proposal generator with empty internal state.
 
         v10.6.0 PV-02 (D-Q-2 god-function refactor) — composes a
@@ -292,6 +324,9 @@ class ProposalGenerator:
         escape (pre-v15.0.0 warn-only behaviour).
         """
         self._state = _ProposalState()
+        # The default preserves the legacy constructor while still anchoring
+        # all generated relative targets to one canonical root.
+        self._repo_root = _canonical_repo_root(repo_root)
         self._emitter = ProposalEmitter(pre_dispatch_strict=pre_dispatch_strict)
 
     def generate_proposals(self, analysis: dict) -> list[dict]:
@@ -319,7 +354,7 @@ class ProposalGenerator:
         self._add_violation_proposals(analysis, confidence, proposals)
         self._add_stagnation_proposal(analysis, confidence, proposals)
         self._add_mismatch_proposals(analysis, confidence, proposals)
-        return _filter_valid_proposals(proposals)
+        return _filter_valid_proposals(proposals, repo_root=self._repo_root)
 
     def _add_violation_proposals(
         self,

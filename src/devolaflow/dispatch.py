@@ -119,6 +119,74 @@ def _resolve_task_timeout(task: dict[str, Any]) -> float | None:
     return float(default_timeout_for(task_type))
 
 
+class _WaveTimeouts(dict[str, float]):
+    """Timeout mapping carrying the explicit-stop contract for each task."""
+
+    def __init__(self, values: dict[str, float], explicit_task_ids: set[str]) -> None:
+        super().__init__(values)
+        self.explicit_task_ids = frozenset(explicit_task_ids)
+
+
+def _prepare_wave_tasks(
+    wave_definition: dict[str, Any],
+    dispatch_factory: Any,
+    max_concurrency: int | None,
+) -> tuple[str, int, list[tuple[str, Any]], dict[str, float]]:
+    """Validate and prepare the common synchronous/async wave inputs."""
+    from devolaflow.agent_workspace.dispatch_executor import (
+        DEFAULT_MAX_CONCURRENCY,
+        ExecutorError,
+    )
+
+    if not isinstance(wave_definition, dict):
+        raise TypeError(f"wave_definition must be a dict, got {type(wave_definition).__name__}")
+    if not callable(dispatch_factory):
+        raise TypeError(f"dispatch_factory must be callable, got {type(dispatch_factory).__name__}")
+
+    tasks_raw = wave_definition.get("tasks", [])
+    if not isinstance(tasks_raw, list):
+        raise TypeError(f"wave_definition['tasks'] must be a list, got {type(tasks_raw).__name__}")
+
+    sync_barrier = wave_definition.get("sync_barrier") or {}
+    if not isinstance(sync_barrier, dict):
+        sync_barrier = {}
+    mode = sync_barrier.get("mode", "all")
+
+    if max_concurrency is None:
+        configured = sync_barrier.get("max_parallelism")
+        max_concurrency = DEFAULT_MAX_CONCURRENCY if configured is None else configured
+
+    if max_concurrency < 1:
+        raise ExecutorError(
+            f"AsyncDispatchExecutor.max_concurrency must be >= 1, got {max_concurrency!r}"
+        )
+    if not tasks_raw:
+        return mode, max_concurrency, [], {}
+
+    callables: list[tuple[str, Any]] = []
+    timeouts: dict[str, float] = {}
+    explicit_timeout_ids: set[str] = set()
+    for idx, task in enumerate(tasks_raw):
+        if not isinstance(task, dict):
+            raise TypeError(
+                f"wave_definition['tasks'][{idx}] must be a dict, got {type(task).__name__}"
+            )
+        task_id = str(task.get("task_id") or task.get("id") or f"wave-task-{idx}")
+        fn = dispatch_factory(task)
+        if not callable(fn):
+            raise TypeError(
+                f"dispatch_factory(task[{idx}]) must return a callable, got {type(fn).__name__}"
+            )
+        callables.append((task_id, fn))
+        timeout = _resolve_task_timeout(task)
+        if timeout is not None:
+            timeouts[task_id] = timeout
+            if "timeout_seconds" in task:
+                explicit_timeout_ids.add(task_id)
+
+    return mode, max_concurrency, callables, _WaveTimeouts(timeouts, explicit_timeout_ids)
+
+
 def dispatch_wave_tasks(
     wave_definition: dict[str, Any],
     dispatch_factory: Any,
@@ -178,52 +246,46 @@ def dispatch_wave_tasks(
         contract violations are explicit, never silent.
       ExecutorError: when the resolved ``max_concurrency`` is < 1.
     """
-    from devolaflow.agent_workspace.dispatch_executor import (
-        DEFAULT_MAX_CONCURRENCY,
-        AsyncDispatchExecutor,
+    from devolaflow.agent_workspace.dispatch_executor import AsyncDispatchExecutor
+
+    mode, resolved_concurrency, callables, timeouts = _prepare_wave_tasks(
+        wave_definition, dispatch_factory, max_concurrency
     )
-
-    if not isinstance(wave_definition, dict):
-        raise TypeError(f"wave_definition must be a dict, got {type(wave_definition).__name__}")
-    if not callable(dispatch_factory):
-        raise TypeError(f"dispatch_factory must be callable, got {type(dispatch_factory).__name__}")
-
-    tasks_raw = wave_definition.get("tasks", [])
-    if not isinstance(tasks_raw, list):
-        raise TypeError(f"wave_definition['tasks'] must be a list, got {type(tasks_raw).__name__}")
-    if not tasks_raw:
+    if not callables:
         return []
 
-    sync_barrier = wave_definition.get("sync_barrier") or {}
-    if not isinstance(sync_barrier, dict):
-        sync_barrier = {}
-    mode = sync_barrier.get("mode", "all")
-
-    if max_concurrency is None:
-        max_concurrency = sync_barrier.get("max_parallelism") or DEFAULT_MAX_CONCURRENCY
-
-    callables: list[tuple[str, Any]] = []
-    timeouts: dict[str, float] = {}
-    for idx, task in enumerate(tasks_raw):
-        if not isinstance(task, dict):
-            raise TypeError(
-                f"wave_definition['tasks'][{idx}] must be a dict, got {type(task).__name__}"
-            )
-        task_id = str(task.get("task_id") or task.get("id") or f"wave-task-{idx}")
-        fn = dispatch_factory(task)
-        if not callable(fn):
-            raise TypeError(
-                f"dispatch_factory(task[{idx}]) must return a callable, got {type(fn).__name__}"
-            )
-        callables.append((task_id, fn))
-        timeout = _resolve_task_timeout(task)
-        if timeout is not None:
-            timeouts[task_id] = timeout
-
-    executor = AsyncDispatchExecutor(max_concurrency=max_concurrency)
+    executor = AsyncDispatchExecutor(max_concurrency=resolved_concurrency)
     if mode == "parallel" and len(callables) > 1:
         return executor.dispatch_parallel(callables, timeouts=timeouts)
     return executor.dispatch_sequential(callables, timeouts=timeouts)
+
+
+async def async_dispatch_wave_tasks(
+    wave_definition: dict[str, Any],
+    dispatch_factory: Any,
+    *,
+    max_concurrency: int | None = None,
+) -> list[Any]:
+    """Dispatch a wave from an active event loop.
+
+    This is the async companion to :func:`dispatch_wave_tasks`.  Await it
+    instead of calling the synchronous wrapper from an active event loop;
+    it does not use nested :func:`asyncio.run` calls.  Validation,
+    concurrency resolution, timeout handling, and ``TaskOutcome`` ordering
+    match the synchronous wrapper.
+    """
+    from devolaflow.agent_workspace.dispatch_executor import AsyncDispatchExecutor
+
+    mode, resolved_concurrency, callables, timeouts = _prepare_wave_tasks(
+        wave_definition, dispatch_factory, max_concurrency
+    )
+    if not callables:
+        return []
+
+    executor = AsyncDispatchExecutor(max_concurrency=resolved_concurrency)
+    if mode == "parallel" and len(callables) > 1:
+        return await executor.dispatch_parallel_async(callables, timeouts=timeouts)
+    return await executor.dispatch_sequential_async(callables, timeouts=timeouts)
 
 
 # ---------------------------------------------------------------------------

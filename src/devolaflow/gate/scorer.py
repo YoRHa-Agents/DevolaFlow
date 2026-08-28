@@ -1134,10 +1134,9 @@ def evaluate_gate(
         ``BREAK`` decision returns early with FAIL or ESCALATE depending
         on the profile severity (STRICT / AUDIT escalate).
     cumulative_tokens:
-        Optional explicit cumulative-token count for the breaker check.
-        When ``None``, the breaker's internal counter (from
-        :meth:`TokenBudgetBreaker.record`) is used. Ignored when
-        ``breaker is None``.
+        Optional explicit cumulative-token count for the breaker check;
+        ``None`` uses the breaker's internal counter
+        (:meth:`TokenBudgetBreaker.record`). Ignored when ``breaker is None``.
     cycle_detector:
         Optional :class:`devolaflow.gate.cycle_detector.CycleDetector`.
         When ``None`` (the default), behaviour is byte-identical to
@@ -1179,11 +1178,9 @@ def evaluate_gate(
         without changing the gate decision.
     complexity_signals:
         Optional :class:`devolaflow.gate.models.ComplexitySignals`
-        consumed by the detector. When ``None`` and
-        ``complexity_detector`` is supplied, the wiring is a no-op
-        (still byte-identical) — gate consumers can defer signal
-        capture to the wave / task agent without forcing synchronous
-        filesystem inspection on every gate call.
+        consumed by the detector. ``None`` with a supplied detector is a
+        byte-identical no-op — consumers can defer signal capture without
+        forcing synchronous filesystem inspection on every gate call.
     complexity_task_complexity:
         Tier name ("trivial" / "simple" / "standard" / "complex") used
         to look up the per-tier WARNING budgets. Defaults to
@@ -1203,10 +1200,9 @@ def evaluate_gate(
         (STANDARD graduated 0.0 → 0.05 at v15.0.0 per G-038 flip 6),
         0.0 in RELAXED (per ``profiles.py``).
     legibility_files:
-        Optional sequence of file paths to score with
-        ``legibility_scorer``. ``None`` (or empty) is byte-identical
-        to omitting the scorer — no work performed, no details
-        appended. Ignored when ``legibility_scorer is None``.
+        Optional file paths scored by ``legibility_scorer``. ``None`` or
+        empty is byte-identical to omitting the scorer — no work, no
+        details appended. Ignored when ``legibility_scorer is None``.
     artifact_evidence:
         Optional sequence of lean StatusReport dicts (the v14.3.0
         ``ac_results`` / ``diff_stats`` / ``metrics`` / ``self_check``
@@ -1282,14 +1278,18 @@ def evaluate_gate(
 
 
 def _evaluate_standard(gate_input: GateInput, profile: GateProfile) -> GateVerdict:
-    """Single-shot gate: all checks must pass."""
+    """Single-shot gate: every required check must explicitly pass.
+
+    ``skip`` is not success — a skipped required check (build/test/lint or
+    supplied AC evidence) must not produce a green standard gate.
+    """
     failures: list[str] = []
 
-    if gate_input.build_status.status == "fail":
+    if gate_input.build_status.status != "pass":
         failures.append("build")
-    if gate_input.test_results.status == "fail":
+    if gate_input.test_results.status != "pass":
         failures.append("test")
-    if gate_input.lint_status.status == "fail":
+    if gate_input.lint_status.status != "pass":
         failures.append("lint")
 
     blocker_count = _count_severity(gate_input.review_findings, "blocker")
@@ -1301,7 +1301,7 @@ def _evaluate_standard(gate_input: GateInput, profile: GateProfile) -> GateVerdi
         failures.append(f"criticals({critical_count})")
 
     ac = gate_input.acceptance_criteria_results
-    if ac and ac.status == "fail":
+    if ac is not None and ac.status != "pass":
         failures.append("acceptance_criteria")
 
     if not failures:

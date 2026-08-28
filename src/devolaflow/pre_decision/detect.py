@@ -166,3 +166,7 @@ def detect_and_print() -> None:
         print(result.mode)
     if result.remote_url:
         print(f"Remote: {result.remote_url}")
+
+
+if __name__ == "__main__":
+    detect_and_print()
