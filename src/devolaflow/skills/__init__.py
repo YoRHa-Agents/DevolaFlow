@@ -34,8 +34,10 @@ operator and by L0 dispatchers when steering toward the
   ``.local/research/v11.4.0_subagent_pattern_analysis.md`` §6 P1.2.
 * :mod:`devolaflow.skills.pathfinder` — pure-function natural-language
   activation for the read-only v17.3.0 Pathfinder L2 look-ahead role.
+* :mod:`devolaflow.skills.retro_digest` — pure activation, deterministic
+  retrospective extraction, and report-only digest records.
 
-All five modules are R5-strict additive:
+All six modules are R5-strict additive:
 
 * No existing public symbol is mutated.
 * No new top-level dispatch key lands in
@@ -82,6 +84,26 @@ from devolaflow.skills.pathfinder import (
     classify_pathfind_intent,
     should_schedule_pathfind,
 )
+from devolaflow.skills.retro_digest import (
+    DigestCategory,
+    DigestCuration,
+    DigestRecord,
+    DigestResult,
+    DigestStatus,
+    DigestVerdict,
+    RetroDigestVerdict,
+    RetrospectiveSource,
+    build_digest,
+    capture_digest_entries,
+    classify_retro_digest_intent,
+    discover_evaluations,
+    discover_retrospectives,
+    extract_digest_records,
+    extract_evaluation_findings,
+    extract_retrospective_records,
+    render_digest_report,
+    to_learning_entries,
+)
 from devolaflow.skills.subagent_pattern import (
     ModelTier,
     PatternVerdict,
@@ -100,14 +122,32 @@ __all__: list[str] = [
     "ModelTier",
     "PathfindVerdict",
     "PatternVerdict",
+    "DigestCategory",
+    "DigestCuration",
+    "DigestRecord",
+    "DigestResult",
+    "DigestStatus",
+    "DigestVerdict",
+    "RetroDigestVerdict",
+    "RetrospectiveSource",
+    "build_digest",
+    "capture_digest_entries",
     "classify_grill_intent",
     "classify_pathfind_intent",
+    "classify_retro_digest_intent",
+    "discover_evaluations",
+    "discover_retrospectives",
     "should_schedule_pathfind",
     "detect_fuzzy_terms",
+    "extract_digest_records",
+    "extract_evaluation_findings",
+    "extract_retrospective_records",
     "forbidden_pattern_rationale",
     "infer_context_layout",
     "propose_canonical_term",
     "qualifies_as_adr",
+    "render_digest_report",
     "select_pattern",
+    "to_learning_entries",
     "validate_inputs",
 ]

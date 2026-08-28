@@ -229,6 +229,12 @@ _SOURCE_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("write-report", "validate"),
         ("route-remediation", "review"),
     ],
+    "retro-digest": [
+        ("grill-decision", "review"),
+        ("phase-0-audits", "analyze"),
+        ("bounded-pv", "implement"),
+        ("cycle-close", "release"),
+    ],
 }
 
 _ALIASES = sorted(set(_SOURCE_STAGE_SEQUENCES) - {"change-driven"})
@@ -239,7 +245,7 @@ def test_registry_schema_v3_and_seed_stage_provenance(name: str) -> None:
     raw = yaml.safe_load(_REGISTRY_YAML.read_text(encoding="utf-8"))
     assert raw["schema_version"] == REGISTRY_SCHEMA_V3
     assert list(raw)[-1] == "templates"
-    assert len(raw["compositions"]) == 19
+    assert len(raw["compositions"]) == 20
     assert len(raw["templates"]) == 7
     assert all(
         set(entry) == {"name", "seed", "category", "tags", "description"}
@@ -315,14 +321,14 @@ def test_runtime_discovery_validator_and_legacy_failure(
     assert legacy.stage_sequence() == []
     assert "synthesis is retired" in legacy.deprecation_note()
     assert validate_all_templates(True, _TEMPLATES_ROOT / "builtin")
-    assert "1 template + 26 seeds" in capsys.readouterr().out
+    assert "1 template + 27 seeds" in capsys.readouterr().out
 
 
 def test_template_metadata_owner_and_retained_views_have_parity(project_root: Path) -> None:
     result = check_template_metadata_parity(project_root)
 
     assert result.passed, result.issues
-    assert (result.registry_count, result.workflow_count, result.seed_count) == (26, 26, 26)
+    assert (result.registry_count, result.workflow_count, result.seed_count) == (27, 27, 27)
     assert result.keyword_divergences == (
         "harness-construction",
         "local-archive",

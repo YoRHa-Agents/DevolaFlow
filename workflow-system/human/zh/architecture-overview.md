@@ -4,8 +4,8 @@ description: "三层清单轮次架构、来源原语与证据门。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-28T15:33:00Z"
-source_version: "20.0.0"
+last_synced: "2026-08-28T20:13:47Z"
+source_version: "20.1.0"
 ---
 
 # 架构概述
@@ -24,7 +24,7 @@ source_version: "20.0.0"
 
 ## 种子与运行时
 
-注册表当前提供 26 个不可执行清单种子，其中
+注册表当前提供 27 个不可执行清单种子，其中
 13 个原语标签
 （`analyze`, `deploy`, `design`, `gate`, `implement`, `plan`, `refine`, `release`, `research`, `review`, `test`, `validate`, `verify`）只保存历史分解
 来源；列表顺序不是运行时顺序。`change-driven` 是唯一可执行运行时。
@@ -38,7 +38,7 @@ source_version: "20.0.0"
 
 任务自适应选择来自 `workflow-system/agent/context_profiles.yaml` 中派生的
 27 个 profile。规范 `.rules/` 源当前包含
-50 个规则 ID；生成面必须经编译，不得手改。
+51 个规则 ID；生成面必须经编译，不得手改。
 
 harness 基线结算与周期归档保留是政策。周期负责人在周期关闭时人工执行归档汇总；
 目前没有自动归档 hook。

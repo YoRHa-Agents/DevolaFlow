@@ -5,6 +5,18 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [20.1.0] - 2026-08-29 — MINOR — Retro-Digest Evidence
+
+### Added
+
+- **Retro-Digest capability**: deterministic, verbatim extraction with
+  repository-relative provenance, report-only defaults, and explicit consent
+  before selected entries are written to `operational.jsonl`; missing evidence
+  remains `INSUFFICIENT`.
+- **Retro-Digest governance surfaces**: added the retro-digest seed and
+  reference, with W-29 documenting activation, evidence, and consent
+  requirements.
+
 ## [20.0.0] - 2026-08-28 — MAJOR — Functional Test System
 
 Evidence: [gap analysis](.local/research/loop3_functional_test_system_gap_analysis.md),

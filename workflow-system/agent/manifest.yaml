@@ -57,6 +57,7 @@ references:
   - references/pathfinder.md
   - references/plan-mode-enforcement.md
   - references/repo-modes.md
+  - references/retro-digest.md
   - references/shell-proxy.md
   - references/subagent-patterns.md
   - references/task-quality-score.md

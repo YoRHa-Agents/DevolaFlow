@@ -4,8 +4,8 @@ description: "Registry-derived checklist seeds and the sole change-driven runtim
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-28T15:33:00Z"
-source_version: "20.0.0"
+last_synced: "2026-08-28T20:13:47Z"
+source_version: "20.1.0"
 ---
 
 # Checklist Seed Catalog
@@ -38,6 +38,7 @@ membership is not maintained in this guide.
 | `local-archive` | `control` | Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge. | `local-archive`, `task-archive`, `archive`, `tasks`, `clustering`, `mapping`, `index`, `report-only` |
 | `harness-construction` | `composite` | Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review. | `harness`, `evaluation-infrastructure`, `observability`, `telemetry`, `coverage`, `gap-analysis`, `baseline` |
 | `pathfinder` | `control` | Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave. | `pathfinder`, `path-find`, `look-ahead`, `infrastructure`, `harness`, `gap-analysis`, `reconnaissance` |
+| `retro-digest` | `composite` | Deterministic retrospective extraction with optional curation and report-only cycle learning. | `retro-digest`, `retrospective`, `digest`, `learnings`, `lessons`, `cycle-close`, `report-only` |
 | `migration` | `build` | Systematic migration with validation, cutover, and rollback readiness. | `migrate`, `upgrade`, `transition`, `port` |
 | `skill-optimization` | `composite` | Agent-skill profiling, optimization, validation, and documentation knowledge. | `skill`, `optimize`, `benchmark`, `context`, `compress`, `iterate`, `density` |
 | `self-update` | `control` | Reference dependency research, integration, testing, and evaluation knowledge. | `self-update`, `update`, `upgrade`, `refs`, `validate`, `meta` |

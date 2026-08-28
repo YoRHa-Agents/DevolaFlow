@@ -418,3 +418,17 @@ Primary references: `workflow-system/agent/references/local-archive.md` §8 and
 `src/devolaflow/local/archive.py::render_index` /
 `_validate_index_target`. Enforcement: `tests/test_local_archive.py` and the
 current-cycle local-archive ghost audit.
+
+## W-29 — Retro-Digest Evidence and Consent
+
+Retro-Digest activation is natural-language only. It MUST NOT introduce a new
+`DEVOLAFLOW_*` environment flag or CLI. Deterministic extraction MUST preserve
+verbatim source text and repository-relative provenance. Optional L0 curation
+MAY select and label entries, but MUST NOT rewrite their source.
+
+Default execution is report-only. Writing selected entries to
+`operational.jsonl` requires explicit operator consent. Benefits MUST remain a
+separate report-only section. Missing evidence MUST be reported as
+`INSUFFICIENT`, never `PASS`.
+
+Primary reference: `workflow-system/agent/references/retro-digest.md`.

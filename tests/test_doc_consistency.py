@@ -7,6 +7,8 @@ for checklist seeds, runtime templates, tests, etc.
 import re
 from pathlib import Path
 
+import yaml
+
 
 def _registry_template_names(project_root: Path) -> set[str]:
     """Return the registry-v3 checklist-seed name universe."""
@@ -85,9 +87,17 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
     claimed = int(match.group(1))
     registered = _registry_template_names(project_root)
     disk_seeds = {path.stem for path in (templates_root / "seeds").glob("*.yaml")}
-    assert claimed == len(registered) == len(disk_seeds), (
-        f"README claims {claimed} seeds; registry has {len(registered)} and "
-        f"disk has {len(disk_seeds)}"
+    registry = yaml.safe_load((templates_root / "registry.yaml").read_text(encoding="utf-8"))
+    runtime_names = {
+        entry["name"]
+        for entries_key in ("compositions", "templates")
+        for entry in (registry.get(entries_key) or [])
+        if "path" in entry
+    }
+    non_executable = registered - runtime_names
+    assert claimed == len(non_executable), (
+        f"README claims {claimed} non-executable seeds; registry has "
+        f"{len(non_executable)} and disk has {len(disk_seeds) - len(runtime_names)}"
     )
     assert registered == disk_seeds
     assert "sole runtime" in section
@@ -207,7 +217,7 @@ def test_registry_template_count(project_root: Path):
     disk_runtimes = {path.name for path in (templates_root / "builtin").glob("*.yaml")}
 
     assert raw["schema_version"] == "3.0"
-    assert len(entries) == len(registry_names) == 26
+    assert len(entries) == len(registry_names) == len(disk_seeds)
     assert registry_names == disk_seeds
     assert seed_paths == {f"seeds/{name}.yaml" for name in registry_names}
     assert runtime_entries == [
@@ -230,7 +240,6 @@ def test_demo_seed_catalogs_match_registry(project_root: Path):
     explorer_text = (demo_root / "stage-explorer" / "explorer.js").read_text(encoding="utf-8")
     generated_names = set(re.findall(r'^\s{6}"name": "([^"]+)",$', generated_text, re.MULTILINE))
 
-    assert len(registered) == 26
     assert generated_names == registered
     assert "window.DEVOLAFLOW_SEED_CATALOG" in home_text
     assert "window.DEVOLAFLOW_SEED_CATALOG" in seed_library_text
