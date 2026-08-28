@@ -135,7 +135,7 @@ The agent onboarding entry point — a STATIC ROUTER, not a status mirror:
 - Section 2 routes each onboarding scenario (session resume, new L2 task,
   review/verify, human audit) to its minimal artifact read order;
 - Section 3 inventories every artifact with a one-line role; the lint's
-  `ENTRANCE_PARITY` finding keeps it in lockstep with the C-9 budget
+  `ENTRANCE_PARITY` finding keeps it in lockstep with the C-4 budget
   registry;
 - Section 4 carries discipline POINTERS only (rule IDs + owning files).
 
@@ -212,7 +212,7 @@ Rules:
   header on every checkbox flip, effort change, item add/drop, or round
   transition — `ChangeStore.refresh_progress_header`,
   `revert_checklist_item`, and `reconcile_round_boundary` re-align it
-  automatically, and the C-9 linter fails on any drift (`PROGRESS_HEADER`).
+  automatically, and the C-4 linter fails on any drift (`PROGRESS_HEADER`).
 
 Schema: `schemas/agent-workspace/change-checklist.yaml`.
 
@@ -421,7 +421,7 @@ and logs. L0/L1 read-only planning remains unrestricted.
 
 Escalation is Task → Wave → Project → Human and never skips a layer.
 
-## 9. Token Budgets (C-9)
+## 9. Token Budgets (C-4)
 
 | File | Soft | Hard |
 |---|---:|---:|

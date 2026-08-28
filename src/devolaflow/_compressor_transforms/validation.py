@@ -1,4 +1,4 @@
-"""Focused implementation slice for the legacy module."""
+"""Focused implementation slice for message validation."""
 
 # ruff: noqa: F403, F405
 

@@ -1,4 +1,4 @@
-"""Focused implementation slice for the legacy module."""
+"""Focused implementation slice for report rendering."""
 
 # ruff: noqa: F403, F405
 
@@ -93,11 +93,11 @@ def render_workspace_report(
     :class:`ChangeStore.list_archive`. For each change, loads the
     :class:`Change` to surface state, percent-complete, and gate score.
 
-    The ``workspace_root`` argument is accepted for API symmetry with the
-    other renderers but is currently unused (the active/archive layout
-    lives at fixed offsets under ``repo_root``).
+    ``workspace_root`` is a retained compatibility keyword. It is intentionally
+    ignored because the active/archive layout lives at fixed offsets under
+    ``repo_root``; supplying it must not change the rendered report.
     """
-    del workspace_root  # accepted for API symmetry; layout is canonical.
+    del workspace_root  # retained compatibility keyword; layout is canonical.
     root = _resolve_repo_root(repo_root)
     store = _make_store(root, active_root, archive_root)
     pinned_now = _normalise_now(now)

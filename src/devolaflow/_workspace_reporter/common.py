@@ -1,4 +1,4 @@
-"""Shared imports and constants for the legacy compatibility split."""
+"""Shared imports and constants for workspace reports."""
 
 # ruff: noqa: F401, E402
 
@@ -17,33 +17,6 @@ from typing import Final
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
-
-from devolaflow.agent_workspace.change import (
-    ACTIVE_DIR_DEFAULT,
-    ARCHIVE_DIR_DEFAULT,
-    Change,
-    ChangeNotFoundError,
-    ChangeStore,
-)
-from devolaflow.agent_workspace.delta_parser import (
-    DELTA_SECTION_KINDS,
-    DeltaSpecParseError,
-    parse_delta_spec,
-)
-from devolaflow.agent_workspace.handoff import (
-    HANDOFF_DIR_DEFAULT,
-    HandoffEnvelope,
-    HandoffStore,
-    HandoffStoreError,
-)
-from devolaflow.agent_workspace.lint import (
-    HumanBudgetExceededError,
-    enforce_digest_budget,
-)
-from devolaflow.agent_workspace.requirements_trace import (
-    RequirementTraceResult,
-    trace_requirements,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +62,69 @@ _TASK_GROUP_RE: Final[re.Pattern[str]] = re.compile(r"^##\s+(G\d+:\s+.+)$")
 
 _ARCHIVE_DATE_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r"^(\d{4}-\d{2}-\d{2})-")
 
+
+def _load_dependencies() -> None:
+    """Load agent-workspace dependencies after the split is initialized."""
+    from devolaflow.agent_workspace.change import (
+        ACTIVE_DIR_DEFAULT,
+        ARCHIVE_DIR_DEFAULT,
+        Change,
+        ChangeNotFoundError,
+        ChangeStore,
+    )
+    from devolaflow.agent_workspace.delta_parser import (
+        DELTA_SECTION_KINDS,
+        DeltaSpecParseError,
+        parse_delta_spec,
+    )
+    from devolaflow.agent_workspace.handoff import (
+        HANDOFF_DIR_DEFAULT,
+        HandoffEnvelope,
+        HandoffStore,
+        HandoffStoreError,
+    )
+    from devolaflow.agent_workspace.lint import (
+        HumanBudgetExceededError,
+        enforce_digest_budget,
+    )
+    from devolaflow.agent_workspace.requirements_trace import (
+        RequirementTraceResult,
+        trace_requirements,
+    )
+
+    globals().update(
+        {
+            "ACTIVE_DIR_DEFAULT": ACTIVE_DIR_DEFAULT,
+            "ARCHIVE_DIR_DEFAULT": ARCHIVE_DIR_DEFAULT,
+            "Change": Change,
+            "ChangeNotFoundError": ChangeNotFoundError,
+            "ChangeStore": ChangeStore,
+            "DELTA_SECTION_KINDS": DELTA_SECTION_KINDS,
+            "DeltaSpecParseError": DeltaSpecParseError,
+            "parse_delta_spec": parse_delta_spec,
+            "HANDOFF_DIR_DEFAULT": HANDOFF_DIR_DEFAULT,
+            "HandoffEnvelope": HandoffEnvelope,
+            "HandoffStore": HandoffStore,
+            "HandoffStoreError": HandoffStoreError,
+            "HumanBudgetExceededError": HumanBudgetExceededError,
+            "enforce_digest_budget": enforce_digest_budget,
+            "RequirementTraceResult": RequirementTraceResult,
+            "trace_requirements": trace_requirements,
+        }
+    )
+
+
 __all__ = [
     name
     for name in globals()
-    if name not in {"__name__", "__package__", "__loader__", "__spec__", "__builtins__", "__all__"}
+    if name
+    not in {
+        "__name__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__builtins__",
+        "__all__",
+        "_load_dependencies",
+    }
 ]

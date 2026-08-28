@@ -365,7 +365,7 @@ violations classify as a finding (severity follows BG-003 = blocker).
   ranges are blocker findings, not stylistic choices.
 - LL-005 verbatim-line preservation: lines NOT explicitly named in the
   task spec MUST remain byte-identical (no whitespace normalisation,
-  no quote-style flips, no import reordering); preserves CO-2 / C-3
+  no quote-style flips, no import reordering); preserves CO-2 / C-2
   verbatim-extraction discipline at the diff layer.
 
 These criteria compose with BG-003 — a `line`-scope task inherits BG-003

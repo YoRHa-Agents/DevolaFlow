@@ -1,4 +1,4 @@
-"""Shared imports and constants for the legacy compatibility split."""
+"""Shared imports and constants for compressor transforms."""
 
 # ruff: noqa: F401, E402
 
@@ -9,21 +9,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-from devolaflow.compressor.patterns import (
-    _DATA_CLOSE_ESCAPED,
-    _DATA_ENVELOPE_FULL_RE,
-    _INNER_CLOSE_TAG_RE,
-    _MULTI_STEP_MIN_MATCHES,
-    BYPASS_CONDITIONS,
-    BYPASS_PATTERNS,
-    DROP_PATTERNS,
-    INJECTION_PATTERNS,
-    INTENSITY_TIERS,
-    PRESERVE_LIST,
-    PRESERVE_PATTERNS,
-)
-from devolaflow.task_adaptive_selector import estimate_tokens
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -118,17 +103,6 @@ _NER_INTERFACE_PATTERN: re.Pattern[str] = re.compile(
     re.MULTILINE,
 )
 
-_ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {
-    "file_paths": PRESERVE_PATTERNS["file_paths"],
-    "task_ids": PRESERVE_PATTERNS["task_ids"],
-    "version_strings": PRESERVE_PATTERNS["version_strings"],
-    "commit_hashes": PRESERVE_PATTERNS["commit_hashes"],
-    "metric_values": PRESERVE_PATTERNS["metric_values"],
-    "error_messages": PRESERVE_PATTERNS["error_messages_verbatim"],
-    "acceptance_criterion_bullets": _NER_ACCEPTANCE_PATTERN,
-    "interface_signatures": _NER_INTERFACE_PATTERN,
-}
-
 _HEADING_RE: re.Pattern[str] = re.compile(r"^(#{1,3})\s+(.+?)\s*$")
 
 ABSTRACTIVE_LOW_DENSITY_THRESHOLD: float = 0.30
@@ -159,8 +133,59 @@ DEDUP_DIGEST_MAX_CHARS: int = 320
 
 _DEDUP_REF_RE = re.compile(r"^@round-[^\s:]+:pred-\d+$")
 
+# The public compressor package imports this private compatibility symbol while
+# the implementation package is still initializing. Populate the same object
+# in ``_load_dependencies`` so that early aliases remain live.
+_ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {}
+
+
+def _load_dependencies() -> None:
+    """Load public-package dependencies after the split is initialized."""
+    from devolaflow.compressor import patterns as _patterns
+    from devolaflow.task_adaptive_selector import estimate_tokens as _estimate_tokens
+
+    globals().update(
+        {
+            "_DATA_CLOSE_ESCAPED": _patterns._DATA_CLOSE_ESCAPED,
+            "_DATA_ENVELOPE_FULL_RE": _patterns._DATA_ENVELOPE_FULL_RE,
+            "_INNER_CLOSE_TAG_RE": _patterns._INNER_CLOSE_TAG_RE,
+            "_MULTI_STEP_MIN_MATCHES": _patterns._MULTI_STEP_MIN_MATCHES,
+            "BYPASS_CONDITIONS": _patterns.BYPASS_CONDITIONS,
+            "BYPASS_PATTERNS": _patterns.BYPASS_PATTERNS,
+            "DROP_PATTERNS": _patterns.DROP_PATTERNS,
+            "INJECTION_PATTERNS": _patterns.INJECTION_PATTERNS,
+            "INTENSITY_TIERS": _patterns.INTENSITY_TIERS,
+            "PRESERVE_LIST": _patterns.PRESERVE_LIST,
+            "PRESERVE_PATTERNS": _patterns.PRESERVE_PATTERNS,
+            "estimate_tokens": _estimate_tokens,
+        }
+    )
+    _ENTITY_PATTERNS.clear()
+    _ENTITY_PATTERNS.update(
+        {
+            "file_paths": _patterns.PRESERVE_PATTERNS["file_paths"],
+            "task_ids": _patterns.PRESERVE_PATTERNS["task_ids"],
+            "version_strings": _patterns.PRESERVE_PATTERNS["version_strings"],
+            "commit_hashes": _patterns.PRESERVE_PATTERNS["commit_hashes"],
+            "metric_values": _patterns.PRESERVE_PATTERNS["metric_values"],
+            "error_messages": _patterns.PRESERVE_PATTERNS["error_messages_verbatim"],
+            "acceptance_criterion_bullets": _NER_ACCEPTANCE_PATTERN,
+            "interface_signatures": _NER_INTERFACE_PATTERN,
+        }
+    )
+
+
 __all__ = [
     name
     for name in globals()
-    if name not in {"__name__", "__package__", "__loader__", "__spec__", "__builtins__", "__all__"}
+    if name
+    not in {
+        "__name__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__builtins__",
+        "__all__",
+        "_load_dependencies",
+    }
 ]

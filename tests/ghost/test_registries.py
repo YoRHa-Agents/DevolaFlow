@@ -422,6 +422,10 @@ _SSOT_YAML_REGISTRIES: dict[str, str] = {
     # on-disk files + _SF4_REFERENCE_SET is linted by
     # tests/test_install_manifest.py.
     "manifest.yaml": "workflow-system/agent/manifest.yaml",
+    # PV-04 template metadata redundancy: registry-v3 owns catalog identity,
+    # paths, categories, tags, and descriptions; workflow-skill rows and
+    # seed metadata remain retained derived/compatibility views.
+    "template-registry.yaml": "workflow-system/agent/templates/registry.yaml",
 }
 
 

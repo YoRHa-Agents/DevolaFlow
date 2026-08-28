@@ -1,4 +1,4 @@
-"""Focused implementation slice for the legacy module."""
+"""Focused implementation slice for the workspace-lint API."""
 
 # ruff: noqa: F403, F405
 

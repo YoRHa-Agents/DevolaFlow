@@ -37,6 +37,17 @@ def test_f1_profiles_have_budgets_and_timeout_classes() -> None:
     assert profiles["harness_build"]["timeout_class"] == "impl"
 
 
+def test_f1_preflight_is_drafting_only_and_ac_generation_disabled() -> None:
+    config = load_profiles(PROFILES_PATH)
+    profiles = config["profiles"]
+    preflight = profiles["preflight"]
+    disabled_default = config["meta"]["ac_generation_defaults"]
+
+    assert "ac_generation" not in preflight
+    assert preflight.get("ac_generation", disabled_default)["enabled"] is False
+    assert profiles["harness_build"]["ac_generation"]["enabled"] is True
+
+
 def test_f1_role_intent_routes_to_distinct_profiles() -> None:
     config = load_profiles(PROFILES_PATH)
     cases = {

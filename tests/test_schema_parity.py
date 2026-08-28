@@ -36,6 +36,8 @@ from typing import Any
 import pytest
 import yaml
 
+from devolaflow.compressor import DEFAULT_DISPATCH_LAYOUT, FROZEN_PREFIX_V7
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = REPO_ROOT / "schemas"
 
@@ -62,6 +64,11 @@ def lean_doc() -> dict[str, Any]:
 @pytest.fixture(scope="module")
 def gate_doc() -> dict[str, Any]:
     return yaml.safe_load(GATE_REPORT_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def lean_report_doc() -> dict[str, Any]:
+    return yaml.safe_load((SCHEMA_DIR / "lean-report.yaml").read_text(encoding="utf-8"))
 
 
 # -----------------------------------------------------------------------------
@@ -468,3 +475,85 @@ def test_all_schemas_parse(verbose_doc, lean_doc, gate_doc) -> None:
     ]:
         assert isinstance(doc, dict), f"{name} did not parse to a dict (got {type(doc).__name__})."
         assert len(doc) > 0, f"{name} parsed but is empty."
+
+
+# =============================================================================
+# 7. Compression-rule owner / derived-view contract
+# =============================================================================
+
+
+def _normalized_common_compression_rules(
+    schema: dict[str, Any], contract: dict[str, Any]
+) -> dict[str, Any]:
+    """Select only owner-declared common rules for cross-schema comparison."""
+    rules = schema["compression_rules"]
+    return {key: rules[key] for key in contract["common_keys"]}
+
+
+def test_compression_rules_common_subtree_matches_owner(
+    lean_doc: dict[str, Any], lean_report_doc: dict[str, Any]
+) -> None:
+    """The report view matches dispatch-owned common rules after normalization."""
+    owner_contract = lean_doc["compression_rules_contract"]
+    derived_contract = lean_report_doc["compression_rules_contract"]
+
+    assert owner_contract["role"] == "owner"
+    assert owner_contract["owner"] == "schemas/lean-dispatch.yaml#compression_rules"
+    assert "schemas/lean-report.yaml#compression_rules" in owner_contract["derived_views"]
+    assert derived_contract["role"] == "derived_view"
+    assert derived_contract["owner"] == owner_contract["owner"]
+    assert derived_contract["source_contract"] == (
+        "schemas/lean-dispatch.yaml#compression_rules_contract"
+    )
+    assert derived_contract["common_keys"] == owner_contract["common_keys"]
+
+    assert _normalized_common_compression_rules(lean_doc, owner_contract) == (
+        _normalized_common_compression_rules(lean_report_doc, derived_contract)
+    )
+
+    # Preserve entries are intentionally message-specific, not part of the
+    # normalized common subtree. The dispatch-only envelope policy is too.
+    assert (
+        lean_doc["compression_rules"]["preserve_list"]
+        != (lean_report_doc["compression_rules"]["preserve_list"])
+    )
+    dispatch_preserve = set(lean_doc["compression_rules"]["preserve_list"])
+    report_preserve = set(lean_report_doc["compression_rules"]["preserve_list"])
+    assert dispatch_preserve - report_preserve == {"acceptance_criteria"}
+    assert report_preserve - dispatch_preserve == {"finding_ids", "delta_descriptions"}
+    assert owner_contract["preserve_list_differences"] == {
+        "dispatch_only": ["acceptance_criteria"],
+        "report_only": ["finding_ids", "delta_descriptions"],
+    }
+    assert "data_envelope_required" not in lean_report_doc["compression_rules"]
+    assert set(owner_contract["message_specific_keys"]) == {
+        "preserve_list",
+        "data_envelope_required",
+    }
+    assert derived_contract["message_specific_keys"] == ["preserve_list"]
+
+
+@pytest.mark.parametrize(
+    "schema_name",
+    ["lean-dispatch.yaml", "lean-report.yaml"],
+)
+def test_compression_schemas_parse_standalone(schema_name: str) -> None:
+    """Each compression schema parses without an include or companion file."""
+    path = SCHEMA_DIR / schema_name
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert isinstance(document, dict)
+    assert isinstance(document["compression_rules"], dict)
+    assert isinstance(document["compression_rules_contract"], dict)
+
+
+def test_compression_contract_preserves_dispatch_layout_witness(
+    lean_doc: dict[str, Any],
+) -> None:
+    """The metadata contract cannot add, reorder, or rename dispatch positions."""
+    canonical = tuple(lean_doc["layout_invariant"]["canonical_order"])
+
+    assert canonical == tuple(DEFAULT_DISPATCH_LAYOUT)
+    assert len(canonical) == 17
+    assert canonical[: len(FROZEN_PREFIX_V7)] == FROZEN_PREFIX_V7
+    assert "compression_rules_contract" not in canonical

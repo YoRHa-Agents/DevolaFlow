@@ -25,6 +25,7 @@ real ``.local/.agent/`` tree on disk.
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import subprocess
@@ -36,6 +37,14 @@ from pathlib import Path
 import pytest
 import yaml
 
+from devolaflow._workspace_reporter.data import (
+    _aggregate_by_task_type,
+    _load_jsonl_entries,
+    _parse_learnings_jsonl,
+    _select_top_learnings,
+    _summarise_handoff_chain,
+    _verification_block,
+)
 from devolaflow.agent_workspace import (
     HumanBudgetExceededError,
     regenerate_all,
@@ -519,6 +528,79 @@ class TestWorkspaceReport:
     def test_render_workspace_report_window_days_param_changes_header(self, workspace: Path):
         text = render_workspace_report(repo_root=workspace, now=PINNED_NOW, archive_window_days=14)
         assert "Archived (last 14 days)" in text
+
+    def test_render_workspace_report_accepts_legacy_workspace_root(self, workspace: Path):
+        """The compatibility keyword remains in the API and is an explicit no-op."""
+        parameter = inspect.signature(render_workspace_report).parameters["workspace_root"]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is None
+        expected = render_workspace_report(repo_root=workspace, now=PINNED_NOW)
+        actual = render_workspace_report(
+            repo_root=workspace,
+            workspace_root=workspace / "historical-workspace-root",
+            now=PINNED_NOW,
+        )
+        assert actual == expected
+
+
+class TestReporterDataHelpers:
+    def test_malformed_and_legacy_data_paths_are_explicit(self, tmp_path: Path):
+        """Data helpers keep malformed rows visible to logs and preserve fallbacks."""
+        learnings = _parse_learnings_jsonl(
+            '\nnot-json\n[]\n{"confidence": 0.2}\n{"confidence": 0.9}\n'
+        )
+        assert [row["confidence"] for row in learnings] == [0.9, 0.2]
+
+        jsonl_path = tmp_path / "entries.jsonl"
+        jsonl_path.write_text("\nnot-json\n{}\n[]\n", encoding="utf-8")
+        assert _load_jsonl_entries(jsonl_path) == [{}]
+
+        assert _aggregate_by_task_type(
+            [{"task_type": "review", "confidence": "unknown", "pinned_for_session": " yes "}]
+        ) == [{"task_type": "review", "count": 1, "avg_confidence": 0.0, "pinned": 1}]
+
+        assert (
+            _select_top_learnings(
+                [{"insight": "kept", "timestamp": "not-an-iso-date", "confidence": "unknown"}],
+                window_days=30,
+                top_n=0,
+                now=PINNED_NOW,
+            )
+            == []
+        )
+
+    def test_frozen_handoff_mapping_and_verification_fallbacks(self, tmp_path: Path):
+        """Frozen mapping envelopes and malformed verification values stay deterministic."""
+        folder = tmp_path / "change"
+        folder.mkdir()
+        frozen = folder / "handoff_chain.yaml"
+        frozen.write_text(
+            (
+                "envelopes:\n"
+                "  - seq: 2\n"
+                "    from_layer: L1\n"
+                "    to_layer: L2\n"
+                "    envelope_kind: StatusReport\n"
+            ),
+            encoding="utf-8",
+        )
+        assert _summarise_handoff_chain("change", folder, tmp_path) == [
+            "seq 0002: L1 → L2 (StatusReport)"
+        ]
+
+        frozen.write_text("[unclosed", encoding="utf-8")
+        assert _summarise_handoff_chain("change", folder, tmp_path) == []
+
+        assert _verification_block(
+            {"verification": "invalid", "gate_score": "unknown", "coverage_pct": "unknown"}
+        ) == {
+            "ac_pass_rate": "<unknown>",
+            "tests_passed": "<unknown>",
+            "coverage": "unknown",
+            "lint": "<unknown>",
+            "format": "<unknown>",
+            "gate_score": "<unknown>",
+        }
 
 
 # ---------------------------------------------------------------------------

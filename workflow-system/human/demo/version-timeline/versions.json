@@ -2318,5 +2318,28 @@
       "agents_md_tokens": 10076,
       "harness_composite": 9.84
     }
+  },
+  {
+    "version": "19.0.0",
+    "date": "2026-08-28",
+    "era": "full-repo-review",
+    "headline": "MAJOR — Full-Repo Review: safe facade/import cleanup, 75% module ratchet, telemetry settlement, release parity, and rule/context/prompt redundancy consolidation",
+    "summary": "v19.0.0 completes the full-repo review loop with safe facade/import cleanup, a 75% per-module coverage ratchet, telemetry and W-16 baseline settlement, release ghost/template parity checks, and evidence-bounded rule/context/prompt redundancy work. The evaluator is READY at 9.17/10; historical comparison remains INSUFFICIENT, and deferred items remain deferred.",
+    "highlights": [
+      "Safe facade/import cleanup — four internal split facades support direct imports, while cleaned facades no longer carry unreachable marker blocks",
+      "75% module ratchet — the per-module coverage floor is now 75%",
+      "Telemetry/baseline — telemetry exposes the four consolidation measurements, the evaluator records current metric fields, and the v19 W-16 baseline is settled from fresh evaluator output",
+      "Release ghost/template parity — release preflight runs full legacy ghost coverage and template metadata parity checks; the v19 preflight passed",
+      "Rule/context/prompt redundancy — verified context/prompt redundancy and compression-schema/template-metadata ownership were consolidated while compatibility views with external use remain INSUFFICIENT",
+      "Deferred items remain deferred — DSH web/progress UI, Tier-C host retention, Pattern 3 persistent-state pool runtime, and evidence-limited compatibility deletions remain deferred"
+    ],
+    "metrics": {
+      "harness_composite": "9.17 READY",
+      "coverage_pct": 92,
+      "suite_wall_seconds": 149.62836074997904,
+      "cjk_violations": 0,
+      "ghost_loc": 12192,
+      "agents_md_tokens": 10755
+    }
   }
 ]

@@ -203,6 +203,10 @@ lean_format_spec:
     # standard/relaxed; ESCALATE on strict/audit). Missing → breaker=None
     # → byte-stable v7.x evaluate_gate output.
     token_budget: "optional dict {max_tokens: int (0=unlimited), warn_at: float (default 0.75), break_at: float (default 1.00)}"
+    # HISTORICAL v11.1.0 wording (retained for schema provenance only):
+    # older documentation described a default of 4 and an L0 → L1 → L2 → L3
+    # chain. The active contract is A-7 and its runtime/tests: default 3 and
+    # L0 → L1 → L2. The schema fields remain unchanged for compatibility.
     # v11.1.0 (PV-04, sources: .local/research/v11.1.0_gap_analysis.md §5 +
     # .local/research/v11.1.0_cycle_plan.md §2 PV-04 row + §7 R-3) —
     # cascade-required signal. NESTED under the existing `gate` block
@@ -226,7 +230,8 @@ lean_format_spec:
     #                                # is true; semantics = "minimum
     #                                # layer depth in the dispatch
     #                                # chain L0 → L1 → L2 → L3"
-    # Semantics: when `cascade_required is True`, the L3 receiver knows
+    # Historical schema semantics (pre-A-7; retained for compatibility):
+    # when `cascade_required is True`, the L3 receiver knows
     # the dispatch was authored under STANDARD/COMPLEX complexity and
     # MUST honour the cascade chain (L0 → L1 → L2 → L3). When absent
     # → byte-stable v9.7.0 dispatch shape (the 10 historical multi-
@@ -235,8 +240,15 @@ lean_format_spec:
     # because the new sub-fields are absent from the historical
     # baselines — their absence is canonical per the OPTIONAL
     # contract). Both fields are independently OPTIONAL.
+    # The schema description strings below retain historical pre-A-7 wording
+    # for compatibility; active semantics are defined by A-7 and runtime/tests.
     cascade_required: "optional bool — default false (backward-compat); true only when complexity is STANDARD/COMPLEX per cascade_requirement() (devolaflow.skills.change_activation, added v11.1.0 PV-02). When true, the L3 receiver MUST honour the cascade chain L0 → L1 → L2 → L3."
     cascade_min_layers: "optional int — default 1 (backward-compat); default 4 when cascade_required is true; semantics = minimum layer depth in the dispatch chain L0 → L1 → L2 → L3."
+    # HISTORICAL Pattern-3 wording (retained for schema compatibility only):
+    # `AGENT_POOL_FORWARD` was previously described as a forward-compatible
+    # runtime shape. Pattern 3 is removed from active selection; W-24 and
+    # `src/devolaflow/skills/subagent_pattern.py` are authoritative. The
+    # compatibility literal below is not authorization to revive Pattern 3.
     # v12.0.0 (PV-04, sources: .local/research/v12.0.0_gap_analysis.md §5 +
     # docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md §3 + §5 +
     # docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md
@@ -274,7 +286,7 @@ lean_format_spec:
     # per references/agent-hierarchy.md §5; Pattern 3
     # AGENT_POOL_FORWARD = forward-compat-only at v12.0.0 — no API
     # path activates Pattern 3 yet). When absent → byte-stable v11.4.0
-    # dispatch shape (the 14 historical multi-baseline byte-tests in
+    # dispatch shape (the 9 prior Tier-A multi-baseline byte-tests in
     # `tests/test_layout_invariant_multi_baseline.py` continue to PASS
     # because the new sub-field is absent from the historical
     # baselines — their absence is canonical per the OPTIONAL
@@ -741,9 +753,10 @@ compression_rules:
 #      `compression_rules.data_envelope_required` (v7.2.4 P-02).
 #
 # D4 — MULTI-BASELINE BYTE TEST. CI enforcement via
-#      `tests/test_layout_invariant_multi_baseline.py` pins ALL 6 historical
-#      baselines (v7.0.0 / v7.3.0 / v8.0.0 P-08 / v8.0.0 P-10 / v8.3.0
-#      PV-05 / v8.4.0). Any drift fails CI immediately.
+#      `tests/test_layout_invariant_multi_baseline.py` pins all 10 currently
+#      committed Tier-A baselines (v7.0.0 / v7.3.0 / v8.3.0 / v8.4.0 /
+#      v9.2.0 / v9.3.0 / v9.7.0 / v10.2.0 / v12.0.0, with the v8.0.0 P-10
+#      generation covered by the v8.3.0 prefix test). Any drift fails CI.
 #
 # D6 — This block (the YAML data structure below) is byte-identical to its
 #      v8.3.0 PV-05 / v8.4.0 / v8.4.1 form. ONLY doc comments were added
@@ -808,6 +821,11 @@ compression_rules:
 # cascade-restoration cycle (G-PLAN-1 plan-mode structural enforcement +
 # the schema part of PV-04).
 #
+# HISTORICAL Pattern-3 wording (retained for schema compatibility only):
+# `AGENT_POOL_FORWARD` was previously described as a forward-compatible
+# runtime shape. Pattern 3 is removed from active selection; W-24 and
+# `src/devolaflow/skills/subagent_pattern.py` are authoritative. The
+# compatibility literal below is not authorization to revive Pattern 3.
 # v12.0.0 PV-04 (sources: .local/research/v12.0.0_gap_analysis.md §5 +
 # docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md §3 + §5 +
 # docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md
@@ -821,12 +839,11 @@ compression_rules:
 # sub-field modifies how an existing block — `gate` — is interpreted
 # by specifying which of the 4 philschmid patterns the cascade should
 # adopt, REUSES gate's Literal-as-sub-field shape, and is independently
-# optional). ALL 14 historical multi-baseline byte tests in
-# tests/test_layout_invariant_multi_baseline.py (v7.0.0 / v7.3.0 /
-# v8.0.0-P-08 / v8.0.0-P-10 / v8.3.0-PV-05 / v8.4.0 / v9.2.0 / v9.3.0 /
-# v9.7.0 / v10.2.0) CONTINUE TO PASS unchanged because the new
+# optional). All 9 prior Tier-A multi-baseline byte tests in
+# tests/test_layout_invariant_multi_baseline.py CONTINUE TO PASS unchanged
+# because the new
 # sub-field is absent from the historical baselines — its absence is
-# canonical per the OPTIONAL contract. The 15th baseline
+# canonical per the OPTIONAL contract. The 10th baseline
 # (`benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml`)
 # pins the v12.0.0 NEST shape with `subagent_pattern: FAN_OUT`
 # populated. ``"TEAMS_FORBIDDEN"`` is REJECTED at validate time per
@@ -935,3 +952,38 @@ layout_invariant:
     #   position 16; version field bumped 4 → 5 (v4 payloads still valid).
     # v5 → v6: positions 1..16 byte-identical; new key appended at
     #   position 17; version field bumped 5 → 6.
+
+# Compression-rule ownership contract (PV-4 schema redundancy item).
+#
+# This is schema metadata, not a dispatch-payload key. The dispatch schema owns
+# the common compression policy; lean-report.yaml carries a standalone derived
+# view for consumers that do not load this file. The common values remain
+# duplicated intentionally: external distribution evidence is INSUFFICIENT to
+# safely introduce a cross-file include or generated rewrite without changing
+# standalone-consumer behavior. tests/test_schema_parity.py enforces the
+# normalized common subtree and the explicitly message-specific exceptions.
+compression_rules_contract:
+  version: 1
+  role: owner
+  owner: "schemas/lean-dispatch.yaml#compression_rules"
+  derived_views:
+    - "schemas/lean-report.yaml#compression_rules"
+  common_keys:
+    - drop_list
+    - intensity_tiers
+    - default_intensity
+    - bypass_conditions
+    - bypass_default_active
+  message_specific_keys:
+    - preserve_list
+    - data_envelope_required
+  preserve_list_differences:
+    dispatch_only:
+      - acceptance_criteria
+    report_only:
+      - finding_ids
+      - delta_descriptions
+  derivation:
+    mode: parity_check
+    external_distribution_evidence: INSUFFICIENT
+    rationale: "Standalone schema consumers prevent a cross-file include or generated rewrite."

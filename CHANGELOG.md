@@ -5,6 +5,55 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [19.0.0] - 2026-08-28 — MAJOR — Full-Repo Review Loop
+
+Evidence: [gap analysis](docs/cycle-archive/v19.0.0/v19.0.0_gap_analysis.md),
+[evaluation](docs/cycle-archive/v19.0.0/evaluation/v19.0.0_evaluation.md),
+[retrospective](docs/cycle-archive/v19.0.0/v19.0.0_retrospective.md), and the
+archived [harness evaluation](docs/cycle-archive/v19.0.0/harness/v19.0.0_harness_evaluation.json)
+and [settled baseline](docs/cycle-archive/v19.0.0/harness/v19.0.0_harness_baseline.json).
+The current-cycle ghost audit is `tests/ghost/test_features_v19_0.py`.
+
+### Added
+
+- **Facade and import hygiene**: the four internal split facades support direct
+  imports, while cleaned facades no longer carry unreachable marker blocks.
+- **Coverage ratchet**: the per-module floor is now 75%; the archived close
+  evidence reports 202/202 executable modules at or above the floor.
+- **CJK target inventory**: the agent-facing inventory now covers the intended
+  surfaces with narrow trigger exemptions; the current gate reports zero
+  violations.
+- **Release evidence gates**: release preflight now runs full legacy ghost
+  coverage and template metadata parity checks; the v19 preflight passed.
+- **Harness settlement**: telemetry exposes the four consolidation measurements,
+  the evaluator records current metric fields, and the v19 W-16 baseline is
+  settled from the fresh evaluator output.
+
+### Changed
+
+- **Evidence-bounded consolidation**: verified context/prompt redundancy and
+  compression-schema/template-metadata ownership were consolidated without
+  deleting compatibility views whose external use remains `INSUFFICIENT`.
+- **Rule corpus**: inventory, repository-relative refactor mapping, second audit,
+  approved simplification, compilation, drift, and rule-cap checks now form the
+  v19 audit path.
+
+### Metrics
+
+- The archived evaluator result is **READY**, with a **9.17/10** composite
+  (above the 9.0 MAJOR threshold). Current measurements are
+  `coverage_pct: 92.0`, `suite_wall_seconds: 149.62836074997904`,
+  `cjk_violations: 0`, `ghost_loc: 12192`, and `agents_md_tokens: 10755`.
+  Matched historical deltas remain `INSUFFICIENT`.
+
+### Deferred / insufficient evidence
+
+- DSH web/progress UI, Tier-C host retention, and the Pattern 3 persistent-state
+  pool runtime remain deferred.
+- Compatibility deletions remain deferred where external-consumer or direct
+  operator-usage evidence is `INSUFFICIENT`; public facades, legacy context
+  names, zero-load references, and `workspace_root` remain retained.
+
 ## [18.0.0] - 2026-08-27 — MAJOR — Consolidation
 
 Gap analysis: `.local/research/v18.0.0_gap_analysis.md` (W-1/SI-1).

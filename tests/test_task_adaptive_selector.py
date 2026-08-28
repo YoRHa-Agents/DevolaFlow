@@ -78,6 +78,69 @@ class TestLoadSkillMd:
         assert len(text) > 100
 
 
+class TestContextRedundancyCompatibility:
+    def test_legacy_section_names_and_duplicate_ranges_remain_available(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        expected_names = [
+            "frontmatter",
+            "version_update",
+            "workspace_engagement",
+            "quick_action_decision",
+            "mode_detection",
+            "plan_mode_template",
+            "agent_mode_protocol",
+            "quick_start_workflows",
+            "hierarchy_table",
+            "hierarchy_diagram",
+            "wave_task_constraints",
+            "rationalization_prevention",
+            "wave_coordination",
+            "stage_primitives",
+            "gate_mechanism",
+            "agent_teams",
+            "context_isolation",
+            "dispatch_report",
+            "lifecycle_hooks",
+            "repo_mode",
+            "reference_navigation",
+            "rules_dispatchers",
+            "convergence_loop",
+            "task_quality_score",
+            "operational_learnings",
+        ]
+        sections = config["sections"]
+        assert list(sections) == expected_names
+        assert sections["hierarchy_table"]["lines"] == sections["hierarchy_diagram"]["lines"]
+        assert sections["reference_navigation"]["lines"] == sections["rules_dispatchers"]["lines"]
+        assert sections["wave_coordination"]["lines"] == sections["convergence_loop"]["lines"]
+        assert sections["hierarchy_table"] is not sections["hierarchy_diagram"]
+
+    def test_repeated_extra_context_lists_keep_values_and_list_identity(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        profiles = config["profiles"]
+        groups = [
+            ("research", "documentation", "spike-poc", "demo-showcase"),
+            ("refactor", "perf-optimization", "feedback"),
+            ("review", "security-audit"),
+            ("self_update", "entropy_scan"),
+        ]
+        for group in groups:
+            values = [profiles[name]["extra_context"] for name in group]
+            assert all(value == values[0] for value in values)
+            assert len({id(value) for value in values}) == len(values)
+
+    def test_verification_profiles_share_maps_but_keep_profile_identity(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        profiles = config["profiles"]
+        names = ("verify_visual", "verify_acceptance", "verify_interaction")
+        profile_values = [profiles[name] for name in names]
+        assert len({id(profile) for profile in profile_values}) == len(names)
+        assert len({id(profile["model_hints"]) for profile in profile_values}) == 1
+        assert len({id(profile["section_priorities"]) for profile in profile_values}) == 1
+        assert [profile["token_budget"] for profile in profile_values] == [4000] * 3
+        assert [profile["timeout_class"] for profile in profile_values] == ["test"] * 3
+
+
 class TestExtractSection:
     def test_extract_valid_range(self) -> None:
         text = "line1\nline2\nline3\nline4\nline5"

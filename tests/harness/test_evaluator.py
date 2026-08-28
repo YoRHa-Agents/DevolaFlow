@@ -12,12 +12,17 @@ from devolaflow.harness.__main__ import main
 from devolaflow.harness.evaluator import (
     DIMENSION_WEIGHTS,
     HISTORICAL_COMPANION_METHOD,
+    MEASUREMENT_KEYS,
     SIGNAL_KEYS,
     EvaluationError,
     collect_signals,
     compare_historical_companion,
     evaluate_harness,
     render_evaluation,
+)
+from devolaflow.harness.telemetry import (
+    build_consolidation_metrics_record,
+    build_metric_observation_record,
 )
 
 
@@ -84,9 +89,46 @@ def _signals(**overrides: object) -> dict[str, object]:
         "compatibility_suite": False,
         "w17_new_tests": 31,
         "docstring_coverage_pct": 50,
+        "agents_md_tokens": 1200,
+        "suite_wall_seconds": 18.25,
+        "cjk_violations": 0,
+        "ghost_loc": 900,
     }
     values.update(overrides)
     return values
+
+
+def _metric_observation(value: int, source_revision: str) -> dict:
+    return {
+        "schema_version": 1,
+        "cycle": "v19.0.0",
+        "pv": "PV-2",
+        "item_id": "O-3",
+        "metric": "agents_md_tokens",
+        "statistic": "full_tokens",
+        "value": value,
+        "unit": "tokens",
+        "direction": "decrease",
+        "sample_count": 1,
+        "warmup_count": 0,
+        "captured_at": "2026-08-28T00:00:00Z",
+        "source_revision": source_revision,
+        "command": {"argv": ["python", "-c", "probe"], "cwd": ".", "timeout_seconds": 60},
+        "environment": {
+            "os": "Darwin 25.6.0",
+            "architecture": "arm64",
+            "python": "3.11.0",
+            "implementation": "CPython",
+            "dependencies": "sha256:dependencies",
+            "relevant_variables": {"GHOST_FULL": "1"},
+            "config_files": [{"path": "AGENTS.md", "sha256": "a" * 64}],
+        },
+        "measurement": {
+            "cache_state": "cold",
+            "extraction_definition": "full AGENTS.md token count",
+            "provenance": "tests/output.txt",
+        },
+    }
 
 
 def test_exact_six_dimension_rubric_and_composite(tmp_path: Path) -> None:
@@ -189,7 +231,8 @@ def test_unavailable_or_timed_out_signal_is_insufficient(tmp_path: Path) -> None
     assert collected["docstring_coverage_pct"].available is True
     for key in set(SIGNAL_KEYS) - {"docstring_coverage_pct"}:
         assert collected[key].available is False
-        assert "timeout" in collected[key].error
+        if key not in MEASUREMENT_KEYS:
+            assert "timeout" in collected[key].error
 
     ledger = tmp_path / "harness.jsonl"
     _write_ledger(ledger)
@@ -219,6 +262,126 @@ def test_unavailable_or_timed_out_signal_is_insufficient(tmp_path: Path) -> None
         "unavailable inputs: coverage",
     ]
     assert result["suggestions"][2]["dimension"] == "performance_impact"
+
+
+def test_evaluator_surfaces_telemetry_measurements_and_historical_nulls(tmp_path: Path) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    event = build_consolidation_metrics_record(
+        {
+            "agents_md_tokens": 1200,
+            "suite_wall_seconds": 18.25,
+            "cjk_violations": 0,
+            "ghost_loc": 900,
+        },
+        timestamp="2026-08-28T00:00:00+00:00",
+    )
+    with ledger.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(event) + "\n")
+
+    result = evaluate_harness(ledger, signals=_signals())
+
+    assert result["measurements"] == {
+        "agents_md_tokens": {
+            "available": True,
+            "value": 1200,
+            "status": "AVAILABLE",
+            "source": "telemetry",
+        },
+        "suite_wall_seconds": {
+            "available": True,
+            "value": 18.25,
+            "status": "AVAILABLE",
+            "source": "telemetry",
+        },
+        "cjk_violations": {
+            "available": True,
+            "value": 0,
+            "status": "AVAILABLE",
+            "source": "telemetry",
+        },
+        "ghost_loc": {
+            "available": True,
+            "value": 900,
+            "status": "AVAILABLE",
+            "source": "telemetry",
+        },
+    }
+
+    historical_ledger = tmp_path / "historical.jsonl"
+    _write_ledger(historical_ledger)
+    historical = evaluate_harness(
+        historical_ledger,
+        signals={key: value for key, value in _signals().items() if key not in MEASUREMENT_KEYS},
+    )
+    assert list(historical["measurements"]) == list(MEASUREMENT_KEYS)
+    assert all(
+        measurement["value"] is None
+        and measurement["status"] == "INSUFFICIENT"
+        and measurement["source"] == "unavailable"
+        for measurement in historical["measurements"].values()
+    )
+
+
+def test_evaluator_surfaces_structured_provenance_and_metric_comparison(tmp_path: Path) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    current = _metric_observation(75, "revision-b")
+    with ledger.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(build_metric_observation_record(current)) + "\n")
+
+    result = evaluate_harness(
+        ledger,
+        signals=_signals(),
+        baseline=[_metric_observation(100, "revision-a")],
+    )
+
+    measurement = result["measurements"]["agents_md_tokens"]
+    assert measurement["status"] == "AVAILABLE"
+    assert measurement["provenance"]["observations"][0]["source_revision"] == "revision-b"
+    assert result["metric_comparison"]["status"] == "AVAILABLE"
+    assert result["metric_comparison"]["comparisons"][0]["relative_improvement_pct"] == 25.0
+
+
+def test_evaluator_accepts_a_valid_injected_metric_observation(tmp_path: Path) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    observation = _metric_observation(75, "revision-b")
+
+    result = evaluate_harness(
+        ledger,
+        signals=_signals(agents_md_tokens={"observation": observation}),
+    )
+
+    assert result["measurements"]["agents_md_tokens"]["value"] == 75
+    assert result["measurements"]["agents_md_tokens"]["provenance"]["source_revision"] == (
+        "revision-b"
+    )
+
+
+def test_collect_signals_measures_available_consolidation_surfaces(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("English agent rules\n", encoding="utf-8")
+    reference_dir = tmp_path / "workflow-system" / "agent" / "references"
+    reference_dir.mkdir(parents=True)
+    (reference_dir / "sample.md").write_text("English reference\n", encoding="utf-8")
+    ghost_dir = tmp_path / "tests" / "ghost"
+    ghost_dir.mkdir(parents=True)
+    (ghost_dir / "test_sample.py").write_text(
+        "# comment\n\ndef test_sample():\n    return 1\n", encoding="utf-8"
+    )
+
+    def runner(argv: list[str], **kwargs):
+        del argv, kwargs
+        return subprocess.CompletedProcess([], 0, stdout="TOTAL 10 1 90%\n", stderr="")
+
+    collected = collect_signals(tmp_path, base_ref="HEAD~1", runner=runner)
+
+    assert collected["agents_md_tokens"].available is True
+    assert collected["agents_md_tokens"].value > 0
+    assert collected["suite_wall_seconds"].available is True
+    assert collected["suite_wall_seconds"].value >= 0
+    assert collected["cjk_violations"].value == 0
+    assert collected["ghost_loc"].value == 2
 
 
 def test_module_cli_pins_fixture_style_envelope_and_exit_codes(
@@ -259,6 +422,7 @@ def test_module_cli_pins_fixture_style_envelope_and_exit_codes(
         "tokens",
         "constraints",
         "models",
+        "measurements",
     ]
     assert aggregate["records"] == 2
     assert aggregate["tokens"]["total"] == 1_900
@@ -289,6 +453,7 @@ def test_module_cli_pins_fixture_style_envelope_and_exit_codes(
         "auto_fill_rate",
         "verdict",
         "harness_summary",
+        "measurements",
         "suggestions",
     ]
     assert ready["verdict"] == "READY"

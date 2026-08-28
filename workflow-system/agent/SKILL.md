@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "18.0.0"
+version: "19.0.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v18.0.0**
+> **Now Using DevolaFlow v19.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 18.0.0 — Check only on explicit update request:
+**Current version:** 19.0.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -234,14 +234,17 @@ warning. See `references/codegraph.md`.
 
 ## 3-Layer Agent Hierarchy
 
+Entry-point summary; normative shared contract:
+`references/agent-hierarchy.md` §§2, 6–8. L2 role profiles/evidence:
+`references/team-roles.md`.
+
 | Layer | Context | Responsibilities | MUST NOT |
 |---|---:|---|---|
 | **L0 Project** | ~5K | Goal/checklist/preflight; round selection; wave plan; gates; reinforcement; reporting | Perform delegated task work |
 | **L1 Wave** | ~5K | Dispatch ≤5 parallel tasks; detect conflicts; aggregate evidence | Implement, edit Task output, mark checklist |
 | **L2 Task** | ~8K | Implement one atomic task; self-verify; report evidence | Spawn agents, self-score, exceed ownership |
-Escalation: **Task → Wave → Project → Human**; every loop has a ceiling and
-classifies failure as retry, escalate, or abort.
-Wave constraints: ≤5 tasks/wave, ≤7 waves/round, pairwise-disjoint writable ownership. Full contract: `references/agent-hierarchy.md`.
+Shared constraints: escalation is **Task → Wave → Project → Human**; waves allow
+≤5 tasks and rounds ≤7 waves with pairwise-disjoint writable ownership.
 
 ### Host Dispatch Vocabulary
 
@@ -326,21 +329,16 @@ before new work; L1 verifies closure evidence. See
 
 ## AgentTeam Quick Reference
 
-Teams are L2 task specializations, not hierarchy layers:
-
-| Team | Task work | Evidence |
-|---|---|---|
-| Research | Sources, comparisons, gaps | cited findings |
-| Design | Interfaces and decisions | self-check against constraints |
-| Implement | Code/config/tests | diff + bounded commands |
-| Test | Suites and metrics | exits + measurements |
-| Review | Severity-classified inspection | findings + artifact refs |
+Teams are L2 task specializations, not hierarchy layers. Select from Research,
+Design, Implement, Test, Pathfind, Review, Preflight, or HarnessBuild; each role
+has its own evidence contract. Full role profiles and evidence requirements:
+`references/team-roles.md`.
 
 ## Context Isolation
 
-Budgets are 5K Project / 5K Wave / 8K Task. Each L2 Task starts fresh with only
-its TaskDispatch, owned/read-only files, relevant contracts, rules, and bounded
-predecessor summaries.
+Each L2 Task starts fresh with only its TaskDispatch, owned/read-only files,
+relevant contracts, rules, and bounded predecessor summaries. The canonical
+budget and isolation contract is `references/agent-hierarchy.md` §8.
 
 Never leak conversation history, sibling internals, full predecessor artifacts,
 unrelated errors/scores, or deferred items. Share interface contracts, decisions,

@@ -1,4 +1,4 @@
-"""Shared imports and constants for the legacy compatibility split."""
+"""Shared imports and constants for workspace linting."""
 
 # ruff: noqa: F401, E402
 
@@ -12,28 +12,6 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
-
-from devolaflow.agent_workspace import progress as progress_header
-from devolaflow.agent_workspace import round_parser
-from devolaflow.agent_workspace.change import (
-    ACTIVE_DIR_DEFAULT,
-    ARCHIVE_DIR_DEFAULT,
-    ChangeLayout,
-    LegacyChangeLayoutError,
-    detect_change_layout,
-)
-from devolaflow.agent_workspace.preflight import (
-    PreflightAuthorizationError,
-    _authorization_digest,
-    _deterministic_mirror_bytes,
-    _extract_preflight_sections,
-    _frontmatter_shape,
-    _parse_authorization_records,
-    _parse_stop_cards,
-    _validate_permitted_stops,
-    _validate_section0,
-    _validate_timestamp,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +135,65 @@ _ENTRANCE_REQUIRED_HEADINGS: Final[tuple[str, ...]] = (
     "## 4. Discipline Pointers",
 )
 
+
+def _load_dependencies() -> None:
+    """Load public-package dependencies after the split is initialized."""
+    from devolaflow.agent_workspace import progress as progress_header
+    from devolaflow.agent_workspace import round_parser
+    from devolaflow.agent_workspace.change import (
+        ACTIVE_DIR_DEFAULT,
+        ARCHIVE_DIR_DEFAULT,
+        ChangeLayout,
+        LegacyChangeLayoutError,
+        detect_change_layout,
+    )
+    from devolaflow.agent_workspace.preflight import (
+        PreflightAuthorizationError,
+        _authorization_digest,
+        _deterministic_mirror_bytes,
+        _extract_preflight_sections,
+        _frontmatter_shape,
+        _parse_authorization_records,
+        _parse_stop_cards,
+        _validate_permitted_stops,
+        _validate_section0,
+        _validate_timestamp,
+    )
+
+    globals().update(
+        {
+            "progress_header": progress_header,
+            "round_parser": round_parser,
+            "ACTIVE_DIR_DEFAULT": ACTIVE_DIR_DEFAULT,
+            "ARCHIVE_DIR_DEFAULT": ARCHIVE_DIR_DEFAULT,
+            "ChangeLayout": ChangeLayout,
+            "LegacyChangeLayoutError": LegacyChangeLayoutError,
+            "detect_change_layout": detect_change_layout,
+            "PreflightAuthorizationError": PreflightAuthorizationError,
+            "_authorization_digest": _authorization_digest,
+            "_deterministic_mirror_bytes": _deterministic_mirror_bytes,
+            "_extract_preflight_sections": _extract_preflight_sections,
+            "_frontmatter_shape": _frontmatter_shape,
+            "_parse_authorization_records": _parse_authorization_records,
+            "_parse_stop_cards": _parse_stop_cards,
+            "_validate_permitted_stops": _validate_permitted_stops,
+            "_validate_section0": _validate_section0,
+            "_validate_timestamp": _validate_timestamp,
+        }
+    )
+
+
 __all__ = [
     name
     for name in globals()
-    if name not in {"__name__", "__package__", "__loader__", "__spec__", "__builtins__", "__all__"}
+    if name
+    not in {
+        "__name__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__builtins__",
+        "__all__",
+        "_load_dependencies",
+    }
 ]

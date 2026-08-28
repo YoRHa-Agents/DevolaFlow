@@ -210,7 +210,7 @@ def test_agents_md_slice_env_flag_0_opts_out(project_root: Path) -> None:
 def test_slice_hotfix_includes_only_relevant_layers(
     slice_enabled_profiles_path: Path,
 ) -> None:
-    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1..C-3) + (W-4, W-9).
+    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1, C-2) + (W-4, W-9).
 
     Per `.local/research/v9.0.0_pv07_rule_audit.md` §2.2 hotfix row.
     Hotfix Task Agents skip the full Workflow layer (only W-9 SI-10 +
@@ -240,8 +240,8 @@ def test_slice_hotfix_includes_only_relevant_layers(
     )
 
     conv_ids = {r for r in included if r.startswith("C-")}
-    assert conv_ids == {"C-1", "C-2", "C-3"}, (
-        f"hotfix Conventions should be C-1, C-2, C-3, got {sorted(conv_ids)}"
+    assert conv_ids == {"C-1", "C-2"}, (
+        f"hotfix Conventions should be C-1, C-2, got {sorted(conv_ids)}"
     )
 
     workflow_ids = {r for r in included if r.startswith("W-")}
@@ -258,11 +258,11 @@ def test_slice_hotfix_includes_only_relevant_layers(
 
 
 def test_slice_research_minimal_corpus(slice_enabled_profiles_path: Path) -> None:
-    """ADR-007 D3: research slice is the most aggressive — Soul + A-1 + (C-1..C-3) + (W-1, W-2).
+    """ADR-007 D3: research slice is the most aggressive — Soul + A-1 + (C-1, C-2) + (W-1, W-2).
 
     Research Task Agents are single-stage with minimal ceremony — no
     architecture cache invariants (A-2..A-5), no test/lint rules
-    (C-4..C-7, C-9), no convergence-cycle Workflow rules (W-3..W-21). The
+    (C-4, C-6, C-7), no convergence-cycle Workflow rules (W-3..W-21). The
     slice should achieve > 60% token savings.
     """
     result = select_agents_md_slice("research", profiles_path=slice_enabled_profiles_path)
@@ -276,8 +276,8 @@ def test_slice_research_minimal_corpus(slice_enabled_profiles_path: Path) -> Non
     assert arch_ids == {"A-1"}, f"research Architecture should be A-1 only, got {sorted(arch_ids)}"
 
     conv_ids = {r for r in included if r.startswith("C-")}
-    assert conv_ids == {"C-1", "C-2", "C-3"}, (
-        f"research Conventions should be C-1, C-2, C-3, got {sorted(conv_ids)}"
+    assert conv_ids == {"C-1", "C-2"}, (
+        f"research Conventions should be C-1, C-2, got {sorted(conv_ids)}"
     )
 
     workflow_ids = {r for r in included if r.startswith("W-")}
@@ -400,20 +400,21 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     # rules 23 → 24 by appending W-24 "Subagent Pattern Selection" (the
     # subagent-patterns-2026 prep cycle targeting v12.0.0 graduation).
     # v17.4.0 grows Workflow rules 24 → 25 by appending W-25 "Host Support
-    # Contract Evidence and Revision".
+    # Contract Evidence and Revision"; v19.0.0 adds W-26..W-28 and folds
+    # W-19 into W-7, leaving W-28 last and 21 live Workflow rules.
     # All three rules land at the Workflow layer (not Soul) per ADR-007
     # §"Soul-vs-Architecture" decision-rule on conditional + activation-
     # coupled invariants — mirrors the v11.0.5 PV-05 A-7 landing
     # rationale. W-21 Soul-set freeze preserved at 10 entries.
-    assert workflow_rules[-1] == "W-25", (
-        f"W-25 (Host Support Contract evidence and revision) "
+    assert workflow_rules[-1] == "W-28", (
+        f"W-28 (Local-Archive Index-Generation Honesty) "
         f"should be last Workflow rule, got {workflow_rules[-1]}"
     )
     # v15.0.0 rule-diet (v15-ADR-004): W-10..W-15 folded into W-4/W-5/W-6/
-    # C-6; retired ids NOT renumbered/reused, so the layer carries 19 rules
-    # (W-1..W-9, W-16..W-25) with W-25 last.
-    assert len(workflow_rules) == 19, (
-        f"Workflow should have 19 rules (W-1..W-9, W-16..W-25), got {len(workflow_rules)}"
+    # C-6; v19.0.0 folds W-19 into W-7 and adds W-26..W-28. Retired ids
+    # remain unused, so the layer carries 21 live rules.
+    assert len(workflow_rules) == 21, (
+        f"Workflow should have 21 rules after v19 consolidation, got {len(workflow_rules)}"
     )
 
 

@@ -8,13 +8,20 @@ import math
 import re
 import subprocess
 import sys
-from collections.abc import Callable, Mapping
+import time
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
-from devolaflow.harness.aggregator import aggregate_records, load_ledger_records
+from devolaflow.harness.aggregator import (
+    aggregate_metric_observations,
+    aggregate_records,
+    load_ledger_records,
+)
+from devolaflow.harness.telemetry import MetricObservationError, validate_metric_observation
+from devolaflow.task_adaptive_selector import estimate_tokens
 
 DIMENSION_WEIGHTS: Final[dict[str, float]] = {
     "code_quality": 0.20,
@@ -24,6 +31,12 @@ DIMENSION_WEIGHTS: Final[dict[str, float]] = {
     "compatibility": 0.10,
     "performance_impact": 0.15,
 }
+MEASUREMENT_KEYS: Final[tuple[str, ...]] = (
+    "agents_md_tokens",
+    "suite_wall_seconds",
+    "cjk_violations",
+    "ghost_loc",
+)
 SIGNAL_KEYS: Final[tuple[str, ...]] = (
     "ruff_lint",
     "ruff_format",
@@ -33,6 +46,7 @@ SIGNAL_KEYS: Final[tuple[str, ...]] = (
     "compatibility_suite",
     "w17_new_tests",
     "docstring_coverage_pct",
+    *MEASUREMENT_KEYS,
 )
 DEFAULT_THRESHOLD: Final[float] = 8.5
 DEFAULT_CROSS_VALIDATION_DELTA: Final[float] = 1.0
@@ -55,6 +69,11 @@ _BINARY_SIGNALS: Final[frozenset[str]] = frozenset(
         "compatibility_suite",
     }
 )
+_CJK_RE: Final[re.Pattern[str]] = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+_AGENT_TEXT_PATHS: Final[tuple[Path, ...]] = (
+    Path("AGENTS.md"),
+    Path("workflow-system/agent/SKILL.md"),
+)
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -70,6 +89,7 @@ class SignalResult:
     available: bool
     value: bool | float | int | None = None
     error: str = ""
+    provenance: Mapping[str, Any] | None = None
 
     def as_subcomponent(self, score: float) -> dict[str, Any]:
         """Render the fixture-compatible subcomponent envelope."""
@@ -154,6 +174,49 @@ def _docstring_coverage(repo_root: Path) -> SignalResult:
     return SignalResult(available=True, value=value)
 
 
+def _agents_md_tokens(repo_root: Path) -> SignalResult:
+    path = repo_root / "AGENTS.md"
+    try:
+        return SignalResult(available=True, value=estimate_tokens(path.read_text(encoding="utf-8")))
+    except (OSError, UnicodeError) as exc:
+        return _unavailable(f"AGENTS.md token scan failed: {exc}")
+
+
+def _cjk_violations(repo_root: Path) -> SignalResult:
+    paths = [path for path in _AGENT_TEXT_PATHS if (repo_root / path).is_file()]
+    reference_root = repo_root / "workflow-system" / "agent" / "references"
+    if reference_root.is_dir():
+        paths.extend(sorted(reference_root.glob("*.md")))
+    if not paths:
+        return _unavailable("agent-facing text surfaces unavailable")
+    try:
+        count = sum(
+            len(_CJK_RE.findall((repo_root / path).read_text(encoding="utf-8"))) for path in paths
+        )
+    except (OSError, UnicodeError) as exc:
+        return _unavailable(f"CJK scan failed: {exc}")
+    return SignalResult(available=True, value=count)
+
+
+def _ghost_loc(repo_root: Path) -> SignalResult:
+    ghost_root = repo_root / "tests" / "ghost"
+    if not ghost_root.is_dir():
+        return _unavailable(f"ghost test directory unavailable: {ghost_root}")
+    paths = sorted(ghost_root.rglob("*.py"))
+    if not paths:
+        return _unavailable("ghost test directory contains no Python files")
+    try:
+        loc = sum(
+            1
+            for path in paths
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
+    except (OSError, UnicodeError) as exc:
+        return _unavailable(f"ghost LOC scan failed: {exc}")
+    return SignalResult(available=True, value=loc)
+
+
 def collect_signals(
     repo_root: str | Path,
     *,
@@ -181,6 +244,7 @@ def collect_signals(
         timeout=60,
         runner=invoke,
     )
+    suite_started = time.perf_counter()
     coverage_run, coverage_error = _run_probe(
         [
             sys.executable,
@@ -195,6 +259,7 @@ def collect_signals(
         timeout=300,
         runner=invoke,
     )
+    suite_elapsed = time.perf_counter() - suite_started
     if coverage_run is None:
         test_suite = _unavailable(coverage_error)
         coverage = _unavailable(coverage_error)
@@ -254,6 +319,16 @@ def collect_signals(
             value=len(_ADDED_TEST_RE.findall(w17_run.stdout or "")),
         )
 
+    measurements: dict[str, SignalResult] = {
+        "agents_md_tokens": _agents_md_tokens(root),
+        "suite_wall_seconds": (
+            SignalResult(available=True, value=suite_elapsed)
+            if coverage_run is not None
+            else _unavailable(coverage_error)
+        ),
+        "cjk_violations": _cjk_violations(root),
+        "ghost_loc": _ghost_loc(root),
+    }
     return {
         "ruff_lint": ruff_lint,
         "ruff_format": ruff_format,
@@ -263,6 +338,7 @@ def collect_signals(
         "compatibility_suite": compatibility,
         "w17_new_tests": w17,
         "docstring_coverage_pct": _docstring_coverage(root),
+        **measurements,
     }
 
 
@@ -297,28 +373,39 @@ def normalize_signals(signals: Mapping[str, object]) -> dict[str, SignalResult]:
             normalized[key] = _unavailable(f"missing injected signal: {key}")
             continue
         raw = signals[key]
+        provenance: Mapping[str, Any] | None = None
         if isinstance(raw, Mapping):
-            available = raw.get("available")
-            if type(available) is not bool:
-                raise EvaluationError(f"signal {key}.available must be a boolean")
-            if not available:
-                error = raw.get("error")
-                if not isinstance(error, str) or not error.strip():
-                    raise EvaluationError(
-                        f"unavailable signal {key} must include a non-empty error"
-                    )
-                normalized[key] = _unavailable(error)
-                continue
-            if "value" not in raw:
-                raise EvaluationError(f"available signal {key} must include value")
-            raw = raw["value"]
+            if "observation" in raw:
+                try:
+                    observation = validate_metric_observation(raw["observation"])
+                except MetricObservationError as exc:
+                    raise EvaluationError(f"signal {key} observation is invalid: {exc}") from exc
+                if observation["metric"] != key:
+                    raise EvaluationError(f"signal {key} observation metric must equal {key!r}")
+                provenance = observation
+                raw = observation["value"]
+            else:
+                available = raw.get("available")
+                if type(available) is not bool:
+                    raise EvaluationError(f"signal {key}.available must be a boolean")
+                if not available:
+                    error = raw.get("error")
+                    if not isinstance(error, str) or not error.strip():
+                        raise EvaluationError(
+                            f"unavailable signal {key} must include a non-empty error"
+                        )
+                    normalized[key] = _unavailable(error)
+                    continue
+                if "value" not in raw:
+                    raise EvaluationError(f"available signal {key} must include value")
+                raw = raw["value"]
 
         value: bool | float | int
         if key in _BINARY_SIGNALS:
             value = _coerce_binary(raw, key=key)
         else:
             value = _coerce_number(raw, key=key)
-        normalized[key] = SignalResult(available=True, value=value)
+        normalized[key] = SignalResult(available=True, value=value, provenance=provenance)
     return normalized
 
 
@@ -375,10 +462,13 @@ def _p95_headroom_score(utilization: float) -> float:
 
 def _latest_timestamp(records: list[dict[str, Any]]) -> str:
     def parsed(record: dict[str, Any]) -> tuple[datetime, str]:
-        value = record["ts"]
+        value = record.get("ts") or record.get("captured_at")
+        if not isinstance(value, str):
+            raise EvaluationError("record has no evaluation timestamp")
         return datetime.fromisoformat(value.replace("Z", "+00:00")), value
 
-    return max(records, key=parsed)["ts"]
+    latest = max(records, key=parsed)
+    return latest.get("ts") or latest["captured_at"]
 
 
 def _signal_component(signal: SignalResult, score: float) -> dict[str, Any]:
@@ -391,6 +481,141 @@ def _metric_component(value: float, score: float) -> dict[str, Any]:
         "available": True,
         "value": value,
     }
+
+
+def _coerce_measurement(value: object, *, key: str) -> float | int:
+    if isinstance(value, SignalResult):
+        if not value.available:
+            raise EvaluationError(value.error or f"measurement {key} unavailable")
+        value = value.value
+    coerced = _coerce_number(value, key=key)
+    if float(coerced) < 0:
+        raise EvaluationError(f"measurement {key} must be non-negative")
+    return coerced
+
+
+def _telemetry_measurements(summary: Mapping[str, Any]) -> dict[str, SignalResult]:
+    raw_measurements = summary.get("measurements")
+    if not isinstance(raw_measurements, Mapping):
+        return {
+            key: _unavailable(f"historical telemetry missing measurement: {key}")
+            for key in MEASUREMENT_KEYS
+        }
+    resolved: dict[str, SignalResult] = {}
+    for key in MEASUREMENT_KEYS:
+        entry = raw_measurements.get(key)
+        if not isinstance(entry, Mapping) or entry.get("mean") is None:
+            resolved[key] = _unavailable(f"historical telemetry missing measurement: {key}")
+        else:
+            resolved[key] = SignalResult(
+                available=True,
+                value=_coerce_measurement(entry["mean"], key=key),
+                provenance=(
+                    entry.get("provenance")
+                    if isinstance(entry.get("provenance"), Mapping)
+                    else None
+                ),
+            )
+    return resolved
+
+
+def _resolve_measurements(
+    summary: Mapping[str, Any],
+    *,
+    injected: Mapping[str, object] | None,
+    collected: Mapping[str, SignalResult] | None,
+) -> tuple[dict[str, SignalResult], dict[str, str]]:
+    telemetry = _telemetry_measurements(summary)
+    resolved: dict[str, SignalResult] = {}
+    sources: dict[str, str] = {}
+    for key in MEASUREMENT_KEYS:
+        if telemetry[key].available:
+            resolved[key] = telemetry[key]
+            sources[key] = "telemetry"
+            continue
+        if injected is not None and key in injected:
+            raw = injected[key]
+            if isinstance(raw, SignalResult):
+                resolved[key] = raw
+                sources[key] = "injected"
+                continue
+            if isinstance(raw, Mapping):
+                if "observation" in raw:
+                    try:
+                        observation = validate_metric_observation(raw["observation"])
+                    except MetricObservationError as exc:
+                        raise EvaluationError(
+                            f"measurement {key} observation is invalid: {exc}"
+                        ) from exc
+                    if observation["metric"] != key:
+                        raise EvaluationError(
+                            f"measurement {key} observation metric must equal {key!r}"
+                        )
+                    resolved[key] = SignalResult(
+                        available=True,
+                        value=observation["value"],
+                        provenance=observation,
+                    )
+                    sources[key] = "injected"
+                    continue
+                available = raw.get("available")
+                if type(available) is not bool:
+                    raise EvaluationError(f"measurement {key}.available must be a boolean")
+                if not available:
+                    error = raw.get("error")
+                    if not isinstance(error, str) or not error.strip():
+                        raise EvaluationError(
+                            f"unavailable measurement {key} must include a non-empty error"
+                        )
+                    resolved[key] = _unavailable(error)
+                else:
+                    if "value" not in raw:
+                        raise EvaluationError(f"available measurement {key} must include value")
+                    resolved[key] = SignalResult(
+                        available=True,
+                        value=_coerce_measurement(raw["value"], key=key),
+                    )
+            else:
+                resolved[key] = SignalResult(
+                    available=True,
+                    value=_coerce_measurement(raw, key=key),
+                )
+            sources[key] = "injected"
+            continue
+        if collected is not None and key in collected:
+            resolved[key] = collected[key]
+            sources[key] = "evaluator" if collected[key].available else "unavailable"
+            continue
+        resolved[key] = telemetry[key]
+        sources[key] = "unavailable"
+    return resolved, sources
+
+
+def _render_measurements(
+    measurements: Mapping[str, SignalResult],
+    sources: Mapping[str, str],
+    summary: Mapping[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    rendered: dict[str, dict[str, Any]] = {}
+    for key in MEASUREMENT_KEYS:
+        signal = measurements[key]
+        entry: dict[str, Any] = {
+            "available": signal.available,
+            "value": signal.value if signal.available else None,
+            "status": "AVAILABLE" if signal.available else "INSUFFICIENT",
+            "source": sources[key],
+        }
+        if signal.error:
+            entry["error"] = signal.error
+        provenance = signal.provenance
+        if provenance is None and isinstance(summary, Mapping):
+            raw_entry = summary.get(key)
+            if isinstance(raw_entry, Mapping) and isinstance(raw_entry.get("provenance"), list):
+                provenance = {"observations": raw_entry["provenance"]}
+        if provenance is not None:
+            entry["provenance"] = provenance
+        rendered[key] = entry
+    return rendered
 
 
 def _mean_available(subcomponents: Mapping[str, Mapping[str, Any]]) -> float:
@@ -411,6 +636,7 @@ def evaluate_harness(
     threshold: float = DEFAULT_THRESHOLD,
     sampled_at: str | None = None,
     runner: Runner | None = None,
+    baseline: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Aggregate a ledger and evaluate the exact deterministic W-3 rubric."""
 
@@ -424,8 +650,10 @@ def evaluate_harness(
 
     records = load_ledger_records(ledger)
     summary = aggregate_records(records)
+    collected_signals: dict[str, SignalResult] | None = None
     if signals is None:
-        resolved_signals = collect_signals(repo_root, base_ref=base_ref, runner=runner)
+        collected_signals = collect_signals(repo_root, base_ref=base_ref, runner=runner)
+        resolved_signals = {key: collected_signals[key] for key in SIGNAL_KEYS}
     elif all(isinstance(value, SignalResult) for value in signals.values()):
         resolved_signals = {
             key: (
@@ -435,6 +663,11 @@ def evaluate_harness(
         }
     else:
         resolved_signals = normalize_signals(signals)
+    measurement_signals, measurement_sources = _resolve_measurements(
+        summary,
+        injected=signals,
+        collected=collected_signals,
+    )
 
     quantifiable_ratio = float(summary["constraints"]["quantifiable_ratio"])
     budget_compliance = float(summary["tokens"]["budget_compliance_ratio"])
@@ -552,7 +785,7 @@ def evaluate_harness(
             continue
         suggestions.append({"dimension": item["id"], "reason": reason})
 
-    return {
+    result = {
         "schema_version": 1,
         "sampled_at": sampled_at or _latest_timestamp(records),
         "threshold": float(threshold),
@@ -561,8 +794,21 @@ def evaluate_harness(
         "auto_fill_rate": round(available_slots / total_slots, 4),
         "verdict": verdict,
         "harness_summary": summary,
+        "measurements": _render_measurements(
+            measurement_signals,
+            measurement_sources,
+            summary["measurements"],
+        ),
         "suggestions": suggestions,
     }
+    if baseline is not None:
+        if isinstance(baseline, (str, bytes)) or not isinstance(baseline, Sequence):
+            raise EvaluationError("baseline must be a sequence of metric observations")
+        current = summary.get("metric_observations", [])
+        if not isinstance(current, list):
+            current = []
+        result["metric_comparison"] = aggregate_metric_observations(list(baseline), current)
+    return result
 
 
 def _score_vector(payload: Mapping[str, Any], *, label: str) -> dict[str, float]:
@@ -746,6 +992,7 @@ __all__ = [
     "DEFAULT_THRESHOLD",
     "DIMENSION_WEIGHTS",
     "HISTORICAL_COMPANION_METHOD",
+    "MEASUREMENT_KEYS",
     "SIGNAL_KEYS",
     "EvaluationError",
     "SignalResult",

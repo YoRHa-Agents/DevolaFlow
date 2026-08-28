@@ -42,6 +42,18 @@ def test_main_passes_for_report_above_floor(tmp_path: Path, capsys) -> None:
     assert "PASS" in capsys.readouterr().out
 
 
+def test_main_uses_75_percent_default(tmp_path: Path, capsys) -> None:
+    assert main([str(_report(tmp_path, 75))]) == 0
+    assert "meet 75.0% coverage" in capsys.readouterr().out
+
+
+def test_main_reports_default_floor_violation(tmp_path: Path, capsys) -> None:
+    assert main([str(_report(tmp_path, 74))]) == 1
+    output = capsys.readouterr().out
+    assert "below 75.0% coverage" in output
+    assert "src/example.py: 74.0%" in output
+
+
 def test_main_fails_for_report_below_floor(tmp_path: Path, capsys) -> None:
     assert main([str(_report(tmp_path, 69)), "--minimum", "70"]) == 1
     assert "FAIL" in capsys.readouterr().out

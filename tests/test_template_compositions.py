@@ -27,6 +27,7 @@ from devolaflow.template_engine.seeds import (
     load_seed_registry,
 )
 from devolaflow.template_engine.validator import validate_all_templates
+from scripts.check_template_metadata_parity import check_template_metadata_parity
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _TEMPLATES_ROOT = _REPO_ROOT / "workflow-system" / "agent" / "templates"
@@ -315,6 +316,120 @@ def test_runtime_discovery_validator_and_legacy_failure(
     assert "synthesis is retired" in legacy.deprecation_note()
     assert validate_all_templates(True, _TEMPLATES_ROOT / "builtin")
     assert "1 template + 26 seeds" in capsys.readouterr().out
+
+
+def test_template_metadata_owner_and_retained_views_have_parity(project_root: Path) -> None:
+    result = check_template_metadata_parity(project_root)
+
+    assert result.passed, result.issues
+    assert (result.registry_count, result.workflow_count, result.seed_count) == (26, 26, 26)
+    assert result.keyword_divergences == (
+        "harness-construction",
+        "local-archive",
+        "nines-assisted",
+        "pathfinder",
+    )
+    assert result.runtime_keyword_divergences == ("change-driven",)
+    assert result.source_path_gaps == (
+        "migration",
+        "repo-init",
+        "self-update",
+        "skill-optimization",
+        "web-design",
+    )
+
+    registry = TemplateRegistry(_TEMPLATES_ROOT)
+    for name in result.keyword_divergences:
+        seed = registry.load_seed(name)
+        assert seed is not None
+        assert seed.metadata.intent_keywords
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            alias = registry.load_template(name)
+        assert alias is not None
+        assert alias.metadata.tags == list(seed.metadata.intent_keywords)
+
+
+def test_template_metadata_parity_detects_workflow_path_drift(
+    project_root: Path, tmp_path: Path
+) -> None:
+    import shutil
+
+    source = project_root / "workflow-system" / "agent"
+    target = tmp_path / "workflow-system" / "agent"
+    shutil.copytree(source, target)
+    workflow_path = target / "workflow-skill.yaml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow_path.write_text(
+        workflow_text.replace(
+            'id: "hotfix", file: "templates/seeds/hotfix.yaml"',
+            'id: "hotfix", file: "templates/seeds/research-only.yaml"',
+        ),
+        encoding="utf-8",
+    )
+
+    result = check_template_metadata_parity(tmp_path)
+
+    assert not result.passed
+    assert any(
+        issue.surface == "workflow-skill" and issue.name == "hotfix" and issue.field == "file"
+        for issue in result.issues
+    )
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "old", "new", "expected_issue"),
+    [
+        (
+            "workflow-system/agent/templates/registry.yaml",
+            "seed: seeds/hotfix.yaml",
+            "seed: seeds/research-only.yaml",
+            ("registry", "hotfix", "seed"),
+        ),
+        (
+            "workflow-system/agent/workflow-skill.yaml",
+            '{id: "hotfix", file: "templates/seeds/hotfix.yaml"}',
+            '{id: "renamed-hotfix", file: "templates/seeds/hotfix.yaml"}',
+            ("workflow-skill", "hotfix", "membership"),
+        ),
+        (
+            "workflow-system/agent/templates/seeds/hotfix.yaml",
+            "  name: hotfix",
+            "  name: renamed-hotfix",
+            ("seed", "hotfix", "name"),
+        ),
+        (
+            "workflow-system/agent/templates/seeds/hotfix.yaml",
+            "  category: build",
+            "  category: discover",
+            ("seed", "hotfix", "category"),
+        ),
+    ],
+)
+def test_template_metadata_parity_rejects_identity_path_category_drift(
+    project_root: Path,
+    tmp_path: Path,
+    relative_path: str,
+    old: str,
+    new: str,
+    expected_issue: tuple[str, str, str],
+) -> None:
+    import shutil
+
+    shutil.copytree(
+        project_root / "workflow-system" / "agent", tmp_path / "workflow-system" / "agent"
+    )
+    path = tmp_path / relative_path
+    original = path.read_text(encoding="utf-8")
+    assert old in original
+    path.write_text(original.replace(old, new, 1), encoding="utf-8")
+
+    result = check_template_metadata_parity(tmp_path)
+
+    assert not result.passed
+    assert any(
+        (issue.surface, issue.name, issue.field) == expected_issue for issue in result.issues
+    )
 
 
 def test_malformed_seed_and_registry_fail_loudly(tmp_path: Path) -> None:

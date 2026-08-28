@@ -7,7 +7,7 @@ purpose: >
   archive directory layout, the immutable-INPUT schemas (constitution.md
   amendable principles + stable REQ-ID requirements + append-only
   amendments ledger), the anti-flooding OUTPUT artifacts (conclusion-first
-  convergence report + read-first DIGEST), the per-artifact C-9 token
+  convergence report + read-first DIGEST), the per-artifact C-4 token
   budgets, the human↔agent separation boundary (INPUT-only git tracking),
   the `scan_workspace` discovery fields + When-to-Engage routing, and the
   `trace_requirements` / `lint_human` / `render_human_report` Python APIs.
@@ -58,8 +58,8 @@ Load when the task involves any of:
 | Authoring `.local/human/input/requirements.md` | Need the REQ-ID schema, Traceability matrix, Out-of-Scope table, shard policy |
 | Recording an amendment | Need the append-only amendments ledger format (Rule S-9 discipline) |
 | Reading human INPUT in plan mode | Need the When-to-Engage row: human INPUT is BINDING context |
-| Emitting the convergence report / DIGEST | Need the OUTPUT schemas, status enum, C-9 budgets, `render_human_report` API |
-| Linting human-surface budgets | Need the C-9 budget table + `lint_human` API |
+| Emitting the convergence report / DIGEST | Need the OUTPUT schemas, status enum, C-4 budgets, `render_human_report` API |
+| Linting human-surface budgets | Need the C-4 budget table + `lint_human` API |
 | Tracing REQ-IDs to evidence | Need the `trace_requirements` API + `RequirementTraceResult` shape |
 | Discovering the surface at session start | Need the `scan_workspace` fields (`has_human_dir` et al.) |
 
@@ -186,7 +186,7 @@ hard ceiling:
 2. **Shard on overflow.** When the live set would still exceed the
    2500-token hard ceiling, split by domain into
    `input/requirements/<domain>.md` (one `REQ-<DOMAIN>-*` family per
-   file). The C-9 budget then applies **PER FILE** (§4c), and
+   file). The C-4 budget then applies **PER FILE** (§4c), and
    `requirements.md` degrades to a thin index (Governance pointer + the
    global Traceability matrix + per-domain links). The aggregate cap
    therefore never silently truncates scope — `Unmapped: 0 ✓` is
@@ -255,7 +255,7 @@ it NEVER mutates the INPUT zone.
 <1-3 sentences, conclusion-first: did we converge, against which requirements?>
 
 ## Requirement evidence            # evidence-before-claims
-| REQ-ID | Acceptance criterion | Result | Evidence (verbatim per C-3) |
+| REQ-ID | Acceptance criterion | Result | Evidence (verbatim per C-2) |
 |---|---|---|---|
 | REQ-<DOMAIN>-NN | <criterion> | met / partial / unmet | `tests/test_x.py::test_y` PASS @ <commit> |
 
@@ -297,9 +297,9 @@ REQ verbatim, so the DIGEST budget stays flat as the REQ set grows. The
 full REQ→status matrix lives in `input/requirements.md` (or its
 per-domain shards, §3b).
 
-### 4c. Explicit budgets — the C-9 human rows
+### 4c. Explicit budgets — the C-4 human rows
 
-The human artifacts are governed by Rule C-9 token budgets, enforced in
+The human artifacts are governed by Rule C-4 token budgets, enforced in
 TOKENS only (matching the token-only `agent_workspace.lint`):
 
 | File | Soft budget | Hard ceiling | Rationale |
@@ -315,8 +315,8 @@ TOKENS only (matching the token-only `agent_workspace.lint`):
 TOKENS via `estimate_tokens` (the parenthetical line/word figures are
 authoring guidance only, NOT a second linted axis — no new measurement
 machinery). Soft over → warn; hard over → fail commit (full / STRICT) —
-identical semantics to the existing C-9 agent-workspace rows. The
-canonical rows live in `.cursor/rules/repo-governance.mdc` C-9 (compiled
+identical semantics to the existing C-4 agent-workspace rows. The
+canonical rows live in `.cursor/rules/repo-governance.mdc` C-4 (compiled
 from `.rules/conventions.mdc`) and are mirrored in
 `references/agent-workspace.md` §9.
 
@@ -360,7 +360,7 @@ never raise).
 | Symbol | Description |
 |---|---|
 | `trace_requirements(requirements_path, *, test_results=None) -> dict[str, RequirementTraceResult]` | REQ-ID → evidence checker; joins `requirements.md`'s `## Traceability` matrix (status + `Acceptance criterion` + `Cycle`) with the per-REQ `Acceptance` text. Keys the **union** of block ∪ matrix REQs (both-way S-5). When `test_results` is supplied, the §6c test-run join overrides matrix status with the actual PASS/FAIL outcome |
-| `RequirementTraceResult` | Frozen per-REQ trace row (`result` ∈ `met`/`partial`/`unmet`, `evidence: str` verbatim per C-3, `criterion: str`, `cycle: str`) |
+| `RequirementTraceResult` | Frozen per-REQ trace row (`result` ∈ `met`/`partial`/`unmet`, `evidence: str` verbatim per C-2, `criterion: str`, `cycle: str`) |
 | `TestOutcome` | Frozen `{node_id, outcome, commit}` — the §6c test-run join input |
 | `parse_pytest_report(report_path, *, commit="") -> dict[str, TestOutcome]` | Reads a pytest `--report-log` JSONL (keeps `call`-phase `TestReport` records) → `{node-id → TestOutcome}`; S-5 loud on missing/malformed |
 | `RequirementsTraceError` | Raised on structurally-invalid input |
@@ -458,7 +458,7 @@ consumes two separate inputs:
 1. **Per-REQ `Result`/`Evidence` rows ← `trace_requirements` (§5b)**, NOT
    the gate. The trace maps each `REQ-<DOMAIN>-NN` to its acceptance
    evidence by joining `requirements.md`'s Traceability matrix with the
-   per-REQ blocks. Evidence strings are verbatim per C-3.
+   per-REQ blocks. Evidence strings are verbatim per C-2.
 2. **`Blocking` / `Advisory` finding sections ← the gate's
    `findings_by_severity`** (`blocker` / `critical` → Blocking;
    `major` / `minor` / `info` → Advisory).
@@ -485,7 +485,7 @@ The caller contract at workflow close is:
 For each REQ whose `Acceptance` text NAMES a pytest node-id
 (`path/to/test.py::test_name`) present in the map, the join sets
 `result` = `met` (outcome `passed`) / `unmet` (else) and the evidence to
-the verbatim `"<node_id> <PASS|FAIL> @ <commit>"` (C-3) — overriding the
+the verbatim `"<node_id> <PASS|FAIL> @ <commit>"` (C-2) — overriding the
 matrix Status so the report can never over-claim a `Satisfied` cell whose
 test actually failed. A REQ that names no resolvable node-id (or whose
 node-id is absent from the map) falls back to the matrix derivation, so
@@ -509,7 +509,7 @@ whitelist delta tracks ONLY `.local/human/input/**`:
 ```
 
 Per the operator decision (2026-06-03), `output/` + `archive/` stay
-PRIVATE (ignored) — the bounded (C-9-capped) convergence reports + digest
+PRIVATE (ignored) — the bounded (C-4-capped) convergence reports + digest
 are local-only, not PR-visible. D-4 is closed via the tracked `input/`
 zone (the authoritative, reviewable, durable requirements/constraints).
 
@@ -583,9 +583,9 @@ L0 → none for REQ-OUT-01; the digest budget blocks at emission since v14.2.0 (
 ### Internal
 
 - `docs/cycle-archive/v14.0.0/design/v14.0.0_design.md` — full design (this reference is the SKILL-surface summary)
-- `references/agent-workspace.md` — sibling `.local/.agent/` tree; §9 C-9 budgets (shared rule surface)
+- `references/agent-workspace.md` — sibling `.local/.agent/` tree; §9 C-4 budgets (shared rule surface)
 - `references/plan-mode-enforcement.md` §5.5 — feedback ingestion (the advisory counterpart to binding human INPUT)
-- `.cursor/rules/repo-governance.mdc` — S-9 (append-only), C-9 (token budgets), A-4 (truth/delta/archive ADR), W-23.4 (vocabulary vs spec separation)
+- `.cursor/rules/repo-governance.mdc` — S-9 (append-only), C-4 (token budgets), A-4 (truth/delta/archive ADR), W-23.4 (vocabulary vs spec separation)
 - `src/devolaflow/workspace_context.py` — `scan_workspace` + the four `has_human_dir`/`human_*` fields
 - `src/devolaflow/agent_workspace/requirements_trace.py` — `trace_requirements` REQ-ID → evidence checker
 - `src/devolaflow/agent_workspace/lint.py` — `lint_human` + `HUMAN_ARTIFACT_BUDGETS`

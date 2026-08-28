@@ -18,6 +18,10 @@ last_updated: "2026-08-25"
 
 # Agent Hierarchy Reference
 
+**Canonical contract owner:** boundaries, budgets, capacity, escalation, evidence,
+and isolation. `SKILL.md` summarizes; `team-roles.md` owns L2 profiles/evidence.
+Load §§2, 6–8 for details.
+
 ## 1. Architecture Overview
 
 DevolaFlow uses three layers. No intermediate orchestration layer or fixed
@@ -44,7 +48,7 @@ research, review, or document authoring.
 and repository-relative artifact references. They do not share conversation
 memory.
 
-## 2. Layer Contract Summary
+## 2. Layer Contract Summary (canonical hierarchy contract)
 
 | Aspect | L0 Project | L1 Wave | L2 Task |
 |---|---|---|---|
@@ -227,7 +231,7 @@ Minimum Task evidence:
 - self-check result;
 - explicit unresolved or deferred findings.
 
-## 8. Context and Message Boundaries
+## 8. Context and Message Boundaries (canonical isolation contract)
 
 | Layer | Context contents |
 |---|---|

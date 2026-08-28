@@ -10,7 +10,16 @@ import pytest
 from devolaflow.harness.aggregator import (
     AggregationError,
     aggregate_ledger,
+    aggregate_metric_observations,
     load_ledger_records,
+)
+from devolaflow.harness.telemetry import (
+    CONSOLIDATION_METRIC_NAMES,
+    MetricObservationError,
+    append_metric_observation,
+    build_consolidation_metrics_record,
+    build_metric_observation,
+    build_metric_observation_record,
 )
 
 
@@ -54,6 +63,43 @@ def _write_jsonl(path: Path, records: list[dict]) -> None:
         "".join(json.dumps(record, separators=(",", ":")) + "\n" for record in records),
         encoding="utf-8",
     )
+
+
+def _observation(*, value: int | float, metric: str = "agents_md_tokens") -> dict:
+    return {
+        "schema_version": 1,
+        "cycle": "v19.0.0",
+        "pv": "PV-2",
+        "item_id": "O-3" if metric == "agents_md_tokens" else "O-5",
+        "metric": metric,
+        "statistic": "full_tokens" if metric == "agents_md_tokens" else "wall_seconds",
+        "value": value,
+        "unit": "tokens" if metric == "agents_md_tokens" else "seconds",
+        "direction": "decrease",
+        "sample_count": 1,
+        "warmup_count": 0,
+        "captured_at": "2026-08-28T00:00:00Z",
+        "source_revision": "revision-a",
+        "command": {
+            "argv": ["python", "-c", "probe"],
+            "cwd": ".",
+            "timeout_seconds": 60,
+        },
+        "environment": {
+            "os": "Darwin 25.6.0",
+            "architecture": "arm64",
+            "python": "3.11.0",
+            "implementation": "CPython",
+            "dependencies": "sha256:dependencies",
+            "relevant_variables": {"GHOST_FULL": "1"},
+            "config_files": [{"path": "AGENTS.md", "sha256": "a" * 64}],
+        },
+        "measurement": {
+            "cache_state": "cold",
+            "extraction_definition": "verbatim metric definition",
+            "provenance": "tests/output.txt",
+        },
+    }
 
 
 def test_segmented_ledger_exact_rollup(tmp_path: Path) -> None:
@@ -230,6 +276,112 @@ def test_optional_slice_metrics_are_none_when_absent_and_partial_mean_otherwise(
     _write_jsonl(tmp_path / "harness.jsonl", [invalid])
     with pytest.raises(AggregationError, match="slice_savings_pct"):
         aggregate_ledger(tmp_path)
+
+
+def test_consolidation_metrics_are_aggregated_with_explicit_missing_values(
+    tmp_path: Path,
+) -> None:
+    dispatch = _record("dispatch")
+    dispatch["agents_md_tokens"] = 12_000
+    event = build_consolidation_metrics_record(
+        {
+            "agents_md_tokens": 10_000,
+            "suite_wall_seconds": 12.5,
+            "cjk_violations": 2,
+            "ghost_loc": 40,
+        },
+        timestamp="2026-08-28T00:00:00+00:00",
+    )
+    _write_jsonl(tmp_path / "harness.jsonl", [dispatch, event])
+
+    summary = aggregate_ledger(tmp_path)
+
+    assert list(summary["measurements"]) == list(CONSOLIDATION_METRIC_NAMES)
+    assert summary["measurements"] == {
+        "agents_md_tokens": {"mean": 10_000, "observed_records": 1, "status": "AVAILABLE"},
+        "suite_wall_seconds": {"mean": 12.5, "observed_records": 1, "status": "AVAILABLE"},
+        "cjk_violations": {"mean": 2.0, "observed_records": 1, "status": "AVAILABLE"},
+        "ghost_loc": {"mean": 40.0, "observed_records": 1, "status": "AVAILABLE"},
+    }
+
+
+def test_historical_dispatch_without_consolidation_metrics_is_explicitly_insufficient(
+    tmp_path: Path,
+) -> None:
+    _write_jsonl(tmp_path / "harness.jsonl", [_record("legacy")])
+
+    summary = aggregate_ledger(tmp_path)
+
+    for name in CONSOLIDATION_METRIC_NAMES:
+        assert summary["measurements"][name] == {
+            "mean": None,
+            "observed_records": 0,
+            "status": "INSUFFICIENT",
+        }
+
+
+def test_metric_observation_is_strict_and_aggregate_surfaces_provenance(
+    tmp_path: Path,
+) -> None:
+    baseline = _observation(value=100)
+    current = {**baseline, "source_revision": "revision-b", "value": 75}
+    record = build_metric_observation_record(current)
+    _write_jsonl(tmp_path / "harness.jsonl", [_record("legacy"), record])
+
+    summary = aggregate_ledger(tmp_path)
+
+    assert summary["metric_observations"] == [record]
+    assert summary["measurements"]["agents_md_tokens"]["status"] == "AVAILABLE"
+    assert summary["measurements"]["agents_md_tokens"]["provenance"][0]["source_revision"] == (
+        "revision-b"
+    )
+    comparison = aggregate_metric_observations([baseline], [record])
+    assert comparison["status"] == "AVAILABLE"
+    assert comparison["comparisons"][0]["relative_improvement_pct"] == 25.0
+
+    malformed = dict(baseline)
+    del malformed["environment"]
+    with pytest.raises(MetricObservationError, match="keys mismatch"):
+        build_metric_observation(malformed)
+
+
+def test_append_metric_observation_preserves_structured_record(tmp_path: Path) -> None:
+    observation = _observation(value=100)
+    ledger = tmp_path / "harness.jsonl"
+
+    destination = append_metric_observation(ledger, observation)
+
+    assert destination == ledger
+    assert load_ledger_records(ledger) == [build_metric_observation_record(observation)]
+
+
+def test_metric_observation_comparison_marks_absence_mismatch_and_zero_baseline_insufficient() -> (
+    None
+):
+    baseline = _observation(value=100)
+    current = {**baseline, "source_revision": "revision-b", "value": 80}
+    assert (
+        aggregate_metric_observations([baseline], [current])["comparisons"][0][
+            "relative_improvement_pct"
+        ]
+        == 20.0
+    )
+
+    mismatched = {
+        **current,
+        "command": {**current["command"], "timeout_seconds": 30},
+    }
+    mismatch = aggregate_metric_observations([baseline], [mismatched])["comparisons"][0]
+    assert mismatch["status"] == "INSUFFICIENT"
+    assert "command" in mismatch["mismatched_fields"]
+    assert "relative_improvement_pct" not in mismatch
+
+    zero = aggregate_metric_observations([_observation(value=0)], [current])["comparisons"][0]
+    assert zero["status"] == "INSUFFICIENT"
+    assert "positive" in zero["reason"]
+
+    absent = aggregate_metric_observations([baseline], [])["comparisons"][0]
+    assert absent["status"] == "INSUFFICIENT"
 
 
 def test_aggregation_is_identical_across_three_runs(tmp_path: Path) -> None:

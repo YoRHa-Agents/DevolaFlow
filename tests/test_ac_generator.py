@@ -772,7 +772,7 @@ class TestR5LegacyByteIdenticalFallback:
 
 
 # v14.4.0 (G-006) — impl-class AC-generation coverage. ENABLED = every
-# profile whose tasks WRITE repo artifacts (17 of 25); EXEMPT = read-only /
+# profile whose tasks WRITE repo artifacts; EXEMPT = read-only /
 # verification / evaluation profiles that CONSUME acceptance criteria but
 # never author artifacts (R-9 doctrine: verifiers don't self-generate the
 # criteria they verify). Source: v14.2.0 gap analysis §2.1 G-006.
@@ -794,7 +794,6 @@ _G006_AC_ENABLED_PROFILES: tuple[str, ...] = (
     "self_update",
     "repo-init",
     "entropy_scan",
-    "preflight",
     "harness_build",
 )
 _G006_AC_EXEMPT_PROFILES: tuple[str, ...] = (
@@ -806,6 +805,7 @@ _G006_AC_EXEMPT_PROFILES: tuple[str, ...] = (
     "verify_interaction",
     "product_verification",
     "pathfind",
+    "preflight",
 )
 
 # Representative goal-hint-shaped task description per newly-enabled

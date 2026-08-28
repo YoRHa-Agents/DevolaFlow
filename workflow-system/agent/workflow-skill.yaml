@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "18.0.0"
+  version: "19.0.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -182,56 +182,56 @@ content:
       design_source: "design_agent_hierarchy.md"
       load_when: "Setting up the L0 Project → L1 Wave → L2 Task hierarchy or debugging evidence flow"
       tier: 2
-      estimated_lines: 400
+      estimated_lines: 274
 
     - id: "meta-framework"
       file: "references/meta-framework.md"
       design_source: "design_meta_framework.md"
       load_when: "Selecting registry-v3 checklist seeds or the sole change-driven runtime"
       tier: 2
-      estimated_lines: 350
+      estimated_lines: 359
 
     - id: "decomposition-gate"
       file: "references/decomposition-gate.md"
       design_source: "design_decomposition_gate.md"
       load_when: "Partitioning checklist rounds into waves/tasks or evaluating evidence gates"
       tier: 2
-      estimated_lines: 400
+      estimated_lines: 409
 
     - id: "repo-modes"
       file: "references/repo-modes.md"
       design_source: "design_repo_modes.md"
       load_when: "Detecting repository structure, configuring mode-specific behavior"
       tier: 2
-      estimated_lines: 300
+      estimated_lines: 312
 
     - id: "execution-protocol"
       file: "references/execution-protocol.md"
       design_source: "design_execution_protocol.md"
       load_when: "Running preflight, checkpoints, bounded checklist rounds, or exception handling"
       tier: 2
-      estimated_lines: 350
+      estimated_lines: 956
 
     - id: "message-schemas"
       file: "references/message-schemas.md"
       design_source: "design_agent_hierarchy.md §3"
       load_when: "Constructing or parsing dispatch/report/escalation messages"
       tier: 2
-      estimated_lines: 300
+      estimated_lines: 292
 
     - id: "team-roles"
       file: "references/team-roles.md"
       design_source: "design_agent_hierarchy.md §4"
       load_when: "Configuring L2 Task specializations and evidence expectations"
       tier: 2
-      estimated_lines: 350
+      estimated_lines: 406
 
     - id: "context-isolation"
       file: "references/context-isolation.md"
       design_source: "design_agent_hierarchy.md §6"
       load_when: "Setting up context injection templates, debugging context leaks"
       tier: 2
-      estimated_lines: 250
+      estimated_lines: 584
 
   # ─────────────────────────────────────────────────────────────────
   # Examples: Tier 3 on-demand execution traces.
@@ -280,6 +280,10 @@ content:
   # Templates: registry v3 exposes 26 declarative checklist seeds and one
   # executable runtime. Seeds retain decomposition knowledge but carry no DAG
   # semantics. `change-driven` is both a seed name and the sole runtime name.
+  # Catalog identity/path/category/tags/description are owned by
+  # templates/registry.yaml. This seed list is a retained derived install/build
+  # view; identity/path/category parity is checked by
+  # scripts/check_template_metadata_parity.py before adapter generation.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:

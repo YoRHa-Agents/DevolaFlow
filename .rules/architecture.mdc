@@ -9,7 +9,10 @@ alwaysApply: true
 ## A-1 — 3-Layer Agent Hierarchy (P1–P5)
 
 ### P1 Dispatcher-Not-Implementer
-Dispatcher agents (Project, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L1 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L1 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L2 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
+The dispatcher-not-implementer prohibition, Task-Agent execution boundary,
+L0-L1 tool permissions, delegation requirement, and trivial exception are
+defined by S-1. A-1 applies that S-1 contract to the Project → Wave → Task
+hierarchy.
 
 ### P2 Minimal Context
 Each agent layer receives only the context it needs:
@@ -28,7 +31,7 @@ Layers communicate through artifact files, not shared memory or conversation his
 
 ## A-2 — P6 Preserve Cached Prefix (Cache-Layout Governance v2)
 
-Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 16 as of v8.3.0 PV-05). Reordering existing keys is a release blocker.
+Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 17 in the live schema; position 16 was the v8.3.0 PV-05 historical layout). Reordering existing keys is a release blocker.
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 

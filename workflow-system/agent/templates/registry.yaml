@@ -3,6 +3,17 @@
 schema_version: "3.0"
 last_updated: "2026-08-24T00:00:00Z"
 
+# Metadata ownership contract:
+# - This registry owns catalog identity, seed paths, categories, discovery tags,
+#   and catalog descriptions for all 26 historical IDs.
+# - workflow-skill.yaml#content.templates.seeds and each seed's metadata.name /
+#   metadata.category are retained derived or compatibility views. Their
+#   identity/path/category parity is checked by
+#   scripts/check_template_metadata_parity.py.
+# - Seed-local intent_keywords, applicable_scenarios, source provenance, and
+#   descriptions remain intact until every consumer is migrated. Keyword and
+#   description differences are diagnostic, not an instruction to rewrite
+#   intent matching or historical metadata.
 compositions:
   - name: hotfix
     seed: seeds/hotfix.yaml

@@ -113,7 +113,7 @@ it adds NO field to the `preflight.md` signature schema.
 2. **Freeze the before-snapshot** as
    `evidence/harness_gap_before.json` inside the active change folder.
    The frozen JSON is the verbatim source for every gap cited
-   downstream (C-3).
+   downstream (C-2).
 
 3. **Author `harness_preflight.md`** (§4) in the change folder, citing
    the frozen report byte-for-byte in its `## 3. Gap Inventory`
@@ -245,12 +245,12 @@ lints clean.
   `## 1. Target Observation Surface`, `## 2. Capability Mapping`
   (one row per harness capability surface: telemetry / aggregator /
   evaluator / probe / proposal / capacity), `## 3. Gap Inventory`
-  (verbatim citations from the frozen gap report — C-3; no
+  (verbatim citations from the frozen gap report — C-2; no
   paraphrase of paths, items, reasons, or metric values),
   `## 4. Coverage Commitments` (which axes this change advances),
   `## 5. Build Order` (dependency inversion: infrastructure →
   nodes → loop).
-- **Token budget** (C-9): soft 800 / hard 1600. Verify with
+- **Token budget** (C-4): soft 800 / hard 1600. Verify with
   `python -m devolaflow.agent_workspace.lint <change-id>`.
 - **Lint finding codes** (register `HPF_*`, §7).
 
@@ -274,7 +274,7 @@ lints clean.
    via `compare_gap_reports`, and renders the review through
    `render_capability_review`. The review records: per-axis status
    transitions (`GAP→COVERED` etc.), the `auto_fill_rate` delta,
-   resolved gap items reproduced verbatim (C-3), and regressions.
+   resolved gap items reproduced verbatim (C-2), and regressions.
    The frozen snapshot is loaded through `load_gap_report`, so a
    malformed file fails loudly (exit 2) instead of producing a
    garbage diff. The rendered review is byte-stable for a given
@@ -326,7 +326,7 @@ no dispatch schema change (A-2.4).
 | Numbered `## N.` headings out of canonical order | workspace lint | `HPF_SECTION_ORDER` finding |
 | `gap_report` path dangling | workspace lint | `HPF_GAP_REPORT` finding |
 | Non-null `axes_config` path dangling | workspace lint | `HPF_AXES_CONFIG` finding |
-| Token budget breach (soft 800 / hard 1600) | workspace lint | warn / fail per C-9 |
+| Token budget breach (soft 800 / hard 1600) | workspace lint | warn / fail per C-4 |
 | Harness-flagged change archived without a non-empty capability review | `ArchiveManager.archive` | `ArchiveError` naming `evidence/harness_capability_review.md` verbatim; STATUS untouched |
 
 ## §8 — Cross-References
@@ -360,6 +360,6 @@ no dispatch schema change (A-2.4).
 - Scaffolded by `scripts/scaffold_reference.py` (D-X-2).
 - v1 harness-construction branch: seed + `harness gap` CLI (six
   built-in axes, custom-axes YAML, exit codes 0/1/2) +
-  `harness_preflight.md` artifact (C-9 800/1600) + archive-time
+  `harness_preflight.md` artifact (C-4 800/1600) + archive-time
   capability review with existence-only gate. Design provenance:
   `.local/tasks/add_harness_design/design.md` (decisions 1–5).

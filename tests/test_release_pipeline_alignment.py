@@ -194,6 +194,7 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
     ]
     release_only = [
         "validate-templates",
+        "check-template-metadata-parity",
         "build-skill",
         "sync-human-docs",
         "compile-rules",
@@ -203,6 +204,18 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
     first_release_only = min(dependencies.index(item) for item in release_only)
     assert all(dependencies.index(item) < first_release_only for item in core)
     assert dependencies.index("sync-human-docs") < dependencies.index("compile-rules")
+    assert (
+        dependencies.index("validate-templates")
+        < dependencies.index("check-template-metadata-parity")
+        < dependencies.index("build-skill")
+    )
+
+    assert _target_recipe(makefile, "check-template-metadata-parity") == [
+        (
+            "@$(call RUN_TIMED,check-template-metadata-parity,python "
+            "scripts/check_template_metadata_parity.py)"
+        )
+    ]
 
     recipe = _target_recipe(makefile, "release-preflight")
     catalog = recipe.index("$(MAKE) check-demo-seed-catalog")
@@ -223,6 +236,24 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
     ]
     assert "git push origin main" not in makefile
     assert "git push origin HEAD" not in makefile
+
+
+def test_release_preflight_runs_full_ghosts_and_dry_run_uses_same_contract() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    dependencies = _target_line(makefile, "release-preflight").split(":", 1)[1].split()
+    assert "ghost-full" in dependencies
+    assert dependencies.index("test-core") < dependencies.index("ghost-full")
+
+    ghost_recipe = _target_recipe(makefile, "ghost-full")
+    assert ghost_recipe == [
+        "@$(call RUN_TIMED,ghost-full,GHOST_FULL=1 python -m pytest tests/ghost/ -v --tb=short)"
+    ]
+
+    dry_run_recipe = _target_recipe(makefile, "release-dry-run")
+    assert "$(MAKE) release-preflight" in dry_run_recipe
+    assert not any("$(MAKE) lint" in line for line in dry_run_recipe)
+    assert not any("$(MAKE) build-site" in line for line in dry_run_recipe)
 
 
 def test_shared_ci_enforces_module_size_and_complete_coverage() -> None:

@@ -19,15 +19,18 @@ Source: CP-7.
 
 ## C-2 — Lean Message Format
 
-Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+Inter-layer messages (TaskDispatch, StatusReport) must use the lean format
+defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`.
+Verbose prose descriptions are prohibited in dispatch/report YAML. Use
+verbatim compaction (`key_facts` lists, cause→effect notation) instead of
+summarization.
 
-Source: CO-1.
+`key_facts` in predecessor artifacts and `delta` in status reports must be
+verbatim extractions from source. Never paraphrase file paths, error messages,
+metric values, or commit hashes. This prevents hallucination risk per the LLM
+Scaling Paradox research.
 
-## C-3 — Verbatim Extraction
-
-`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
-
-Source: CO-2.
+Source: CO-1; CO-2.
 
 ## C-4 — Tiered Line Budget
 
@@ -47,7 +50,7 @@ python -m pytest tests/test_integration.py::test_skill_md_under_500_lines tests/
 
 Source: SF-1.
 
-## C-5 — Required Frontmatter Keys
+### Required SKILL.md Frontmatter Keys
 
 SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does.
 
@@ -77,7 +80,7 @@ Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actua
 
 Source: SF-4.
 
-## C-9 — Lightweight Agent Workspace Artifacts
+### Lightweight Agent Workspace Artifacts
 
 Files inside `.local/.agent/active/<change-id>/` and
 `.local/.agent/archive/<date>-<id>/` are subject to per-artifact token

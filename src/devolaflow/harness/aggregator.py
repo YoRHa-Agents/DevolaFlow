@@ -5,9 +5,21 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
+
+from devolaflow.harness.telemetry import (
+    CONSOLIDATION_METRIC_NAMES,
+    CONSOLIDATION_METRICS_EVENT,
+    METRIC_OBSERVATION_EVENT,
+    METRIC_OBSERVATION_FIELDS,
+    SI10_GATE_EVENT,
+    SI10_GATE_NAMES,
+    compare_metric_observation_sets,
+    validate_metric_observation,
+)
 
 _BASE_LEDGER_NAME: Final[str] = "harness.jsonl"
 _SEGMENT_RE: Final[re.Pattern[str]] = re.compile(r"^harness\.([1-9]\d*)\.jsonl$")
@@ -38,6 +50,34 @@ _EVENT_FIELDS: Final[frozenset[str]] = frozenset(
         "approval_ref",
         "proposal_sha256",
         "target_digest",
+    }
+)
+_SI10_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schema_version",
+        "event",
+        "event_id",
+        "ts",
+        "pv",
+        "gate",
+        "status",
+    }
+)
+_CONSOLIDATION_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schema_version",
+        "event",
+        "event_id",
+        "ts",
+        *CONSOLIDATION_METRIC_NAMES,
+    }
+)
+_METRIC_OBSERVATION_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schema_version",
+        "event",
+        "event_id",
+        *METRIC_OBSERVATION_FIELDS[1:],
     }
 )
 
@@ -134,9 +174,101 @@ def _validate_timestamp(value: object, *, path: Path, line: int) -> str:
     return timestamp
 
 
+def _validate_si10_event(record: dict[str, Any], *, path: Path, line: int) -> dict[str, Any]:
+    if set(record) != _SI10_EVENT_FIELDS:
+        missing = sorted(_SI10_EVENT_FIELDS - record.keys())
+        extra = sorted(record.keys() - _SI10_EVENT_FIELDS)
+        raise _error(
+            path,
+            line,
+            f"SI-10 event keys mismatch; missing={missing}, extra={extra}",
+        )
+    if record["schema_version"] != 1:
+        raise _error(path, line, "SI-10 event schema_version must equal 1")
+    _validate_timestamp(record["ts"], path=path, line=line)
+    pv = _non_empty_string(record["pv"], path=path, line=line, field="pv")
+    gate = _non_empty_string(record["gate"], path=path, line=line, field="gate")
+    if gate not in SI10_GATE_NAMES:
+        raise _error(path, line, f"SI-10 gate must be one of {', '.join(SI10_GATE_NAMES)}")
+    status = _non_empty_string(record["status"], path=path, line=line, field="status")
+    if status not in {"PASS", "FAIL"}:
+        raise _error(path, line, "SI-10 status must be PASS or FAIL")
+    event_id = _non_empty_string(record["event_id"], path=path, line=line, field="event_id")
+    expected_event_id = f"{SI10_GATE_EVENT}:{pv}:{gate}:{status}"
+    if event_id != expected_event_id:
+        raise _error(path, line, "SI-10 event_id must identify pv, gate, and status")
+    return record
+
+
+def _validate_consolidation_metrics_event(
+    record: dict[str, Any],
+    *,
+    path: Path,
+    line: int,
+) -> dict[str, Any]:
+    if set(record) != _CONSOLIDATION_EVENT_FIELDS:
+        missing = sorted(_CONSOLIDATION_EVENT_FIELDS - record.keys())
+        extra = sorted(record.keys() - _CONSOLIDATION_EVENT_FIELDS)
+        raise _error(
+            path,
+            line,
+            f"consolidation event keys mismatch; missing={missing}, extra={extra}",
+        )
+    if record["schema_version"] != 1:
+        raise _error(path, line, "consolidation event schema_version must equal 1")
+    _validate_timestamp(record["ts"], path=path, line=line)
+    _non_empty_string(record["event_id"], path=path, line=line, field="event_id")
+    for field in CONSOLIDATION_METRIC_NAMES:
+        value = record[field]
+        if value is None:
+            continue
+        if field in {"agents_md_tokens", "cjk_violations", "ghost_loc"}:
+            _integer(value, path=path, line=line, field=field, minimum=0)
+        elif (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or float(value) < 0.0
+        ):
+            raise _error(path, line, f"{field} must be a finite non-negative number or null")
+    return record
+
+
+def _validate_metric_observation_event(
+    record: dict[str, Any],
+    *,
+    path: Path,
+    line: int,
+) -> dict[str, Any]:
+    if set(record) != _METRIC_OBSERVATION_EVENT_FIELDS:
+        missing = sorted(_METRIC_OBSERVATION_EVENT_FIELDS - record.keys())
+        extra = sorted(record.keys() - _METRIC_OBSERVATION_EVENT_FIELDS)
+        raise _error(
+            path,
+            line,
+            f"metric observation event keys mismatch; missing={missing}, extra={extra}",
+        )
+    if record["event"] != METRIC_OBSERVATION_EVENT:
+        raise _error(path, line, "metric observation event has an unsupported event name")
+    if not isinstance(record["event_id"], str) or not record["event_id"].strip():
+        raise _error(path, line, "metric observation event_id must be a non-empty string")
+    observation = {field: record[field] for field in METRIC_OBSERVATION_FIELDS}
+    try:
+        validate_metric_observation(observation)
+    except ValueError as exc:
+        raise _error(path, line, str(exc)) from exc
+    return record
+
+
 def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise _error(path, line, "record must be a JSON object")
+    if record.get("event") == SI10_GATE_EVENT:
+        return _validate_si10_event(record, path=path, line=line)
+    if record.get("event") == CONSOLIDATION_METRICS_EVENT:
+        return _validate_consolidation_metrics_event(record, path=path, line=line)
+    if record.get("event") == METRIC_OBSERVATION_EVENT:
+        return _validate_metric_observation_event(record, path=path, line=line)
     if "event" in record:
         if set(record) != _EVENT_FIELDS:
             missing = sorted(_EVENT_FIELDS - record.keys())
@@ -264,6 +396,21 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
             field="agents_md_tokens",
             minimum=0,
         )
+    for field in ("suite_wall_seconds", "cjk_violations", "ghost_loc"):
+        if field not in record:
+            continue
+        value = record[field]
+        if value is None:
+            continue
+        if field in {"cjk_violations", "ghost_loc"}:
+            _integer(value, path=path, line=line, field=field, minimum=0)
+        elif (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or float(value) < 0.0
+        ):
+            raise _error(path, line, f"{field} must be a finite non-negative number")
     if "slice_savings_pct" in record:
         savings = record["slice_savings_pct"]
         if (
@@ -324,6 +471,80 @@ def _optional_mean(records: list[dict[str, Any]], field: str) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
+
+
+def _measurement_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [record for record in records if record.get("event") == CONSOLIDATION_METRICS_EVENT]
+
+
+def _metric_observation_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [record for record in records if record.get("event") == METRIC_OBSERVATION_EVENT]
+
+
+def _observation_provenance(record: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "item_id": record["item_id"],
+        "source_revision": record["source_revision"],
+        "command": record["command"],
+        "environment": record["environment"],
+        "measurement": record["measurement"],
+    }
+
+
+def _measurement_summary(
+    dispatch_records: list[dict[str, Any]],
+    records: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Summarize optional measurements without filling historical gaps.
+
+    Dedicated measurement events take precedence over dispatch fields. This
+    prevents ``agents_md_tokens`` from being counted twice when a current run
+    emits both legacy-compatible dispatch records and one measurement event.
+    """
+
+    events = _measurement_records(records)
+    observations = _metric_observation_records(records)
+    summary: dict[str, dict[str, Any]] = {}
+    for field in CONSOLIDATION_METRIC_NAMES:
+        if observations:
+            matching = [record for record in observations if record["metric"] == field]
+            values = [record["value"] for record in matching]
+            summary[field] = {
+                "mean": sum(values) / len(values) if values else None,
+                "observed_records": len(values),
+                "status": "AVAILABLE" if values else "INSUFFICIENT",
+                "provenance": [_observation_provenance(record) for record in matching],
+            }
+            continue
+        values = (
+            [event[field] for event in events if event[field] is not None]
+            if events
+            else [record[field] for record in dispatch_records if field in record]
+        )
+        summary[field] = {
+            "mean": sum(values) / len(values) if values else None,
+            "observed_records": len(values),
+            "status": "AVAILABLE" if values else "INSUFFICIENT",
+        }
+    return summary
+
+
+def aggregate_metric_observations(
+    baseline: list[Mapping[str, Any]],
+    current: list[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Aggregate matched baseline/current observations by item and metric."""
+
+    comparisons = compare_metric_observation_sets(baseline, current)
+    return {
+        "schema_version": 1,
+        "status": (
+            "AVAILABLE"
+            if comparisons and all(comparison["matched"] for comparison in comparisons)
+            else "INSUFFICIENT"
+        ),
+        "comparisons": comparisons,
+    }
 
 
 def _token_metrics(records: list[dict[str, Any]]) -> dict[str, float | int]:
@@ -397,7 +618,7 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     for model_hint in sorted({record["model_hint"] for record in dispatch_records}):
         models[model_hint] = sum(record["model_hint"] == model_hint for record in dispatch_records)
 
-    return {
+    result = {
         "schema_version": 1,
         "records": len(dispatch_records),
         "events": events,
@@ -420,7 +641,12 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             ),
         },
         "models": models,
+        "measurements": _measurement_summary(dispatch_records, records),
     }
+    observations = _metric_observation_records(records)
+    if observations:
+        result["metric_observations"] = observations
+    return result
 
 
 def aggregate_ledger(source: str | Path) -> dict[str, Any]:
@@ -432,6 +658,7 @@ def aggregate_ledger(source: str | Path) -> dict[str, Any]:
 __all__ = [
     "AggregationError",
     "aggregate_ledger",
+    "aggregate_metric_observations",
     "aggregate_records",
     "load_ledger_records",
     "nearest_rank",

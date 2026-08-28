@@ -124,7 +124,10 @@ Source: v15-ADR-008 §S-10.
 ## A-1 — 3-Layer Agent Hierarchy (P1–P5)
 
 ### P1 Dispatcher-Not-Implementer
-Dispatcher agents (Project, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L1 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L1 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L2 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
+The dispatcher-not-implementer prohibition, Task-Agent execution boundary,
+L0-L1 tool permissions, delegation requirement, and trivial exception are
+defined by S-1. A-1 applies that S-1 contract to the Project → Wave → Task
+hierarchy.
 
 ### P2 Minimal Context
 Each agent layer receives only the context it needs:
@@ -143,7 +146,7 @@ Layers communicate through artifact files, not shared memory or conversation his
 
 ## A-2 — P6 Preserve Cached Prefix (Cache-Layout Governance v2)
 
-Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 16 as of v8.3.0 PV-05). Reordering existing keys is a release blocker.
+Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 17 in the live schema; position 16 was the v8.3.0 PV-05 historical layout). Reordering existing keys is a release blocker.
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
@@ -340,15 +343,18 @@ Source: CP-7.
 
 ## C-2 — Lean Message Format
 
-Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+Inter-layer messages (TaskDispatch, StatusReport) must use the lean format
+defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`.
+Verbose prose descriptions are prohibited in dispatch/report YAML. Use
+verbatim compaction (`key_facts` lists, cause→effect notation) instead of
+summarization.
 
-Source: CO-1.
+`key_facts` in predecessor artifacts and `delta` in status reports must be
+verbatim extractions from source. Never paraphrase file paths, error messages,
+metric values, or commit hashes. This prevents hallucination risk per the LLM
+Scaling Paradox research.
 
-## C-3 — Verbatim Extraction
-
-`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
-
-Source: CO-2.
+Source: CO-1; CO-2.
 
 ## C-4 — Tiered Line Budget
 
@@ -368,7 +374,7 @@ python -m pytest tests/test_integration.py::test_skill_md_under_500_lines tests/
 
 Source: SF-1.
 
-## C-5 — Required Frontmatter Keys
+### Required SKILL.md Frontmatter Keys
 
 SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does.
 
@@ -398,7 +404,7 @@ Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actua
 
 Source: SF-4.
 
-## C-9 — Lightweight Agent Workspace Artifacts
+### Lightweight Agent Workspace Artifacts
 
 Files inside `.local/.agent/active/<change-id>/` and
 `.local/.agent/archive/<date>-<id>/` are subject to per-artifact token
@@ -499,7 +505,37 @@ Context profiles must ensure task-type-relevant sections are marked `critical`, 
 
 ## W-7 — Iteration Retrospective (SI-8)
 
-After completing a version release, produce a retrospective artifact summarizing: (1) Gaps identified, (2) What was implemented, (3) What was deferred and why, (4) Key learnings. Store in `.local/research/`.
+After completing a version release, produce a retrospective artifact
+summarizing: (1) Gaps identified, (2) What was implemented, (3) What was
+deferred and why, (4) Key learnings. Store in `.local/research/`.
+
+At cycle close, after W-16 has settled the completed cycle's harness evidence,
+L0 MUST run:
+
+```text
+python scripts/archive_research_artifacts.py <cycle-version>
+```
+
+and commit the result under `docs/cycle-archive/<cycle-version>/`. The archive
+operation is idempotent: repeating it preserves the canonical archive contents
+without duplicating or silently clobbering artifacts.
+
+Archive format (per cycle):
+
+```
+docs/cycle-archive/v<MAJOR>.<MINOR>.0/
+├── README.md             # auto-generated index
+├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
+├── implementation_plan.md
+├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
+├── harness/              # built-in harness evaluations and settled baselines
+├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
+└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
+```
+
+The W-16 settlement MUST occur before the cycle archive is produced. Patch
+releases do not create independent baselines or cycle archives. Existing
+historical archive contents are retained; archive refreshes remain idempotent.
 
 ## W-8 — Convergence Round Reinforcement (SI-9)
 
@@ -531,7 +567,7 @@ not create independent baselines.
 Every PV in the new cycle compares against that single settled artifact rather
 than an incremental predecessor-PV snapshot. Keep the current and previous two
 cycle artifacts in the active Tier-B window; archive older artifacts under
-`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-19.
+`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-7.
 
 Schema bumps still require a new immutable `layout_invariant_v*.yaml` witness
 and all existing Tier-A witnesses to pass per A-2.4. Harness settlement never
@@ -564,25 +600,6 @@ Refresh mechanism: add the primary symbol to the current-cycle ghost module,
 run `python -m pytest tests/ghost/ -v`, then author the CHANGELOG entry.
 `tests/ghost/test_rules.py::test_ghost_audit_refresh_present` enforces the
 presence of the audit.
-
-## W-19 — Research Artifact Archive at Cycle End
-
-After a MAJOR or MINOR cycle ships, L0 MUST run
-`python scripts/archive_research_artifacts.py <cycle-version>` and commit the
-result under `docs/cycle-archive/<cycle-version>/`.
-
-Archive format (per cycle):
-
-```
-docs/cycle-archive/v<MAJOR>.<MINOR>.0/
-├── README.md             # auto-generated index
-├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
-├── implementation_plan.md
-├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
-├── harness/              # built-in harness evaluations and settled baselines
-├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
-└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
-```
 
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
@@ -793,5 +810,56 @@ empty placeholders. W-20 still governs environment flags; no new flag is
 authorized here.
 
 Source: v17.4.0 HSC design.
+
+## W-26 — Local-Archive Deletion Safety (C-G4.3)
+
+Deletion is permanently operator-only. The local-archive runtime exposes no
+automatic deletion API and no deletion workflow mode. Report-only planning and
+approved non-deletion moves remain allowed; clean checks and plan approval
+never authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
+equivalent destructive command.
+
+Dirty, ambiguous, missing, unreadable, nested-repository, symlink, protected,
+or worktree-conflicted paths MUST produce explicit refusal findings. A refused
+candidate remains in place. The operator owns any later deletion decision and
+action outside this runtime.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §§6–7,
+`src/devolaflow/local/archive.py`, and
+`docs/cycle-archive/v17.4.0/design/v17.4.0_local_archive_design.md` §§3.4–3.5.
+Enforcement: `tests/test_local_archive.py` and
+`tests/ghost/test_features_v17_5.py`.
+
+## W-27 — Local-Archive Mapping Append-Only Behavior (C-G4.4)
+
+Every physical move MUST append one dedicated task-archive mapping record to
+`.local/tasks/archive-mappings.yaml`. Each row records `sequence`, `source`,
+`destination`, `reason`, and `timestamp`; sequence values increase from the
+existing maximum. Existing rows are immutable, and duplicate source or
+destination paths MUST be refused.
+
+This record is a dedicated task-archive ledger, not an existing
+`.local/.agent/` handoff envelope; S-9 remains independently enforced.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §8 and
+`src/devolaflow/local/archive.py::append_mapping_record`. Enforcement:
+`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber` and
+the current-cycle local-archive ghost audit.
+
+## W-28 — Local-Archive Index-Generation Honesty (C-G4.5)
+
+`.local/tasks/INDEX.md` is a generated navigation view, not the mapping source
+of truth. Generated output MUST carry
+`<!-- devolaflow: generated task archive index -->`. A missing index may be
+created only by an approved apply operation.
+
+A human-maintained, symlinked, or unreadable index MUST never be silently
+overwritten. Stale or non-generated index bytes MUST produce an explicit
+refusal or drift finding.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §8 and
+`src/devolaflow/local/archive.py::render_index` /
+`_validate_index_target`. Enforcement: `tests/test_local_archive.py` and the
+current-cycle local-archive ghost audit.
 
 Style (P4) rules: see `docs/STYLE-RULES.md`

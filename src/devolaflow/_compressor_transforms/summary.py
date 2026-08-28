@@ -1,4 +1,4 @@
-"""Focused implementation slice for the legacy module."""
+"""Focused implementation slice for predecessor summaries."""
 
 # ruff: noqa: F403, F405
 

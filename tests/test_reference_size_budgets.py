@@ -24,6 +24,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+import yaml
 
 TIER_DEFAULT = 500  # SKILL.md (covered by existing integration test)
 TIER_LARGE = 1000  # references/*.md
@@ -209,3 +210,20 @@ def test_canonical_lists_match_sf3_contract() -> None:
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )
+
+
+def test_workflow_reference_estimates_match_canonical_files(project_root: Path) -> None:
+    """Reference metadata must reflect the current canonical file line counts."""
+    source_path = project_root / "workflow-system" / "agent" / "workflow-skill.yaml"
+    source = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+    references = source["content"]["references"]
+
+    for reference in references:
+        relative = reference["file"]
+        target = project_root / "workflow-system" / "agent" / relative
+        assert target.is_file(), f"missing metadata reference: {relative}"
+        actual = len(target.read_text(encoding="utf-8").splitlines())
+        assert reference["estimated_lines"] == actual, (
+            f"{relative} estimated_lines={reference['estimated_lines']} "
+            f"but canonical file has {actual} lines"
+        )

@@ -210,7 +210,7 @@ The L2 Task Agent MUST run an end-of-task verification before emitting
 a `DONE` StatusReport:
 
 1. **Re-read** the acceptance criteria from the original TaskDispatch
-   (no paraphrasing per C-3).
+   (no paraphrasing per C-2).
 2. **Enumerate** the concrete observable evidence that each criterion is
    met (test output, file diff, command output, schema check).
 3. **Refuse to declare DONE** if any criterion lacks an observable
@@ -484,7 +484,7 @@ done = checked items; doing = unchecked items picked in the in-flight
 stage.md round; the bar/percent weigh items by optional `effort: 1..8`
 metadata (default 1). L0 MUST re-render it on every checkbox flip, effort
 edit, item add/drop, or round transition; `ChangeStore` write paths
-(refresh/revert/round-boundary) re-align automatically and the C-9 linter
+(refresh/revert/round-boundary) re-align automatically and the C-4 linter
 fails on any byte drift (`PROGRESS_HEADER`).
 
 ### Status Icons
@@ -932,7 +932,7 @@ Each run populates one `ac_results` row (`{id, verdict,
 cmd_output_digest}`) and the companion `self_check` block in the
 StatusReport (`schemas/lean-report.yaml` additive blocks, v14.3.0 —
 the report side has NO `layout_invariant:`, so the fields are P6-safe).
-Digests are verbatim tail-lines of real command output per C-3 — never a
+Digests are verbatim tail-lines of real command output per C-2 — never a
 prediction, never a paraphrase.
 
 ### 15.3 Behavior when no AC v2 block is present
