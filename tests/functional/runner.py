@@ -452,7 +452,11 @@ _MODULE_CASES: dict[str, EntrypointCase] = {
     ),
     "devolaflow.harness": EntrypointCase(
         "python_module",
-        ("aggregate", "--ledger", "{repo_root}/.local/telemetry/harness.jsonl"),
+        (
+            "aggregate",
+            "--ledger",
+            "{repo_root}/tests/fixtures/harness/functional.jsonl",
+        ),
         frozenset({0}),
         expected_stdout=('"schema_version"',),
         malformed_args=(),
@@ -1064,8 +1068,9 @@ def _check_wheel_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
     if not project_python.is_file() or uv is None:
         return _outcome(
             row,
-            OutcomeStatus.FAIL,
-            "required wheel prerequisites are unavailable",
+            OutcomeStatus.SKIP_OPTIONAL,
+            row.prerequisite or "wheel build prerequisites are unavailable",
+            prerequisite=row.prerequisite,
             details={"python": project_python.is_file(), "uv": uv is not None},
         )
     with tempfile.TemporaryDirectory(prefix="devolaflow-wheel-functional-") as directory:
@@ -1142,7 +1147,12 @@ def _check_wheel_local_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOut
     project_python = repo_root / ".venv" / "bin" / "python"
     uv = shutil.which("uv")
     if not project_python.is_file() or uv is None:
-        return _outcome(row, OutcomeStatus.FAIL, "required wheel prerequisites are unavailable")
+        return _outcome(
+            row,
+            OutcomeStatus.SKIP_OPTIONAL,
+            row.prerequisite or "wheel build prerequisites are unavailable",
+            prerequisite=row.prerequisite,
+        )
     with tempfile.TemporaryDirectory(prefix="devolaflow-wheel-local-") as directory:
         root = Path(directory)
         wheel_dir = root / "wheelhouse"
@@ -1232,8 +1242,9 @@ def _check_npm_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
     if npm is None or node is None:
         return _outcome(
             row,
-            OutcomeStatus.FAIL,
-            "required npm delivery prerequisites are unavailable",
+            OutcomeStatus.SKIP_OPTIONAL,
+            row.prerequisite or "npm and node are unavailable for offline package testing",
+            prerequisite=row.prerequisite,
             details={"node": node is not None, "npm": npm is not None},
         )
     package_dir = repo_root / "packages" / "npm"
@@ -2055,7 +2066,9 @@ def outcome_satisfies_row(row: MatrixRow, outcome: FunctionalOutcome) -> bool:
         return False
     if row.required:
         return outcome.status is OutcomeStatus.PASS
-    return outcome.status in {OutcomeStatus.PASS, OutcomeStatus.SKIP_OPTIONAL}
+    if outcome.status is OutcomeStatus.SKIP_OPTIONAL:
+        return bool(row.prerequisite and outcome.prerequisite == row.prerequisite)
+    return outcome.status is row.expected_status
 
 
 def serialize_outcomes(outcomes: tuple[FunctionalOutcome, ...] | list[FunctionalOutcome]) -> str:

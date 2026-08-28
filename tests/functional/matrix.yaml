@@ -477,7 +477,8 @@ rows:
     call: check_wheel_api
     fixture: pyproject.toml
     tier: slow
-    required: true
+    required: false
+    prerequisite: uv and the project virtual environment are available for offline wheel testing
     expected: a freshly built wheel imports and runs its curated API without checkout imports
     design_source:
       - pyproject.toml#project
@@ -488,7 +489,8 @@ rows:
     call: check_wheel_local
     fixture: src/devolaflow/init_project.py
     tier: slow
-    required: true
+    required: false
+    prerequisite: uv and the project virtual environment are available for offline wheel testing
     expected: a wheel-only consumer can initialize local workspace state
     design_source:
       - src/devolaflow/init_project.py#main
@@ -499,7 +501,8 @@ rows:
     call: check_npm_delivery
     fixture: packages/npm/package.json
     tier: slow
-    required: true
+    required: false
+    prerequisite: node and npm are available for offline package testing
     expected: offline npm pack and the packed executable preserve the target contract
     design_source:
       - packages/npm/package.json#bin

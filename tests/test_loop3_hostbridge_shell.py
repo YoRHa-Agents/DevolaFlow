@@ -214,7 +214,7 @@ def test_shell_proxy_fake_rtk_nonzero_timeout_and_missing_degrade(
 
     timeout_bin = tmp_path / "timeout-bin"
     timeout_bin.mkdir()
-    _write_fake_rtk(timeout_bin, "sleep 2")
+    _write_fake_rtk(timeout_bin, "exec /bin/sleep 2")
     monkeypatch.setenv("PATH", str(timeout_bin))
     monkeypatch.setattr(
         "devolaflow.shell_proxy.proxy._DISTINGUISH_TIMEOUT_SECONDS",
