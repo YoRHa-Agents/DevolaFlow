@@ -11,6 +11,15 @@ from types import SimpleNamespace
 import pytest
 
 from devolaflow.cli import LOCAL_ARCHIVE_SAFETY_REFUSAL, local_archive_cmd
+from devolaflow.local.archive_payloads import (
+    _LocalArchiveInputError,
+    _local_archive_approval_from_payload,
+    _local_archive_findings,
+    _local_archive_json,
+    _local_archive_plan_from_payload,
+    _local_archive_require_text,
+    _local_archive_validate_path,
+)
 
 
 def _task(repo: Path, relative: str = ".local/tasks/flat-done") -> Path:
@@ -50,6 +59,75 @@ def _invoke(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> pytest.Exceptio
     with pytest.raises(SystemExit) as exc_info:
         local_archive_cmd()
     return exc_info
+
+
+def test_archive_payload_codec_rejects_invalid_contracts() -> None:
+    """Exercise codec validation branches moved out of the CLI module."""
+    invalid_calls = (
+        (lambda: _local_archive_require_text(None, field="field"), "field"),
+        (
+            lambda: _local_archive_require_text(None, field="field", entry_number=2),
+            "entry 2",
+        ),
+        (
+            lambda: _local_archive_validate_path("../bad", field="source", entry_number=0),
+            "repository-relative",
+        ),
+        (
+            lambda: _local_archive_validate_path("src/file", field="source", entry_number=0),
+            "outside .local/tasks",
+        ),
+        (lambda: _local_archive_findings("not-a-list"), "findings"),
+        (lambda: _local_archive_findings([None], entry_number=1), "finding 0"),
+        (lambda: _local_archive_plan_from_payload(None), "plan must"),
+        (lambda: _local_archive_plan_from_payload({}), "artifact_type"),
+        (
+            lambda: _local_archive_plan_from_payload({"artifact_type": "task-archive-plan"}),
+            "schema_version",
+        ),
+        (
+            lambda: _local_archive_plan_from_payload(
+                {"artifact_type": "task-archive-plan", "schema_version": 1}
+            ),
+            "source_boundary",
+        ),
+        (
+            lambda: _local_archive_plan_from_payload(
+                {
+                    "artifact_type": "task-archive-plan",
+                    "schema_version": 1,
+                    "source_boundary": ".local/tasks",
+                }
+            ),
+            "entries",
+        ),
+        (lambda: _local_archive_approval_from_payload(None), "approval must"),
+        (lambda: _local_archive_approval_from_payload({}), "artifact_type"),
+        (
+            lambda: _local_archive_approval_from_payload(
+                {"artifact_type": "task-archive-approval"}
+            ),
+            "schema_version",
+        ),
+        (
+            lambda: _local_archive_approval_from_payload(
+                {"artifact_type": "task-archive-approval", "schema_version": 1}
+            ),
+            "plan_fingerprint",
+        ),
+    )
+    for call, message in invalid_calls:
+        with pytest.raises(_LocalArchiveInputError, match=message):
+            call()
+
+
+def test_archive_payload_codec_handles_valid_nested_payloads() -> None:
+    """Cover nested findings and deterministic JSON rendering."""
+    findings = _local_archive_findings([{"code": "REVIEW", "message": "keep"}])
+    assert findings[0].code == "REVIEW"
+    assert _local_archive_json({"findings": [{"code": findings[0].code}]}) == (
+        '{\n  "findings": [\n    {\n      "code": "REVIEW"\n    }\n  ]\n}\n'
+    )
 
 
 def test_default_invocation_is_report_only_and_zero_write(
