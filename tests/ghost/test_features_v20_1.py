@@ -247,7 +247,7 @@ def test_v20_1_adds_no_env_flag_or_cli_and_has_current_gap_evidence(
     runtime = (project_root / "src/devolaflow/skills/retro_digest.py").read_text(encoding="utf-8")
     pyproject = tomllib.loads((project_root / "pyproject.toml").read_text(encoding="utf-8"))
     script_names = set(pyproject["project"]["scripts"])
-    gap = project_root / ".local/research/v20.1.0_gap_analysis.md"
+    gap = project_root / "docs/cycle-archive/v20.1.0/v20.1.0_gap_analysis.md"
 
     assert "DEVOLAFLOW_" not in runtime
     assert "argparse" not in runtime

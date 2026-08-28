@@ -12,7 +12,7 @@ triggers:
   - "cycle learnings"
 tier: 2
 token_estimate: 2200
-last_updated: "2026-08-29"
+last_updated: "2026-08-28"
 name: retro-digest
 description: >
   Load when an operator requests a retrospective digest, cycle learning
