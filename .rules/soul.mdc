@@ -20,7 +20,13 @@ Sources: CO-4, SF-5.
 
 ## S-3 — Test Coverage Floor
 
-Every new or modified Python module must maintain >= 80% test coverage. New modules must have > 0% coverage before merge. Verify with:
+Coverage has two distinct requirements:
+
+- **Global target:** repository-wide test coverage MUST be at least 90%.
+- **Per-module floor:** every new or modified Python module MUST maintain at
+  least 75% test coverage. New modules must have > 0% coverage before merge.
+
+Verify the global target with:
 ```
 python -m pytest tests/ --cov=devolaflow --cov-report=term-missing
 ```

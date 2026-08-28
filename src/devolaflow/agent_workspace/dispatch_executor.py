@@ -62,6 +62,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import multiprocessing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -97,6 +98,98 @@ dataclass default (the A-5 owner of the configurable value)."""
 # executor handles both branches in :meth:`dispatch_parallel` via
 # :func:`asyncio.iscoroutinefunction` + :func:`asyncio.to_thread`.
 TaskCallable = Callable[[], Any] | Callable[[], Awaitable[Any]]
+
+_PROCESS_CLEANUP_TIMEOUT_SECONDS = 1.0
+_PROCESS_RESULT_POLL_SECONDS = 0.1
+
+
+def _process_task_callable(fn: TaskCallable, connection: Any) -> None:
+    """Run a fork-isolated sync callable and send its explicit outcome."""
+    try:
+        result = fn()  # type: ignore[misc]
+        message = ("result", result)
+    except BaseException as exc:  # noqa: BLE001
+        message = ("exception", exc)
+
+    try:
+        connection.send(message)
+    except BaseException as transport_error:  # noqa: BLE001
+        # A result or exception that cannot cross the process boundary is
+        # still reported explicitly rather than becoming a silent child crash.
+        try:
+            connection.send(
+                (
+                    "exception",
+                    RuntimeError(
+                        f"timed sync callable produced an unserializable outcome: {transport_error}"
+                    ),
+                )
+            )
+        except BaseException:
+            raise
+    finally:
+        connection.close()
+
+
+def _run_sync_in_process(fn: TaskCallable, timeout: float) -> Any:
+    """Run a timed sync callable in a child process and stop it on timeout."""
+    if "fork" not in multiprocessing.get_all_start_methods():
+        raise ExecutorError(
+            "timeout-sensitive synchronous dispatch requires a fork-capable platform; "
+            "a non-stopping thread fallback is not supported"
+        )
+
+    context = multiprocessing.get_context("fork")
+    parent_connection, child_connection = context.Pipe(duplex=False)
+    process = context.Process(target=_process_task_callable, args=(fn, child_connection))
+    process.daemon = True
+    try:
+        process.start()
+    except (OSError, RuntimeError) as exc:
+        child_connection.close()
+        parent_connection.close()
+        raise ExecutorError(f"could not start isolated timed task process: {exc}") from exc
+    child_connection.close()
+
+    try:
+        process.join(timeout)
+        if process.is_alive():
+            process.terminate()
+            process.join(_PROCESS_CLEANUP_TIMEOUT_SECONDS)
+            if process.is_alive() and hasattr(process, "kill"):
+                process.kill()
+                process.join(_PROCESS_CLEANUP_TIMEOUT_SECONDS)
+            raise TimeoutError(f"task exceeded timeout of {timeout:.3f}s")
+
+        if not parent_connection.poll(_PROCESS_RESULT_POLL_SECONDS):
+            raise ExecutorError(
+                "isolated timed task exited without returning an outcome "
+                f"(exit code {process.exitcode!r})"
+            )
+        try:
+            status, payload = parent_connection.recv()
+        except (EOFError, OSError) as exc:
+            raise ExecutorError("isolated timed task outcome could not be read") from exc
+        if status == "result":
+            return payload
+        if status == "exception":
+            if isinstance(payload, Exception):
+                raise payload
+            raise RuntimeError(f"isolated timed task raised {payload!r}")
+        raise ExecutorError(f"isolated timed task returned unknown outcome {status!r}")
+    finally:
+        parent_connection.close()
+        if process.is_alive():
+            process.terminate()
+            process.join(_PROCESS_CLEANUP_TIMEOUT_SECONDS)
+        if not process.is_alive():
+            process.close()
+
+
+def _should_isolate_sync_task(timeouts: dict[str, float] | None, task_id: str) -> bool:
+    """Resolve whether a wave marks this task's timeout as stop-sensitive."""
+    explicit_task_ids = getattr(timeouts, "explicit_task_ids", None)
+    return explicit_task_ids is None or task_id in explicit_task_ids
 
 
 class ExecutorError(ValueError):
@@ -226,15 +319,21 @@ class AsyncDispatchExecutor:
         for every caller that does NOT pass the kwarg — the runtime
         contract per CHANGELOG.md §v12.1.0 telegraph "deferred to v12.2.0+"
         closure). Async callables route through :func:`asyncio.wait_for`;
-        sync callables get the timeout enforced via :func:`asyncio.to_thread`
-        wrapped in the same ``wait_for``. The library remains opt-in: no
-        env flag, no auto-wire (per the v9.3.0 PV-05 "library-only
-        landing" discipline).
+        timed sync callables run in a child process terminated on timeout.
+        The library remains opt-in: no env flag, no auto-wire (per the
+        v9.3.0 PV-05 "library-only landing" discipline).
         """
         outcomes: list[TaskOutcome] = []
         for task_id, fn in tasks:
             timeout = (timeouts or {}).get(task_id)
-            outcomes.append(self._run_one_sync(task_id, fn, timeout=timeout))
+            outcomes.append(
+                self._run_one_sync(
+                    task_id,
+                    fn,
+                    timeout=timeout,
+                    isolate_sync=_should_isolate_sync_task(timeouts, task_id),
+                )
+            )
         return outcomes
 
     @staticmethod
@@ -243,15 +342,17 @@ class AsyncDispatchExecutor:
         fn: TaskCallable,
         *,
         timeout: float | None = None,
+        isolate_sync: bool = True,
     ) -> TaskOutcome:
         """Internal: run a single task synchronously, capture exception."""
         try:
             if timeout is not None:
-                # v12.2.0 PV-04 — route through `asyncio.run` + `wait_for`
-                # so both sync and async callables share the same timeout
-                # mechanism (S-5 explicit-error-state on timeout).
+                # v12.2.0 PV-04 — async callables use `wait_for`; sync
+                # callables use a process so timeout stops underlying work.
                 if inspect.iscoroutinefunction(fn):
                     result = asyncio.run(asyncio.wait_for(fn(), timeout=timeout))  # type: ignore[arg-type]
+                elif isolate_sync:
+                    result = _run_sync_in_process(fn, timeout)
                 else:
                     result = asyncio.run(
                         asyncio.wait_for(asyncio.to_thread(fn), timeout=timeout)  # type: ignore[arg-type]
@@ -269,6 +370,65 @@ class AsyncDispatchExecutor:
             # 3.11+; capture explicitly so the WARNING log distinguishes
             # the timeout breach from a generic exception (S-5 explicit
             # error-state).
+            logger.warning(
+                "AsyncDispatchExecutor: task %r exceeded timeout %.3fs; captured into TaskOutcome",
+                task_id,
+                timeout if timeout is not None else -1.0,
+            )
+            return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "AsyncDispatchExecutor: task %r raised %s; captured into TaskOutcome",
+                task_id,
+                exc,
+            )
+            return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
+
+    async def dispatch_sequential_async(
+        self,
+        tasks: list[tuple[str, TaskCallable]],
+        *,
+        timeouts: dict[str, float] | None = None,
+    ) -> list[TaskOutcome]:
+        """Run tasks in order without creating a nested event loop."""
+        outcomes: list[TaskOutcome] = []
+        explicit_task_ids = getattr(timeouts, "explicit_task_ids", None)
+        for task_id, fn in tasks:
+            outcomes.append(
+                await self._run_one_async(
+                    task_id,
+                    fn,
+                    (timeouts or {}).get(task_id),
+                    isolate_sync=(explicit_task_ids is None or task_id in explicit_task_ids),
+                )
+            )
+        return outcomes
+
+    @staticmethod
+    async def _run_one_async(
+        task_id: str,
+        fn: TaskCallable,
+        timeout: float | None,
+        *,
+        isolate_sync: bool = True,
+    ) -> TaskOutcome:
+        """Run one task from an already-running event loop."""
+        try:
+            if inspect.iscoroutinefunction(fn):
+                coro = fn()  # type: ignore[misc]
+                result = (
+                    await asyncio.wait_for(coro, timeout=timeout)
+                    if timeout is not None
+                    else await coro
+                )
+            elif timeout is not None and isolate_sync:
+                result = await asyncio.to_thread(_run_sync_in_process, fn, timeout)
+            elif timeout is not None:
+                result = await asyncio.wait_for(asyncio.to_thread(fn), timeout=timeout)
+            else:
+                result = await asyncio.to_thread(fn)
+            return TaskOutcome(task_id=task_id, succeeded=True, result=result)
+        except TimeoutError as exc:
             logger.warning(
                 "AsyncDispatchExecutor: task %r exceeded timeout %.3fs; captured into TaskOutcome",
                 task_id,
@@ -314,7 +474,18 @@ class AsyncDispatchExecutor:
         """
         if not tasks:
             return []
-        return asyncio.run(self._dispatch_parallel_async(tasks, timeouts or {}))
+        return asyncio.run(self.dispatch_parallel_async(tasks, timeouts=timeouts))
+
+    async def dispatch_parallel_async(
+        self,
+        tasks: list[tuple[str, TaskCallable]],
+        *,
+        timeouts: dict[str, float] | None = None,
+    ) -> list[TaskOutcome]:
+        """Run parallel tasks from an already-running event loop."""
+        if not tasks:
+            return []
+        return await self._dispatch_parallel_async(tasks, timeouts or {})
 
     async def _dispatch_parallel_async(
         self,
@@ -325,41 +496,23 @@ class AsyncDispatchExecutor:
 
         Each task runs inside a context-managed semaphore acquire so
         no more than ``max_concurrency`` tasks are in flight at once.
-        Sync callables go through :func:`asyncio.to_thread` so the
-        event loop is not blocked. When ``timeouts[task_id]`` is set
-        the call is wrapped in :func:`asyncio.wait_for`; on breach the
-        task is cancelled and the outcome carries
-        :class:`asyncio.TimeoutError` per the v12.2.0 PV-04 contract.
+        Sync callables without a timeout go through
+        :func:`asyncio.to_thread` so the event loop is not blocked. Timed
+        sync callables run in a child process whose bounded join is performed
+        in a worker thread, allowing the child to be terminated on breach.
+        Async callables use :func:`asyncio.wait_for`.
         """
         sem = asyncio.Semaphore(self._max_concurrency)
+        explicit_task_ids = getattr(timeouts, "explicit_task_ids", None)
 
         async def run_one(task_id: str, fn: TaskCallable) -> TaskOutcome:
             timeout = timeouts.get(task_id)
             async with sem:
-                try:
-                    coro = (
-                        fn()  # type: ignore[misc]
-                        if inspect.iscoroutinefunction(fn)
-                        else asyncio.to_thread(fn)  # type: ignore[arg-type]
-                    )
-                    if timeout is not None:
-                        result = await asyncio.wait_for(coro, timeout=timeout)
-                    else:
-                        result = await coro
-                    return TaskOutcome(task_id=task_id, succeeded=True, result=result)
-                except TimeoutError as exc:
-                    logger.warning(
-                        "AsyncDispatchExecutor: parallel task %r exceeded timeout %.3fs; captured",
-                        task_id,
-                        timeout if timeout is not None else -1.0,
-                    )
-                    return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning(
-                        "AsyncDispatchExecutor: parallel task %r raised %s; captured",
-                        task_id,
-                        exc,
-                    )
-                    return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
+                return await self._run_one_async(
+                    task_id,
+                    fn,
+                    timeout,
+                    isolate_sync=explicit_task_ids is None or task_id in explicit_task_ids,
+                )
 
         return await asyncio.gather(*(run_one(tid, fn) for tid, fn in tasks))

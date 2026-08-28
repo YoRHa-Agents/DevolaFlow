@@ -1,7 +1,7 @@
 # DevolaFlow Build System
 # Design ref: design_dual_system.md §4.5
 
-.PHONY: all test test-core test-cov test-version test-harness lint build-skill sync-human-docs \
+.PHONY: all test test-core test-cov test-version test-harness test-functional check-functional-matrix lint build-skill sync-human-docs \
        check-drift validate-templates check-template-metadata-parity clean install \
        generate-demo-seed-catalog check-demo-seed-catalog build-site \
        release-preflight release-dry-run ghost-full scaffold-agent agent-reports \
@@ -17,7 +17,7 @@ PV ?=
 TELEMETRY_PV ?= $(PV)
 TELEMETRY_LEDGER ?= .local/telemetry/harness.jsonl
 
-all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift check-import-graph
+all: lint test check-functional-matrix validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift check-import-graph
 
 install:
 	pip install -e ".[dev]"
@@ -31,6 +31,19 @@ format:
 
 test:
 	pytest tests/ -v --tb=short
+
+test-functional:
+	python scripts/check_functional_matrix.py
+	python -m pytest tests/functional -m "functional and fast" -q --tb=short --no-cov
+
+# Loop v3 gate landing — the standalone hard-fail matrix contract gate.
+# Row EXECUTION stays single-execution per G-033: every functional tier
+# (fast and slow) already runs inside `test-core` via pytest markers.
+# This target validates only the matrix CONTRACT (schema, unique IDs,
+# adapter registration, repository-relative paths, console/module
+# inventory parity) so a contract regression fails its own named gate.
+check-functional-matrix:
+	@$(call RUN_TIMED,check-functional-matrix,python scripts/check_functional_matrix.py)
 
 test-cov:
 	@$(call RUN_TIMED,test-cov,GHOST_FULL=1 pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing --cov-report=json && python scripts/check_module_coverage.py coverage.json --minimum 70)
@@ -244,7 +257,8 @@ telemetry-gate: telemetry-check
 # count; they are release-hygiene targets that only the preflight chain
 # (and `make all`) runs:
 #
-#   release-only extras: ghost-full, validate-templates,
+#   release-only extras: ghost-full, check-functional-matrix,
+#                        validate-templates,
 #                        check-template-metadata-parity, build-skill,
 #                        sync-human-docs, compile-rules, check-drift,
 #                        check-rules-drift
@@ -254,7 +268,7 @@ telemetry-gate: telemetry-check
 #
 # SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core ghost-full lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate telemetry-gate validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
+release-preflight: test-core ghost-full lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate telemetry-gate check-functional-matrix validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
 	$(MAKE) check-demo-seed-catalog
 	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"

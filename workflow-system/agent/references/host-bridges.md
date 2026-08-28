@@ -30,10 +30,11 @@ last_updated: "2026-08-25"
 
 Operating contract for the **host-bridge core** (`src/devolaflow/hostbridge/`)
 that routes host-agent tool events — file writes and shell commands — from
-five hosts (Cursor, Claude Code, Codex, KimiCode, DSH) into DevolaFlow's
+six hosts (Cursor, Claude Code, Codex, KimiCode, DSH, GitHub Copilot) into DevolaFlow's
 lifecycle hook chain for S-8 owned-files boundary enforcement. Pairs with
 the per-host config artifacts (`.cursor/hooks.json`, `.claude/settings.json`,
-`.codex/hooks.json`, `packages/dsh-plugin/`), the enforcement flag
+`.codex/hooks.json`, `.kimi-code/config.toml`, `.github/hooks/`,
+`packages/dsh-plugin/`), the enforcement flag
 `DEVOLAFLOW_HOST_ENFORCE` (`references/env-flags.md` §2.18), the Host Support
 Contract (`references/host-contract.md`), and the audit
 ledger `.local/telemetry/hostbridge.jsonl`. Closes G17-B1 per
@@ -69,6 +70,10 @@ answers in the host's own block protocol.
 | KimiCode | user-level `~/.kimi-code/config.toml` `[[hooks]]` (Beta) — NO project file possible | `PreToolUse` matcher `WriteFile\|StrReplaceFile\|Shell` | exit 2 (hook timeout = fail-open) | Beta + user-level: run `python -m devolaflow.hostbridge install kimi` to print the TOML snippet; operator pastes it manually |
 | DSH | cordis plugin `packages/dsh-plugin/` (npm `@yorha-agents/devola-flow-dsh`) | `tools/pre-execute` waterfall (tool-level, all tools) | waterfall `{kind: 'deny', reason}` | Plugin channel required for blocking; sidecar/Center-only deployments degrade to post-hoc ledger audit (see the plugin README) |
 | GitHub Copilot | `.github/hooks/devola-boundary.json` + wrapper (project-level) | `preToolUse` command hook for file and shell tools | stdout JSON `{"permissionDecision": "deny", "permissionDecisionReason": ...}` (exit always 0) | Copilot's native command hook is fail-closed; the wrapper absorbs internal errors and normalizes DevolaFlow's fail-open contract |
+
+This is the six-host bridge set. Other hosts in `hosts.yaml` have
+`boundary_bridge: undeclared` and are not supported by this bridge until a
+host-specific configuration, protocol, and evidence-backed fixture are added.
 
 ## 3. Enforcement-flag contract (`DEVOLAFLOW_HOST_ENFORCE`)
 
@@ -214,7 +219,7 @@ context, and boundary enforcement (§2) is unaffected.
 ## History
 
 - Scaffolded by `scripts/scaffold_reference.py` (D-X-2).
-- v17.0.0 R2 — first substantive body: five-host matrix, enforcement
+- v17.0.0 R2 — first substantive body: six-host matrix, enforcement
   flag contract, decision semantics, install guide, ledger schema
   (G17-B1 closure per §D-R2-1..§D-R2-4).
 - v17.0.0 R4 — session-start resume adapter (§8): Cursor/Claude session

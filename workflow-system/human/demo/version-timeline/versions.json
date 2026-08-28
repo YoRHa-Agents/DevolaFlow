@@ -2341,5 +2341,28 @@
       "ghost_loc": 12192,
       "agents_md_tokens": 10755
     }
+  },
+  {
+    "version": "20.0.0",
+    "date": "2026-08-28",
+    "era": "functional-test-system",
+    "headline": "MAJOR — Functional Test System: design-to-test traceability matrix, hard-fail contract gate, entrypoint black-box coverage, adjudicated behavior closures, and plugin decoupling",
+    "summary": "v20.0.0 lands the functional test system loop: a machine-readable matrix SSOT traces design expectations to behavioral black-box tests across console scripts, python -m entrypoints, the installed-wheel public API, and the offline npm channel; a hard-fail matrix contract gate joins release preflight; adjudicated behavior-design deviations are closed; all five plugins keep suggest tier with explicit optional install profiles. The evaluator is READY at 9.17/10; the single-base-ref w17 probe remains a documented process finding.",
+    "highlights": [
+      "Functional matrix SSOT — tests/functional/matrix.yaml traces 46 design expectations to behavioral tests with per-row check callables",
+      "Hard-fail contract gate — scripts/check_functional_matrix.py validates schema, IDs, adapter registration, and inventory parity inside release preflight",
+      "Entrypoint black-box coverage — 13 console scripts, maintained python -m entrypoints, installed-wheel public API imports, and offline npm pack smoke",
+      "Adjudicated behavior closures — gate skip scoring, dispatch parallelism, handoff exclusive-create, proposal path validation, compression stage contract, and archive approval",
+      "Plugin decoupling — five plugins stay suggest-tier with explicit optional install profiles and derived-view parity",
+      "Deterministic reporter clock — the workspace reporter accepts --now to pin the render clock for byte-identical artifacts"
+    ],
+    "metrics": {
+      "harness_composite": "9.17 READY",
+      "coverage_pct": 91.0,
+      "suite_wall_seconds": 207.77332387500792,
+      "cjk_violations": 0,
+      "ghost_loc": 12414,
+      "agents_md_tokens": 10857
+    }
   }
 ]

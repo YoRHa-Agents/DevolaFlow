@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------------------
 # `owned_files.txt` is the file-ownership manifest for an in-flight change.
 # It is the authoritative source for Rule S-8 (No Writes Outside Active Change
-# Owned Files) — when an L3 Task Agent attempts to write to a path NOT in this
+# Owned Files) — when an L2 Task Agent attempts to write to a path NOT in this
 # file (and NOT under `.local/.agent/active/<id>/` itself, and NOT a handoff
 # envelope outbox), the lifecycle hook blocks (mode: full) or warns (mode: lite).
 #

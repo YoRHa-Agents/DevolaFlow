@@ -95,7 +95,7 @@ body:
 lint_findings:
   - code: ENTRANCE_MISSING
     severity: WARN
-    trigger: "entrance.md absent from a checklist-layout folder (pre-v17.2 folders; backfill on first resume per design D-4)."
+    trigger: "entrance.md absent from a checklist-layout folder (pre-v17.2 folders; backfilled by the next Change.to_active_folder write per design D-4)."
   - code: ENTRANCE_PARENT
     severity: FAIL
     trigger: "frontmatter parent does not equal the change-id."

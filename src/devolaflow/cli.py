@@ -4,10 +4,21 @@ Design ref: design_meta_framework.md §5 (registry), design_decomposition_gate.m
 """
 
 import argparse
-import json
-import re
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
+
+# Stdlib-only at module level (the codec's devolaflow imports stay lazy), so
+# the CLI keeps its cheap-import property.
+from devolaflow.local.archive_payloads import (
+    _LOCAL_ARCHIVE_INDEX_LINE,
+    _LOCAL_ARCHIVE_SCHEMA_VERSION,
+    _local_archive_finding,
+    _local_archive_json,
+    _local_archive_load_plan,
+    _local_archive_plan_payload,
+    _local_archive_result_payload,
+    _LocalArchiveInputError,
+)
 
 
 def version_cmd() -> None:
@@ -369,210 +380,6 @@ LOCAL_ARCHIVE_MALFORMED = 2
 LOCAL_ARCHIVE_SAFETY_REFUSAL = 3
 LOCAL_ARCHIVE_APPROVAL_MISMATCH = 4
 LOCAL_ARCHIVE_MAPPING_CONFLICT = 5
-_LOCAL_ARCHIVE_SCHEMA_VERSION = 1
-_LOCAL_ARCHIVE_ACTIONS = {"move", "retain", "review", "refuse"}
-_LOCAL_ARCHIVE_LIFECYCLES = {"active", "done", "stale", "unknown"}
-_LOCAL_ARCHIVE_PROTECTIONS = {"allowed", "protected", "unsafe", "ambiguous"}
-_LOCAL_ARCHIVE_INDEX_LINE = re.compile(r"- `([^`]+)` ← `([^`]+)`")
-
-
-class _LocalArchiveInputError(ValueError):
-    """Raised when a plan file is not a valid local-archive artifact."""
-
-
-def _local_archive_finding(finding: object) -> dict[str, str]:
-    return {"code": finding.code, "message": finding.message}
-
-
-def _local_archive_entry_payload(entry: object) -> dict[str, object]:
-    return {
-        "source": entry.source,
-        "destination": entry.destination,
-        "cluster_key": entry.cluster_key,
-        "classification": entry.classification,
-        "action": entry.action,
-        "protection": entry.protection.value,
-        "protection_reason": entry.protection_reason,
-        "findings": [_local_archive_finding(finding) for finding in entry.findings],
-    }
-
-
-def _local_archive_plan_payload(plan: object) -> dict[str, object]:
-    return {
-        "artifact_type": "task-archive-plan",
-        "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
-        "source_boundary": plan.source_boundary,
-        "fingerprint": plan.fingerprint,
-        "entries": [_local_archive_entry_payload(entry) for entry in plan.entries],
-        "findings": [_local_archive_finding(finding) for finding in plan.findings],
-    }
-
-
-def _local_archive_result_payload(result: object) -> dict[str, object]:
-    return {
-        "artifact_type": "task-archive-result",
-        "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
-        "applied": [_local_archive_entry_payload(entry) for entry in result.applied],
-        "mappings": [
-            {
-                "sequence": mapping.sequence,
-                "source": mapping.source,
-                "destination": mapping.destination,
-                "reason": mapping.reason,
-                "timestamp": mapping.timestamp,
-            }
-            for mapping in result.mappings
-        ],
-        "findings": [_local_archive_finding(finding) for finding in result.findings],
-        "refused": result.refused,
-        "success": result.success,
-        "index_path": result.index_path,
-    }
-
-
-def _local_archive_json(payload: object) -> str:
-    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-
-
-def _local_archive_require_text(
-    value: object, *, field: str, entry_number: int | None = None
-) -> str:
-    if not isinstance(value, str) or not value:
-        prefix = f"entry {entry_number}: " if entry_number is not None else ""
-        raise _LocalArchiveInputError(f"{prefix}{field} must be a non-empty string")
-    return value
-
-
-def _local_archive_validate_path(value: str, *, field: str, entry_number: int) -> None:
-    path = PurePosixPath(value)
-    if "\\" in value or path.is_absolute() or ".." in path.parts:
-        raise _LocalArchiveInputError(
-            f"entry {entry_number}: {field} must be repository-relative POSIX"
-        )
-    if not value.startswith(".local/tasks/"):
-        raise _LocalArchiveInputError(f"entry {entry_number}: {field} is outside .local/tasks")
-
-
-def _local_archive_findings(
-    payload: object, *, entry_number: int | None = None
-) -> tuple[object, ...]:
-    from devolaflow.local.archive import Finding
-
-    if payload is None:
-        return ()
-    if not isinstance(payload, list):
-        prefix = f"entry {entry_number}: " if entry_number is not None else ""
-        raise _LocalArchiveInputError(f"{prefix}findings must be a list")
-    findings: list[Finding] = []
-    for finding_number, item in enumerate(payload):
-        if not isinstance(item, dict):
-            raise _LocalArchiveInputError(
-                f"finding {finding_number} in entry {entry_number} must be a mapping"
-            )
-        code = _local_archive_require_text(item.get("code"), field="finding code")
-        message = _local_archive_require_text(item.get("message"), field="finding message")
-        findings.append(Finding(code=code, message=message))
-    return tuple(findings)
-
-
-def _local_archive_plan_from_payload(payload: object) -> object:
-    from devolaflow.local.archive import (
-        ArchivePlan,
-        PlanEntry,
-        ProtectionVerdict,
-    )
-
-    if not isinstance(payload, dict):
-        raise _LocalArchiveInputError("plan must be a mapping")
-    if payload.get("artifact_type") != "task-archive-plan":
-        raise _LocalArchiveInputError("artifact_type must be task-archive-plan")
-    if payload.get("schema_version") != _LOCAL_ARCHIVE_SCHEMA_VERSION:
-        raise _LocalArchiveInputError("schema_version must be 1")
-    if payload.get("source_boundary") != ".local/tasks":
-        raise _LocalArchiveInputError("source_boundary must be .local/tasks")
-    entries_payload = payload.get("entries")
-    if not isinstance(entries_payload, list):
-        raise _LocalArchiveInputError("entries must be a list")
-
-    entries: list[PlanEntry] = []
-    for entry_number, item in enumerate(entries_payload):
-        if not isinstance(item, dict):
-            raise _LocalArchiveInputError(f"entry {entry_number} must be a mapping")
-        source = _local_archive_require_text(
-            item.get("source"), field="source", entry_number=entry_number
-        )
-        destination = _local_archive_require_text(
-            item.get("destination"), field="destination", entry_number=entry_number
-        )
-        _local_archive_validate_path(source, field="source", entry_number=entry_number)
-        _local_archive_validate_path(destination, field="destination", entry_number=entry_number)
-        cluster_key = _local_archive_require_text(
-            item.get("cluster_key"), field="cluster_key", entry_number=entry_number
-        )
-        classification = _local_archive_require_text(
-            item.get("classification"), field="classification", entry_number=entry_number
-        )
-        action = _local_archive_require_text(
-            item.get("action"), field="action", entry_number=entry_number
-        )
-        protection = _local_archive_require_text(
-            item.get("protection"), field="protection", entry_number=entry_number
-        )
-        protection_reason = item.get("protection_reason")
-        if not isinstance(protection_reason, str):
-            raise _LocalArchiveInputError(
-                f"entry {entry_number}: protection_reason must be a string"
-            )
-        if classification not in _LOCAL_ARCHIVE_LIFECYCLES:
-            raise _LocalArchiveInputError(f"entry {entry_number}: invalid classification")
-        if action not in _LOCAL_ARCHIVE_ACTIONS:
-            raise _LocalArchiveInputError(f"entry {entry_number}: invalid action")
-        if protection not in _LOCAL_ARCHIVE_PROTECTIONS:
-            raise _LocalArchiveInputError(f"entry {entry_number}: invalid protection")
-        entries.append(
-            PlanEntry(
-                source=source,
-                destination=destination,
-                cluster_key=cluster_key,
-                classification=classification,
-                action=action,
-                protection=ProtectionVerdict(protection),
-                protection_reason=protection_reason,
-                findings=_local_archive_findings(item.get("findings"), entry_number=entry_number),
-            )
-        )
-
-    findings = _local_archive_findings(payload.get("findings"))
-    plan = ArchivePlan(
-        entries=tuple(entries),
-        findings=findings,
-        source_boundary=".local/tasks",
-    )
-    fingerprint = payload.get("fingerprint")
-    if fingerprint is not None and (
-        not isinstance(fingerprint, str) or fingerprint != plan.fingerprint
-    ):
-        raise _LocalArchiveInputError("fingerprint does not match plan contents")
-    return plan
-
-
-def _local_archive_load_plan(path: Path) -> object:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise _LocalArchiveInputError(f"cannot read plan: {path}: {exc}") from exc
-    try:
-        payload = json.loads(text)
-    except json.JSONDecodeError:
-        try:
-            import yaml
-        except ImportError as exc:
-            raise _LocalArchiveInputError(f"cannot parse plan: {path}: {exc}") from exc
-        try:
-            payload = yaml.safe_load(text)
-        except yaml.YAMLError as exc:
-            raise _LocalArchiveInputError(f"cannot parse plan: {path}: {exc}") from exc
-    return _local_archive_plan_from_payload(payload)
 
 
 def _local_archive_exit_code(
@@ -604,11 +411,13 @@ def _local_archive_exit_code(
         "DESTINATION_EXISTS",
         "UNREADABLE_SOURCE",
         "GIT_INSPECTION_ERROR",
+        "CROSS_DEVICE",
         "HUMAN_INDEX",
         "INDEX_DRIFT",
         "INDEX_MISSING",
         "MAPPING_DESTINATION_MISSING",
         "MAPPING_SOURCE_PRESENT",
+        "PARTIAL_APPLY",
     }:
         return LOCAL_ARCHIVE_SAFETY_REFUSAL
     if findings or not success or refused:
@@ -685,12 +494,7 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
                 "MAPPING_SEQUENCE", "mapping sequences must be strictly increasing"
             )
         )
-    mapped_destinations = {mapping.destination for mapping in mappings}
-    expected_pairs = {
-        (entry.destination, entry.source)
-        for entry in plan.entries
-        if not (entry.source == entry.destination and entry.source in mapped_destinations)
-    }
+    expected_pairs: set[tuple[str, str]] = set()
     for mapping in mappings:
         pair = (mapping.destination, mapping.source)
         expected_pairs.add(pair)
@@ -722,7 +526,7 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
         findings.append(
             archive_module.Finding(
                 "INDEX_DRIFT",
-                "generated index entries do not match plan and mapping records",
+                "generated index entries do not match authoritative mapping records",
             )
         )
 
@@ -735,7 +539,7 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
 
 
 def _local_archive_doctor(root: Path, plan_path: Path | None) -> tuple[dict[str, object], int]:
-    from devolaflow.local.archive import build_archive_plan
+    from devolaflow.local.archive import ArchiveApproval, build_archive_plan
 
     try:
         plan = (
@@ -743,6 +547,8 @@ def _local_archive_doctor(root: Path, plan_path: Path | None) -> tuple[dict[str,
             if plan_path is not None
             else build_archive_plan(root)
         )
+        if isinstance(plan, ArchiveApproval):
+            raise _LocalArchiveInputError("doctor requires a task-archive-plan artifact")
     except _LocalArchiveInputError as exc:
         payload = {
             "artifact_type": "task-archive-doctor",
@@ -815,11 +621,24 @@ def local_archive_cmd() -> None:
         print(_local_archive_json(payload), end="")
         sys.exit(LOCAL_ARCHIVE_MALFORMED)
 
-    from devolaflow.local.archive import ArchiveError, apply_archive_plan
+    from devolaflow.local.archive import (
+        ArchiveApproval,
+        ArchiveError,
+        apply_archive_plan,
+        build_archive_plan,
+    )
 
-    approved_entries = tuple(entry for entry in plan.entries if entry.action == "move")
+    approved = (
+        plan
+        if isinstance(plan, ArchiveApproval)
+        else tuple(entry for entry in plan.entries if entry.action == "move")
+    )
     try:
-        result = apply_archive_plan(root, plan, approved_entries)
+        if isinstance(plan, ArchiveApproval):
+            current_plan = build_archive_plan(root)
+            result = apply_archive_plan(root, current_plan, approved)
+        else:
+            result = apply_archive_plan(root, plan, approved)
     except ArchiveError as exc:
         payload = {
             "artifact_type": "task-archive-result",

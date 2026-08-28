@@ -14,10 +14,11 @@ their argument lists at every call site; testing the byte-identical-when-
 bypassed invariant required separate fixtures per primitive.
 
 This module unifies the 6 transforms behind a single :class:`CompressionStage`
-protocol — ``transform(payload, context) -> payload`` — and a
+protocol — ``should_bypass(payload, context) -> bool`` plus
+``transform(payload, context) -> payload`` — and a
 :class:`CompressionPipeline` orchestrator that chains stages in order. The
 orchestrator is a pure-Python sequential reducer: when ``stages`` is empty
-(or every stage's ``bypass`` predicate returns ``True``), the pipeline is
+(or every stage's ``should_bypass`` predicate returns ``True``), the pipeline is
 **byte-identical to passing the input through unmodified** — this is the R5
 strict invariant the v9-ADR-006 tests pin (see
 ``tests/test_compression_pipeline.py::test_empty_pipeline_is_byte_identical``
@@ -32,8 +33,8 @@ P6-safe (A-2 Cache-Layout Governance v2): this module adds NO new top-level
 dispatch keys, NO new NESTED dispatch fields, and NO new env-flags. The
 pipeline composes existing transforms; adopters who want to invoke the
 pipeline thread the existing per-transform kwargs through the stage's
-``params`` dict instead of through bespoke function arguments. The 16-key
-canonical_order + schema version 5 stay byte-identical (verified by
+``params`` dict instead of through bespoke function arguments. The 17-key
+canonical_order + schema version 6 stay byte-identical (verified by
 ``tests/test_layout_invariant_multi_baseline.py``).
 
 S-5 (No Silent Failures): every stage MAY raise; the pipeline catches and
@@ -106,17 +107,19 @@ activation condition.
 
 @runtime_checkable
 class _CompressionStageProtocol(Protocol):
-    """Structural protocol that any object implementing ``transform`` satisfies.
+    """Structural protocol that any object implementing the stage surface satisfies.
 
     Defined as a ``Protocol`` so the orchestrator can accept both
     :class:`CompressionStage` dataclass instances AND third-party objects
-    that expose the same ``name`` / ``transform`` / ``bypass_conditions``
+    that expose the same ``name`` / ``transform`` / ``should_bypass``
     surface (e.g. a future plugin module).
     """
 
     name: str
 
     def transform(self, payload: Any, context: Mapping[str, Any]) -> Any: ...
+
+    def should_bypass(self, payload: Any, context: Mapping[str, Any]) -> bool: ...
 
 
 class CompressionStageError(RuntimeError):
@@ -323,8 +326,8 @@ class CompressionPipeline:
     3. **Single stage that returns input** → ``payload`` returned
        unchanged (``test_identity_stage_is_byte_identical``).
     4. **Stages run in declaration order** — the pipeline is a
-       deterministic sequential reducer; stages do NOT see each other's
-       inputs (only the running payload + the shared context dict).
+       deterministic sequential reducer; each stage sees the running payload
+       produced by its predecessor plus the shared context dict.
 
     P6-safe: pipeline construction does NOT touch any module-level state,
     does NOT load files, does NOT spawn subprocesses, does NOT validate
@@ -347,10 +350,15 @@ class CompressionPipeline:
             object.__setattr__(self, "stages", tuple(self.stages))
         seen_names: set[str] = set()
         for idx, stage in enumerate(self.stages):
-            if not hasattr(stage, "name") or not hasattr(stage, "transform"):
+            if (
+                not hasattr(stage, "name")
+                or not callable(getattr(stage, "transform", None))
+                or not callable(getattr(stage, "should_bypass", None))
+            ):
                 raise TypeError(
                     f"CompressionPipeline.stages[{idx}] does not satisfy the "
-                    f"_CompressionStageProtocol (missing 'name' or 'transform'); "
+                    f"_CompressionStageProtocol (requires callable "
+                    f"'transform' and 'should_bypass' plus a 'name'); "
                     f"got {type(stage).__name__}"
                 )
             if stage.name in seen_names:
@@ -409,19 +417,24 @@ class CompressionPipeline:
         failed_names: list[str] = []
 
         for stage in self.stages:
-            if stage.should_bypass(running_payload, ctx):
-                results.append(
-                    StageResult(
-                        name=stage.name,
-                        bypassed=True,
-                        applied=False,
-                        error=None,
-                        telemetry={"reason": "bypass_predicate"},
-                    )
-                )
-                bypassed_names.append(stage.name)
-                continue
             try:
+                bypassed = stage.should_bypass(running_payload, ctx)
+                if not isinstance(bypassed, bool):
+                    raise TypeError(
+                        f"should_bypass MUST return bool; got {type(bypassed).__name__}"
+                    )
+                if bypassed:
+                    results.append(
+                        StageResult(
+                            name=stage.name,
+                            bypassed=True,
+                            applied=False,
+                            error=None,
+                            telemetry={"reason": "bypass_predicate"},
+                        )
+                    )
+                    bypassed_names.append(stage.name)
+                    continue
                 pre_payload = running_payload
                 new_payload = stage.transform(pre_payload, ctx)
             except Exception as exc:  # noqa: BLE001 - S-5: log + classify

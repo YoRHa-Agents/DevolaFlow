@@ -96,10 +96,12 @@ def test_change_entrance_onboarding_router(tmp_path: Path, monkeypatch: pytest.M
         "evidence",
     }
 
-    # Round-trip guard: a pre-v17.2 folder (no entrance.md) does NOT gain
-    # the file through a Change load/store cycle.
+    # Backfill guard (v20.0.x fix): a folder without entrance.md GAINS the
+    # scaffold-template router through a Change load/store cycle, so the
+    # onboarding entry point always lands with the planning artifacts.
     loaded = Change.from_active_folder(scaffold)
     assert loaded.entrance_md == ""
     rewritten_target = tmp_path / "rewritten"
     loaded.to_active_folder(rewritten_target)
-    assert not (rewritten_target / "entrance.md").exists()
+    backfilled = (rewritten_target / "entrance.md").read_text(encoding="utf-8")
+    assert backfilled == _entrance_md(scaffold.name, f"Complete {scaffold.name}")

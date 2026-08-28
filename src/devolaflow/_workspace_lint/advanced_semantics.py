@@ -501,8 +501,9 @@ def _check_entrance(
     """Validate the entrance.md onboarding router (change-entrance schema).
 
     A missing file yields ``ENTRANCE_MISSING`` at WARN severity — pre-v17.2
-    folders are backfilled on first resume (design D-4), so absence must not
-    flip the lint exit code. A present-but-malformed file fails loud (S-5).
+    folders are backfilled by the next canonical store write
+    (``Change.to_active_folder``, design D-4), so absence must not flip the
+    lint exit code. A present-but-malformed file fails loud (S-5).
     """
     result = _read_artifact(change_folder, "entrance.md", report, cache)
     if result.state == "missing":

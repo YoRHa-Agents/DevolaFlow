@@ -869,6 +869,37 @@ class TestReporterCli:
         assert "Agent Workspace Status" in captured.out
         assert not (workspace / ".local" / ".agent" / "REPORT.md").exists()
 
+    def test_cli_main_now_flag_pins_clock_and_rejects_malformed(self, capsys, workspace: Path):
+        """`--now <iso>` yields byte-identical output; malformed values exit 2."""
+        argv = [
+            "--workspace",
+            "--repo-root",
+            str(workspace),
+            "--print",
+            "--now",
+            "2026-08-28T00:00:00Z",
+        ]
+        assert reporter_main(argv) == 0
+        first = capsys.readouterr().out
+        assert reporter_main(argv) == 0
+        second = capsys.readouterr().out
+        assert "Last updated: 2026-08-28T00:00:00Z" in first
+        assert first == second
+
+        with pytest.raises(SystemExit) as excinfo:
+            reporter_main(
+                [
+                    "--workspace",
+                    "--repo-root",
+                    str(workspace),
+                    "--print",
+                    "--now",
+                    "not-a-datetime",
+                ]
+            )
+        assert excinfo.value.code == 2
+        assert "--now must be an ISO-8601 datetime" in capsys.readouterr().err
+
     def test_cli_main_all_flag(self, workspace: Path):
         """`reporter_main(['--all'])` regenerates every report."""
         _scaffold_rules(workspace / ".rules")

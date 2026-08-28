@@ -5,6 +5,73 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [20.0.0] - 2026-08-28 — MAJOR — Functional Test System
+
+Evidence: [gap analysis](.local/research/loop3_functional_test_system_gap_analysis.md),
+the [W-17 reconciliation](.local/research/loop3_w17_reconciliation.md), and the
+[harness evaluation](.local/research/v20.0.0_harness_evaluation.json) (archived
+under `docs/cycle-archive/v20.0.0/` at cycle close). The current-cycle ghost
+audit is `tests/ghost/test_features_v20_0.py`.
+
+### Added
+
+- **Functional test matrix (SSOT)**: `tests/functional/matrix.yaml` traces
+  design expectations to behavioral tests across 46 rows — 13 console scripts,
+  maintained `python -m` entrypoints, the installed-wheel public API import
+  contract, and the offline npm channel (`npm pack` → temp install → dry-run
+  smoke; explicit skip when node is absent).
+- **Parametrized functional runner**: `tests/functional/runner.py` registers
+  check callables per row; slow tiers (wheel, npm) carry pytest markers and run
+  in release preflight while `test-core` excludes them.
+- **Hard-fail matrix contract gate**: `scripts/check_functional_matrix.py`
+  validates schema, unique IDs, adapter registration, repository-relative
+  paths, and console/module inventory parity; wired into `release-preflight`
+  and `make all` as `check-functional-matrix`.
+- **Deterministic reporter clock**: `devolaflow.agent_workspace.reporter`
+  accepts `--now <iso>` to pin the render clock, making captured artifacts
+  byte-identical across runs.
+
+### Changed
+
+- **Adjudicated behavior-design closures (B4)**: a skipped required check can
+  no longer score as a standard-profile PASS; explicit zero parallelism is
+  rejected while an async dispatch companion is exposed; handoff envelopes use
+  exclusive-create semantics; proposal targets reject traversal and absolute
+  paths; third-party compression stages must implement `should_bypass`;
+  archive apply requires an explicit approval artifact.
+- **Plugin decoupling (O-13)**: all five plugins (`ui-pro`, `rtk`, `si-chip`,
+  `codegraph`, `impeccable`) remain suggest-tier with explicit optional
+  install profiles; the derived capability/role/stage view keeps parity with
+  the registry SSOT.
+- **Coverage policy settlement (S-3)**: the compiled rule corpus now states
+  the 90% global target and the 75% per-module floor.
+- **Entrance router always generated**: `Change.to_active_folder` now
+  backfills `entrance.md` from the scaffold template (new SSOT:
+  `devolaflow.agent_workspace.entrance`) whenever the change lacks one, so
+  the onboarding router always lands alongside the goal/checklist/stage/
+  preflight planning artifacts — the design D-4 backfill promise previously
+  had no runtime owner. A populated router still round-trips verbatim.
+
+### Metrics
+
+- The archived evaluator result is **READY**, with a **9.17/10** composite
+  (above the 9.0 MAJOR threshold). Current measurements are
+  `coverage_pct: 91.0`, `suite_wall_seconds: 207.77332387500792`,
+  `cjk_violations: 0`, `ghost_loc: 12414`, and `agents_md_tokens: 10857`.
+  Matched historical deltas remain `INSUFFICIENT`.
+- Suite: 5,516 passing tests with 91.26% coverage (90% floor). The functional
+  matrix contributes 91 collected cases over 46 rows; the cycle added 46 new
+  test functions (W-17: ≤30 per PV, ≤150 per cycle — max wave was 14). The
+  evaluator's single-base-ref w17 probe observes 64 and stays a documented
+  process finding in the W-17 reconciliation.
+
+### Deferred / insufficient evidence
+
+- The curl channel and host-adapter consumer side stay out of scope for this
+  loop, as adjudicated in the SI-1 gap analysis.
+- The `remove+decouple` plugin path was not exercised; no plugin met the
+  removal bar.
+
 ## [19.0.0] - 2026-08-28 — MAJOR — Full-Repo Review Loop
 
 Evidence: [gap analysis](docs/cycle-archive/v19.0.0/v19.0.0_gap_analysis.md),

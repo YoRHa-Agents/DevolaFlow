@@ -1656,7 +1656,9 @@ class TestV1250CodegraphRegistration:
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
         assert codegraph is not None
-        assert codegraph.install_methods.get("npm") == ("npm install -g @colbymchenry/codegraph")
+        assert codegraph.install_methods.get("npm") == (
+            "npm install -g @colbymchenry/codegraph@latest"
+        )
         assert "install.sh" in codegraph.install_methods.get("script", "")
 
     def test_codegraph_capabilities(self) -> None:

@@ -29,6 +29,7 @@ top-severity violation rather than just the first handler's top.
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -353,11 +354,39 @@ def run_hooks(
     for handler in handlers:
         # Always invoke handlers in permissive mode — the aggregator
         # below decides whether to escalate to a raise based on the
-        # caller's `strict` flag and the merged violation set.
-        result = handler(payload, strict=False)
-        aggregate.violations.extend(result.violations)
-        if not result.passed:
+        # caller's `strict` flag and the merged violation set. Each handler
+        # receives an isolated copy so lifecycle hooks cannot mutate the
+        # dispatch payload bytes.
+        handler_name = getattr(
+            handler,
+            "__qualname__",
+            getattr(handler, "__name__", type(handler).__name__),
+        )
+        try:
+            result = handler(copy.deepcopy(payload), strict=False)
+            if not isinstance(result, HookResult):
+                raise TypeError(f"handler returned {type(result).__name__}, expected HookResult")
+            aggregate.violations.extend(result.violations)
+            if not result.passed:
+                aggregate.passed = False
+        except Exception as exc:  # noqa: BLE001 - isolate buggy extensions
+            message = f"hook handler {handler_name!r} raised {type(exc).__name__}: {exc}"
+            violation = HookViolation(
+                "LIFECYCLE_HANDLER_EXCEPTION",
+                message,
+                severity="error",
+                context={"handler": handler_name, "exception": type(exc).__name__},
+            )
+            logger.warning("[hook=%s] isolating handler failure: %s", event, message)
+            aggregate.violations.append(violation)
             aggregate.passed = False
+            aggregate.metadata.setdefault("handler_errors", []).append(
+                {
+                    "handler": handler_name,
+                    "exception": type(exc).__name__,
+                    "message": str(exc),
+                }
+            )
 
     if not aggregate.passed and strict:
         top = aggregate.top_violation()

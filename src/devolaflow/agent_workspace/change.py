@@ -23,24 +23,19 @@ Round-trip contract (AC-2 of v8.2.5 patch_plan):
 * Frontmatter ordering inside ``STATUS.yaml`` is preserved via
   ``insertion_order`` semantics on ``yaml.safe_dump`` with
   ``sort_keys=False``.
-* ``learnings.jsonl`` is an opaque JSONL blob; it is copied verbatim
-  on round-trip (parsing is the consumer's responsibility — the
-  ``learnings.py`` module already handles JSONL semantics).
+* ``learnings.jsonl`` is an opaque JSONL blob copied verbatim on round-trip
+  (parsing belongs to ``learnings.py``).
 
-Public API:
-
-* :class:`Change` — dataclass mirroring the on-disk artifact set.
-* :class:`ChangeStore` — list / get / move / transition_state.
-* :exc:`ChangeStoreError` — generic store-side error.
-* :exc:`ChangeNotFoundError` — raised when a change-id is not found.
-* :exc:`LegacyChangeLayoutError` — raised for removed pre-v16 layouts.
+Public API: :class:`Change` (dataclass mirroring the on-disk artifact set),
+:class:`ChangeStore` (list / get / move / transition_state), and the
+:exc:`ChangeStoreError` / :exc:`ChangeNotFoundError` /
+:exc:`LegacyChangeLayoutError` error types.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-import shutil
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -48,6 +43,15 @@ from pathlib import Path
 from typing import Final
 
 import yaml
+
+from devolaflow._durability import (
+    DurabilityError,
+    durable_move_directory,
+    ensure_same_device,
+)
+from devolaflow._durability import (
+    fsync_directory as _fsync_directory,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -230,8 +234,8 @@ class Change:
     stage_md: str = ""
     preflight_md: str = ""
     evidence_files: dict[str, str] = field(default_factory=dict)
-    # Agent onboarding entry point (v17.2.0). Empty string means absent —
-    # pre-v17.2 folders round-trip byte-identically without gaining the file.
+    # Agent onboarding entry point (v17.2.0). Empty string means the source
+    # folder lacked the file; ``to_active_folder`` backfills the scaffold.
     entrance_md: str = ""
 
     @property
@@ -361,6 +365,9 @@ class Change:
           contract from ``schemas/agent-workspace/owned-files.yaml``.
         * Empty / absent ``learnings.jsonl`` is NOT written (the schema
           treats it as opt-in).
+        * A source folder WITHOUT ``entrance.md`` gains one on write: the
+          onboarding router is backfilled from the scaffold template
+          (design D-4 backfill; v20.0.x fix).
         """
         folder_path = Path(folder)
         layout = ChangeLayout(self.layout)
@@ -390,12 +397,9 @@ class Change:
         def _write(name: str, text: str, *, newline: str | None = None) -> None:
             """Write one artifact through the hooked write surface (ADR-003).
 
-            Fires the ``file_write`` lifecycle hook BEFORE the write per
-            ADR-003 (STRICT default since v15.0.0 — an S-8 ownership
-            violation raises ``HookViolation`` and BLOCKS the write;
-            byte-identical no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` !=
-            "1"), then performs the exact pre-v14.3.0
-            ``Path.write_text`` call.
+            Fires the ``file_write`` lifecycle hook BEFORE the write (see
+            :func:`_fire_file_write_hook`), then performs the exact
+            pre-v14.3.0 ``Path.write_text`` call.
             """
             target = folder_path / name
             _fire_file_write_hook(target, self.owned_files, folder_path)
@@ -404,15 +408,20 @@ class Change:
             else:
                 target.write_text(text, encoding="utf-8", newline=newline)
 
+        from devolaflow.agent_workspace.entrance import derive_goal_title, render_entrance_md
+
         _write("goal.md", self.goal_md)
         _write("checklist.md", self.checklist_md)
         _write("stage.md", self.stage_md)
         _write("preflight.md", self.preflight_md)
         _write("spec.md", self.spec_md)
-        # Opt-in like learnings.jsonl: absent entrance stays absent so
-        # pre-v17.2 folders round-trip byte-identically.
-        if self.entrance_md:
-            _write("entrance.md", self.entrance_md)
+        # A loaded entrance round-trips verbatim; an absent one is backfilled
+        # from the scaffold template (design D-4).
+        entrance_text = self.entrance_md or render_entrance_md(
+            self.change_id,
+            derive_goal_title(self.goal_md, self.change_id),
+        )
+        _write("entrance.md", entrance_text)
 
         status_yaml = yaml.safe_dump(
             self.status,
@@ -530,28 +539,18 @@ def _fire_file_write_hook(
     """Fire the ``file_write`` lifecycle hook for one artifact write.
 
     Production call site for
-    :func:`devolaflow.lifecycle.runtime_wiring.fire_file_write` per
-    ADR-003 (``docs/cycle-archive/adr/v15-ADR-003-output-closure-
-    enforcement-locus.md``): ``Change.to_active_folder`` IS the
-    framework's change-driven write surface, so every artifact write
-    runs through the hook BEFORE touching disk. STRICT by default
-    since v15.0.0 (G-038 graduation per ADR-003 §Decision 3): the call
-    defers to ``fire_file_write``'s own strict default, so an S-8
-    ownership violation raises :class:`HookViolation` (block +
-    escalate, S-8 "mode: full") and the write never happens. Opt-out
-    is the adapter's explicit ``strict=False`` parameter (S-8 "mode:
-    lite"). Still a byte-identical zero-IO no-op when
-    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse — the
-    activation gate is UNCHANGED).
-
-    Per the S-5 isolation pattern established by
-    ``feedback_emit.ProposalEmitter._fire_hook_chain``, a buggy hook
-    handler (any exception OTHER than the strict-mode
-    :class:`HookViolation`) is logged at WARNING and the write
-    proceeds — infrastructure bugs MUST NOT break the change-driven
-    flow, but a real S-8 violation MUST. Lazy import keeps the
-    no-cycle property between ``agent_workspace`` and ``lifecycle``
-    (mirrors ``auto_write_handoff``'s lazy reverse import).
+    :func:`devolaflow.lifecycle.runtime_wiring.fire_file_write` per ADR-003:
+    ``Change.to_active_folder`` IS the framework's change-driven write
+    surface, so every artifact write runs through the hook BEFORE touching
+    disk. STRICT by default since v15.0.0 (G-038 graduation): an S-8
+    ownership violation raises :class:`HookViolation` and blocks the write;
+    ``strict=False`` is the adapter's explicit opt-out (S-8 "mode: lite").
+    Byte-identical zero-IO no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1"
+    (W-20 flag reuse). Per the S-5 isolation pattern
+    (``feedback_emit.ProposalEmitter._fire_hook_chain``), a buggy handler —
+    any exception other than :class:`HookViolation` — is logged at WARNING
+    and the write proceeds. The lazy import keeps the no-cycle property
+    between ``agent_workspace`` and ``lifecycle``.
     """
     from devolaflow.lifecycle.dispatcher import HookViolation
     from devolaflow.lifecycle.runtime_wiring import fire_file_write
@@ -873,21 +872,16 @@ class ChangeStore:
         return updated
 
     def move_to_archive(self, change_id: str, *, archive_date: str | None = None) -> Path:
-        """Atomically move ``active/<id>/`` → ``archive/<date>-<id>/``.
+        """Atomically and durably move ``active/<id>/`` → archive.
 
-        Args:
-          change_id: id of the active change to archive.
-          archive_date: explicit ``YYYY-MM-DD`` prefix (defaults to today's
-            UTC date). Pinning the date is useful for tests + replay.
-
-        Returns:
-          The archive folder path.
+        ``archive_date`` pins the ``YYYY-MM-DD`` prefix (defaults to today's
+        UTC date; useful for tests + replay). Returns the archive folder path.
 
         Raises:
           ChangeNotFoundError: when ``change_id`` is not active.
-          ChangeStoreError: when the archive target already exists (idempotency
-            is the caller's contract — see
-            :meth:`ArchiveManager.archive`).
+          ChangeStoreError: when the archive target exists, the paths sit on
+            different devices, or durability cannot be established
+            (cross-device copy/delete would break the atomic move contract).
         """
         active_path = self.active_root / change_id
         if not active_path.is_dir():
@@ -901,6 +895,11 @@ class ChangeStore:
                 f"archive target {archive_target!s} already exists; "
                 f"refusing to overwrite (delete or rename to retry)"
             )
-        archive_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(active_path), str(archive_target))
+        try:
+            ensure_same_device(active_path, archive_target.parent)
+            archive_target.parent.mkdir(parents=True, exist_ok=True)
+            ensure_same_device(active_path, archive_target.parent)
+            durable_move_directory(active_path, archive_target, fsync=_fsync_directory)
+        except DurabilityError as exc:
+            raise ChangeStoreError(str(exc)) from exc
         return archive_target

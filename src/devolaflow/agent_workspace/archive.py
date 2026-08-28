@@ -50,8 +50,11 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from devolaflow.agent_workspace.archive_recovery import (
+    ArchiveAttemptGuard,
+    ArchiveRollbackError,
+)
 from devolaflow.agent_workspace.change import (
     Change,
     ChangeNotFoundError,
@@ -64,9 +67,6 @@ from devolaflow.agent_workspace.delta_parser import (
     parse_delta_spec,
 )
 from devolaflow.learnings import Learning, consolidate_session
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +91,9 @@ GATE_THRESHOLD_DEFAULT: float = 8.5
 GATE_THRESHOLD_MAJOR: float = 9.0
 
 # Harness-construction archive gate (design §4, decision 5). A change is
-# harness-flagged iff HARNESS_PREFLIGHT_FILENAME exists in its change
-# folder — artifact-as-contract: no dispatch schema field, no env flag
-# (W-20 reuse-first). Flagged changes REQUIRE the capability review
-# artifact to exist and be non-empty at archive time; the review's delta
-# VALUES are trend signals and are never gated on (mirrors the composite
-# score "recorded trend, not a PASS condition" philosophy).
+# harness-flagged iff HARNESS_PREFLIGHT_FILENAME exists in its change folder
+# (artifact-as-contract; W-20 reuse-first). Flagged changes REQUIRE a
+# non-empty capability review at archive time; delta VALUES are trends only.
 HARNESS_PREFLIGHT_FILENAME: str = "harness_preflight.md"
 HARNESS_CAPABILITY_REVIEW_RELPATH: str = "evidence/harness_capability_review.md"
 
@@ -320,22 +317,39 @@ class ArchiveManager:
             )
 
         active_path = self.store.active_root / change_id
+        guard = ArchiveAttemptGuard.capture(
+            change_id=change_id,
+            active_path=active_path,
+            global_path=self._resolved_global_learnings,
+        )
 
-        # Harness-construction archive gate: runs BEFORE any STATUS
-        # mutation so a failed gate leaves the active folder untouched.
-        # Non-flagged changes pay exactly one flag-file existence test.
-        self._guard_harness_capability_review(change_id, active_path)
+        try:
+            # Harness-construction archive gate: runs BEFORE any STATUS
+            # mutation so a failed gate leaves the active folder untouched.
+            # Non-flagged changes pay exactly one flag-file existence test.
+            self._guard_harness_capability_review(change_id, active_path)
 
-        # Step 1: rewrite STATUS.yaml so state == ARCHIVED before the move.
-        # The Change.with_state call enforces the legal transition matrix.
-        archived_change = change.with_state("ARCHIVED")
-        archived_change.to_active_folder(active_path)
+            # Step 1: rewrite STATUS.yaml so state == ARCHIVED before the move.
+            # The Change.with_state call enforces the legal transition matrix.
+            archived_change = change.with_state("ARCHIVED")
+            guard.mutation_started = True
+            archived_change.to_active_folder(active_path)
 
-        # Step 2: physically move the folder.
-        archive_target = self.store.move_to_archive(change_id, archive_date=archive_date)
+            # Step 2: physically move the folder.
+            archive_target = self.store.move_to_archive(change_id, archive_date=archive_date)
+            guard.archive_target = archive_target
 
-        # Step 3: consolidate per-change learnings into the global JSONL.
-        counts = self._consolidate_change_learnings(change_id, archive_target)
+            # Step 3: consolidate per-change learnings into the global JSONL.
+            counts = self._consolidate_change_learnings(change_id, archive_target)
+        except Exception as exc:
+            try:
+                guard.rollback()
+            except ArchiveRollbackError as rollback_exc:
+                raise ArchiveError(str(rollback_exc)) from rollback_exc
+            raise ArchiveError(
+                f"archive for {change_id!r} failed before completion; "
+                f"the active change was retained and recovery was verified: {exc}"
+            ) from exc
 
         # Step 4 (optional): build the proposed delta merge.
         proposal: ProposedMerge | None = None
@@ -371,21 +385,13 @@ class ArchiveManager:
     def _guard_harness_capability_review(self, change_id: str, active_path: Path) -> None:
         """Existence-only archive gate for harness-flagged changes.
 
-        A change is harness-flagged iff
-        :data:`HARNESS_PREFLIGHT_FILENAME` exists in its change folder
-        (artifact-as-contract — no dispatch schema field, no env flag).
-        Flagged changes REQUIRE :data:`HARNESS_CAPABILITY_REVIEW_RELPATH`
-        (produced by the ``harness gap --compare`` review flow) to exist
-        and be non-empty before the archive move. The review's delta
-        values are recorded trends only and are NOT inspected here.
-
-        Non-harness-flagged changes: a single flag-file existence test,
-        then byte-identical legacy behaviour — zero further IO.
-
-        Raises:
-          ArchiveError: when the change is harness-flagged but the
-            capability review artifact is missing or empty (loud per
-            S-5, naming the expected path verbatim).
+        A change is harness-flagged iff :data:`HARNESS_PREFLIGHT_FILENAME`
+        exists in its change folder (artifact-as-contract). Flagged changes
+        REQUIRE a non-empty :data:`HARNESS_CAPABILITY_REVIEW_RELPATH` (from
+        ``harness gap --compare``) before the move; delta values are trends
+        only and are NOT inspected here. Non-flagged changes pay a single
+        flag-file existence test. Raises :exc:`ArchiveError` (loud per S-5)
+        when the flagged review artifact is missing or empty.
         """
         flag_path = active_path / HARNESS_PREFLIGHT_FILENAME
         if not flag_path.is_file():
@@ -405,18 +411,11 @@ class ArchiveManager:
     def _auto_regenerate_reports(self, change_id: str, archive_path: Path) -> None:
         """Auto-regenerate per-change + workspace REPORT.md after archive.
 
-        v8.4.4 PV-04 — I-PV07-A closure. Permissive: any render failure
-        is logged at WARNING level via ``logger.warning`` but NEVER
-        raises out of :meth:`archive`. Two writes are attempted:
-
-        1. ``<archive_path>/REPORT.md`` — the per-change report rendered
-           by :func:`devolaflow.agent_workspace.reporter.render_change_report`.
-        2. ``.local/.agent/REPORT.md`` — the aggregate workspace report
-           rendered by
-           :func:`devolaflow.agent_workspace.reporter.render_workspace_report`.
-
-        S-5 (no silent failures): every failure path emits an explicit
-        WARNING log; no exceptions are silently swallowed.
+        v8.4.4 PV-04 — I-PV07-A closure. Permissive: any render failure is
+        logged at WARNING (S-5 — never silent) but NEVER raises out of
+        :meth:`archive`. Two writes are attempted: ``<archive_path>/REPORT.md``
+        (``reporter.render_change_report``) and ``.local/.agent/REPORT.md``
+        (``reporter.render_workspace_report``).
         """
         try:
             from devolaflow.agent_workspace.reporter import (

@@ -132,7 +132,7 @@ schemas:
     target_path_template: ".local/.agent/active/<change-id>/entrance.md"
     archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/entrance.md"
     format: markdown_with_frontmatter
-    summary: "Agent onboarding entry point — static scenario router to the other artifacts; never mirrors dynamic state (missing pre-v17.2 folders lint as WARN until backfilled)."
+    summary: "Agent onboarding entry point — static scenario router to the other artifacts; never mirrors dynamic state (missing pre-v17.2 folders lint as WARN until the next store write backfills them)."
     token_budget: { soft: 400, hard: 800, units: tokens }
 
   - id: pathfinder-report

@@ -24,22 +24,33 @@ All paths carried by public records are repository-relative POSIX strings.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import os
 import re
-import shutil
 import subprocess
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
+
+from devolaflow._durability import _same_device
+from devolaflow._durability import fsync_directory as _fsync_directory
+from devolaflow.local.archive_models import (
+    ArchiveApproval,
+    ArchiveError,
+    ArchivePlan,
+    ArchiveResult,
+    Finding,
+    Lifecycle,
+    MappingRecord,
+    PlanEntry,
+    ProtectionVerdict,
+    SafetyInspection,
+    TaskRecord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +62,7 @@ LIFECYCLE_VALUES = ("active", "done", "stale", "unknown")
 _STATUS_RE = re.compile(r"\bstatus\s*:\s*([A-Za-z_-]+)", re.IGNORECASE)
 _ID_RE = re.compile(r"\b(?:id|task[_ -]?id)\s*:\s*([^\s|]+)", re.IGNORECASE)
 _SAFE_KEY_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_INDEX_LINE_RE = re.compile(r"- `([^`]+)` ← `([^`]+)`")
 _KNOWN_METADATA_NAMES = (
     "task.yaml",
     "task.yml",
@@ -64,164 +76,6 @@ _KNOWN_METADATA_NAMES = (
     "TASK.md",
     "README.md",
 )
-
-
-class Lifecycle(StrEnum):
-    """The only lifecycle values understood by local-task archiving."""
-
-    ACTIVE = "active"
-    DONE = "done"
-    STALE = "stale"
-    UNKNOWN = "unknown"
-
-
-class ProtectionVerdict(StrEnum):
-    """Protection is independent from :class:`Lifecycle`."""
-
-    ALLOWED = "allowed"
-    PROTECTED = "protected"
-    UNSAFE = "unsafe"
-    AMBIGUOUS = "ambiguous"
-
-
-class ArchiveError(RuntimeError):
-    """Raised for malformed API input or an unsafe persistence request."""
-
-
-@dataclass(frozen=True)
-class Finding:
-    """A deterministic, machine-readable plan or safety finding."""
-
-    code: str
-    message: str
-
-
-@dataclass(frozen=True)
-class TaskRecord:
-    """One discovered task folder and its conservative classification."""
-
-    source: str
-    task_id: str
-    cluster_key: str
-    layout: str
-    lifecycle: Lifecycle
-    protection: ProtectionVerdict
-    protection_reason: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-    findings: tuple[Finding, ...] = ()
-
-    @property
-    def protected(self) -> bool:
-        """Return whether this record cannot be moved."""
-
-        return self.protection is not ProtectionVerdict.ALLOWED
-
-    @property
-    def classification(self) -> str:
-        """Return the lifecycle value as a schema-friendly string."""
-
-        return self.lifecycle.value
-
-
-@dataclass(frozen=True)
-class PlanEntry:
-    """A single explicit disposition in an archive plan."""
-
-    source: str
-    destination: str
-    cluster_key: str
-    classification: str
-    action: str
-    protection: ProtectionVerdict = ProtectionVerdict.ALLOWED
-    protection_reason: str = ""
-    findings: tuple[Finding, ...] = ()
-
-    @property
-    def key(self) -> tuple[str, str]:
-        """Return the immutable source/destination approval identity."""
-
-        return self.source, self.destination
-
-    @property
-    def protected(self) -> bool:
-        """Return whether the planned source is independently protected."""
-
-        return self.protection is not ProtectionVerdict.ALLOWED
-
-    @property
-    def lifecycle(self) -> Lifecycle:
-        """Return the plan classification as the lifecycle enum."""
-
-        return Lifecycle(self.classification)
-
-
-@dataclass(frozen=True)
-class ArchivePlan:
-    """Deterministic report-only output from :func:`build_archive_plan`."""
-
-    entries: tuple[PlanEntry, ...]
-    findings: tuple[Finding, ...] = ()
-    source_boundary: str = ".local/tasks"
-
-    @property
-    def fingerprint(self) -> str:
-        """Return a stable digest for audit logs and approval UIs."""
-
-        payload = [
-            {
-                "source": entry.source,
-                "destination": entry.destination,
-                "cluster_key": entry.cluster_key,
-                "classification": entry.classification,
-                "action": entry.action,
-                "findings": [(f.code, f.message) for f in entry.findings],
-            }
-            for entry in self.entries
-        ]
-        return hashlib.sha256(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
-        ).hexdigest()
-
-
-@dataclass(frozen=True)
-class SafetyInspection:
-    """Evidence collected before a migration-sensitive action."""
-
-    safe: bool
-    findings: tuple[Finding, ...] = ()
-    git_status: str = ""
-    staged_diff: str = ""
-    unstaged_diff: str = ""
-    worktree_registry: str = ""
-    ignored_status: str = ""
-
-
-@dataclass(frozen=True)
-class MappingRecord:
-    """One immutable source-to-destination archive ledger row."""
-
-    sequence: int
-    source: str
-    destination: str
-    reason: str
-    timestamp: str
-
-
-@dataclass(frozen=True)
-class ArchiveResult:
-    """Structured result for an approved apply attempt."""
-
-    applied: tuple[PlanEntry, ...] = ()
-    mappings: tuple[MappingRecord, ...] = ()
-    findings: tuple[Finding, ...] = ()
-    refused: bool = False
-    index_path: str | None = None
-
-    @property
-    def success(self) -> bool:
-        """Return true only when the requested operation completed."""
-
-        return not self.refused and not self.findings
 
 
 def _finding(code: str, message: str) -> Finding:
@@ -683,6 +537,18 @@ def inspect_safety(
         findings.append(
             _finding("DESTINATION_EXISTS", f"destination already exists: {destination}")
         )
+    if (
+        source_path.is_dir()
+        and destination_path is not None
+        and not destination_path.exists()
+        and not _same_device(source_path, destination_path)
+    ):
+        findings.append(
+            _finding(
+                "CROSS_DEVICE",
+                "source and destination are on different devices; atomic rename is unavailable",
+            )
+        )
 
     git_root, git_root_error = _run_git(root, ["rev-parse", "--show-toplevel"])
     if git_root_error:
@@ -784,11 +650,20 @@ def inspect_safety(
 
 
 def _entry_from_approval(
-    plan: ArchivePlan, approved: ArchivePlan | Sequence[PlanEntry] | Sequence[str]
+    plan: ArchivePlan,
+    approved: ArchiveApproval | ArchivePlan | Sequence[PlanEntry] | Sequence[str],
 ) -> tuple[PlanEntry, ...] | tuple[Finding, ...]:
-    approved_items: Sequence[PlanEntry | str] = (
-        approved.entries if isinstance(approved, ArchivePlan) else approved
-    )
+    if isinstance(approved, ArchiveApproval):
+        if approved.plan_fingerprint != plan.fingerprint:
+            return (), (
+                _finding(
+                    "APPROVAL_MISMATCH",
+                    "approved artifact does not match the current plan fingerprint",
+                ),
+            )
+        approved_items: Sequence[PlanEntry | str | tuple[str, str]] = approved.entries
+    else:
+        approved_items = approved.entries if isinstance(approved, ArchivePlan) else approved
     selected: list[PlanEntry] = []
     by_key = {entry.key: entry for entry in plan.entries}
     by_source = {entry.source: entry for entry in plan.entries}
@@ -810,6 +685,19 @@ def _entry_from_approval(
                         "APPROVAL_MISMATCH", f"approved source is not in the current plan: {item}"
                     ),
                 )
+        elif (
+            isinstance(item, tuple)
+            and len(item) == 2
+            and all(isinstance(value, str) for value in item)
+        ):
+            candidate = by_key.get(item)
+            if candidate is None:
+                return (), (
+                    _finding(
+                        "APPROVAL_MISMATCH",
+                        f"approved entry is not in the current plan: {item[0]}",
+                    ),
+                )
         else:
             return (), (
                 _finding("MALFORMED_APPROVAL", "approved entries must be plan entries or sources"),
@@ -822,7 +710,12 @@ def _entry_from_approval(
     return tuple(selected), ()
 
 
-def _validate_index_target(root: Path, index_path: Path) -> tuple[Finding, ...]:
+def _validate_index_target(
+    root: Path,
+    index_path: Path,
+    *,
+    expected_mappings: Sequence[MappingRecord] = (),
+) -> tuple[Finding, ...]:
     if _has_symlink_component(root, index_path):
         return (_finding("SYMLINK_INDEX", "index path contains a symlink component"),)
     if index_path.is_symlink():
@@ -835,11 +728,27 @@ def _validate_index_target(root: Path, index_path: Path) -> tuple[Finding, ...]:
         return (_finding("UNREADABLE_INDEX", f"index cannot be read: {exc}"),)
     if not text.startswith(INDEX_MARKER):
         return (_finding("HUMAN_INDEX", "refusing to overwrite a human-maintained index"),)
+    actual_pairs = set(_INDEX_LINE_RE.findall(text))
+    expected_pairs = {(row.destination, row.source) for row in expected_mappings}
+    if actual_pairs != expected_pairs:
+        return (
+            _finding(
+                "INDEX_DRIFT",
+                "generated index does not match authoritative mapping records",
+            ),
+        )
     return ()
 
 
-def render_index(plan: ArchivePlan | Iterable[PlanEntry]) -> str:
-    """Render a deterministic generated navigation view without writing it."""
+def render_index(
+    plan: ArchivePlan | Iterable[PlanEntry] | Iterable[MappingRecord],
+) -> str:
+    """Render a deterministic generated navigation view without writing it.
+
+    ``MappingRecord`` input is the authoritative form used after apply.
+    ``ArchivePlan`` and ``PlanEntry`` input remains supported for report-only
+    callers, but never determines the post-apply index.
+    """
 
     entries = plan.entries if isinstance(plan, ArchivePlan) else tuple(plan)
     lines = [
@@ -850,6 +759,9 @@ def render_index(plan: ArchivePlan | Iterable[PlanEntry]) -> str:
         "",
     ]
     for entry in sorted(entries, key=lambda item: (item.destination, item.source)):
+        if isinstance(entry, MappingRecord):
+            lines.append(f"- `{entry.destination}` ← `{entry.source}` — {entry.reason}")
+            continue
         finding_suffix = ""
         if entry.findings:
             finding_suffix = " (" + ", ".join(f.code for f in entry.findings) + ")"
@@ -860,8 +772,18 @@ def render_index(plan: ArchivePlan | Iterable[PlanEntry]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _write_generated_index(root: Path, index_path: Path, content: str) -> tuple[Finding, ...]:
-    findings = _validate_index_target(root, index_path)
+def _write_generated_index(
+    root: Path,
+    index_path: Path,
+    content: str,
+    *,
+    expected_mappings: Sequence[MappingRecord] = (),
+) -> tuple[Finding, ...]:
+    findings = _validate_index_target(
+        root,
+        index_path,
+        expected_mappings=expected_mappings,
+    )
     if findings:
         return findings
     try:
@@ -873,6 +795,7 @@ def _write_generated_index(root: Path, index_path: Path, content: str) -> tuple[
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, index_path)
+        _fsync_directory(index_path.parent)
     except OSError as exc:
         logger.warning("local archive index persistence failed: %s", exc)
         if "temporary" in locals():
@@ -996,6 +919,7 @@ def append_mapping_record(
             stream.write(rendered)
             stream.flush()
             os.fsync(stream.fileno())
+        _fsync_directory(target.parent)
     except OSError as exc:
         logger.warning("local archive mapping persistence failed: %s", exc)
         raise ArchiveError(f"could not append mapping record: {target}") from exc
@@ -1005,7 +929,7 @@ def append_mapping_record(
 def apply_archive_plan(
     repo_root: str | Path,
     plan: ArchivePlan,
-    approved: ArchivePlan | Sequence[PlanEntry] | Sequence[str] | None = None,
+    approved: ArchiveApproval | ArchivePlan | Sequence[PlanEntry] | Sequence[str] | None = None,
     *,
     mapping_path: str | Path = MAPPING_PATH,
     index_path: str | Path = INDEX_PATH,
@@ -1060,14 +984,18 @@ def apply_archive_plan(
             refused=True,
         )
     assert index_rel is not None and mapping_rel is not None
-    index_findings = _validate_index_target(root, root / index_rel)
-    if index_findings:
-        return ArchiveResult(findings=index_findings, refused=True)
     mapping_target = root / mapping_rel
     try:
         prior_mappings = _load_mapping_records(mapping_target)
     except ArchiveError as exc:
         return ArchiveResult(findings=(_finding("MALFORMED_MAPPING", str(exc)),), refused=True)
+    index_findings = _validate_index_target(
+        root,
+        root / index_rel,
+        expected_mappings=prior_mappings,
+    )
+    if index_findings:
+        return ArchiveResult(findings=index_findings, refused=True)
     for entry in selected:
         if any(
             row.source == entry.source or row.destination == entry.destination
@@ -1086,12 +1014,24 @@ def apply_archive_plan(
 
     applied: list[PlanEntry] = []
     mappings: list[MappingRecord] = []
+    moved_without_mapping: PlanEntry | None = None
     for entry in selected:
         source_path = root / entry.source
         destination_path = root / entry.destination
         try:
+            if not _same_device(source_path, destination_path):
+                raise OSError(
+                    "source and destination are on different devices; atomic rename is unavailable"
+                )
             destination_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(source_path), str(destination_path))
+            if not _same_device(source_path, destination_path):
+                raise OSError(
+                    "source and destination changed devices; atomic rename is unavailable"
+                )
+            os.replace(source_path, destination_path)
+            _fsync_directory(source_path.parent)
+            _fsync_directory(destination_path.parent)
+            moved_without_mapping = entry
             mapping = append_mapping_record(
                 root,
                 entry.source,
@@ -1100,20 +1040,38 @@ def apply_archive_plan(
                 mapping_path=mapping_rel,
             )
         except (OSError, ArchiveError) as exc:
+            partial = bool(applied or mappings or moved_without_mapping)
             logger.warning("local archive apply refused after partial progress: %s", exc)
             findings.append(_finding("APPLY_ERROR", str(exc)))
+            if partial:
+                findings.append(
+                    _finding(
+                        "PARTIAL_APPLY",
+                        "some approved entries were moved or mapped; inspect the returned "
+                        "mappings and reconcile before retrying",
+                    )
+                )
             return ArchiveResult(
                 applied=tuple(applied),
                 mappings=tuple(mappings),
                 findings=tuple(findings),
                 refused=True,
+                recovery_required=partial,
+                recovery_hint=(
+                    "Do not retry blindly: verify each mapping source is absent and "
+                    "destination exists before approving a new subset."
+                    if partial
+                    else None
+                ),
             )
+        moved_without_mapping = None
         applied.append(entry)
         mappings.append(mapping)
     index_findings = _write_generated_index(
         root,
         root / index_rel,
-        render_index(plan),
+        render_index((*prior_mappings, *mappings)),
+        expected_mappings=prior_mappings,
     )
     if index_findings:
         return ArchiveResult(
@@ -1121,6 +1079,11 @@ def apply_archive_plan(
             mappings=tuple(mappings),
             findings=index_findings,
             refused=True,
+            recovery_required=True,
+            recovery_hint=(
+                "Moves and mappings are durable; repair the generated index from "
+                "the mapping ledger before retrying."
+            ),
         )
     return ArchiveResult(
         applied=tuple(applied),
@@ -1131,6 +1094,7 @@ def apply_archive_plan(
 
 __all__ = [
     "ArchiveError",
+    "ArchiveApproval",
     "ArchivePlan",
     "ArchiveResult",
     "Finding",
