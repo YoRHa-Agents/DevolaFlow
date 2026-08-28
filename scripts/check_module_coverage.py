@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     """Validate a coverage.py JSON report and return a process status."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=Path, help="coverage.py JSON report")
-    parser.add_argument("--minimum", type=float, default=70.0)
+    parser.add_argument("--minimum", type=float, default=75.0)
     args = parser.parse_args(argv)
 
     try:

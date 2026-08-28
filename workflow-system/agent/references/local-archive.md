@@ -207,7 +207,7 @@ is owned by the explicit local-archive command so unrelated sessions retain
 their existing context and cache behavior.
 
 The existing local workspace `generate_index` behavior for `.local/index.md`
-is unchanged. W-19 continues to own versioned research archiving under
+is unchanged. W-7 continues to own versioned research archiving under
 `docs/cycle-archive/`. `ChangeStore` and `ArchiveManager` continue to own the
 `.local/.agent/` active-change lifecycle and are not reused for task moves.
 

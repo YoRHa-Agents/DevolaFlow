@@ -84,6 +84,10 @@ def _signals(unavailable: tuple[str, ...] = ()) -> dict[str, SignalResult]:
         "compatibility_suite": True,
         "w17_new_tests": 0,
         "docstring_coverage_pct": 90.0,
+        "agents_md_tokens": 1200,
+        "suite_wall_seconds": 18.25,
+        "cjk_violations": 0,
+        "ghost_loc": 900,
     }
     return {
         key: (

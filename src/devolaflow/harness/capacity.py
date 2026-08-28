@@ -95,6 +95,12 @@ _DEFAULT_SOURCES: Final[Mapping[str, str]] = MappingProxyType(
 )
 
 
+def _default_sources() -> Mapping[str, str]:
+    """Return a fresh immutable provenance mapping for default profiles."""
+
+    return MappingProxyType(dict(_DEFAULT_SOURCES))
+
+
 @dataclass(frozen=True)
 class CapacityProfile:
     """Resolved capacity/threshold defaults with per-field provenance.
@@ -109,7 +115,7 @@ class CapacityProfile:
     max_concurrency: int = 4
     stagnation_rounds: int = 2
     unsuccessful_item_rounds: int = 3
-    sources: Mapping[str, str] = field(default=_DEFAULT_SOURCES)
+    sources: Mapping[str, str] = field(default_factory=_default_sources)
 
     @property
     def source(self) -> str:

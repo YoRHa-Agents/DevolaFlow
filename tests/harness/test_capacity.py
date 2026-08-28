@@ -14,7 +14,7 @@ Pins the :mod:`devolaflow.harness.capacity` SSOT reader (A-5 owner of
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import FrozenInstanceError, dataclass
 from pathlib import Path
 
 import pytest
@@ -104,6 +104,27 @@ def test_capacity_profile_defaults_when_dark(
         fallback = capacity_profile(tmp_path / "missing.yaml")
     assert fallback == expected
     assert "capacity profile config load failed" in caplog.text
+
+
+def test_capacity_profile_default_sources_are_fresh_and_immutable() -> None:
+    """Default provenance stays isolated between profile instances."""
+    expected_sources = {
+        "round_capacity": "default",
+        "max_concurrency": "default",
+        "stagnation_rounds": "default",
+        "unsuccessful_item_rounds": "default",
+    }
+    first = CapacityProfile()
+    second = CapacityProfile()
+
+    assert first.sources == expected_sources
+    assert second.sources == expected_sources
+    assert first.sources is not second.sources
+    with pytest.raises(TypeError):
+        first.sources["round_capacity"] = "config"  # type: ignore[index]
+    with pytest.raises(FrozenInstanceError):
+        first.round_capacity = 1  # type: ignore[misc]
+    assert second.sources == expected_sources
 
 
 def test_capacity_profile_reads_config_with_per_field_sources(tmp_path: Path) -> None:

@@ -242,33 +242,33 @@ meta:
       hotfix:
         soul: all
         architecture: ["A-1", "A-2"]
-        conventions: ["C-1", "C-2", "C-3"]
+        conventions: ["C-1", "C-2"]
         workflow: ["W-4", "W-9"]
       feature:
         soul: all
         architecture: all
         conventions: all
         workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9"]
-        style: ["ST-1", "ST-3", "ST-4", "ST-7"]
+        style: ["ST-1", "ST-3", "ST-4"]
       research:
         soul: all
         architecture: ["A-1"]
-        conventions: ["C-1", "C-2", "C-3"]
+        conventions: ["C-1", "C-2"]
         workflow: ["W-1", "W-2"]
       pathfind:
         soul: all
         architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
-        conventions: ["C-1", "C-2", "C-3", "C-4", "C-7", "C-9"]
-        workflow: ["W-1", "W-2", "W-4", "W-9", "W-16", "W-18", "W-19"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-4", "W-9", "W-16", "W-18", "W-7"]
       preflight:
         soul: all
         architecture: ["A-1", "A-2", "A-3", "A-4", "A-5"]
-        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-7", "C-9"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
         workflow: ["W-3", "W-4", "W-5", "W-9"]
       harness_build:
         soul: all
         architecture: ["A-1", "A-2", "A-3", "A-4", "A-5"]
-        conventions: ["C-1", "C-2", "C-3", "C-4", "C-7", "C-9"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
         workflow: ["W-4", "W-9"]
       refactor:
         soul: all
@@ -279,14 +279,14 @@ meta:
       review:
         soul: all
         architecture: ["A-1", "A-2"]
-        conventions: ["C-1", "C-2", "C-3"]
+        conventions: ["C-1", "C-2"]
         workflow: ["W-3", "W-4", "W-9"]
       design:
         soul: all
         architecture: all
-        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
         workflow: ["W-1", "W-2", "W-7"]
-        style: ["ST-1", "ST-3", "ST-7"]
+        style: ["ST-1", "ST-3", "ST-4"]
       convergence:
         soul: all
         architecture: all
@@ -302,7 +302,7 @@ meta:
       documentation:
         soul: ["S-1", "S-2", "S-4", "S-5", "S-7"]
         architecture: ["A-1", "A-3"]
-        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-6", "C-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
         workflow: ["W-7"]
         style: all
       default:
@@ -578,12 +578,12 @@ sections:
   # row insertion (post-edit line 445). Slice CONTENT is preserved
   # byte-equal to the pre-edit state (deprecated fallback path only).
   hierarchy_table:
-    lines: "180-193"
+    lines: &hierarchy_section_lines "180-193"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "180-193"
+    lines: *hierarchy_section_lines
     tokens_est: 255
     content_type: table
 
@@ -598,7 +598,7 @@ sections:
     content_type: table
 
   wave_coordination:
-    lines: "205-218"
+    lines: &wave_coordination_section_lines "205-218"
     tokens_est: 226
     content_type: table
 
@@ -645,17 +645,17 @@ sections:
     content_type: table
 
   reference_navigation:
-    lines: "328-359"
+    lines: &reference_navigation_section_lines "328-359"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "328-359"
+    lines: *reference_navigation_section_lines
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "205-218"
+    lines: *wave_coordination_section_lines
     tokens_est: 100
     content_type: spec
 
@@ -1023,7 +1023,7 @@ profiles:
       <<: *learnings_standard
       max_entries: 3
     extra_context:
-      - "references/team-roles.md"
+      - &team_roles_reference "references/team-roles.md"
     decomposition: *decomposition_single
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for research stages where defects are structural; default off.
@@ -1113,7 +1113,7 @@ profiles:
       rules_dispatchers: critical
       convergence_loop: skip
     learnings: *learnings_standard
-    ac_generation: *ac_generation_impl
+    # Drafting-only role: inherit the disabled meta default; never generate AC.
     extra_context:
       - "references/agent-workspace.md"
       - "references/message-schemas.md"
@@ -1211,7 +1211,7 @@ profiles:
     learnings: *learnings_standard
     advisor: *advisor_impl
     extra_context:
-      - "references/decomposition-gate.md"
+      - &decomposition_gate_reference "references/decomposition-gate.md"
     decomposition: *decomposition_fanout
     tool_output_truncation: *tool_output_truncation_default
     summary: *summary_extractive
@@ -1252,8 +1252,8 @@ profiles:
       convergence_loop: supplementary
     learnings: *learnings_standard
     extra_context:
-      - "references/decomposition-gate.md"
-      - "references/team-roles.md"
+      - *decomposition_gate_reference
+      - *team_roles_reference
     decomposition: *decomposition_single
     rationale: >
       Reviews focus on quality scoring, severity classification, and gate
@@ -1416,8 +1416,8 @@ profiles:
     learnings: *learnings_standard
     advisor: *advisor_impl
     extra_context:
-      - "references/decomposition-gate.md"
-      - "references/team-roles.md"
+      - *decomposition_gate_reference
+      - *team_roles_reference
     decomposition: *decomposition_fanout
     tool_output_truncation: *tool_output_truncation_default
     summary: *summary_extractive
@@ -1450,7 +1450,7 @@ profiles:
       rules_dispatchers: supplementary
     learnings: *learnings_standard
     extra_context:
-      - "references/team-roles.md"
+      - *team_roles_reference
     decomposition: *decomposition_single
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for documentation stages where defects are structural; default off.
@@ -1483,7 +1483,7 @@ profiles:
       rules_dispatchers: supplementary
     learnings: *learnings_standard
     extra_context:
-      - "references/team-roles.md"
+      - *team_roles_reference
     decomposition: *decomposition_single
     rationale: >
       Spikes are fast and experimental. No gates, no convergence, minimal
@@ -1553,7 +1553,7 @@ profiles:
       convergence_loop: supplementary
     learnings: *learnings_standard
     extra_context:
-      - "references/team-roles.md"
+      - *team_roles_reference
     decomposition: *decomposition_single
     rationale: >
       Demo workflows need clear team roles for storyboard/build/polish
@@ -1588,7 +1588,7 @@ profiles:
       convergence_loop: critical
     learnings: *learnings_standard
     extra_context:
-      - "references/decomposition-gate.md"
+      - *decomposition_gate_reference
     decomposition: *decomposition_fanout
     tool_output_truncation: *tool_output_truncation_default
     summary: *summary_extractive
@@ -1696,7 +1696,7 @@ profiles:
       max_entries: 3
       budget_max_tokens: 350
     extra_context:
-      - "references/meta-framework.md"
+      - &meta_framework_reference "references/meta-framework.md"
     decomposition: *decomposition_single
     rationale: >
       Self-update tasks maintain the workflow system itself. Focus on
@@ -1744,7 +1744,7 @@ profiles:
       min_confidence: 0.3
       budget_pct: 15
     extra_context:
-      - "references/decomposition-gate.md"
+      - *decomposition_gate_reference
     decomposition: *decomposition_single
     rationale: >
       Feedback tasks evaluate gate results and integrate learnings back
@@ -1760,10 +1760,10 @@ profiles:
       - "visual test"
     token_budget: 4000
     timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
-    model_hints:
+    model_hints: &verification_model_hints
       default: balanced
       code_heavy: quality
-    section_priorities:
+    section_priorities: &verification_section_priorities
       version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
       quick_action_decision: skip
       mode_detection: skip
@@ -1792,27 +1792,8 @@ profiles:
       - "acceptance criteria test"
     token_budget: 4000
     timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
-    model_hints:
-      default: balanced
-      code_heavy: quality
-    section_priorities:
-      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
-      quick_action_decision: skip
-      mode_detection: skip
-      quick_start_workflows: skip
-      hierarchy_table: skip
-      stage_primitives: supplementary
-      gate_mechanism: important
-      agent_teams: important
-      context_isolation: supplementary
-      wave_task_constraints: skip
-      convergence_loop: important
-      dispatch_report: important
-      lifecycle_hooks: supplementary
-      repo_mode: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      reference_navigation: skip
+    model_hints: *verification_model_hints
+    section_priorities: *verification_section_priorities
     behavioral_guidelines:               # v8.0.0 P-08: simple tier (test-only edits, narrow scope)
       tier: simple
       think_first: true                  # tests need clear plan-first discipline
@@ -1829,27 +1810,8 @@ profiles:
       - "interaction test"
     token_budget: 4000
     timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
-    model_hints:
-      default: balanced
-      code_heavy: quality
-    section_priorities:
-      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
-      quick_action_decision: skip
-      mode_detection: skip
-      quick_start_workflows: skip
-      hierarchy_table: skip
-      stage_primitives: supplementary
-      gate_mechanism: important
-      agent_teams: important
-      context_isolation: supplementary
-      wave_task_constraints: skip
-      convergence_loop: important
-      dispatch_report: important
-      lifecycle_hooks: supplementary
-      repo_mode: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      reference_navigation: skip
+    model_hints: *verification_model_hints
+    section_priorities: *verification_section_priorities
     rationale: "Interaction testing needs gate scoring (interaction_quality dimension), convergence for fixing failing flows, and accessibility compliance evaluation."
 
   repo-init:
@@ -1958,7 +1920,7 @@ profiles:
       budget_pct: 12
       budget_max_tokens: 400
     extra_context:
-      - "references/meta-framework.md"
+      - *meta_framework_reference
     decomposition: *decomposition_single
     rationale: >
       Entropy cleanup tasks inspect workspace artefacts (docs, templates,

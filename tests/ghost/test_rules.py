@@ -108,9 +108,10 @@ def test_rules_source_directory_exists(project_root: Path) -> None:
 #     drift machinery) was resurrected.
 
 # 60 HARD cap (ADR-007 D5, denominator re-based by v15-ADR-004 D1/D2 to the
-# full `.rules/` source corpus). Post-v15.0.0-diet census: Soul 10 + Arch 7 +
-# Conv 8 + Workflow 18 + Style 13 = 56 (4 slots headroom). The cap is the
-# forcing function — a future PV adding a rule MUST first confirm
+# full `.rules/` source corpus). The pre-v19 baseline census was Soul 10 +
+# Arch 7 + Conv 8 + Workflow 19 + Style 13 = 57; PV-0 lands three accepted
+# Workflow rules before the approved consolidations settle the corpus at 50.
+# The cap is the forcing function — a future PV adding a rule MUST first confirm
 # `full-corpus total + 1 ≤ 60`; raising the cap requires a new ADR.
 _RULE_COUNT_CAP_HARD: int = 60
 
@@ -133,7 +134,7 @@ def test_rule_count_under_cap(project_root: Path) -> None:
        and the "Total rules" header figure equals their sum.
     3. The full-corpus on-disk total stays ≤ 60 HARD (strict — the G-009
        interim AGENTS.md-denominator pin retired with the v15.0.0
-       rule-diet; post-diet census is 56).
+       rule-diet; the pre-v19 baseline census was 57).
 
     Future cycles proposing a new rule MUST first confirm `total + 1 ≤ 60`
     before authoring; if the projection exceeds 60, the proposing PV must
@@ -216,6 +217,37 @@ def test_rule_count_under_cap(project_root: Path) -> None:
         f"Future PVs adding rules MUST either defer/fold an existing rule "
         f"OR explicitly raise the cap via a new ADR."
     )
+
+
+def test_v19_rule_refactor_contracts_are_present(project_root: Path) -> None:
+    """Pin the approved v19 additions, merges, and retained rule owners."""
+    rules_dir = project_root / ".rules"
+    workflow = (rules_dir / "workflow.mdc").read_text(encoding="utf-8")
+    conventions = (rules_dir / "conventions.mdc").read_text(encoding="utf-8")
+    style = (rules_dir / "style.mdc").read_text(encoding="utf-8")
+    architecture = (rules_dir / "architecture.mdc").read_text(encoding="utf-8")
+
+    for rule_id in ("W-26", "W-27", "W-28"):
+        assert f"## {rule_id} —" in workflow
+    assert "automatic deletion API" in workflow
+    assert ".local/tasks/archive-mappings.yaml" in workflow
+    assert "generated task archive index" in workflow
+
+    assert "## C-2 — Lean Message Format" in conventions
+    assert "### Required SKILL.md Frontmatter Keys" in conventions
+    assert "### Lightweight Agent Workspace Artifacts" in conventions
+    assert "## C-3 —" not in conventions
+    assert "## C-5 —" not in conventions
+    assert "## C-9 —" not in conventions
+    assert "## W-19 —" not in workflow
+
+    for rule_id in ("ST-1", "ST-3", "ST-4", "ST-6", "ST-8", "ST-11"):
+        assert f"### {rule_id} —" in style
+    for rule_id in ("ST-5", "ST-7", "ST-9", "ST-10", "ST-12", "ST-13"):
+        assert f"### {rule_id} —" not in style
+
+    assert "defined by S-1" in architecture
+    assert "position 17 in the live schema" in architecture
 
 
 # The 6 deprecated `.cursor/rules/` pointer stubs RETIRED at v15.0.0

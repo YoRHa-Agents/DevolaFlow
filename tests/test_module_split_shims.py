@@ -23,6 +23,9 @@ owner-module symbol.
 from __future__ import annotations
 
 import importlib
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -62,6 +65,99 @@ _RETIRED_SHIMS: tuple[tuple[str, str], ...] = (
     # task_adaptive_selector.py → selector_cli.py (the CLI block)
     ("devolaflow.task_adaptive_selector", "main"),
 )
+
+_DIRECT_IMPLEMENTATION_FACADES: tuple[str, ...] = (
+    "devolaflow._compressor_transforms",
+    "devolaflow._plugin_installer",
+    "devolaflow._workspace_lint",
+    "devolaflow._workspace_reporter",
+)
+
+_MARKER_FREE_IMPLEMENTATION_FACADES: tuple[str, ...] = (
+    "devolaflow._compressor_transforms",
+    "devolaflow._workspace_lint",
+    "devolaflow._workspace_reporter",
+)
+
+_PUBLIC_COMPATIBILITY_FACADES: tuple[
+    tuple[str, str, tuple[str, ...]],
+    ...,
+] = (
+    (
+        "devolaflow.compressor.transforms",
+        "src/devolaflow/compressor/transforms.py",
+        (
+            "_validate_summary_args",
+            "_select_sections_for_summary",
+            "_assemble_summary_body",
+            "summarise_predecessor",
+        ),
+    ),
+    (
+        "devolaflow.agent_workspace.lint",
+        "src/devolaflow/agent_workspace/lint.py",
+        ("HumanBudgetExceededError", "enforce_digest_budget"),
+    ),
+)
+
+
+@pytest.mark.parametrize("module_name", _DIRECT_IMPLEMENTATION_FACADES)
+def test_internal_implementation_facade_direct_import(module_name: str) -> None:
+    """Each split implementation facade imports in a fresh interpreter."""
+    project_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import importlib; "
+                f"module = importlib.import_module({module_name!r}); "
+                "assert module.__all__"
+            ),
+        ],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"direct import failed for {module_name}:\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+
+
+@pytest.mark.parametrize("module_name", _MARKER_FREE_IMPLEMENTATION_FACADES)
+def test_internal_facade_drops_historical_monkeypatch_marker(
+    module_name: str, project_root: Path
+) -> None:
+    """Private non-aliased facades do not carry obsolete patch forwarding."""
+    package_path = project_root / "src" / Path(*module_name.split("."))
+    source = (package_path / "__init__.py").read_text(encoding="utf-8")
+    assert "class _CompatModule" not in source
+    assert "Forward legacy monkeypatches" not in source
+
+
+def test_public_compatibility_facades_are_marker_free_and_retain_exports(
+    project_root: Path,
+) -> None:
+    """Historical source-shape pins do not replace public facade exports."""
+    for module_name, relative_path, symbols in _PUBLIC_COMPATIBILITY_FACADES:
+        source = (project_root / relative_path).read_text(encoding="utf-8")
+        assert "if False:" not in source
+        assert "PFR_BLOCKER_SIGNAL" not in source
+
+        facade = importlib.import_module(module_name)
+        for symbol in symbols:
+            assert hasattr(facade, symbol), f"{module_name}.{symbol} was not re-exported"
+
+
+def test_compressor_facade_wrappers_delegate_to_owner() -> None:
+    """The public compressor facade keeps its callable compatibility wrappers."""
+    facade = importlib.import_module("devolaflow.compressor.transforms")
+
+    compressed = facade.compress_message("plain text", bypass_conditions=[])
+    assert compressed["compressed_text"] == "plain text"
+    assert facade.validate_lean_format("plain text")["intensity"] == "standard"
 
 
 @pytest.mark.parametrize(

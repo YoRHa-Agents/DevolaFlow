@@ -38,6 +38,13 @@ from devolaflow.harness.proposal import (
     build_proposal,
     write_proposal,
 )
+from devolaflow.harness.telemetry import (
+    TelemetryGateError,
+    append_consolidation_metrics,
+    append_gate_telemetry,
+    append_metric_observation,
+    check_gate_telemetry,
+)
 from devolaflow.llm_client import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TIMEOUT_S,
@@ -134,6 +141,37 @@ def _parser() -> argparse.ArgumentParser:
         "--ledger",
         type=Path,
         default=Path(".local/telemetry/harness.jsonl"),
+    )
+    telemetry = subcommands.add_parser("telemetry", help="append or check SI-10 gate evidence")
+    telemetry_commands = telemetry.add_subparsers(dest="telemetry_command", required=True)
+    append = telemetry_commands.add_parser("append", help="append one SI-10 gate result")
+    append.add_argument("--ledger", type=Path, required=True)
+    append.add_argument("--pv", required=True)
+    append.add_argument("--gate", required=True)
+    append.add_argument("--status", choices=("PASS", "FAIL"), required=True)
+    append_metrics = telemetry_commands.add_parser(
+        "append-metrics",
+        help="append one v18 consolidation measurement envelope",
+    )
+    append_metrics.add_argument("--ledger", type=Path, required=True)
+    append_metrics.add_argument("--agents-md-tokens", type=int)
+    append_metrics.add_argument("--suite-wall-seconds", type=float)
+    append_metrics.add_argument("--cjk-violations", type=int)
+    append_metrics.add_argument("--ghost-loc", type=int)
+    append_metrics.add_argument("--timestamp")
+    append_observation = telemetry_commands.add_parser(
+        "append-observation",
+        help="append one validated structured metric observation",
+    )
+    append_observation.add_argument("--ledger", type=Path, required=True)
+    append_observation.add_argument("--observation", type=Path, required=True)
+    check = telemetry_commands.add_parser("check", help="check complete SI-10 gate evidence")
+    check.add_argument("--ledger", type=Path, required=True)
+    check.add_argument("--pv", required=True)
+    check.add_argument(
+        "--historical",
+        action="store_true",
+        help="report INSUFFICIENT rather than fail when historical evidence is absent",
     )
     return parser
 
@@ -245,6 +283,42 @@ def _run_probe_command(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def _run_telemetry_command(args: argparse.Namespace) -> int:
+    if args.telemetry_command == "append":
+        destination = append_gate_telemetry(
+            args.ledger,
+            args.pv,
+            args.gate,
+            args.status,
+        )
+        print(f"harness telemetry: appended {args.pv}/{args.gate} {args.status} to {destination}")
+        return 0
+    if args.telemetry_command == "append-metrics":
+        destination = append_consolidation_metrics(
+            args.ledger,
+            {
+                "agents_md_tokens": args.agents_md_tokens,
+                "suite_wall_seconds": args.suite_wall_seconds,
+                "cjk_violations": args.cjk_violations,
+                "ghost_loc": args.ghost_loc,
+            },
+            timestamp=args.timestamp,
+        )
+        print(f"harness telemetry: appended consolidation metrics to {destination}")
+        return 0
+    if args.telemetry_command == "append-observation":
+        raw_observation = _load_yaml(args.observation, label="metric observation")
+        if not isinstance(raw_observation, Mapping):
+            raise ValueError("metric observation must be a mapping")
+        destination = append_metric_observation(args.ledger, raw_observation)
+        print(f"harness telemetry: appended metric observation to {destination}")
+        return 0
+
+    result = check_gate_telemetry(args.ledger, args.pv, historical=args.historical)
+    print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+    return 2 if result["verdict"] == "INSUFFICIENT" else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the harness CLI with command-specific bounded exit semantics."""
 
@@ -307,6 +381,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "probe":
             return _run_probe_command(args)
 
+        if args.command == "telemetry":
+            return _run_telemetry_command(args)
+
         if args.command == "propose":
             evaluation = _load_yaml(args.evaluation, label="evaluation")
             raw_targets = _load_yaml(args.targets, label="targets")
@@ -347,6 +424,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         rendered = render_evaluation(result)
         _write_output(rendered, args.output)
+    except TelemetryGateError as exc:
+        print(f"harness telemetry: {exc}", file=sys.stderr)
+        return 1
     except (AggregationError, EvaluationError, OSError, ValueError) as exc:
         print(f"harness {args.command}: {exc}", file=sys.stderr)
         return 2

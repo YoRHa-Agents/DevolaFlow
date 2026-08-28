@@ -204,8 +204,10 @@ def test_v14_4_0_context_profile_consolidation_registered(project_root: Path) ->
     T3 slice. The stanza pins:
 
     (a) context_profiles.yaml `defaults.ac_generation` anchor aliased on
-        exactly 19 implementation-class profiles, with the 8-profile exempt
-        partition (verification/analysis classes) — 27 profiles total.
+        exactly 18 implementation-class profiles, with the 9-profile exempt
+        partition (verification/analysis classes plus preflight) — 27 profiles
+        total. The PV-1 F-1 change intentionally makes preflight inherit
+        disabled AC generation.
     (b) ac_generator.py _PATTERN_MIGRATION / _PATTERN_SETUP / _PATTERN_DESIGN.
     (c) Top-level `defaults:` + `summary_modes:` blocks; the relocated
         orphan opt-in blocks living under meta.legibility_audit +
@@ -217,7 +219,7 @@ def test_v14_4_0_context_profile_consolidation_registered(project_root: Path) ->
     profiles_path = project_root / "workflow-system/agent/context_profiles.yaml"
     parsed = yaml.safe_load(profiles_path.read_text(encoding="utf-8"))
 
-    # --- (a) 19-aliased / 8-exempt partition ----------------------------
+    # --- (a) 18-aliased / 9-exempt partition ----------------------------
     defaults_ac = parsed["defaults"]["ac_generation"]
     assert isinstance(defaults_ac, dict), (
         "W-18 v14.4.0 violation: defaults.ac_generation block missing from context_profiles.yaml."
@@ -229,20 +231,21 @@ def test_v14_4_0_context_profile_consolidation_registered(project_root: Path) ->
         if isinstance(body, dict) and body.get("ac_generation") is defaults_ac
     )
     exempt = sorted(set(profiles) - set(aliased))
-    assert len(aliased) == 19, (
-        f"W-18 v14.4.0 violation: expected 19 impl-class profiles aliasing "
+    assert len(aliased) == 18, (
+        f"W-18 v14.4.0 violation: expected 18 impl-class profiles aliasing "
         f"defaults.ac_generation, found {len(aliased)}: {aliased}."
     )
     assert exempt == [
         "feedback",
         "pathfind",
+        "preflight",
         "product_verification",
         "research",
         "review",
         "verify_acceptance",
         "verify_interaction",
         "verify_visual",
-    ], f"W-18 v14.4.0 violation: the 8-profile ac_generation exempt partition drifted: {exempt}."
+    ], f"W-18 v14.4.0 violation: the 9-profile ac_generation exempt partition drifted: {exempt}."
 
     # --- (b) ac_generator description patterns ---------------------------
     from devolaflow import ac_generator

@@ -389,3 +389,29 @@ cycle_details:
     - rule: "Field set mirrors `devolaflow.gate.models.CycleReport` verbatim per CO-2 (no paraphrasing)."
     - rule: "When omitted, consumers MUST treat as `cycle_detected=false` (S-5 — no silent fallback)."
     - rule: "Block APPENDED at end of file — lean-report.yaml has no P6 cache-layout invariant."
+
+# Compression-rule derived-view contract (PV-4 schema redundancy item).
+#
+# Keep this file standalone: its compression_rules block is a materialized
+# derived view, not a cross-file YAML include. The dispatch schema owns the
+# common policy; this report view retains its report-specific preserve entries.
+# External distribution evidence is INSUFFICIENT to replace this view with a
+# generated or cross-file form without changing standalone-consumer behavior.
+# tests/test_schema_parity.py enforces parity against the owner's common keys.
+compression_rules_contract:
+  version: 1
+  role: derived_view
+  owner: "schemas/lean-dispatch.yaml#compression_rules"
+  source_contract: "schemas/lean-dispatch.yaml#compression_rules_contract"
+  common_keys:
+    - drop_list
+    - intensity_tiers
+    - default_intensity
+    - bypass_conditions
+    - bypass_default_active
+  message_specific_keys:
+    - preserve_list
+  derivation:
+    mode: parity_check
+    external_distribution_evidence: INSUFFICIENT
+    rationale: "Standalone schema consumers prevent a cross-file include or generated rewrite."

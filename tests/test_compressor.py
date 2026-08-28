@@ -1767,9 +1767,9 @@ class TestSummarisePredecessorRefactor:
             from radon.complexity import cc_visit
         except ImportError:
             pytest.skip("radon not available; skipping static cc gate")
-        from devolaflow import compressor as _comp_mod
+        from devolaflow._compressor_transforms import summary as _summary_mod
 
-        source = Path(_comp_mod.__file__).read_text(encoding="utf-8")
+        source = Path(_summary_mod.__file__).read_text(encoding="utf-8")
         ccs = {
             block.name: block.complexity
             for block in cc_visit(source)
@@ -1786,9 +1786,9 @@ class TestSummarisePredecessorRefactor:
             from radon.complexity import cc_visit
         except ImportError:
             pytest.skip("radon not available; skipping static cc gate")
-        from devolaflow import compressor as _comp_mod
+        from devolaflow._compressor_transforms import summary as _summary_mod
 
-        source = Path(_comp_mod.__file__).read_text(encoding="utf-8")
+        source = Path(_summary_mod.__file__).read_text(encoding="utf-8")
         ccs = {
             block.name: block.complexity
             for block in cc_visit(source)

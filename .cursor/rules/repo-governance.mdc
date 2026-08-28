@@ -127,7 +127,10 @@ Source: v15-ADR-008 §S-10.
 ## A-1 — 3-Layer Agent Hierarchy (P1–P5)
 
 ### P1 Dispatcher-Not-Implementer
-Dispatcher agents (Project, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L1 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L1 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L2 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
+The dispatcher-not-implementer prohibition, Task-Agent execution boundary,
+L0-L1 tool permissions, delegation requirement, and trivial exception are
+defined by S-1. A-1 applies that S-1 contract to the Project → Wave → Task
+hierarchy.
 
 ### P2 Minimal Context
 Each agent layer receives only the context it needs:
@@ -146,7 +149,7 @@ Layers communicate through artifact files, not shared memory or conversation his
 
 ## A-2 — P6 Preserve Cached Prefix (Cache-Layout Governance v2)
 
-Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 16 as of v8.3.0 PV-05). Reordering existing keys is a release blocker.
+Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 17 in the live schema; position 16 was the v8.3.0 PV-05 historical layout). Reordering existing keys is a release blocker.
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
@@ -343,15 +346,18 @@ Source: CP-7.
 
 ## C-2 — Lean Message Format
 
-Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+Inter-layer messages (TaskDispatch, StatusReport) must use the lean format
+defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`.
+Verbose prose descriptions are prohibited in dispatch/report YAML. Use
+verbatim compaction (`key_facts` lists, cause→effect notation) instead of
+summarization.
 
-Source: CO-1.
+`key_facts` in predecessor artifacts and `delta` in status reports must be
+verbatim extractions from source. Never paraphrase file paths, error messages,
+metric values, or commit hashes. This prevents hallucination risk per the LLM
+Scaling Paradox research.
 
-## C-3 — Verbatim Extraction
-
-`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
-
-Source: CO-2.
+Source: CO-1; CO-2.
 
 ## C-4 — Tiered Line Budget
 
@@ -371,7 +377,7 @@ python -m pytest tests/test_integration.py::test_skill_md_under_500_lines tests/
 
 Source: SF-1.
 
-## C-5 — Required Frontmatter Keys
+### Required SKILL.md Frontmatter Keys
 
 SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does.
 
@@ -401,7 +407,7 @@ Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actua
 
 Source: SF-4.
 
-## C-9 — Lightweight Agent Workspace Artifacts
+### Lightweight Agent Workspace Artifacts
 
 Files inside `.local/.agent/active/<change-id>/` and
 `.local/.agent/archive/<date>-<id>/` are subject to per-artifact token
@@ -502,7 +508,37 @@ Context profiles must ensure task-type-relevant sections are marked `critical`, 
 
 ## W-7 — Iteration Retrospective (SI-8)
 
-After completing a version release, produce a retrospective artifact summarizing: (1) Gaps identified, (2) What was implemented, (3) What was deferred and why, (4) Key learnings. Store in `.local/research/`.
+After completing a version release, produce a retrospective artifact
+summarizing: (1) Gaps identified, (2) What was implemented, (3) What was
+deferred and why, (4) Key learnings. Store in `.local/research/`.
+
+At cycle close, after W-16 has settled the completed cycle's harness evidence,
+L0 MUST run:
+
+```text
+python scripts/archive_research_artifacts.py <cycle-version>
+```
+
+and commit the result under `docs/cycle-archive/<cycle-version>/`. The archive
+operation is idempotent: repeating it preserves the canonical archive contents
+without duplicating or silently clobbering artifacts.
+
+Archive format (per cycle):
+
+```
+docs/cycle-archive/v<MAJOR>.<MINOR>.0/
+├── README.md             # auto-generated index
+├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
+├── implementation_plan.md
+├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
+├── harness/              # built-in harness evaluations and settled baselines
+├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
+└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
+```
+
+The W-16 settlement MUST occur before the cycle archive is produced. Patch
+releases do not create independent baselines or cycle archives. Existing
+historical archive contents are retained; archive refreshes remain idempotent.
 
 ## W-8 — Convergence Round Reinforcement (SI-9)
 
@@ -534,7 +570,7 @@ not create independent baselines.
 Every PV in the new cycle compares against that single settled artifact rather
 than an incremental predecessor-PV snapshot. Keep the current and previous two
 cycle artifacts in the active Tier-B window; archive older artifacts under
-`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-19.
+`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-7.
 
 Schema bumps still require a new immutable `layout_invariant_v*.yaml` witness
 and all existing Tier-A witnesses to pass per A-2.4. Harness settlement never
@@ -567,25 +603,6 @@ Refresh mechanism: add the primary symbol to the current-cycle ghost module,
 run `python -m pytest tests/ghost/ -v`, then author the CHANGELOG entry.
 `tests/ghost/test_rules.py::test_ghost_audit_refresh_present` enforces the
 presence of the audit.
-
-## W-19 — Research Artifact Archive at Cycle End
-
-After a MAJOR or MINOR cycle ships, L0 MUST run
-`python scripts/archive_research_artifacts.py <cycle-version>` and commit the
-result under `docs/cycle-archive/<cycle-version>/`.
-
-Archive format (per cycle):
-
-```
-docs/cycle-archive/v<MAJOR>.<MINOR>.0/
-├── README.md             # auto-generated index
-├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
-├── implementation_plan.md
-├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
-├── harness/              # built-in harness evaluations and settled baselines
-├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
-└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
-```
 
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
@@ -797,6 +814,57 @@ authorized here.
 
 Source: v17.4.0 HSC design.
 
+## W-26 — Local-Archive Deletion Safety (C-G4.3)
+
+Deletion is permanently operator-only. The local-archive runtime exposes no
+automatic deletion API and no deletion workflow mode. Report-only planning and
+approved non-deletion moves remain allowed; clean checks and plan approval
+never authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
+equivalent destructive command.
+
+Dirty, ambiguous, missing, unreadable, nested-repository, symlink, protected,
+or worktree-conflicted paths MUST produce explicit refusal findings. A refused
+candidate remains in place. The operator owns any later deletion decision and
+action outside this runtime.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §§6–7,
+`src/devolaflow/local/archive.py`, and
+`docs/cycle-archive/v17.4.0/design/v17.4.0_local_archive_design.md` §§3.4–3.5.
+Enforcement: `tests/test_local_archive.py` and
+`tests/ghost/test_features_v17_5.py`.
+
+## W-27 — Local-Archive Mapping Append-Only Behavior (C-G4.4)
+
+Every physical move MUST append one dedicated task-archive mapping record to
+`.local/tasks/archive-mappings.yaml`. Each row records `sequence`, `source`,
+`destination`, `reason`, and `timestamp`; sequence values increase from the
+existing maximum. Existing rows are immutable, and duplicate source or
+destination paths MUST be refused.
+
+This record is a dedicated task-archive ledger, not an existing
+`.local/.agent/` handoff envelope; S-9 remains independently enforced.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §8 and
+`src/devolaflow/local/archive.py::append_mapping_record`. Enforcement:
+`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber` and
+the current-cycle local-archive ghost audit.
+
+## W-28 — Local-Archive Index-Generation Honesty (C-G4.5)
+
+`.local/tasks/INDEX.md` is a generated navigation view, not the mapping source
+of truth. Generated output MUST carry
+`<!-- devolaflow: generated task archive index -->`. A missing index may be
+created only by an approved apply operation.
+
+A human-maintained, symlinked, or unreadable index MUST never be silently
+overwritten. Stale or non-generated index bytes MUST produce an explicit
+refusal or drift finding.
+
+Primary references: `workflow-system/agent/references/local-archive.md` §8 and
+`src/devolaflow/local/archive.py::render_index` /
+`_validate_index_target`. Enforcement: `tests/test_local_archive.py` and the
+current-cycle local-archive ghost audit.
+
 # Style Rules (P4) — Documentation & Presentation
 
 ## Documentation Sync (DS-*)
@@ -813,6 +881,16 @@ On any iteration that affects users, reviewers, or the public site, review or ex
 - CI/CD: `.github/workflows/*.yml`
 - Build and demo-data pipeline: `scripts/build-site.sh`, `scripts/generate_human_docs.py`, `scripts/generate_demo_seed_catalog.py`
 
+#### Demo Page Consistency Checklist
+
+Before committing changes under `workflow-system/human/demo/`:
+1. Every HTML page loads `shared/styles.css`
+2. Every HTML page loads `shared/nav.js` and `shared/i18n.js`
+3. No ad-hoc colors; use DS-2 palette
+4. Every `data-i18n` key exists in both EN and ZH
+5. Layout works at 640px width
+6. Spot-check all pages at desktop and 640px width
+
 ### ST-2 — NieR: Automata Visual Identity (DS-2)
 
 When editing web content under `workflow-system/human/demo/`:
@@ -825,19 +903,19 @@ When editing web content under `workflow-system/human/demo/`:
 
 Any substantive update to a guide in `workflow-system/human/en/` requires a matching update in `workflow-system/human/zh/` (and vice versa). Adding or changing `data-i18n` keys requires both language dictionaries updated in the same commit.
 
+#### Showcase Page Bilingual Completeness
+
+Every `data-i18n` key in the four showcase pages MUST exist in both `en` and
+`zh` blocks of `shared/i18n.js` or page-local `addTranslations` calls before
+commit.
+
 ### ST-4 — Version Propagation in Human Docs (DS-4)
 
 After bumping version, verify: demo `index.html` "What's New" and all EN/ZH files that mention the version. The `README.md` version badge and the `benchmark-results/index.html` displayed version are render/load-time DERIVED per C-6 (v14.4.0 G-031) — verify the derivation mechanism stays intact, not a literal. Run `make sync-human-docs` and `python -m pytest tests/test_version.py -v`.
 
-### ST-5 — Demo Page Consistency Checklist (DS-5)
+#### Version Timeline Propagation
 
-Before committing changes under `workflow-system/human/demo/`:
-1. Every HTML page loads `shared/styles.css`
-2. Every HTML page loads `shared/nav.js` and `shared/i18n.js`
-3. No ad-hoc colors; use DS-2 palette
-4. Every `data-i18n` key exists in both EN and ZH
-5. Layout works at 640px width
-6. Spot-check all pages at desktop and 640px width
+Whenever `__version__` changes, `workflow-system/human/demo/version-timeline/versions.json` MUST gain a new entry in the same PR. Required fields: version, date, era, headline, summary, highlights, metrics. Never invent metrics not stated in CHANGELOG.md.
 
 ## Web Experience (WX-*)
 
@@ -845,30 +923,22 @@ Before committing changes under `workflow-system/human/demo/`:
 
 The four v6.3 theme pages (design-system, framework-chain, context-flow, version-timeline) are first-class deliverables. None may be removed without explicit retrospective entry, deprecation notice, nav update, and cross-page CTA update in the same PR.
 
-### ST-7 — Version Timeline Tracks `__version__` (WX-2)
+#### Cross-Page CTA Cluster Integrity
 
-Whenever `__version__` changes, `workflow-system/human/demo/version-timeline/versions.json` MUST gain a new entry in the same PR. Required fields: version, date, era, headline, summary, highlights, metrics. Never invent metrics not stated in CHANGELOG.md.
+The four theme pages MUST cross-link via footer/hero CTA clusters. Each page MUST carry a "Read SKILL" link to the GitHub URL. Minimum: 12 internal cross-links + 4 SKILL receipt links across the four pages.
 
 ### ST-8 — Motion Patterns Must Be Showcased (WX-3)
 
 New `@keyframes` in `shared/styles.css` MUST appear as MotionShowcase in `design-system/index.html#ds-motion` in the same PR with: live demo, Replay button, duration/easing badge, i18n key in both EN/ZH, reduced-motion coverage.
 
-### ST-9 — Design Tokens Must Be Showcased (WX-4)
+#### Design Tokens Must Be Showcased
 
 New CSS custom properties in `:root` MUST have dark-mode values AND a TokenSwatch in `design-system/index.html#ds-palette` in the same PR.
 
-### ST-10 — Components Must Be Showcased (WX-5)
+#### Components Must Be Showcased
 
 New component class families in `shared/styles.css` MUST appear in `design-system/index.html#ds-components` with live example, component name in `<code>`, and i18n description.
 
 ### ST-11 — SKILL.md Section Changes Cascade to Showcase (WX-6)
 
 When specific SKILL.md sections change, the corresponding showcase page sections MUST be updated verbatim in the same PR per CO-2.
-
-### ST-12 — Bilingual Completeness on Showcase Pages (WX-7)
-
-Every `data-i18n` key in the four showcase pages MUST exist in both `en` and `zh` blocks of `shared/i18n.js` or page-local `addTranslations` calls before commit.
-
-### ST-13 — Cross-Page CTA Cluster Integrity (WX-8)
-
-The four theme pages MUST cross-link via footer/hero CTA clusters. Each page MUST carry a "Read SKILL" link to the GitHub URL. Minimum: 12 internal cross-links + 4 SKILL receipt links across the four pages.

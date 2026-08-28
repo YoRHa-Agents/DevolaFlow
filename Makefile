@@ -2,16 +2,20 @@
 # Design ref: design_dual_system.md §4.5
 
 .PHONY: all test test-core test-cov test-version test-harness lint build-skill sync-human-docs \
-       check-drift validate-templates clean install \
+       check-drift validate-templates check-template-metadata-parity clean install \
        generate-demo-seed-catalog check-demo-seed-catalog build-site \
-       release-preflight release-dry-run scaffold-agent agent-reports \
+       release-preflight release-dry-run ghost-full scaffold-agent agent-reports \
        compile-rules check-rules-drift check-module-size check-agent-language precommit precommit-fast precommit-full \
        scaffold-template scaffold-reference audit-references audit-long-references \
-       check-import-graph
+       telemetry-append telemetry-check telemetry-gate check-import-graph
 
 define RUN_TIMED
-start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; exit $$status
+start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; record_gate=false; case "$(1)" in test-core|lint|test-version|test-harness|check-cursor-skill|iteration-delta-gate) record_gate=true;; esac; if [ -n "$(TELEMETRY_PV)" ] && [ "$$record_gate" = true ]; then telemetry_status=0; python -m devolaflow.harness telemetry append --ledger "$(TELEMETRY_LEDGER)" --pv "$(TELEMETRY_PV)" --gate "$(1)" --status "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" || telemetry_status=$$?; if [ $$status -eq 0 ] && [ $$telemetry_status -ne 0 ]; then status=$$telemetry_status; fi; fi; exit $$status
 endef
+
+PV ?=
+TELEMETRY_PV ?= $(PV)
+TELEMETRY_LEDGER ?= .local/telemetry/harness.jsonl
 
 all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift check-import-graph
 
@@ -67,8 +71,16 @@ test-version:
 test-harness:
 	@$(call RUN_TIMED,test-harness,python -m pytest tests/harness/ -v)
 
+# Full historical ghost coverage is release-only because pre-v16 feature
+# audits are intentionally skipped from ordinary local test collection.
+ghost-full:
+	@$(call RUN_TIMED,ghost-full,GHOST_FULL=1 python -m pytest tests/ghost/ -v --tb=short)
+
 validate-templates:
 	validate-template --all
+
+check-template-metadata-parity:
+	@$(call RUN_TIMED,check-template-metadata-parity,python scripts/check_template_metadata_parity.py)
 
 # v14.5.0 G-035 (tooling slice) — VERIFIED NO-OP: the `build-skill`
 # console script (devolaflow.cli:build_skill_cmd → build_skill.build_all)
@@ -199,13 +211,41 @@ build-site:
 iteration-delta-gate:
 	@$(call RUN_TIMED,iteration-delta-gate,echo "Si-Chip iteration_delta gate (SI-10 step 7)" && python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov)
 
+# PV-0 telemetry enforcement. Gate records are opt-in through the Make
+# variable TELEMETRY_PV so unrelated developer commands retain their existing
+# behaviour. When a PV is selected, RUN_TIMED appends PASS/FAIL evidence for
+# each timed gate and this final check fails closed if any SI-10 evidence is
+# missing.
+.PHONY: telemetry-append telemetry-check telemetry-gate
+telemetry-append:
+	@test -n "$(TELEMETRY_PV)" || (echo "TELEMETRY_PV is required" >&2; exit 2)
+	@test -n "$(TELEMETRY_GATE)" || (echo "TELEMETRY_GATE is required" >&2; exit 2)
+	@test -n "$(TELEMETRY_STATUS)" || (echo "TELEMETRY_STATUS is required" >&2; exit 2)
+	@python -m devolaflow.harness telemetry append \
+		--ledger "$(TELEMETRY_LEDGER)" \
+		--pv "$(TELEMETRY_PV)" \
+		--gate "$(TELEMETRY_GATE)" \
+		--status "$(TELEMETRY_STATUS)"
+
+telemetry-check:
+	@if [ -z "$(TELEMETRY_PV)" ]; then \
+		echo "telemetry-gate: skipped (TELEMETRY_PV is unset)"; \
+	else \
+		python -m devolaflow.harness telemetry check \
+			--ledger "$(TELEMETRY_LEDGER)" \
+			--pv "$(TELEMETRY_PV)"; \
+	fi
+
+telemetry-gate: telemetry-check
+
 # v14.5.0 G-033 — release-preflight = SI-10 CORE (the 7 W-9 gates, in
 # W-9 order, single-execution per the `test-core` section above) plus
 # the RELEASE-ONLY EXTRAS. The extras are NOT part of the SI-10 gate
 # count; they are release-hygiene targets that only the preflight chain
 # (and `make all`) runs:
 #
-#   release-only extras: validate-templates, build-skill,
+#   release-only extras: ghost-full, validate-templates,
+#                        check-template-metadata-parity, build-skill,
 #                        sync-human-docs, compile-rules, check-drift,
 #                        check-rules-drift
 #
@@ -214,7 +254,7 @@ iteration-delta-gate:
 #
 # SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
+release-preflight: test-core ghost-full lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate telemetry-gate validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
 	$(MAKE) check-demo-seed-catalog
 	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"
@@ -348,16 +388,13 @@ snapshot-compressor:
 
 release-dry-run:
 	@echo "=== Release dry-run ==="
-	@echo "1. Preflight checks..."
-	$(MAKE) lint test validate-templates build-skill sync-human-docs check-drift
+	@echo "1. Preflight checks (same contract as release-preflight)..."
+	$(MAKE) release-preflight
 	@echo ""
 	@echo "2. Current version:"
 	@python scripts/bump_version.py
 	@echo ""
-	@echo "3. Site build test..."
-	$(MAKE) build-site
-	@echo ""
-	@echo "=== Dry-run complete. Run 'make release-preflight' for the real check. ==="
+	@echo "=== Dry-run complete. Tagging and publishing remain manual. ==="
 
 clean:
 	rm -rf dist/ build/ *.egg-info .pytest_cache htmlcov .coverage _site/

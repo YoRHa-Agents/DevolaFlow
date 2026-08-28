@@ -1,4 +1,4 @@
-"""Shared imports and constants for the legacy compatibility split."""
+"""Shared imports and constants for plugin installation."""
 
 # ruff: noqa: F401, E402
 
@@ -15,13 +15,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-from devolaflow.plugins.exceptions import (
-    PluginBackendUnsupported,
-    PluginInstallError,
-    PluginNotFoundError,
-    PluginVersionMismatch,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +34,37 @@ _LAST_CHECKED_SUCCESSFUL_EVENTS: frozenset[str] = frozenset(
     {"plugin_already_installed", "plugin_installed", "plugin_upgraded"}
 )
 
+
+def _load_dependencies() -> None:
+    """Load public-package dependencies after the split is initialized."""
+    from devolaflow.plugins.exceptions import (
+        PluginBackendUnsupported,
+        PluginInstallError,
+        PluginNotFoundError,
+        PluginVersionMismatch,
+    )
+
+    globals().update(
+        {
+            "PluginBackendUnsupported": PluginBackendUnsupported,
+            "PluginInstallError": PluginInstallError,
+            "PluginNotFoundError": PluginNotFoundError,
+            "PluginVersionMismatch": PluginVersionMismatch,
+        }
+    )
+
+
 __all__ = [
     name
     for name in globals()
-    if name not in {"__name__", "__package__", "__loader__", "__spec__", "__builtins__", "__all__"}
+    if name
+    not in {
+        "__name__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__builtins__",
+        "__all__",
+        "_load_dependencies",
+    }
 ]

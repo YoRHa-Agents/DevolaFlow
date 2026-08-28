@@ -14,13 +14,20 @@ import yaml
 import devolaflow.harness.telemetry as telemetry
 from devolaflow.agents_md_slice import cached_slice_summary
 from devolaflow.harness import (
+    CONSOLIDATION_METRICS_EVENT,
     HARNESS_SEGMENT_MAX_BYTES,
     LAYER_TOKEN_BUDGETS,
+    SI10_GATE_NAMES,
+    TelemetryGateError,
+    append_consolidation_metrics,
+    append_gate_telemetry,
     append_harness_record,
     build_dispatch_record,
+    build_gate_record,
+    check_gate_telemetry,
     record_dispatch_telemetry,
 )
-from devolaflow.harness.aggregator import aggregate_ledger
+from devolaflow.harness.aggregator import aggregate_ledger, load_ledger_records
 from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     list_handlers,
@@ -249,6 +256,118 @@ def test_append_harness_record_warns_and_skips_oversize(
     assert target is None
     assert not list(folder.glob("harness*.jsonl"))
     assert "exceeding" in caplog.text
+
+
+def test_gate_telemetry_appends_additive_event_without_rewriting_existing_bytes(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / "telemetry" / "harness.jsonl"
+    ledger.parent.mkdir()
+    legacy = build_dispatch_record(
+        _payload(change_id="legacy"),
+        change_id="legacy",
+        timestamp="2026-08-27T00:00:00+00:00",
+    )
+    original = (json.dumps(legacy, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+    ledger.write_bytes(original)
+
+    record = build_gate_record(
+        "PV-0",
+        "test-core",
+        "PASS",
+        timestamp="2026-08-28T00:00:00+00:00",
+    )
+    append_gate_telemetry(
+        ledger,
+        "PV-0",
+        "test-core",
+        "PASS",
+        timestamp="2026-08-28T00:00:00+00:00",
+    )
+
+    raw = ledger.read_bytes()
+    assert raw.startswith(original)
+    assert json.loads(raw.splitlines()[-1]) == record
+    summary = aggregate_ledger(ledger)
+    assert summary["records"] == 1
+    assert summary["events"] == []
+    assert load_ledger_records(ledger)[-1] == record
+
+
+def test_gate_telemetry_check_fails_closed_but_marks_historical_absence_insufficient(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / "harness.jsonl"
+
+    with pytest.raises(TelemetryGateError, match="no telemetry record for PV"):
+        check_gate_telemetry(ledger, "PV-0")
+
+    assert check_gate_telemetry(ledger, "PV-0", historical=True) == {
+        "schema_version": 1,
+        "pv": "PV-0",
+        "verdict": "INSUFFICIENT",
+        "reason": f"historical telemetry unavailable: {ledger}: ledger path does not exist",
+    }
+
+
+def test_consolidation_metrics_append_preserves_legacy_record_bytes(tmp_path: Path) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    legacy = build_dispatch_record(
+        _payload(change_id="legacy-metrics"),
+        change_id="legacy-metrics",
+        timestamp="2026-08-27T00:00:00+00:00",
+    )
+    original = (json.dumps(legacy, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+    ledger.write_bytes(original)
+
+    append_consolidation_metrics(
+        ledger,
+        {"agents_md_tokens": 100, "suite_wall_seconds": None, "cjk_violations": 0},
+        timestamp="2026-08-28T00:00:00+00:00",
+    )
+
+    raw = ledger.read_bytes()
+    appended = json.loads(raw.splitlines()[-1])
+    assert raw.startswith(original)
+    assert appended["event"] == CONSOLIDATION_METRICS_EVENT
+    assert appended["agents_md_tokens"] == 100
+    assert appended["suite_wall_seconds"] is None
+    assert appended["ghost_loc"] is None
+
+
+def test_gate_telemetry_check_requires_pass_for_each_si10_gate(tmp_path: Path) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    for gate in SI10_GATE_NAMES[:-1]:
+        append_gate_telemetry(ledger, "PV-0", gate, "PASS", timestamp="2026-08-28T00:00:00+00:00")
+
+    with pytest.raises(TelemetryGateError, match="iteration-delta-gate"):
+        check_gate_telemetry(ledger, "PV-0")
+
+    append_gate_telemetry(
+        ledger,
+        "PV-0",
+        SI10_GATE_NAMES[-2],
+        "FAIL",
+        timestamp="2026-08-28T00:00:01+00:00",
+    )
+    with pytest.raises(TelemetryGateError, match="check-cursor-skill"):
+        check_gate_telemetry(ledger, "PV-0")
+
+    append_gate_telemetry(
+        ledger,
+        "PV-0",
+        SI10_GATE_NAMES[-1],
+        "PASS",
+        timestamp="2026-08-28T00:00:02+00:00",
+    )
+    append_gate_telemetry(
+        ledger,
+        "PV-0",
+        SI10_GATE_NAMES[-2],
+        "PASS",
+        timestamp="2026-08-28T00:00:03+00:00",
+    )
+    assert check_gate_telemetry(ledger, "PV-0")["verdict"] == "PASS"
 
 
 def test_record_dispatch_telemetry_prefers_explicit_change_id(tmp_path: Path) -> None:

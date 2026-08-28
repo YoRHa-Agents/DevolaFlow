@@ -55,17 +55,33 @@ def _resolve_from_import(current: str, node: ast.ImportFrom, modules: set[str]) 
     return resolved
 
 
+class _ModuleInitializationImportCollector(ast.NodeVisitor):
+    """Collect imports in module-executed scopes, excluding function bodies."""
+
+    def __init__(self) -> None:
+        self.imports: list[ast.Import | ast.ImportFrom] = []
+
+    def visit_Import(self, node: ast.Import) -> None:
+        self.imports.append(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        self.imports.append(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Do not turn intentionally lazy function imports into graph edges."""
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Do not turn intentionally lazy async-function imports into edges."""
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        """Lambda bodies cannot contain imports, but are not module execution."""
+
+
 def _module_level_imports(tree: ast.Module) -> list[ast.Import | ast.ImportFrom]:
-    """Return imports executed while a module is initialized."""
-    imports: list[ast.Import | ast.ImportFrom] = []
-    for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            imports.append(node)
-        elif isinstance(node, ast.If):
-            imports.extend(
-                child for child in node.body if isinstance(child, (ast.Import, ast.ImportFrom))
-            )
-    return imports
+    """Return imports executed by module-level statements during initialization."""
+    collector = _ModuleInitializationImportCollector()
+    collector.visit(tree)
+    return collector.imports
 
 
 def build_graph(package_root: Path) -> dict[str, tuple[str, ...]]:

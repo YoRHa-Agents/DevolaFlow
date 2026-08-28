@@ -71,7 +71,7 @@ The artifact does what the dispatch asked, provably.
 | Criterion | Checkable form |
 |---|---|
 | Every `acceptance_criteria_v2` entry has a verdict | `ac_results` rows populated from ACTUALLY-RUN `verification_cmd`s (never predicted output) — see `references/execution-protocol.md` §15 |
-| Tests pass | Verbatim pass/fail counts from the suite run (`metrics.pass` / `metrics.fail`), per C-3 — never paraphrase metric values |
+| Tests pass | Verbatim pass/fail counts from the suite run (`metrics.pass` / `metrics.fail`), per C-2 — never paraphrase metric values |
 | No regressions | Pre-existing tests in scope still green; any newly-red pre-existing test is reported as a blocker, not omitted |
 | Legacy AC fallback | When no `acceptance_criteria_v2` block exists, each legacy `acceptance_criteria` string maps to one observable evidence line (see §4) |
 
@@ -119,7 +119,7 @@ P6-safe).
 | Dimension | Transport field | Shape (bounded per C-2 lean format) |
 |---|---|---|
 | Correctness — per-AC verdicts | `ac_results` | `[{id, verdict, cmd_output_digest}]` — digest is a verbatim tail-line of the actually-run `verification_cmd`, NOT a transcript |
-| Correctness — test counts | `metrics.pass` / `metrics.fail` / `metrics.findings` | numeric-only, verbatim per C-3 |
+| Correctness — test counts | `metrics.pass` / `metrics.fail` / `metrics.findings` | numeric-only, verbatim per C-2 |
 | Minimal diff — measured scope | `diff_stats` | `{files, insertions, deletions}` from the real diff |
 | Minimal diff + convention — BG attestations | `self_check.bg_attestations` | `[{id, verdict, evidence}]` for the dispatched BG rules (e.g. BG-002, BG-003, BG-006, BG-007) |
 | Test evidence — coverage | `metrics.cov` | float, from the actual coverage run |
@@ -146,7 +146,7 @@ and shifts the gate composite by `artifact_evidence_weight × (mean − 50)`
 ### §3.1 Worked example (lean StatusReport evidence blocks)
 
 A SIMPLE-tier impl task with two structured criteria. Every value below is
-verbatim-extracted from a real command run or diff measurement (C-3):
+verbatim-extracted from a real command run or diff measurement (C-2):
 
 ```yaml
 self_check:
@@ -182,7 +182,7 @@ execution rules: `references/execution-protocol.md` §15 and
 `references/decomposition-gate.md` §5.2.
 
 1. **[Correctness]** Re-read the dispatch's acceptance criteria verbatim (no
-   paraphrasing per C-3).
+   paraphrasing per C-2).
 2. **[Correctness]** Run every `acceptance_criteria_v2.verification_cmd`
    (bounded); record one `ac_results` row per criterion with verdict +
    `cmd_output_digest`. No AC v2 block present → map each legacy criterion to

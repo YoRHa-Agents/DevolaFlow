@@ -644,25 +644,26 @@ class TestV822RulesFoundationCompile:
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in cursor.content
         assert ".local/memory/specs/" in cursor.content
 
-    def test_c9_in_cursor_compiled_output(
+    def test_c4_in_cursor_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
         cursor = repo_compile_results["cursor"]
-        assert "## C-9 — Lightweight Agent Workspace Artifacts" in cursor.content
+        assert "## C-4 — Tiered Line Budget" in cursor.content
+        assert "### Lightweight Agent Workspace Artifacts" in cursor.content
         assert "Soft budget" in cursor.content
         assert "Hard ceiling" in cursor.content
         assert "v15-ADR-008 §C-9" in cursor.content
 
-    def test_a4_c9_s8_s9_in_agents_md_compiled_output(
+    def test_a4_c4_s8_s9_in_agents_md_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """All four new rules belong to always_include layers (soul/architecture/conventions),
+        """All four rules belong to always_include layers (soul/architecture/conventions),
         so they MUST appear in AGENTS.md per the compile-config target spec."""
         agents = repo_compile_results["agents_md"]
         assert "## S-8 — No Writes Outside Active Change Owned Files" in agents.content
         assert "## S-9 — Handoff Envelopes Are Append-Only" in agents.content
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in agents.content
-        assert "## C-9 — Lightweight Agent Workspace Artifacts" in agents.content
+        assert "## C-4 — Tiered Line Budget" in agents.content
 
     def test_compile_budget_agents_md_under_14000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
@@ -760,9 +761,10 @@ class TestC21StyleTarget:
         assert style.layers_included == ["style"]
         for heading in (
             "### ST-1 — Human-Facing Content Registry (DS-1)",
-            "### ST-13 — Cross-Page CTA Cluster Integrity (WX-8)",
+            "### ST-6 — Four Theme Showcases Are Mandatory (WX-1)",
         ):
             assert heading in style.content, f"Style rule missing from style_md: {heading!r}"
+        assert "Cross-Page CTA Cluster Integrity" in style.content
 
     def test_agents_md_ends_with_style_pointer_postscript(
         self, repo_compile_results: dict[str, CompileResult]

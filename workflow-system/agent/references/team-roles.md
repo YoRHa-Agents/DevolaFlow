@@ -19,19 +19,13 @@ last_updated: "2026-08-27"
 
 ## 1. Roles in the Current Hierarchy
 
-```text
-L0 Project
-  └── L1 Wave
-        └── L2 Task (research | design | implement | test | pathfind | review | preflight | harness_build)
-```
+The hierarchy is Project → Wave → Task. Its eight names are L2 Task
+specializations, not agent layers or persistent teams. `TaskDispatch.task.type`
+selects a role profile for one fresh, context-isolated Task. Roles never
+message each other directly; L1 aggregates their StatusReports and evidence.
 
-The eight names are L2 Task specializations, not agent layers or persistent
-teams. `TaskDispatch.task.type` selects a role profile for one fresh,
-context-isolated Task. Roles never message each other directly; L1 aggregates
-their StatusReports and evidence.
-
-The hierarchy budget remains L0 5K / L1 5K / L2 8K. One wave contains at most
-5 independent Tasks, and one checklist round contains at most 7 waves.
+Shared hierarchy contract: `references/agent-hierarchy.md` §§2, 6–8. This file
+owns L2 role profiles and role-specific evidence contracts.
 
 ## 2. Role Selection
 
@@ -116,8 +110,8 @@ Quality:
 
 ## 5. Design Task
 
-Purpose: turn confirmed requirements into a bounded interface, decision, or
-model.
+Purpose: turn confirmed requirements into a bounded interface, decision,
+or model.
 
 Workflow:
 
@@ -182,8 +176,7 @@ Quality:
 
 ## 7. Test Task
 
-Purpose: validate behavior through commands, metrics, user-visible checks, or
-test-only changes.
+Purpose: validate behavior through commands, metrics, user-visible checks, or test-only changes.
 
 Workflow:
 
@@ -248,18 +241,17 @@ pathfind_evidence:
   scan_mode: initial | incremental
 ```
 
-The report is advisory evidence. A `BLOCKER` triggers a separately owned
-harness-build or design task; Pathfinder never fixes it in place.
+The report is advisory evidence. A `BLOCKER` triggers a separately owned harness-build or design task; Pathfinder never fixes it in place.
 
 ## 9. Preflight Task
 
-Purpose: perform the drafting labor needed to prepare a change for the
-preflight gate.
+Purpose: perform the drafting labor needed to prepare a change for the preflight gate.
 
 The `preflight` task may inventory project configuration, assemble the
 machine-grounded gap evidence, and draft `preflight.md` content inside its
 owned change folder. It MUST NOT authorize the change, sign the preflight,
-decide whether a stop card is satisfied, or bypass a blocker. Gate semantics, human sign-off, and stop-card decisions remain owned by L0 and the human operator.
+decide whether a stop card is satisfied, or bypass a blocker.
+Gate semantics, human sign-off, and stop-card decisions remain owned by L0.
 
 Output:
 
@@ -281,8 +273,7 @@ Quality:
 
 ## 10. Harness-Build Task
 
-Purpose: remediate a bounded Pathfinder `BLOCKER` with an independently owned
-harness, fixture, schema, baseline, or verification change.
+Purpose: remediate a bounded Pathfinder `BLOCKER` with an independently owned harness, fixture, schema, baseline, or verification change.
 
 The `harness_build` task is dispatched only as a separately owned remediation
 task. It consumes the Pathfinder finding and its acceptance signal, implements
@@ -312,6 +303,8 @@ Quality:
 ## 11. Review Task
 
 Purpose: evaluate an artifact without modifying it.
+Review does not authorize implementation or checklist
+completion.
 
 Workflow:
 
@@ -365,8 +358,8 @@ passes succeeded; `DONE_WITH_CONCERNS` carries non-blocking evidence;
 
 ## 12. Role Participation by Intent
 
-Seed names route intent and decomposition knowledge; all execute through
-`change-driven`.
+Seed names route intent and decomposition knowledge;
+all execute through `change-driven`.
 
 | Intent family | Typical L2 roles |
 |---|---|
@@ -385,29 +378,14 @@ the actual wave composition.
 
 ## 13. Handoff Protocol
 
-Roles communicate through the append-only envelope ledger documented in
-`references/agent-workspace.md`.
+Roles communicate through the append-only envelope ledger documented
+in `references/agent-workspace.md`.
 
-```text
-L0 TaskDispatch → L1
-L1 TaskDispatch → L2
-L2 StatusReport → L1
-L1 StatusReport → L0
-```
-
-Common evidence flow:
-
-```text
-Research evidence ─┐
-Design evidence   ─┼─► L1 aggregation ─► next ready wave
-Implement evidence─┤
-Test evidence     ─┤
-Pathfinder evidence┤
-Review evidence   ─┘
-```
-
-L1 validates completeness, parsability, scope alignment, owned-file
-compliance, and blocker state. On rejection:
+The shared dispatch/report topology and evidence handshake are canonical in
+`references/agent-hierarchy.md` §§6–8.
+For these role profiles, L1 additionally validates completeness, parsability,
+scope alignment, owned-file compliance,
+and blocker state. On rejection:
 
 1. L1 emits an `EscalationEvent` or concern-bearing StatusReport;
 2. L0 attaches at most 5 severity-filtered reinforcement rules;

@@ -1,8 +1,8 @@
 """Multi-baseline byte-stability tests for the cache-layout invariant.
 
 Per ``docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md`` D4:
-CI enforcement pins ALL 6 historical schema baselines so any drift in
-ANY baseline fails CI immediately. The combinatorial coverage scales
+CI enforcement pins all 10 currently committed Tier-A schema baselines so
+any drift in ANY baseline fails CI immediately. The combinatorial coverage scales
 O(N) with prior baselines and catches three distinct attack classes
 (renamer / re-orderer / sneaky inserter) that the v7.0.0 + v7.3.0
 additivity-by-transitive-logic guarantees only catch O(1) of.
@@ -34,12 +34,13 @@ Baselines covered:
   v10.2.0 pin.)
 * v12.0.0 — length 17 stable (v12.0.0 PV-04 NEST extension inside the
   ``gate`` block: ``subagent_pattern: Literal["INLINE", "FAN_OUT",
-  "AGENT_POOL_FORWARD"]`` added per A-2.3 NEST decision rule. Schema
+  "AGENT_POOL_FORWARD"]`` retained as a historical compatibility literal per
+  the A-2.3 NEST decision rule. Schema
   ``canonical_order`` length stays at 17 and ``version`` stays at 6 —
-  this is a NEST, not an APPEND. The 15th baseline at
+  this is a NEST, not an APPEND. The 10th baseline at
   ``benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml``
   pins the new NEST shape with ``gate.subagent_pattern: FAN_OUT``
-  populated; absence is canonical so all 14 prior baselines (v7.0.0 →
+  populated; absence is canonical so all 9 prior baselines (v7.0.0 →
   v10.2.0) continue to PASS byte-identically without modification.
   Source: ``.local/research/v12.0.0_gap_analysis.md`` §5 +
   ``docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md``
@@ -337,10 +338,10 @@ def _v12_0_0_payload() -> dict:
     W-24.3 (Pattern 4 PERMANENTLY NOT_SUPPORTED — Soul-level P5
     invariant forbids cross-agent shared state).
 
-    Field is OPTIONAL — absence is canonical, so the 14 historical
+    Field is OPTIONAL — absence is canonical, so the 9 historical
     multi-baseline byte-tests (v7.0.0 → v10.2.0) CONTINUE TO PASS
     unchanged because the new sub-field is absent from the historical
-    baselines. The v12.0.0 baseline is the 15th pin and is NOT a
+    baselines. The v12.0.0 baseline is the 10th pin and is NOT a
     byte-prefix-extension of v10.2.0 (the new sub-field is inserted
     UNDER ``gate``, which means the YAML body of the ``gate:`` block
     grows by one line — the top-level keys stay byte-stable but the
@@ -681,11 +682,11 @@ class TestMultiBaselineByteStability:
         sneaky inserter that disturbs positions 1-17 OR the
         ``gate.subagent_pattern`` sub-field shape breaks this pin.
 
-        Field is OPTIONAL — absence is canonical, so the 14
+        Field is OPTIONAL — absence is canonical, so the 9
         historical multi-baseline byte-tests above (v7.0.0 → v10.2.0)
-        CONTINUE TO PASS unchanged. The v12.0.0 baseline is the 15th
+        CONTINUE TO PASS unchanged. The v12.0.0 baseline is the 10th
         pin and witnesses the populated case. Per A-2.4 multi-
-        baseline byte test all 15 historical baselines (v7.0.0 →
+        baseline byte test all 10 current Tier-A baselines (v7.0.0 →
         v12.0.0) MUST pass — drift in any one fails CI immediately.
 
         Source: ``.local/research/v12.0.0_gap_analysis.md`` §5 +
