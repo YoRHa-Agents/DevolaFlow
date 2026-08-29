@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover - the package supplies writing_style
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "21.1.1"
+SOURCE_VERSION = "21.2.0"
 INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 HOST_BRIDGE_URL = (
     "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
