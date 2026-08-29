@@ -9,6 +9,7 @@ import io
 import subprocess
 import sys
 import tokenize
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -146,19 +147,37 @@ def measure_module(path: Path) -> ModuleMetrics:
 
 
 def check_comment_ratios(
-    metrics: dict[str, ModuleMetrics], limit: float = COMMENT_RATIO_LIMIT
+    metrics: Mapping[str, ModuleMetrics],
+    baseline_metrics: Mapping[str, ModuleMetrics] | None = None,
+    limit: float = COMMENT_RATIO_LIMIT,
 ) -> list[str]:
-    """Return stable diagnostics for changed modules over the ratio limit."""
+    """Return stable diagnostics for modules exceeding their ratio budget.
+
+    Without baseline metrics, every module over the limit is reported. When
+    baseline metrics are supplied, an existing over-limit module is
+    grandfathered unless its ratio increases; modules crossing the limit and
+    new modules remain violations.
+    """
     violations = []
     for path, module_metrics in sorted(metrics.items()):
-        if module_metrics.comment_ratio > limit:
-            violations.append(
-                f"{path}: comment/docstring ratio "
-                f"{module_metrics.comment_ratio:.1%} exceeds {limit:.0%} "
-                f"({module_metrics.comment_lines + module_metrics.docstring_lines} "
-                f"comment/docstring lines / {module_metrics.nonblank_lines} "
-                "nonblank physical lines)"
-            )
+        current_ratio = module_metrics.comment_ratio
+        baseline = baseline_metrics.get(path) if baseline_metrics is not None else None
+        if current_ratio <= limit:
+            continue
+        if (
+            baseline_metrics is not None
+            and baseline is not None
+            and baseline.comment_ratio > limit
+            and current_ratio <= baseline.comment_ratio
+        ):
+            continue
+        violations.append(
+            f"{path}: comment/docstring ratio "
+            f"{current_ratio:.1%} exceeds {limit:.0%} "
+            f"({module_metrics.comment_lines + module_metrics.docstring_lines} "
+            f"comment/docstring lines / {module_metrics.nonblank_lines} "
+            "nonblank physical lines)"
+        )
     return violations
 
 
@@ -207,10 +226,13 @@ def main(argv: list[str] | None = None) -> int:
         current_metrics = {str(path.relative_to(root)): measure_module(path) for path in modules}
         current = {path: metrics.code_lines for path, metrics in current_metrics.items()}
         baseline = {}
+        baseline_metrics = {}
         for path in current:
             try:
                 baseline_text = _git(root, "show", f"{args.baseline_ref}:{path}")
-                baseline[path] = measure_source(baseline_text).code_lines
+                metrics = measure_source(baseline_text)
+                baseline[path] = metrics.code_lines
+                baseline_metrics[path] = metrics
             except subprocess.CalledProcessError:
                 continue
     except (OSError, subprocess.CalledProcessError, ValueError) as exc:
@@ -218,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     violations = check_line_counts(current, baseline, args.maximum)
-    violations.extend(check_comment_ratios(current_metrics))
+    violations.extend(check_comment_ratios(current_metrics, baseline_metrics=baseline_metrics))
     if violations:
         print("FAIL: module-size gate")
         print("\n".join(f"  {violation}" for violation in violations))
