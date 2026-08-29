@@ -139,7 +139,7 @@ def test_v20_behavioral_safety_contracts_are_live(project_root: Path, tmp_path: 
         project_root / "workflow-system" / "agent" / "knowledge" / "runtime-plugins.yaml"
     )
     profiles = available_plugin_profiles(registry_path=registry_path)
-    assert profiles["all"] == ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
+    assert profiles["all"] == ["codegraph", "impeccable"]
     assert select_plugin_profile("codegraph", registry_path=registry_path) == ["codegraph"]
 
     # Reporter --now pinned clock (deterministic artifact repair).

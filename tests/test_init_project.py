@@ -713,12 +713,15 @@ def test_install_plugins_warn_not_fatal(monkeypatch, capsys):
     from devolaflow.plugins.exceptions import PluginInstallError
 
     def _fake_ensure(pid: str, **_kwargs: object) -> str:
-        if pid == "rtk":
+        if pid == "codegraph":
             raise PluginInstallError("network down")
         return "9.9.9"
 
     monkeypatch.setattr("devolaflow.plugins.installer.ensure_plugin", _fake_ensure)
     init_project.install_plugins("global")
     out = capsys.readouterr().out
-    assert "WARN plugin rtk install failed" in out
-    assert "impeccable @ 9.9.9" in out  # loop continued past the rtk failure
+    assert "WARN plugin codegraph install failed" in out
+    assert "impeccable @ 9.9.9" in out  # loop continued past the codegraph failure
+    assert "plugin rtk" not in out  # optional plugins are explicit-only
+    assert "plugin ui-pro" not in out
+    assert "plugin si-chip" not in out

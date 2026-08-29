@@ -84,18 +84,29 @@ def _install_via_curl_script(spec, *, timeout: int) -> None:
 def available_plugin_profiles(*, registry_path=None) -> dict[str, list[str]]:
     """Return explicit global-install profiles derived from runtime SSOT.
 
-    ``all``/``global`` select the complete optional bundle; each plugin ID is
-    also a singleton profile.  No environment variable is involved, so
-    callers can present an explicit per-plugin choice to operators.
+    ``all``/``global`` select the default bundle; each plugin ID is also a
+    singleton profile, including plugins excluded from that bundle. No
+    environment variable is involved, so callers can present an explicit
+    per-plugin choice to operators.
     """
     registry = load_registry(registry_path)
-    plugin_ids = [
+    entries = [
         entry["id"]
         for entry in registry.get("plugins", [])
         if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"]
     ]
-    profiles = {"all": list(plugin_ids), "global": list(plugin_ids)}
-    profiles.update({plugin_id: [plugin_id] for plugin_id in plugin_ids})
+    bundled_ids = [
+        entry["id"]
+        for entry in registry.get("plugins", [])
+        if (
+            isinstance(entry, dict)
+            and isinstance(entry.get("id"), str)
+            and entry["id"]
+            and entry.get("default_install", True)
+        )
+    ]
+    profiles = {"all": bundled_ids, "global": bundled_ids}
+    profiles.update({plugin_id: [plugin_id] for plugin_id in entries})
     return profiles
 
 

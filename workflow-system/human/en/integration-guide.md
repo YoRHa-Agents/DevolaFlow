@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-29T07:25:58Z"
-source_version: "21.1.0"
+last_synced: "2026-08-29T08:32:55Z"
+source_version: "21.1.1"
 ---
 
 # Integration Guide
@@ -74,7 +74,8 @@ devola-init cursor --global --no-plugins
 
 `core` skips compilation and examples, `standard` compiles without examples,
 and `full` compiles and seeds examples. Global curl/Python installs attempt
-runtime plugins by default; `--no-plugins` keeps only skill files. Plugin
+default-bundled runtime plugins by default; `--no-plugins` keeps only skill
+files. Optional plugins RTK, ui-pro, and Si-Chip remain explicit-only. Plugin
 installation is separate from whether the host can discover the copied skill.
 
 ## Doctor and update boundaries

@@ -5,6 +5,17 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.1.1] - 2026-08-29 — PATCH — Optional Plugin Bundle Boundary
+
+### Changed
+
+- **RTK, ui-pro, and Si-Chip are no longer part of the default global plugin
+  bundle**: each remains registered and explicitly installable through its
+  singleton profile, while its runtime capability stays opt-in or
+  workflow-triggered.
+- Default-bundled plugin installation now derives its membership from the
+  runtime registry's `default_install` field.
+
 ## [21.1.0] - 2026-08-29 — MINOR — Skill Residency and Calibration Evidence
 
 Evidence: [SI-1 gap analysis](.local/research/v21.1.0_gap_analysis.md), the

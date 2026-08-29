@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover - the package supplies writing_style
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "21.1.0"
+SOURCE_VERSION = "21.1.1"
 INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 HOST_BRIDGE_URL = (
     "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
@@ -397,9 +397,9 @@ curl -fsSL {INSTALLER_URL} | bash -s all
 
 The curl `all` target installs every supported host target plus the `local`
 scaffold; it excludes `standalone`. Some hosts are project-only even when
-`--global` is requested. A global install also attempts the registered runtime
-plugins; add `--no-plugins` for skill files only. The curl installer has no
-doctor command.
+`--global` is requested. A global install also attempts the default-bundled
+runtime plugins; optional plugins RTK, ui-pro, and Si-Chip remain explicit-only.
+Add `--no-plugins` for skill files only. The curl installer has no doctor command.
 
 ### pip or wheel: Python runtime and local scaffold
 
@@ -424,8 +424,9 @@ devola-init cursor
 ```
 
 The Python meaning of `all` is Cursor, Claude, Copilot, and Codex; it excludes
-the local scaffold. With `--global`, plugin installation is attempted unless
-`--no-plugins` is present.
+the local scaffold. With `--global`, default-bundled plugin installation is
+attempted unless `--no-plugins` is present. Optional plugins RTK, ui-pro, and
+Si-Chip remain explicit-only.
 
 ### Manual fallback
 
@@ -538,8 +539,8 @@ curl -fsSL {INSTALLER_URL} | bash -s all
 
 curl 的 `all` 会安装所有受支持宿主目标和 `local` 脚手架，但不包含
 `standalone`。即使传入 `--global`，部分宿主仍只支持项目级。全局安装还会尝试
-安装已注册运行时插件；只复制 skill 文件时添加 `--no-plugins`。curl 安装器没有
-doctor 命令。
+安装默认捆绑的运行时插件；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。只复制 skill 文件时
+添加 `--no-plugins`。curl 安装器没有 doctor 命令。
 
 ### pip 或 wheel：Python 运行时与本地脚手架
 
@@ -563,7 +564,8 @@ devola-init cursor
 ```
 
 Python 中的 `all` 表示 Cursor、Claude、Copilot 与 Codex，不包含 local
-脚手架。配合 `--global` 时会尝试安装插件，除非传入 `--no-plugins`。
+脚手架。配合 `--global` 时会尝试安装默认捆绑插件，除非传入
+`--no-plugins`；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。
 
 ### 手动回退
 
@@ -902,7 +904,8 @@ devola-init cursor --global --no-plugins
 
 `core` skips compilation and examples, `standard` compiles without examples,
 and `full` compiles and seeds examples. Global curl/Python installs attempt
-runtime plugins by default; `--no-plugins` keeps only skill files. Plugin
+default-bundled runtime plugins by default; `--no-plugins` keeps only skill
+files. Optional plugins RTK, ui-pro, and Si-Chip remain explicit-only. Plugin
 installation is separate from whether the host can discover the copied skill.
 
 ## Doctor and update boundaries
@@ -998,8 +1001,9 @@ devola-init cursor --global --no-plugins
 ```
 
 `core` 跳过编译与示例，`standard` 编译但不生成示例，`full` 编译并播种示例。
-全局 curl/Python 安装默认尝试运行时插件；`--no-plugins` 只保留 skill 文件。
-插件安装与宿主能否发现已复制 skill 是两件事。
+全局 curl/Python 安装默认尝试默认捆绑的运行时插件；`--no-plugins` 只保留
+skill 文件；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。插件安装与宿主
+能否发现已复制 skill 是两件事。
 
 ## Doctor 与更新边界
 

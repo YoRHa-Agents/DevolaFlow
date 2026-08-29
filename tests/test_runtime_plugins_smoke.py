@@ -101,6 +101,8 @@ def test_resolve_plugin_returns_valid_spec(plugin_id: str) -> None:
         f"plugin {plugin_id!r} has empty version_check_cmd — would make _probe_version unusable"
     )
     assert spec.min_version, f"plugin {plugin_id!r} has empty min_version"
+    expected_default_install = plugin_id in {"codegraph", "impeccable"}
+    assert spec.default_install is expected_default_install
 
 
 def test_si_chip_version_check_cmd_no_longer_hardcoded() -> None:

@@ -4,8 +4,8 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-29T07:25:58Z"
-source_version: "21.1.0"
+last_synced: "2026-08-29T08:32:55Z"
+source_version: "21.1.1"
 ---
 
 # 集成指南
@@ -70,8 +70,9 @@ devola-init cursor --global --no-plugins
 ```
 
 `core` 跳过编译与示例，`standard` 编译但不生成示例，`full` 编译并播种示例。
-全局 curl/Python 安装默认尝试运行时插件；`--no-plugins` 只保留 skill 文件。
-插件安装与宿主能否发现已复制 skill 是两件事。
+全局 curl/Python 安装默认尝试默认捆绑的运行时插件；`--no-plugins` 只保留
+skill 文件；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。插件安装与宿主
+能否发现已复制 skill 是两件事。
 
 ## Doctor 与更新边界
 
