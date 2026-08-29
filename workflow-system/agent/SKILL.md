@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "21.1.1"
+version: "21.2.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v21.1.1**
+> **Now Using DevolaFlow v21.2.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 21.1.1 — Check only on explicit update request:
+**Current version:** 21.2.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
