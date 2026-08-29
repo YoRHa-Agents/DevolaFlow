@@ -1322,7 +1322,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "inventory-bounded",
-              "statement": "Task folders are inventoried without modification, and task inventory stays out of default scan_workspace discovery.",
+              "statement": "Registered task, feedback, and research candidates are inventoried without modification; archive inventory stays out of default scan_workspace discovery.",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"
@@ -1342,7 +1342,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "classification-independent",
-              "statement": "Each candidate has one active, done, stale, or unknown lifecycle value plus a separate protection verdict.",
+              "statement": "Each candidate has a lifecycle and protection verdict; feedback needs released and resolved TRACKER status, research needs an existing cycle archive.",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"
@@ -1422,7 +1422,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "non-deletion-move",
-              "statement": "Only approved candidates move while task context is preserved and no deletion action is performed.",
+              "statement": "Only approved candidates move while source content is preserved and no deletion action is performed; human and agent lifecycle surfaces remain out of scope.",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"
@@ -1442,7 +1442,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "mapping-index-verified",
-              "statement": "Each move appends a complete old-path-to-new-path mapping and verifies unique destinations and index coverage.",
+              "statement": "Each move appends a complete surface-local old-path-to-new-path mapping and verifies unique destinations and generated-index coverage.",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "manual"

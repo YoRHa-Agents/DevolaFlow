@@ -1,5 +1,5 @@
 # Schema: local-archive
-# Dedicated contracts for task-archive plans, indexes, and mappings.
+# Dedicated contracts for registered local-archive surfaces.
 design_reference: ".local/tasks/add_local_archive/local_archive_design.md"
 schema_name: local-archive
 schema_version: 1
@@ -8,6 +8,25 @@ instance_top_level_required:
   - schema_version
 governing_rules: [S-2, S-5, S-9, A-5]
 source_boundary: ".local/tasks"
+registered_surfaces:
+  tasks:
+    source_boundary: ".local/tasks"
+    archive_root: ".local/tasks"
+    mapping_path: ".local/tasks/archive-mappings.yaml"
+    index_path: ".local/tasks/INDEX.md"
+    generated_marker: "<!-- devolaflow: generated task archive index -->"
+  feedbacks:
+    source_boundary: ".local/feedbacks"
+    archive_root: ".local/feedbacks/archive"
+    mapping_path: ".local/feedbacks/archive/archive-mappings.yaml"
+    index_path: ".local/feedbacks/archive/INDEX.md"
+    generated_marker: "<!-- devolaflow: generated feedback archive index -->"
+  research:
+    source_boundary: ".local/research"
+    archive_root: ".local/research/archive"
+    mapping_path: ".local/research/archive/archive-mappings.yaml"
+    index_path: ".local/research/archive/INDEX.md"
+    generated_marker: "<!-- devolaflow: generated research archive index -->"
 protected_prefixes:
   - ".local/.agent/"
   - ".local/memory/specs/"

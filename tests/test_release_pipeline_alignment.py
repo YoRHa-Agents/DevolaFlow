@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +49,7 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
     workflow = _load_workflow("release.yml")
     assert _triggers(workflow)["push"]["tags"] == ["v*"]
     assert workflow["concurrency"] == {
-        "group": "release-${{ github.ref }}",
+        "group": "release-${{ inputs.release_tag || github.ref_name }}",
         "cancel-in-progress": False,
     }
     assert workflow["permissions"] == {}
@@ -58,17 +59,24 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
     assert verify["permissions"] == {"contents": "read"}
     assert verify["steps"][0] == {
         "uses": "actions/checkout@v7",
-        "with": {"fetch-depth": 0},
+        "with": {"fetch-depth": 0, "ref": "${{ inputs.release_sha || github.sha }}"},
     }
     assert _run_step_index(
         verify,
         "git fetch --no-tags origin main:refs/remotes/origin/main",
     ) < _run_step_index(
         verify,
-        'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
+        'git merge-base --is-ancestor "$RELEASE_SHA" origin/main',
     )
-    assert jobs["checks"]["uses"] == "./.github/workflows/ci-checks.yml"
-    assert jobs["checks"]["permissions"] == {"contents": "read"}
+    assert jobs["checks"] == {
+        "needs": "verify-release-ref",
+        "permissions": {"contents": "read"},
+        "uses": "./.github/workflows/ci-checks.yml",
+        "with": {
+            "checkout_ref": "${{ inputs.release_sha || github.sha }}",
+            "expected_sha": "${{ inputs.release_sha || github.sha }}",
+        },
+    }
     assert jobs["checks"]["needs"] == "verify-release-ref"
     assert jobs["release-extras"]["needs"] == "verify-release-ref"
     assert jobs["release"]["needs"] == ["checks", "release-extras"]
@@ -89,13 +97,14 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
 
     steps = deploy["steps"]
     assert steps[0]["uses"] == "actions/checkout@v7"
-    assert steps[0]["with"]["ref"] == "${{ github.sha }}"
-    assert "bash scripts/build-site.sh" in steps[1]["run"]
-    assert steps[2] == {
+    assert steps[0]["with"]["ref"] == "${{ inputs.release_sha || github.sha }}"
+    build_index = _run_step_index(deploy, "bash scripts/build-site.sh")
+    assert build_index > 0
+    assert steps[build_index + 1] == {
         "uses": "actions/upload-pages-artifact@v5",
         "with": {"path": "_site"},
     }
-    assert steps[3] == {"uses": "actions/deploy-pages@v5", "id": "deployment"}
+    assert steps[build_index + 2] == {"uses": "actions/deploy-pages@v5", "id": "deployment"}
 
     npm = _load_workflow("npm-publish.yml")
     assert _triggers(npm)["push"]["tags"] == ["v*"]
@@ -104,6 +113,10 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
     assert npm_jobs["checks"] == {
         "permissions": {"contents": "read"},
         "uses": "./.github/workflows/ci-checks.yml",
+        "with": {
+            "checkout_ref": "${{ inputs.release_sha || github.sha }}",
+            "expected_sha": "${{ inputs.release_sha || github.sha }}",
+        },
     }
     publish = npm_jobs["publish"]
     assert publish["needs"] == "checks"
@@ -113,15 +126,61 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
     }
     assert publish["steps"][0] == {
         "uses": "actions/checkout@v7",
-        "with": {"fetch-depth": 0},
+        "with": {"fetch-depth": 0, "ref": "${{ inputs.release_sha || github.sha }}"},
     }
     reachability = _run_step_index(
         publish,
-        'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
+        'git merge-base --is-ancestor "$RELEASE_SHA" origin/main',
     )
-    parity = _run_step_index(publish, 'TAG_VERSION="${GITHUB_REF_NAME#v}"')
+    parity = _run_step_index(publish, 'TAG_VERSION="${RELEASE_TAG#v}"')
     publication = _run_step_index(publish, "npm publish --provenance --access public")
     assert reachability < parity < publication
+
+
+def test_release_automation_is_guarded_and_reusable() -> None:
+    prep = _load_workflow("release-prep.yml")
+    prep_triggers = _triggers(prep)
+    version_input = prep_triggers["workflow_dispatch"]["inputs"]["version"]
+    assert version_input["required"] is True
+    assert version_input["type"] == "string"
+    assert prep["permissions"] == {}
+    prep_job = prep["jobs"]["prepare"]
+    assert prep_job["permissions"] == {"contents": "write", "pull-requests": "write"}
+    prep_steps = json.dumps(prep_job["steps"])
+    for command in (
+        "python scripts/bump_version.py",
+        "make sync-human-docs",
+        "make release-preflight",
+        "Validate existing CHANGELOG entry",
+        "gh pr create",
+    ):
+        assert command in prep_steps
+    assert "git clean" not in prep_steps
+    assert "CHANGELOG.md" in prep_steps
+
+    auto_tag = _load_workflow("auto-tag-release.yml")
+    auto_triggers = _triggers(auto_tag)
+    assert auto_triggers["push"] == {
+        "branches": ["main"],
+        "paths": ["src/devolaflow/__init__.py"],
+    }
+    assert auto_tag["permissions"] == {}
+    tag_job = auto_tag["jobs"]["create-tag"]
+    assert tag_job["permissions"] == {"contents": "write"}
+    tag_steps = json.dumps(tag_job["steps"])
+    assert "git ls-remote --exit-code --refs origin" in tag_steps
+    assert "git tag --annotate" in tag_steps
+    assert "git push origin" in tag_steps
+    assert "git clean" not in tag_steps
+    assert auto_tag["jobs"]["release"]["uses"] == "./.github/workflows/release.yml"
+    assert auto_tag["jobs"]["npm-publish"]["uses"] == "./.github/workflows/npm-publish.yml"
+    assert auto_tag["jobs"]["npm-publish"]["secrets"] == "inherit"
+
+    for workflow_name in ("release.yml", "npm-publish.yml"):
+        triggers = _triggers(_load_workflow(workflow_name))
+        inputs = triggers["workflow_call"]["inputs"]
+        assert set(inputs) == {"release_tag", "release_sha"}
+        assert all(input_spec["required"] is True for input_spec in inputs.values())
 
 
 def test_ci_and_release_verify_generated_outputs_before_site_build() -> None:
@@ -284,6 +343,20 @@ def test_release_preflight_runs_full_ghosts_and_dry_run_uses_same_contract() -> 
 
 def test_shared_ci_enforces_module_size_and_complete_coverage() -> None:
     workflow = _load_workflow("ci-checks.yml")
+    assert _triggers(workflow)["workflow_call"]["inputs"] == {
+        "checkout_ref": {
+            "description": "Exact ref or SHA to check out",
+            "required": False,
+            "default": "",
+            "type": "string",
+        },
+        "expected_sha": {
+            "description": "When set, the checkout must resolve to this full SHA",
+            "required": False,
+            "default": "",
+            "type": "string",
+        },
+    }
     check_steps = workflow["jobs"]["check"]["steps"]
     module_size = next(step for step in check_steps if step.get("name") == "Module size budget")
     assert (
@@ -306,7 +379,7 @@ def test_release_design_matches_v17_pipeline_contract() -> None:
     assert "make build-site" in design
     assert "`deploy-pages`" in design
     assert "`verify-release-ref`" in design
-    assert 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' in design
+    assert 'git merge-base --is-ancestor "$RELEASE_SHA" origin/main' in design
     assert "npm-publish.yml" in design
     assert "`publish`" in design
     assert "repository-wide `pages`" in design

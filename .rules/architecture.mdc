@@ -95,7 +95,7 @@ allowing the merge.
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
 Every domain registry surface (whitelist / recipe / value-type cache /
-plugin manifest) MUST have **exactly one owner module** — the canonical
+plugin manifest / archive adapter) MUST have **exactly one owner module** — the canonical
 source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
@@ -110,6 +110,7 @@ The current SSOT registries are listed below. Parity is enforced by
 | 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
 | 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
+| 6 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
 
 ### A-5.1 — Single-Owner Invariant
 
@@ -132,7 +133,8 @@ symbols MUST NOT appear there. Enforced by
 
 When `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ STANDARD per the
 SKILL.md §"Quick Action Decision" table, L0 MUST scaffold
-`.local/.agent/active/<id>/` before dispatching the first L1 stage.
+`.local/.agent/active/<id>/` with `entrance.md` before dispatching the first
+L1 stage.
 Default-OFF; rule is normative for opted-in operators.
 
 ### A-6.1 — Classification surface
@@ -160,6 +162,13 @@ Prompt-side: SKILL.md §"Quick Action Decision" sub-table cites this
 rule. CI-side: `tests/test_change_activation_heuristic.py` pins the
 three verdict cases + opt-out behaviour + byte-stable no-op when env
 flag absent.
+
+### A-6.5 — Task/Change Folder Entrance Materialization
+When an agent creates or opens a task/change folder under
+`.local/.agent/active/<id>/` or `.local/tasks/<name>/`, `entrance.md` MUST be
+written in the first artifact batch, unless the programmatic scaffold
+(`scaffold_change_folder` / `Change.to_active_folder`) performs that write.
+This is a repo-local governance contract and does not change release artifacts.
 
 ## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
 

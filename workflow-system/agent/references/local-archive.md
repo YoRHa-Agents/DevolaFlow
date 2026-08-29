@@ -2,9 +2,9 @@
 id: "agent/references/local-archive"
 version: "17.5.0"
 purpose: >
-  Define the explicit local-task archive workflow for bounded inventory,
-  report-only planning, approved non-deletion moves, strict safety checks,
-  and append-only archive provenance.
+  Define the explicit local archive workflow for bounded multi-surface
+  inventory, report-only planning, approved non-deletion moves, strict safety
+  checks, and append-only archive provenance.
 triggers:
   - "local archive"
   - "task archive"
@@ -17,15 +17,16 @@ dependencies:
   - "agent/SKILL.md"
   - "agent/references/agent-workspace.md"
   - "agent/references/meta-framework.md"
-last_updated: "2026-08-27"
+last_updated: "2026-08-29"
 ---
 
-# Local Task Archive
+# Local Archive
 
 ## Purpose
 
 `local-archive` is the recurring workflow for inventorying and, only after
-explicit approval, physically organizing task folders below `.local/tasks/`.
+explicit approval, physically organizing registered files or folders below
+the bounded `.local/` surfaces.
 It is separate from the `entropy-cleanup` workflow: entropy cleanup addresses
 stale or drifting artifacts, while local archive addresses task inventory,
 classification, approved non-deletion moves, mapping, and index verification.
@@ -43,12 +44,30 @@ No new environment variable or dispatch-schema key activates this workflow.
 Selection is explicit operator intent or the bounded command. The dispatch
 canonical order and cache prefix are unchanged.
 
-## 2. Source boundary and inventory
+## 2. Registered surfaces and boundaries
+
+The runtime registry contains exactly three adapters:
+
+| Surface | Source boundary | Archive root | Preconditions |
+|---|---|---|---|
+| `tasks` | `.local/tasks/` | `.local/tasks/` | existing task metadata and lifecycle rules |
+| `feedbacks` | `.local/feedbacks/` | `.local/feedbacks/archive/` | filename version is released and listed under `TRACKER.md` → `Resolved` |
+| `research` | `.local/research/` | `.local/research/archive/` | `docs/cycle-archive/v<version>/` exists |
+
+The task adapter remains the compatibility owner for canonical and brownfield
+task layouts. Feedback inventory considers only versioned
+`feedback_for_v*.md` source files and never archives `TRACKER.md`, README files,
+or the archive directory. Research inventory considers only versioned
+`v<major>.<minor>.<patch>_*` files and leaves unversioned material for its
+existing owners. The runtime does not register `.local/human/` or
+`.local/.agent/`; their existing mechanisms remain authoritative.
+
+## 3. Source boundary and inventory
 
 The default source boundary is exactly `.local/tasks/`. Public paths are
 repository-relative POSIX paths; absolute paths and traversal are refused.
-Non-task `.local/` directories and source/config surfaces are not archive
-inputs.
+Non-registered `.local/` directories and source/config surfaces are not archive
+inputs. Every adapter emits repository-relative POSIX paths.
 
 The inventory recognizes both layouts:
 
@@ -68,7 +87,7 @@ explicit task metadata. The six clusters from the one-off cleanup report are
 only a reference example; they are not a fixed manifest, required count, or
 registry. Zero or any other approved number of clusters is valid.
 
-## 3. Lifecycle and protection
+## 4. Lifecycle and protection
 
 Every candidate receives exactly one lifecycle value:
 
@@ -90,7 +109,7 @@ The task archive source remains `.local/tasks/`; a path outside that boundary,
 an unsafe symlink, an unreadable source, or a protected surface is reported
 with an explicit refusal rather than guessed into an eligible task.
 
-## 4. Report-only default
+## 5. Report-only default
 
 The default invocation is a report-only plan:
 
@@ -107,7 +126,7 @@ protection verdict/reason, and findings. Actions are `move`, `retain`,
 The report is safe to repeat. It is not approval, and a dry run never implies
 permission to apply a move.
 
-## 5. Explicit approval and physical moves
+## 6. Explicit approval and physical moves
 
 Physical moves are non-deletion moves and require explicit approval of an
 earlier plan. Apply only the exact approved subset:
@@ -124,9 +143,9 @@ a summary.
 
 An approved move is permitted only after the strict safety inspection passes.
 Any refusal leaves the candidate in place. Existing change folders under
-`.local/.agent/` and research archives remain outside this task workflow.
+`.local/.agent/` and human-surface archives remain outside this runtime.
 
-## 6. Strict safety checks
+## 7. Strict safety checks
 
 Before a migration-sensitive action, the command verifies all of the
 following:
@@ -149,7 +168,7 @@ A clean check is a precondition, not permission to delete or run `git clean`.
 The command never invokes `git clean -fdx` or an equivalent destructive
 operation.
 
-## 7. Permanent deletion boundary
+## 8. Permanent deletion boundary
 
 Deletion is permanently operator-only. The local-archive runtime exposes no
 automatic deletion API and no deletion workflow mode. It may report a
@@ -157,21 +176,31 @@ disposable candidate set, but the operator owns any later deletion decision
 and action outside this runtime. Clean checks and plan approval do not change
 that boundary.
 
-## 8. Mapping and generated index ownership
+## 9. Mapping and generated index ownership
 
-Every physical move appends one dedicated task-archive mapping row to
-`.local/tasks/archive-mappings.yaml`. The YAML document stream records:
-`sequence`, `source`, `destination`, `reason`, and `timestamp`. Sequence
-values increase from the existing maximum. Existing rows are immutable;
-duplicate source or destination paths are refused.
+Every physical move appends one dedicated mapping row to the ledger owned by
+its adapter:
 
-This mapping ledger is a dedicated task-archive record, not an existing
-`.local/.agent/` handoff envelope. Existing handoff envelopes are never edited
+- tasks → `.local/tasks/archive-mappings.yaml`
+- feedbacks → `.local/feedbacks/archive/archive-mappings.yaml`
+- research → `.local/research/archive/archive-mappings.yaml`
+
+The YAML document stream records `sequence`, `source`, `destination`, `reason`,
+and `timestamp`. Sequence values increase from the existing maximum. Existing
+rows are immutable; duplicate source or destination paths are refused.
+
+These ledgers are dedicated surface archive records, not existing
+`.local/.agent/` handoff envelopes. Existing handoff envelopes are never edited
 or deleted; a later operation appends a new record where its own contract
 requires one.
 
-`.local/tasks/INDEX.md` is a generated navigation view owned by the local
-archive index renderer. Its generated marker is:
+Each adapter has a generated navigation view beside its ledger:
+
+- tasks → `.local/tasks/INDEX.md`
+- feedbacks → `.local/feedbacks/archive/INDEX.md`
+- research → `.local/research/archive/INDEX.md`
+
+The generated marker is surface-specific (for example, tasks uses):
 
 ```text
 <!-- devolaflow: generated task archive index -->
@@ -183,7 +212,7 @@ marker, a symlinked index, or an unreadable index is never silently
 overwritten. The renderer must report a refusal or drift finding rather than
 clobber operator bytes.
 
-## 9. Canonical and brownfield operation
+## 10. Canonical and brownfield operation
 
 For a canonical workspace, inspect `.local/tasks/` and the protected
 `.local/.agent/` surfaces, inventory without mutation, classify, render the
@@ -199,7 +228,7 @@ flat layout, adopt clusters gradually, or approve only a subset. Missing
 index or mapping files are findings, not a reason to scaffold unrelated
 workspace surfaces.
 
-## 10. Existing surfaces remain unchanged
+## 11. Existing surfaces remain unchanged
 
 The default `scan_workspace` discovery remains narrow and does not enumerate
 `.local/tasks/`, infer task status, or inject archive mappings. Task inventory
@@ -214,8 +243,10 @@ is unchanged. W-7 continues to own versioned research archiving under
 ## Cross-references
 
 - `schemas/local-archive.schema.yaml` — plan, index, and mapping contracts
-- `src/devolaflow/local/archive.py` — inventory, plan, safety, apply, index,
-  and mapping owner
+- `src/devolaflow/local/archive.py` — surface-neutral safety kernel, plan,
+  apply, index, and mapping owner
+- `src/devolaflow/local/archive_adapters.py` — sole adapter registry and
+  feedback/research precondition owners
 - `workflow-system/agent/templates/seeds/local-archive.yaml` — declarative
   checklist seed
 - `workflow-system/agent/references/agent-workspace.md` — active-change

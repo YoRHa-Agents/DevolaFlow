@@ -1,4 +1,4 @@
-"""Frozen record types for the explicit local-task archive runtime.
+"""Frozen record types for the explicit local archive runtime.
 
 Split out of `devolaflow.local.archive` at v20.0.0 to honour the W-9
 module-size ratchet; `devolaflow.local.archive` remains the public owner
@@ -44,6 +44,25 @@ class Finding:
 
     code: str
     message: str
+
+
+@dataclass(frozen=True)
+class ArchiveRecord:
+    """One discovered archival candidate and its conservative classification."""
+
+    source: str
+    identity: str
+    classification: str
+    protection: ProtectionVerdict
+    protection_reason: str
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+    findings: tuple[Finding, ...] = ()
+
+    @property
+    def protected(self) -> bool:
+        """Return whether this record cannot be moved."""
+
+        return self.protection is not ProtectionVerdict.ALLOWED
 
 
 @dataclass(frozen=True)
@@ -112,6 +131,7 @@ class ArchivePlan:
     entries: tuple[PlanEntry, ...]
     findings: tuple[Finding, ...] = ()
     source_boundary: str = ".local/tasks"
+    surface: str = "tasks"
 
     @property
     def fingerprint(self) -> str:
@@ -168,6 +188,7 @@ class ArchiveResult:
     index_path: str | None = None
     recovery_required: bool = False
     recovery_hint: str | None = None
+    surface: str = "tasks"
 
     @property
     def success(self) -> bool:

@@ -5,6 +5,15 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Surface-neutral local archive adapters**: approved non-deletion archival
+  now supports tasks, released/resolved feedbacks, and research files gated by
+  an existing cycle archive, with separate append-only mapping ledgers and
+  generated indexes.
+
 ## [21.1.1] - 2026-08-29 — PATCH — Optional Plugin Bundle Boundary
 
 ### Changed

@@ -216,7 +216,7 @@ allowing the merge.
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
 Every domain registry surface (whitelist / recipe / value-type cache /
-plugin manifest) MUST have **exactly one owner module** — the canonical
+plugin manifest / archive adapter) MUST have **exactly one owner module** — the canonical
 source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
@@ -231,6 +231,7 @@ The current SSOT registries are listed below. Parity is enforced by
 | 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
 | 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
 | 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
+| 6 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
 
 ### A-5.1 — Single-Owner Invariant
 
@@ -253,7 +254,8 @@ symbols MUST NOT appear there. Enforced by
 
 When `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ STANDARD per the
 SKILL.md §"Quick Action Decision" table, L0 MUST scaffold
-`.local/.agent/active/<id>/` before dispatching the first L1 stage.
+`.local/.agent/active/<id>/` with `entrance.md` before dispatching the first
+L1 stage.
 Default-OFF; rule is normative for opted-in operators.
 
 ### A-6.1 — Classification surface
@@ -281,6 +283,13 @@ Prompt-side: SKILL.md §"Quick Action Decision" sub-table cites this
 rule. CI-side: `tests/test_change_activation_heuristic.py` pins the
 three verdict cases + opt-out behaviour + byte-stable no-op when env
 flag absent.
+
+### A-6.5 — Task/Change Folder Entrance Materialization
+When an agent creates or opens a task/change folder under
+`.local/.agent/active/<id>/` or `.local/tasks/<name>/`, `entrance.md` MUST be
+written in the first artifact batch, unless the programmatic scaffold
+(`scaffold_change_folder` / `Change.to_active_folder`) performs that write.
+This is a repo-local governance contract and does not change release artifacts.
 
 ## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
 
@@ -829,43 +838,53 @@ Source: v17.4.0 HSC design.
 ## W-26 — Local-Archive Deletion Safety (C-G4.3)
 
 Deletion is permanently operator-only. The local-archive runtime exposes no
-automatic deletion API and no deletion workflow mode. Report-only planning and
-approved non-deletion moves remain allowed; clean checks and plan approval
-never authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
+automatic deletion API or deletion workflow mode for any registered surface
+(`tasks`, `feedbacks`, or `research`). Report-only planning and approved
+non-deletion moves remain allowed; clean checks and plan approval never
+authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
 equivalent destructive command.
 
 Dirty, ambiguous, missing, unreadable, nested-repository, symlink, protected,
 or worktree-conflicted paths MUST produce explicit refusal findings. A refused
 candidate remains in place. The operator owns any later deletion decision and
-action outside this runtime.
+action outside this runtime. `.local/human/` and `.local/.agent/` remain owned
+by their existing lifecycle mechanisms and are never adapter inputs.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §§6–7,
 `src/devolaflow/local/archive.py`, and
 `docs/cycle-archive/v17.4.0/design/v17.4.0_local_archive_design.md` §§3.4–3.5.
-Enforcement: `tests/test_local_archive.py` and
-`tests/ghost/test_features_v17_5.py`.
+Enforcement: `tests/test_local_archive.py`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-27 — Local-Archive Mapping Append-Only Behavior (C-G4.4)
 
-Every physical move MUST append one dedicated task-archive mapping record to
-`.local/tasks/archive-mappings.yaml`. Each row records `sequence`, `source`,
-`destination`, `reason`, and `timestamp`; sequence values increase from the
-existing maximum. Existing rows are immutable, and duplicate source or
-destination paths MUST be refused.
+Every physical move MUST append one dedicated mapping record to the ledger
+owned by its registered surface. Tasks retain
+`.local/tasks/archive-mappings.yaml`; feedbacks use
+`.local/feedbacks/archive/archive-mappings.yaml`; research uses
+`.local/research/archive/archive-mappings.yaml`. Each row records `sequence`,
+`source`, `destination`, `reason`, and `timestamp`; sequence values increase
+from the existing maximum. Existing rows are immutable, and duplicate source
+or destination paths MUST be refused.
 
-This record is a dedicated task-archive ledger, not an existing
-`.local/.agent/` handoff envelope; S-9 remains independently enforced.
+These are dedicated surface ledgers, not existing `.local/.agent/` handoff
+envelopes; S-9 remains independently enforced.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §8 and
 `src/devolaflow/local/archive.py::append_mapping_record`. Enforcement:
-`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber` and
-the current-cycle local-archive ghost audit.
+`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-28 — Local-Archive Index-Generation Honesty (C-G4.5)
 
-`.local/tasks/INDEX.md` is a generated navigation view, not the mapping source
-of truth. Generated output MUST carry
-`<!-- devolaflow: generated task archive index -->`. A missing index may be
+Each registered surface owns a generated navigation view beside its mapping
+ledger. Tasks retain `.local/tasks/INDEX.md`; feedbacks use
+`.local/feedbacks/archive/INDEX.md`; research uses
+`.local/research/archive/INDEX.md`. Generated output MUST carry its
+surface-specific generated marker (the tasks marker remains
+`<!-- devolaflow: generated task archive index -->`). A missing index may be
 created only by an approved apply operation.
 
 A human-maintained, symlinked, or unreadable index MUST never be silently
@@ -874,8 +893,9 @@ refusal or drift finding.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §8 and
 `src/devolaflow/local/archive.py::render_index` /
-`_validate_index_target`. Enforcement: `tests/test_local_archive.py` and the
-current-cycle local-archive ghost audit.
+`_validate_index_target`. Enforcement: `tests/test_local_archive.py`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-29 — Retro-Digest Evidence and Consent
 
