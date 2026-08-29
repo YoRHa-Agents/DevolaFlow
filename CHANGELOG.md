@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an existing cycle archive, with separate append-only mapping ledgers and
   generated indexes.
 
+## [21.2.0] - 2026-08-29 — MINOR — Feedback Governance and Cloud Release
+
+### Added
+
+- **Feedback governance and safe archival**: repo-local entrance contracts,
+  code-aware module budgets, and operator-approved archives for tasks,
+  feedbacks, and research.
+- **GitHub-native release preparation**: guarded version preparation,
+  auto-tagging, reusable release checks, and npm publishing.
+
 ## [21.1.1] - 2026-08-29 — PATCH — Optional Plugin Bundle Boundary
 
 ### Changed
