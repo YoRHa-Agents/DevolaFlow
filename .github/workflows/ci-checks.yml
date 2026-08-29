@@ -121,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Node 20
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Syntax-check installer bin
