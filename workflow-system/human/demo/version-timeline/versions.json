@@ -2423,5 +2423,19 @@
       "RTK shell-output compression remains opt-in via DEVOLAFLOW_RTK_PROXY=1"
     ],
     "metrics": {}
+  },
+  {
+    "version": "21.2.0",
+    "date": "2026-08-29",
+    "era": "feedback-governance-cloud-release",
+    "headline": "MINOR — Feedback governance, safe local archival, code-aware budgets, and GitHub-native release automation",
+    "summary": "v21.2.0 adds repo-local entrance artifact governance, a safe operator-approved archive kernel for tasks, feedbacks, and research, a tokenizer/AST module budget, and guarded hosted release preparation with exact-commit release and npm paths.",
+    "highlights": [
+      "Entrance contract — agent-created task and change folders must write entrance.md in the first artifact batch or use the programmatic scaffold",
+      "Safe local archive — tasks, released/resolved feedbacks, and cycle-gated research use separate append-only ledgers and generated indexes",
+      "Code-aware budget — module size counts code lines while comment and docstring density prevents comment flooding",
+      "Cloud release — workflow dispatch prepares a mechanical release PR, then validated main version changes create annotated tags and invoke reusable release paths"
+    ],
+    "metrics": {}
   }
 ]
