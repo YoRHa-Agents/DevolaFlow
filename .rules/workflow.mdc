@@ -26,6 +26,15 @@ There is no external-tool or manual fallback.
 
 Every pre-release requires an evaluation report covering: Code quality (0.20), Architecture rationality (0.20), Test adequacy (0.20), Maintainability (0.15), Compatibility (0.10), Performance impact (0.15). Version readiness threshold: weighted composite ≥ 8.5/10.
 
+External benchmark results and version-quality claims MUST NOT rely on a
+single seeded run. The claim evidence MUST carry reproducibility metadata
+including a run identifier, the caller-supplied salt when one exists, and the
+source repository reference. It MUST also include variance or uncertainty
+evidence appropriate to the comparison; metadata MUST remain explicit in the
+harness output, telemetry ledger, and StatusReport metadata face. Missing
+metadata or uncertainty evidence is `INSUFFICIENT`, never `PASS`; a generated
+identifier MUST NOT be represented as an experimental salt.
+
 ## W-4 — Harness Regression Guard (SI-4)
 
 Changes to selector/config/schema/SKILL/gate/harness modules require:

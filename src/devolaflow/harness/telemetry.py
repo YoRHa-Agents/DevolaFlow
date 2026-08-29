@@ -17,11 +17,28 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
-import yaml
-
 from devolaflow.agent_workspace.layers import LAYER_ATTRIBUTION_ALIASES
 from devolaflow.agents_md_slice import cached_slice_summary
 from devolaflow.harness.capacity import CapacityProfile, capacity_profile
+from devolaflow.harness.context_tokens import (
+    CONTEXT_TOKEN_EVENT,
+    CONTEXT_TOKEN_FIELDS,
+    TelemetryGateError,
+    _append_context_token_record,
+    _build_context_token_accounting,
+    _build_report_telemetry_record,
+    _resolve_context_tokens,
+    build_context_token_record,
+    estimate_text_tokens,
+    measure_context_tokens,
+    stable_yaml,
+)
+from devolaflow.harness.metadata import attach_run_metadata
+from devolaflow.harness.telemetry_storage import (
+    HARNESS_SEGMENT_MAX_BYTES,
+    MAX_HARNESS_SEGMENT_BYTES,
+    append_harness_record,
+)
 from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
 from devolaflow.task_adaptive_selector import estimate_tokens
 
@@ -78,8 +95,6 @@ SI10_GATE_NAMES: Final[tuple[str, ...]] = (
     "iteration-delta-gate",
 )
 SI10_GATE_STATUSES: Final[frozenset[str]] = frozenset({"PASS", "FAIL"})
-HARNESS_SEGMENT_MAX_BYTES: Final[int] = 64 * 1024
-MAX_HARNESS_SEGMENT_BYTES: Final[int] = HARNESS_SEGMENT_MAX_BYTES
 LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {
     "L0": 5_000,
     "L1": 5_000,
@@ -89,11 +104,14 @@ LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {
 _ACTIVE_ROOT = Path(".local") / ".agent" / "active"
 _BASE_LEDGER_NAME = "harness.jsonl"
 _BEHAVIORAL_GUIDELINES_REF = "workflow-system/agent/references/behavioral-guidelines.md"
-_SEGMENT_RE = re.compile(r"^harness\.(?P<index>[1-9]\d*)\.jsonl$")
 # Alias table owned by agent_workspace.layers (A-5 single-owner; merged v17).
 _LAYER_ALIASES: Final[dict[str, str]] = LAYER_ATTRIBUTION_ALIASES
 
 logger = logging.getLogger(__name__)
+
+append_context_token_record = _append_context_token_record
+build_context_token_accounting = _build_context_token_accounting
+build_report_telemetry_record = _build_report_telemetry_record
 
 
 class _AttributionError(ValueError):
@@ -306,24 +324,6 @@ def _slice_injection_metrics(payload: dict[str, Any]) -> tuple[int, float]:
         return 0, 0.0
 
 
-def _stable_yaml(payload: dict[str, Any]) -> str:
-    """Render deterministic measurement input independent of mapping order."""
-
-    return yaml.safe_dump(
-        payload,
-        allow_unicode=True,
-        default_flow_style=False,
-        sort_keys=True,
-    )
-
-
-# v17.0.0 R2 (G17-B2 / D-R2-5) — public alias so the pre_dispatch
-# layer-budget assertion (`lifecycle.assert_layer_budget`) measures
-# dispatch payloads with the EXACT serializer telemetry records with
-# (A-5: one measurement pipeline, one owner).
-stable_yaml = _stable_yaml
-
-
 def _constraint_summary_view(payload: dict[str, Any]) -> dict[str, Any]:
     """Return an annotated copy without advisory-fold metadata."""
 
@@ -352,6 +352,11 @@ def build_dispatch_record(
     change_id: str,
     timestamp: str | None = None,
     measurements: Mapping[str, object] | None = None,
+    context_tokens: Mapping[str, object] | None = None,
+    skill_text: str | None = None,
+    rule_text: str | None = None,
+    report_envelope: Mapping[str, Any] | str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one exact-schema harness record from a dispatch payload.
 
@@ -387,8 +392,15 @@ def build_dispatch_record(
     behavioral = _mapping(payload, "behavioral_guidelines")
     advisory_folded = behavioral is not None and behavioral.get("advisory_folded") is True
     model_hint = _model_hint(payload)
-    measured = estimate_tokens(_stable_yaml(payload))
+    measured = estimate_tokens(stable_yaml(payload))
     host_rule_tokens, slice_savings_pct = _slice_injection_metrics(payload)
+    resolved_context_tokens = _resolve_context_tokens(
+        payload,
+        context_tokens,
+        skill_text=skill_text,
+        rule_text=rule_text,
+        report_envelope=report_envelope,
+    )
     record_timestamp = timestamp or datetime.now(UTC).isoformat()
 
     record = {
@@ -427,7 +439,9 @@ def build_dispatch_record(
             "ref": _BEHAVIORAL_GUIDELINES_REF,
             "model_hint": model_hint,
         }
-    return record
+    if resolved_context_tokens is not None:
+        record["context_tokens"] = resolved_context_tokens
+    return attach_run_metadata(record, metadata)
 
 
 def _validate_measurement_value(name: str, value: object) -> int | float | None:
@@ -649,6 +663,7 @@ def build_metric_observation_record(
     observation: Mapping[str, Any],
     *,
     event_id: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Wrap one validated observation as an append-only JSONL ledger event."""
 
@@ -659,7 +674,7 @@ def build_metric_observation_record(
     )
     if not isinstance(resolved_event_id, str) or not resolved_event_id.strip():
         raise MetricObservationError("event_id must be a non-empty string")
-    return {
+    record = {
         "schema_version": 1,
         "event": METRIC_OBSERVATION_EVENT,
         "event_id": resolved_event_id,
@@ -669,6 +684,7 @@ def build_metric_observation_record(
             if field != "schema_version"
         },
     }
+    return attach_run_metadata(record, metadata)
 
 
 def append_metric_observation(
@@ -676,13 +692,14 @@ def append_metric_observation(
     observation: Mapping[str, Any],
     *,
     event_id: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> Path:
     """Append one validated structured observation, preserving prior bytes."""
 
     path = Path(ledger)
     if path.exists() and not path.is_file():
         raise MetricObservationError(f"telemetry ledger must be a file: {path}")
-    record = build_metric_observation_record(observation, event_id=event_id)
+    record = build_metric_observation_record(observation, event_id=event_id, metadata=metadata)
     if path.name == _BASE_LEDGER_NAME:
         path.parent.mkdir(parents=True, exist_ok=True)
         written = append_harness_record(path.parent, record)
@@ -829,6 +846,7 @@ def build_consolidation_metrics_record(
     measurements: Mapping[str, object],
     *,
     timestamp: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one append-only record for the v18 consolidation measurements.
 
@@ -841,7 +859,7 @@ def build_consolidation_metrics_record(
     unknown = sorted(set(measurements) - set(CONSOLIDATION_METRIC_NAMES))
     if unknown:
         raise TelemetryGateError(f"unsupported consolidation metric(s): {', '.join(unknown)}")
-    return {
+    record = {
         "schema_version": 1,
         "event": CONSOLIDATION_METRICS_EVENT,
         "event_id": f"{CONSOLIDATION_METRICS_EVENT}:{timestamp or 'generated'}",
@@ -851,6 +869,7 @@ def build_consolidation_metrics_record(
             for name in CONSOLIDATION_METRIC_NAMES
         },
     }
+    return attach_run_metadata(record, metadata)
 
 
 def append_consolidation_metrics(
@@ -858,13 +877,18 @@ def append_consolidation_metrics(
     measurements: Mapping[str, object],
     *,
     timestamp: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> Path:
     """Append one complete v18 measurement envelope without rewriting history."""
 
     path = Path(ledger)
     if path.exists() and not path.is_file():
         raise TelemetryGateError(f"telemetry ledger must be a file: {path}")
-    record = build_consolidation_metrics_record(measurements, timestamp=timestamp)
+    record = build_consolidation_metrics_record(
+        measurements,
+        timestamp=timestamp,
+        metadata=metadata,
+    )
     if path.name == _BASE_LEDGER_NAME:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -886,87 +910,14 @@ def append_consolidation_metrics(
     return path
 
 
-def _segment_index(path: Path) -> int | None:
-    if path.name == _BASE_LEDGER_NAME:
-        return 0
-    match = _SEGMENT_RE.fullmatch(path.name)
-    return int(match.group("index")) if match else None
-
-
-def _segment_path(change_folder: Path, index: int) -> Path:
-    if index == 0:
-        return change_folder / _BASE_LEDGER_NAME
-    return change_folder / f"harness.{index}.jsonl"
-
-
-def append_harness_record(
-    change_folder: str | Path,
-    record: dict[str, Any],
-    *,
-    max_bytes: int = HARNESS_SEGMENT_MAX_BYTES,
-) -> Path | None:
-    """Append one compact JSONL record, rotating before the byte ceiling.
-
-    Rotation is append-only: existing segments are never rewritten. The
-    implementation uses directory metadata and ``stat`` only; it never reads
-    an existing ledger into memory and deliberately performs no ``fsync``.
-    """
-
-    folder = Path(change_folder)
-    try:
-        if type(max_bytes) is not int or max_bytes <= 0:
-            raise ValueError("max_bytes must be a positive integer")
-        if not folder.is_dir():
-            raise OSError(f"active change folder does not exist: {folder!s}")
-        encoded = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode(
-            "utf-8"
-        )
-        if len(encoded) > max_bytes:
-            logger.warning(
-                "harness telemetry record is %d bytes, exceeding the %d-byte "
-                "segment cap; record not written",
-                len(encoded),
-                max_bytes,
-            )
-            return None
-
-        indexed_segments = [
-            (index, child)
-            for child in folder.iterdir()
-            if child.is_file() and (index := _segment_index(child)) is not None
-        ]
-        if indexed_segments:
-            index, target = max(indexed_segments, key=lambda item: item[0])
-        else:
-            index, target = 0, _segment_path(folder, 0)
-
-        current_size = target.stat().st_size if target.exists() else 0
-        if current_size + len(encoded) > max_bytes:
-            target = _segment_path(folder, index + 1)
-
-        with target.open("ab") as stream:
-            stream.write(encoded)
-        return target
-    except (OSError, TypeError, ValueError) as exc:
-        logger.warning(
-            "harness telemetry append failed for %s: %s; dispatch continues",
-            folder,
-            exc,
-        )
-        return None
-
-
-class TelemetryGateError(ValueError):
-    """A required SI-10 telemetry record is absent or unsuccessful."""
-
-
 def build_gate_record(
     pv: str,
     gate: str,
     status: str,
     *,
     timestamp: str | None = None,
-) -> dict[str, str | int]:
+    metadata: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build one schema-versioned SI-10 gate event.
 
     Gate events are additive records. Existing dispatch and proposal event
@@ -982,7 +933,7 @@ def build_gate_record(
     if not isinstance(status, str) or status not in SI10_GATE_STATUSES:
         raise TelemetryGateError("status must be PASS or FAIL")
     event_id = f"{SI10_GATE_EVENT}:{pv}:{gate}:{status}"
-    return {
+    record = {
         "schema_version": 1,
         "event": SI10_GATE_EVENT,
         "event_id": event_id,
@@ -991,6 +942,7 @@ def build_gate_record(
         "gate": gate,
         "status": status,
     }
+    return attach_run_metadata(record, metadata)
 
 
 def append_gate_telemetry(
@@ -1000,6 +952,7 @@ def append_gate_telemetry(
     status: str,
     *,
     timestamp: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> Path:
     """Append one SI-10 gate event to a repository telemetry ledger.
 
@@ -1011,7 +964,7 @@ def append_gate_telemetry(
     path = Path(ledger)
     if path.exists() and not path.is_file():
         raise TelemetryGateError(f"telemetry ledger must be a file: {path}")
-    record = build_gate_record(pv, gate, status, timestamp=timestamp)
+    record = build_gate_record(pv, gate, status, timestamp=timestamp, metadata=metadata)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         encoded = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode(
@@ -1162,6 +1115,8 @@ def record_dispatch_telemetry(
     *,
     strict: bool = False,
     repo_root: str | Path | None = None,
+    context_tokens: Mapping[str, object] | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> HookResult:
     """Nonblocking ``post_dispatch`` extra that records harness telemetry."""
 
@@ -1181,6 +1136,8 @@ def record_dispatch_telemetry(
         record = build_dispatch_record(
             payload,
             change_id=change_folder.name,
+            context_tokens=context_tokens,
+            metadata=metadata,
         )
         written_path = append_harness_record(change_folder, record)
         if written_path is None:
@@ -1203,6 +1160,8 @@ __all__ = [
     "MAX_HARNESS_SEGMENT_BYTES",
     "CONSOLIDATION_METRIC_NAMES",
     "CONSOLIDATION_METRICS_EVENT",
+    "CONTEXT_TOKEN_EVENT",
+    "CONTEXT_TOKEN_FIELDS",
     "METRIC_OBSERVATION_EVENT",
     "METRIC_OBSERVATION_FIELDS",
     "METRIC_OBSERVATION_MATCH_FIELDS",
@@ -1211,17 +1170,23 @@ __all__ = [
     "SI10_GATE_STATUSES",
     "append_harness_record",
     "append_consolidation_metrics",
+    "append_context_token_record",
     "append_metric_observation",
     "append_gate_telemetry",
     "build_gate_record",
     "build_dispatch_record",
+    "build_context_token_accounting",
+    "build_context_token_record",
     "build_consolidation_metrics_record",
     "build_metric_observation",
     "build_metric_observation_record",
+    "build_report_telemetry_record",
     "compare_metric_observations",
     "compare_metric_observation_sets",
     "check_gate_telemetry",
     "record_dispatch_telemetry",
+    "estimate_text_tokens",
+    "measure_context_tokens",
     "stable_yaml",
     "TelemetryGateError",
     "MetricObservationError",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from devolaflow.host_contract import load_host_contract, profile_projection
+from devolaflow.host_contract import REQUIRED_EXTRA_AXES, load_host_contract, profile_projection
 from devolaflow.install_manifest import load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,13 +25,7 @@ def test_manifest_profiles_match_host_contract_projection() -> None:
 def test_guaranteed_hosts_declare_complete_floor_and_extras() -> None:
     contract = load_host_contract()
     required_floor = {"skill_delivery", "instruction_format", "install_channels", "doctor", "tests"}
-    required_extras = {
-        "boundary_bridge",
-        "session_resume",
-        "subagent_dispatch",
-        "mcp",
-        "tool_vocabulary",
-    }
+    required_extras = set(REQUIRED_EXTRA_AXES)
     guaranteed = [
         (name, entry) for name, entry in contract["hosts"].items() if entry["tier"] == "guaranteed"
     ]
@@ -40,6 +34,18 @@ def test_guaranteed_hosts_declare_complete_floor_and_extras() -> None:
         assert set(entry["floor"]) == required_floor, name
         assert set(entry["extras"]) == required_extras, name
         assert entry["floor"]["install_channels"], name
+
+
+def test_skill_residency_declarations_have_observation_contract() -> None:
+    contract = load_host_contract()
+    for name, entry in contract["hosts"].items():
+        residency = entry["extras"]["skill_residency"]
+        assert residency["status"]
+        assert residency["scope"]
+        assert residency["observation_method"]
+        assert "fixtures" in residency
+        assert residency["fixture_provenance"]
+        assert residency["reason"], name
 
 
 def test_manifest_includes_dsh_after_delivery_phase() -> None:

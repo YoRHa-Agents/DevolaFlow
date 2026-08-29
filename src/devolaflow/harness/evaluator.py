@@ -20,17 +20,23 @@ from devolaflow.harness.aggregator import (
     aggregate_records,
     load_ledger_records,
 )
+from devolaflow.harness.evaluation_comparison import compare_historical_companion
+from devolaflow.harness.evaluation_contract import (
+    DEFAULT_CROSS_VALIDATION_DELTA,
+    DEFAULT_THRESHOLD,
+    DIMENSION_WEIGHTS,
+    HISTORICAL_COMPANION_METHOD,
+    EvaluationError,
+)
+from devolaflow.harness.metadata import (
+    MetadataError,
+    RunMetadata,
+    build_run_metadata,
+    validate_run_metadata,
+)
 from devolaflow.harness.telemetry import MetricObservationError, validate_metric_observation
 from devolaflow.task_adaptive_selector import estimate_tokens
 
-DIMENSION_WEIGHTS: Final[dict[str, float]] = {
-    "code_quality": 0.20,
-    "architecture_rationality": 0.20,
-    "test_adequacy": 0.20,
-    "maintainability": 0.15,
-    "compatibility": 0.10,
-    "performance_impact": 0.15,
-}
 MEASUREMENT_KEYS: Final[tuple[str, ...]] = (
     "agents_md_tokens",
     "suite_wall_seconds",
@@ -48,10 +54,6 @@ SIGNAL_KEYS: Final[tuple[str, ...]] = (
     "docstring_coverage_pct",
     *MEASUREMENT_KEYS,
 )
-DEFAULT_THRESHOLD: Final[float] = 8.5
-DEFAULT_CROSS_VALIDATION_DELTA: Final[float] = 1.0
-HISTORICAL_COMPANION_METHOD: Final[str] = "historical_w3_hybrid_companion_v15_final"
-
 _COVERAGE_RE: Final[re.Pattern[str]] = re.compile(
     r"^TOTAL\s+\d+\s+\d+\s+(\d+(?:\.\d+)?)%",
     re.MULTILINE,
@@ -76,10 +78,6 @@ _AGENT_TEXT_PATHS: Final[tuple[Path, ...]] = (
 )
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
-
-
-class EvaluationError(ValueError):
-    """Evaluation inputs or signal values violate the evaluator contract."""
 
 
 @dataclass(frozen=True)
@@ -637,6 +635,11 @@ def evaluate_harness(
     sampled_at: str | None = None,
     runner: Runner | None = None,
     baseline: Sequence[Mapping[str, Any]] | None = None,
+    run_metadata: Mapping[str, Any] | None = None,
+    generated_at: str | None = None,
+    salt: int | float | str | None = None,
+    run_id: str | None = None,
+    metadata_runner: Runner | None = None,
 ) -> dict[str, Any]:
     """Aggregate a ledger and evaluate the exact deterministic W-3 rubric."""
 
@@ -649,7 +652,26 @@ def evaluate_harness(
         raise EvaluationError("threshold must be a finite number in [0, 10]")
 
     records = load_ledger_records(ledger)
+    resolved_sampled_at = sampled_at or _latest_timestamp(records)
+    try:
+        metadata: RunMetadata = (
+            validate_run_metadata(run_metadata)
+            if run_metadata is not None
+            else build_run_metadata(
+                ledger,
+                repo_root=repo_root,
+                sampled_at=resolved_sampled_at,
+                base_ref=base_ref,
+                salt=salt,
+                run_id=run_id,
+                generated_at=generated_at,
+                runner=metadata_runner,
+            )
+        )
+    except MetadataError as exc:
+        raise EvaluationError(str(exc)) from exc
     summary = aggregate_records(records)
+    summary = {**summary, "metadata": metadata}
     collected_signals: dict[str, SignalResult] | None = None
     if signals is None:
         collected_signals = collect_signals(repo_root, base_ref=base_ref, runner=runner)
@@ -787,7 +809,7 @@ def evaluate_harness(
 
     result = {
         "schema_version": 1,
-        "sampled_at": sampled_at or _latest_timestamp(records),
+        "sampled_at": resolved_sampled_at,
         "threshold": float(threshold),
         "scores": scores,
         "composite": composite,
@@ -801,6 +823,13 @@ def evaluate_harness(
         ),
         "suggestions": suggestions,
     }
+    if (
+        run_metadata is not None
+        or generated_at is not None
+        or salt is not None
+        or run_id is not None
+    ):
+        result["metadata"] = metadata
     if baseline is not None:
         if isinstance(baseline, (str, bytes)) or not isinstance(baseline, Sequence):
             raise EvaluationError("baseline must be a sequence of metric observations")
@@ -809,176 +838,6 @@ def evaluate_harness(
             current = []
         result["metric_comparison"] = aggregate_metric_observations(list(baseline), current)
     return result
-
-
-def _score_vector(payload: Mapping[str, Any], *, label: str) -> dict[str, float]:
-    raw_scores = payload.get("scores")
-    if not isinstance(raw_scores, list):
-        raise EvaluationError(f"{label}.scores must be a list")
-
-    scores: dict[str, float] = {}
-    for index, entry in enumerate(raw_scores):
-        if not isinstance(entry, Mapping):
-            raise EvaluationError(f"{label}.scores[{index}] must be an object")
-        dimension = entry.get("id")
-        if not isinstance(dimension, str) or not dimension:
-            raise EvaluationError(f"{label}.scores[{index}].id must be a non-empty string")
-        if dimension in scores:
-            raise EvaluationError(f"{label}.scores contains duplicate id {dimension!r}")
-        raw_score = entry.get("score")
-        if (
-            isinstance(raw_score, bool)
-            or not isinstance(raw_score, (int, float))
-            or not math.isfinite(float(raw_score))
-            or not 0.0 <= float(raw_score) <= 10.0
-        ):
-            raise EvaluationError(
-                f"{label}.scores[{index}].score must be a finite number in [0, 10]"
-            )
-        scores[dimension] = float(raw_score)
-
-    expected = set(DIMENSION_WEIGHTS)
-    actual = set(scores)
-    if actual != expected:
-        raise EvaluationError(
-            f"{label}.scores ids must exactly match {list(DIMENSION_WEIGHTS)}; "
-            f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}"
-        )
-    return scores
-
-
-def _historical_provenance(companion: Mapping[str, Any]) -> dict[str, Any]:
-    sampled_at = companion.get("sampled_at")
-    if not isinstance(sampled_at, str) or not sampled_at.strip():
-        raise EvaluationError("historical companion sampled_at must be a non-empty string")
-    if companion.get("metric_count") != len(DIMENSION_WEIGHTS):
-        raise EvaluationError(
-            f"historical companion metric_count must equal {len(DIMENSION_WEIGHTS)}"
-        )
-    methodology = companion.get("methodology")
-    if not isinstance(methodology, str) or not methodology.strip():
-        raise EvaluationError("historical companion methodology must be a non-empty string")
-    limitation = companion.get("limitation")
-    if (
-        not isinstance(limitation, str)
-        or "not a raw NineS six-dimensional output" not in limitation
-    ):
-        raise EvaluationError(
-            "historical companion limitation must state that it is "
-            "not a raw NineS six-dimensional output"
-        )
-
-    raw_sources = companion.get("sources")
-    if not isinstance(raw_sources, list) or not raw_sources:
-        raise EvaluationError("historical companion sources must be a non-empty list")
-    sources: list[dict[str, str]] = []
-    for index, source in enumerate(raw_sources):
-        if not isinstance(source, Mapping):
-            raise EvaluationError(f"historical companion sources[{index}] must be an object")
-        path = source.get("path")
-        digest = source.get("sha256")
-        if (
-            not isinstance(path, str)
-            or not path
-            or Path(path).is_absolute()
-            or path.startswith("~")
-        ):
-            raise EvaluationError(
-                f"historical companion sources[{index}].path must be repository-relative"
-            )
-        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-            raise EvaluationError(
-                f"historical companion sources[{index}].sha256 must be lowercase SHA-256"
-            )
-        sources.append({"path": path, "sha256": digest})
-
-    source_context = companion.get("source_context")
-    if source_context is not None and not isinstance(source_context, Mapping):
-        raise EvaluationError("historical companion source_context must be an object")
-    return {
-        "sampled_at": sampled_at,
-        "metric_count": len(DIMENSION_WEIGHTS),
-        "methodology": methodology,
-        "limitation": limitation,
-        "sources": sources,
-        "source_context": dict(source_context or {}),
-    }
-
-
-def compare_historical_companion(
-    current: Mapping[str, Any],
-    historical: Mapping[str, Any],
-    *,
-    max_abs_delta: float = DEFAULT_CROSS_VALIDATION_DELTA,
-) -> dict[str, Any]:
-    """Compare a complete current W-3 result with an explicit historical companion."""
-
-    if not isinstance(current, Mapping):
-        raise EvaluationError("current evaluation must be an object")
-    if not isinstance(historical, Mapping):
-        raise EvaluationError("historical companion must be an object")
-    if (
-        isinstance(max_abs_delta, bool)
-        or not isinstance(max_abs_delta, (int, float))
-        or not math.isfinite(float(max_abs_delta))
-        or not 0.0 <= float(max_abs_delta) <= 10.0
-    ):
-        raise EvaluationError("max_abs_delta must be a finite number in [0, 10]")
-    auto_fill_rate = current.get("auto_fill_rate")
-    if (
-        isinstance(auto_fill_rate, bool)
-        or not isinstance(auto_fill_rate, (int, float))
-        or float(auto_fill_rate) != 1.0
-    ):
-        raise EvaluationError("current evaluation auto_fill_rate must equal 1.0")
-    if current.get("verdict") not in {"READY", "NOT_READY"}:
-        raise EvaluationError("current evaluation verdict must be READY or NOT_READY")
-    if historical.get("method") != HISTORICAL_COMPANION_METHOD:
-        raise EvaluationError(
-            f"historical companion method must equal {HISTORICAL_COMPANION_METHOD!r}"
-        )
-
-    current_scores = _score_vector(current, label="current evaluation")
-    historical_scores = _score_vector(historical, label="historical companion")
-    historical_provenance = _historical_provenance(historical)
-    limit = float(max_abs_delta)
-    comparisons: list[dict[str, Any]] = []
-    for dimension in DIMENSION_WEIGHTS:
-        current_score = current_scores[dimension]
-        historical_score = historical_scores[dimension]
-        delta = abs(current_score - historical_score)
-        comparisons.append(
-            {
-                "id": dimension,
-                "current_score": current_score,
-                "historical_score": historical_score,
-                "abs_delta": round(delta, 2),
-                "within_limit": delta <= limit,
-            }
-        )
-
-    current_provenance = current.get("provenance")
-    if current_provenance is not None and not isinstance(current_provenance, Mapping):
-        raise EvaluationError("current evaluation provenance must be an object when present")
-    verdict = "PASS" if all(comparison["within_limit"] for comparison in comparisons) else "FAIL"
-    return {
-        "schema_version": 1,
-        "method": "historical_w3_hybrid_cross_validation",
-        "criterion": {"max_abs_delta_per_dimension": limit},
-        "current": {
-            "sampled_at": current.get("sampled_at"),
-            "auto_fill_rate": 1.0,
-            "verdict": current["verdict"],
-            "provenance": dict(current_provenance or {}),
-        },
-        "historical": {
-            "method": HISTORICAL_COMPANION_METHOD,
-            **historical_provenance,
-        },
-        "comparisons": comparisons,
-        "max_abs_delta": max(comparison["abs_delta"] for comparison in comparisons),
-        "verdict": verdict,
-    }
 
 
 def render_evaluation(result: Mapping[str, Any]) -> str:
@@ -995,11 +854,15 @@ __all__ = [
     "MEASUREMENT_KEYS",
     "SIGNAL_KEYS",
     "EvaluationError",
+    "MetadataError",
+    "RunMetadata",
     "SignalResult",
+    "build_run_metadata",
     "collect_signals",
     "compare_historical_companion",
     "evaluate_harness",
     "load_signals",
     "normalize_signals",
     "render_evaluation",
+    "validate_run_metadata",
 ]

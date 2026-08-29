@@ -168,14 +168,20 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v9.3.0 violation: src/devolaflow/compressor/ is not a directory. "
         "PV-04 split compressor.py into a package; restore the package shape."
     )
-    expected_pkg_files = {"__init__.py", "layout.py", "patterns.py", "transforms.py"}
+    # v21.0.0 T2 adds bounded evidence transport as an additive package module.
+    expected_pkg_files = {
+        "__init__.py",
+        "evidence.py",
+        "layout.py",
+        "patterns.py",
+        "transforms.py",
+    }
     actual_pkg_files = {p.name for p in compressor_pkg.iterdir() if p.is_file()}
     assert actual_pkg_files == expected_pkg_files, (
-        f"W-18 v9.3.0 violation: compressor package member set drifted. "
+        f"W-18 v21.0.0 T2 violation: compressor package member set drifted. "
         f"Expected exactly {sorted(expected_pkg_files)!r}; got "
-        f"{sorted(actual_pkg_files)!r}. PV-04 contract requires the 4-file "
-        f"split; a future PV adding/removing files MUST update this test in "
-        f"the same PR."
+        f"{sorted(actual_pkg_files)!r}. The bounded evidence module must remain "
+        f"alongside the historical split."
     )
 
     # §5 — Compressor v9.3.0 LOC sanity (the cycle's headline maintainability claim).

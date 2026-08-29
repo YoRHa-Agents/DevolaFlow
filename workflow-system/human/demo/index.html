@@ -397,11 +397,20 @@
     <section aria-labelledby="release-heading">
       <div class="container">
         <h2 id="release-heading" data-i18n="home.release.heading">Current release window</h2>
-        <p class="section-intro" data-i18n="home.release.desc">Home now keeps a compact v20/v19 window. The former release stack belongs in Timeline, where older history can retain its original context.</p>
+        <p class="section-intro" data-i18n="home.release.desc">Home now keeps a compact v21/v20 window. The former release stack belongs in Timeline, where older history can retain its original context.</p>
 
         <div class="release-window">
           <article class="release-entry">
-            <h3 data-i18n="home.release.v17.heading">New in v20.1.0 · Retro-Digest Evidence</h3>
+            <h3 data-i18n="home.release.v18.heading">New in v21.1.0 · Skill Residency and Calibration Evidence</h3>
+            <ul>
+              <li data-i18n="home.release.v18.residency">The host contract now distinguishes skill delivery from an observed runtime skill_loaded fact, with explicit status and provenance requirements.</li>
+              <li data-i18n="home.release.v18.calibration">The harness adds bounded CLI probes and a reproducible calibration matrix for read-only, tool-heavy, multi-file, and recovery task classes.</li>
+              <li data-i18n="home.release.v18.boundary">The 240-artifact calibration is report-only and remains INSUFFICIENT: unavailable authentication, token usage, and skill observations are never converted into PASS or a quality claim.</li>
+            </ul>
+          </article>
+
+          <article class="release-entry">
+            <h3 data-i18n="home.release.v17.heading">New in v21.0.0 · Evidence-Bounded Execution</h3>
             <ul>
               <li data-i18n="home.release.v17.entrance">A machine-readable functional test matrix now traces design expectations to behavioral black-box tests across all console scripts, python -m entrypoints, the installed-wheel public API, and the offline npm channel.</li>
               <li data-i18n="home.release.v17.router">A hard-fail matrix contract gate joined release preflight, and adjudicated behavior-design deviations were closed across gate scoring, dispatch parallelism, handoff immutability, proposal path validation, and archive approval.</li>
@@ -507,8 +516,12 @@
       'home.seeds.runtime.copy': 'The change-driven seed is non-executable decomposition knowledge like the other 26 seed files. Separately, builtin/change-driven.yaml is the sole executable runtime: it proposes, signs preflight, runs checklist rounds, and archives the result.',
       'home.seeds.compat': 'The nines-assisted filename remains an opaque compatibility ID. It does not activate or recommend an evaluator.',
       'home.release.heading': 'Current release window',
-      'home.release.desc': 'Home now keeps a compact v20/v19 window. The former release stack belongs in Timeline, where older history can retain its original context.',
-      'home.release.v17.heading': 'New in v20.1.0 · Retro-Digest Evidence',
+      'home.release.desc': 'Home now keeps a compact v21/v20 window. The former release stack belongs in Timeline, where older history can retain its original context.',
+      'home.release.v18.heading': 'New in v21.1.0 · Skill Residency and Calibration Evidence',
+      'home.release.v18.residency': 'The host contract now distinguishes skill delivery from an observed runtime skill_loaded fact, with explicit status and provenance requirements.',
+      'home.release.v18.calibration': 'The harness adds bounded CLI probes and a reproducible calibration matrix for read-only, tool-heavy, multi-file, and recovery task classes.',
+      'home.release.v18.boundary': 'The 240-artifact calibration is report-only and remains INSUFFICIENT: unavailable authentication, token usage, and skill observations are never converted into PASS or a quality claim.',
+      'home.release.v17.heading': 'New in v21.0.0 · Evidence-Bounded Execution',
       'home.release.v17.entrance': 'A machine-readable functional test matrix now traces design expectations to behavioral black-box tests across all console scripts, python -m entrypoints, the installed-wheel public API, and the offline npm channel.',
       'home.release.v17.router': 'A hard-fail matrix contract gate joined release preflight, and adjudicated behavior-design deviations were closed across gate scoring, dispatch parallelism, handoff immutability, proposal path validation, and archive approval.',
       'home.release.v17.parity': 'All five plugins stay suggest-tier with explicit optional install profiles and derived-view parity, and the workspace reporter gained a pinned-clock flag for byte-deterministic artifacts.',
@@ -582,8 +595,12 @@
       'home.seeds.runtime.copy': 'change-driven 种子与其余 26 个种子文件一样，是不可执行的分解知识。与之分开，builtin/change-driven.yaml 是唯一可执行运行时：它负责提案、签署预检、运行清单轮次并归档结果。',
       'home.seeds.compat': 'nines-assisted 文件名仅作为不透明的兼容 ID 保留，不会激活或推荐任何评估器。',
       'home.release.heading': '当前发布窗口',
-      'home.release.desc': '首页现在只保留紧凑的 v20/v19 窗口。更早的发布内容已归入时间线，让历史保留其原始上下文。',
-      'home.release.v17.heading': 'v20.1.0 新变化 · Retro-Digest 证据',
+      'home.release.desc': '首页现在只保留紧凑的 v21/v20 窗口。更早的发布内容已归入时间线，让历史保留其原始上下文。',
+      'home.release.v18.heading': 'v21.1.0 新变化 · Skill Residency and Calibration Evidence',
+      'home.release.v18.residency': '主机契约现在区分技能交付与观测到的运行时 skill_loaded 事实，并明确状态与出处要求。',
+      'home.release.v18.calibration': 'Harness 新增有界 CLI 探针与可复现校准矩阵，覆盖只读、工具密集、多文件和恢复任务类别。',
+      'home.release.v18.boundary': '240 个工件的校准仅用于报告且仍为 INSUFFICIENT：不可用的认证、token 使用量与技能观测永远不会被转换为 PASS 或质量结论。',
+      'home.release.v17.heading': 'v21.0.0 新变化 · Evidence-Bounded Execution',
       'home.release.v17.entrance': '机读功能测试矩阵将设计预期追溯到行为化黑盒测试，覆盖全部 console scripts、python -m 入口、已安装 wheel 公共 API 与离线 npm 通道。',
       'home.release.v17.router': 'hard-fail 矩阵契约门禁已接入 release preflight；经裁决的行为-设计偏差已在 gate 评分、dispatch 并行度、handoff 不可变性、proposal 路径校验与归档审批等面全部闭合。',
       'home.release.v17.parity': '五个插件全部保持 suggest 层级并提供显式 optional 安装档，派生视图保持 parity；workspace reporter 新增固定时钟参数以产出字节级确定性工件。',

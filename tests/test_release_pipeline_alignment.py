@@ -242,13 +242,39 @@ def test_release_preflight_runs_full_ghosts_and_dry_run_uses_same_contract() -> 
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
 
     dependencies = _target_line(makefile, "release-preflight").split(":", 1)[1].split()
-    assert "ghost-full" in dependencies
-    assert dependencies.index("test-core") < dependencies.index("ghost-full")
+    assert "check-repo-hygiene" in dependencies
+    assert all(
+        target not in dependencies
+        for target in (
+            "ghost-full",
+            "check-functional-matrix",
+            "check-agent-language",
+            "check-import-graph",
+            "check-module-size",
+        )
+    )
+    assert dependencies.index("iteration-delta-gate") < dependencies.index("check-repo-hygiene")
 
     ghost_recipe = _target_recipe(makefile, "ghost-full")
     assert ghost_recipe == [
         "@$(call RUN_TIMED,ghost-full,GHOST_FULL=1 python -m pytest tests/ghost/ -v --tb=short)"
     ]
+    hygiene_recipe = _target_recipe(makefile, "check-repo-hygiene")
+    assert hygiene_recipe == [
+        (
+            "@$(call RUN_TIMED,check-repo-hygiene,python "
+            "scripts/check_repo_hygiene.py --root . --baseline-ref origin/main)"
+        )
+    ]
+    hygiene_source = (ROOT / "scripts" / "check_repo_hygiene.py").read_text(encoding="utf-8")
+    for check_name in (
+        "agent-language",
+        "import-graph",
+        "module-size",
+        "functional-matrix",
+        "ghost",
+    ):
+        assert f'"{check_name}"' in hygiene_source
 
     dry_run_recipe = _target_recipe(makefile, "release-dry-run")
     assert "$(MAKE) release-preflight" in dry_run_recipe

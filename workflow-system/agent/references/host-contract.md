@@ -29,7 +29,8 @@ the owner of file-set contents and is a derived install-profile view.
 
 “Supported” is tiered. A guaranteed host satisfies all five floor axes. An
 optional axis is supported only when its status and evidence are explicitly
-declared; absence is not support.
+declared; absence is not support. `skill_delivery` is installation evidence,
+not proof that a particular run loaded the skill.
 
 ## Contract shape
 
@@ -48,7 +49,7 @@ Every Tier-G host declares:
 
 ### Declared extras
 
-Every host declares all five optional axes:
+Every host declares all six optional axes:
 
 | Axis | Meaning |
 |---|---|
@@ -57,12 +58,17 @@ Every host declares all five optional axes:
 | `subagent_dispatch` | Host-native delegation primitive |
 | `mcp` | Host MCP configuration surface |
 | `tool_vocabulary` | Host-specific write and shell tool names |
+| `skill_residency` | Runtime observation of whether the skill was loaded |
 
 Statuses are closed: `implemented`, `designed`, `broken`, `undeclared`, and
 `native`. A bridge marked `implemented` must list fixtures and use
 `captured` or `vendor-doc` provenance. `vendor-doc` additionally requires a
 `provenance_ref` URL. `synthetic` and `TBD-audit` cannot support an
 `implemented` claim.
+
+`skill_residency` records `skill_loaded` facts from a host runtime probe.
+Missing or unavailable channel output is `null`/`INSUFFICIENT`; the
+`skill-on` arm and installed skill files never establish residency.
 
 ## Host matrix
 

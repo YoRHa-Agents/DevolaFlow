@@ -12,6 +12,7 @@ from devolaflow.host_contract import (
     HostContractError,
     host_names,
     load_host_contract,
+    normalize_skill_observation,
     profile_projection,
     resolve_host,
     validate_host_contract,
@@ -51,6 +52,14 @@ def test_schema_is_yaml_and_declares_closed_enums() -> None:
         "synthetic",
         "TBD-audit",
     ]
+    assert schema["$defs"]["skillResidency"]["required"] == [
+        "status",
+        "scope",
+        "observation_method",
+        "fixtures",
+        "fixture_provenance",
+        "reason",
+    ]
 
 
 def test_invalid_root_and_host_count_fail_loudly() -> None:
@@ -85,6 +94,31 @@ def test_implemented_vocabulary_requires_both_tool_families() -> None:
     vocabulary["write"] = []
     with pytest.raises(HostContractError, match="requires write and shell"):
         validate_host_contract(contract)
+
+
+def test_implemented_skill_residency_requires_evidence() -> None:
+    contract = deepcopy(load_host_contract())
+    residency = contract["hosts"]["claude"]["extras"]["skill_residency"]
+    residency["status"] = "implemented"
+    with pytest.raises(HostContractError, match="skill_residency implemented without fixtures"):
+        validate_host_contract(contract)
+
+
+def test_skill_observation_keeps_runtime_fact_separate_from_hsc_claim() -> None:
+    observation = normalize_skill_observation("claude", True)
+    assert observation["value"] is True
+    assert observation["observed"] is True
+    assert observation["status"] == "AVAILABLE"
+    assert observation["provenance"] == "probe-runtime"
+    assert observation["contract_status"] == "designed"
+    assert observation["hsc_validation"]["status"] == "INSUFFICIENT"
+
+    missing = normalize_skill_observation("kimi", None)
+    assert missing["host"] == "kimicode"
+    assert missing["value"] is None
+    assert missing["status"] == "INSUFFICIENT"
+    assert missing["hsc_validation"]["status"] == "INSUFFICIENT"
+    assert "not observable" in missing["hsc_validation"]["reason"]
 
 
 def test_duplicate_alias_and_alias_collision_fail() -> None:

@@ -45,11 +45,16 @@ def test_v20_functional_matrix_system_is_live(project_root: Path) -> None:
     }
 
     makefile = (project_root / "Makefile").read_text(encoding="utf-8")
+    hygiene_script = (project_root / "scripts" / "check_repo_hygiene.py").read_text(
+        encoding="utf-8"
+    )
     assert "check-functional-matrix:" in makefile
     release_preflight = next(
         line for line in makefile.splitlines() if line.startswith("release-preflight:")
     )
-    assert "check-functional-matrix" in release_preflight
+    assert "check-repo-hygiene" in release_preflight
+    assert '"functional-matrix"' in hygiene_script
+    assert "check_functional_matrix.py" in hygiene_script
     assert "test-functional:" in makefile
 
 

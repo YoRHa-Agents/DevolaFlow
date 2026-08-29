@@ -124,7 +124,31 @@ lean_format_spec:
     # DO NOT carry a `quality_score`; the pre-v14.2.1 `quality` field was
     # renamed per G-013 (F-P4-3) so the schema teaches one doctrine alongside
     # the `reject_subagent_quality_score` pre_dispatch hook.
-    fields: { pass: int, fail: int, cov: float, gate_input_score: float, findings: "severity:count map" }
+    fields:
+      pass: int
+      fail: int
+      cov: float
+      gate_input_score: float
+      findings: "severity:count map"
+      context_tokens:
+        description: "Optional independent ceremony counts; null means unavailable, zero means measured empty input."
+        fields: { skill_tokens: "int|null", rule_tokens: "int|null", report_tokens: "int|null" }
+      metadata:
+        description: "Optional reproducible run metadata; unavailable evidence remains null with INSUFFICIENT status."
+        fields:
+          run_id: "stable content-derived or caller-supplied run identifier"
+          sampled_at: "ISO8601 sample timestamp"
+          generated_at: "ISO8601 report timestamp"
+          salt: "caller-supplied string/number or null; never inferred"
+          salt_status: "AVAILABLE|INSUFFICIENT"
+          ledger_path: "repository-relative path or null"
+          ledger_status: "AVAILABLE|INSUFFICIENT"
+          repo_ref: "current repository ref or null"
+          repo_sha: "current repository SHA or null"
+          base_ref: "caller-supplied base ref or null"
+          base_ref_status: "AVAILABLE|INSUFFICIENT"
+          repo_status: "AVAILABLE|INSUFFICIENT"
+          status: "AVAILABLE|INSUFFICIENT"
   issues:
     description: "Structured issue lists. Each entry ≤15 words."
     fields:
@@ -154,6 +178,18 @@ lean_format_spec:
       simplicity: "BG-002 — declared abstractions-added count (int) or 'none'; optional"
       conflicts: "BG-006 — typed ConflictFinding entries [{patterns, files}]; may be empty; optional"
       conventions: "BG-007 — typed ADRRequiredFinding entries [{existing, proposed}]; may be empty; optional"
+    evidence_ref:
+      description: "Alternative to all inline self_check fields when the serialized block exceeds 1024 UTF-8 bytes."
+      fields:
+        path: "repository-relative path under .local/.agent/active/<change-id>/evidence/"
+        artifact_id: "stable content-addressed artifact identifier"
+        type: "status-report-evidence"
+        digest: "sha256:<64 lowercase hex characters>"
+        size_bytes: "UTF-8 byte size of the referenced artifact"
+      rules:
+        - "evidence_ref is mutually exclusive with inline self_check fields."
+        - "The reference is metadata only; consumers do not copy artifact contents into the report."
+        - "A missing, absolute, symlinked, or out-of-tree path is invalid."
   ac_results:
     description: "Optional. Per-AC verdicts keyed to the dispatch's acceptance_criteria_v2 ids. verdict comes from the L2 ACTUALLY RUNNING the criterion's verification_cmd intra-task — self-verify protocol per references/execution-protocol.md §self-verify."
     per_entry:
@@ -161,9 +197,32 @@ lean_format_spec:
       verdict: "pass|fail|skip"
       cmd_digest: "≤15 words verbatim digest of the verification_cmd output"
     max_entries: 10
+    evidence_ref:
+      description: "Alternative to the inline ac_results list when the serialized block exceeds 1024 UTF-8 bytes."
+      fields:
+        path: "repository-relative path under .local/.agent/active/<change-id>/evidence/"
+        artifact_id: "stable content-addressed artifact identifier"
+        type: "status-report-evidence"
+        digest: "sha256:<64 lowercase hex characters>"
+        size_bytes: "UTF-8 byte size of the referenced artifact"
+      rules:
+        - "ac_results is either the legacy inline list or an object containing only evidence_ref."
+        - "The reference is metadata only; consumers do not copy artifact contents into the report."
+        - "Oversized inline evidence is never truncated; it must be materialized or rejected."
   diff_stats:
     description: "Optional. Aggregate diff statistics for the task's edits — sizing/scope-adherence evidence for L0 VERIFY."
     fields: { files: "int — files changed", insertions: "int — lines added", deletions: "int — lines removed" }
+    evidence_ref:
+      description: "Alternative to inline diff_stats when the serialized block exceeds 1024 UTF-8 bytes."
+      fields:
+        path: "repository-relative path under .local/.agent/active/<change-id>/evidence/"
+        artifact_id: "stable content-addressed artifact identifier"
+        type: "status-report-evidence"
+        digest: "sha256:<64 lowercase hex characters>"
+        size_bytes: "UTF-8 byte size of the referenced artifact"
+      rules:
+        - "diff_stats is either the legacy inline mapping or an object containing only evidence_ref."
+        - "Inline and reference forms are mutually exclusive; the reference form has precedence only when inline fields are absent."
 
 # --- COMPACTION RULES ---
 compaction_rules:

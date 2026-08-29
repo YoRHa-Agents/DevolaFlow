@@ -53,7 +53,9 @@ capability-activation_ec560bc8.plan.md``; rule A-6 in
 from __future__ import annotations
 
 import os
-from typing import Final, Literal, get_args
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any, Final, Literal, get_args
 
 __all__ = [
     "ENV_FLAG_NAME",
@@ -61,9 +63,12 @@ __all__ = [
     "ActivationVerdict",
     "CascadeRequirement",
     "Complexity",
+    "TrivialPathResult",
+    "TrivialPathViolation",
     "activation_verdict",
     "cascade_requirement",
     "classify_complexity",
+    "evaluate_trivial_path",
     "from_env",
 ]
 
@@ -117,6 +122,49 @@ _SIMPLE_FILE_CEILING: Final[int] = 3
 _STANDARD_FILE_CEILING: Final[int] = 10
 
 
+@dataclass(frozen=True)
+class TrivialPathViolation:
+    """A machine-readable reason why the S1 path is not supported."""
+
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class TrivialPathResult:
+    """Post-hoc S1/trivial-path decision and upgrade recommendation.
+
+    ``diff_stats`` is kept as supplied so callers using the canonical
+    :class:`devolaflow.lifecycle.validate_surgical_scope.DiffStats` retain
+    the complete per-file evidence. Mapping-shaped report evidence is also
+    accepted for StatusReport consumers and is summarised by
+    :meth:`as_dict`.
+    """
+
+    passed: bool
+    declared_complexity: Complexity
+    diff_stats: Any
+    actual_complexity: Complexity
+    is_cross_cutting: bool
+    upgrade_target: Complexity | None
+    violations: tuple[TrivialPathViolation, ...] = ()
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a stable, StatusReport-friendly result mapping."""
+        return {
+            "passed": self.passed,
+            "declared_complexity": self.declared_complexity,
+            "actual_complexity": self.actual_complexity,
+            "is_cross_cutting": self.is_cross_cutting,
+            "diff_stats": _diff_stats_as_dict(self.diff_stats),
+            "upgrade_target": self.upgrade_target,
+            "violations": [
+                {"code": violation.code, "message": violation.message}
+                for violation in self.violations
+            ],
+        }
+
+
 def classify_complexity(
     files_count: int,
     loc_estimate: int,
@@ -168,6 +216,143 @@ def classify_complexity(
     if files_count <= _STANDARD_FILE_CEILING:
         return "STANDARD"
     return "COMPLEX"
+
+
+_COMPLEXITY_RANK: Final[dict[str, int]] = {
+    "TRIVIAL": 0,
+    "SIMPLE": 1,
+    "STANDARD": 2,
+    "COMPLEX": 3,
+}
+
+
+def _diff_counts(diff_stats: Any) -> tuple[int, int, int]:
+    """Read ``files``, ``insertions``, and ``deletions`` without I/O."""
+    if isinstance(diff_stats, Mapping):
+        values = tuple(diff_stats.get(key) for key in ("files", "insertions", "deletions"))
+    else:
+        try:
+            raw_files = diff_stats.files
+            values = (
+                len(raw_files) if not isinstance(raw_files, int) else raw_files,
+                diff_stats.insertions,
+                diff_stats.deletions,
+            )
+        except AttributeError as exc:
+            raise ValueError(
+                "evaluate_trivial_path: diff_stats must provide files, insertions, and deletions"
+            ) from exc
+
+    names = ("files", "insertions", "deletions")
+    counts: list[int] = []
+    for name, value in zip(names, values, strict=True):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(
+                f"evaluate_trivial_path: diff_stats.{name} must be a non-negative int, "
+                f"got {value!r}"
+            )
+        if value < 0:
+            raise ValueError(
+                f"evaluate_trivial_path: diff_stats.{name} must be >= 0, got {value!r}"
+            )
+        counts.append(value)
+    return counts[0], counts[1], counts[2]
+
+
+def _diff_stats_as_dict(diff_stats: Any) -> dict[str, int]:
+    """Render aggregate diff evidence in the canonical report shape."""
+    files, insertions, deletions = _diff_counts(diff_stats)
+    return {"files": files, "insertions": insertions, "deletions": deletions}
+
+
+def evaluate_trivial_path(
+    declared_complexity: Complexity,
+    diff_stats: Any,
+    *,
+    is_cross_cutting: bool = False,
+) -> TrivialPathResult:
+    """Validate whether an S1 declaration is supported by actual diff facts.
+
+    The short path requires exactly one changed file, fewer than 20 total
+    changed lines (``insertions + deletions < 20``), and a non-cross-cutting
+    change. Zero changed files is explicitly not an S1 pass: it has no
+    implementation evidence and upgrades to ``SIMPLE``. The function is
+    pure; it accepts an existing ``DiffStats`` instance or a report-shaped
+    mapping and performs no filesystem, environment, or subprocess I/O.
+
+    A declaration may conservatively choose a higher tier. Only a declaration
+    below the facts-supported tier is a complexity mismatch. Negative counts,
+    missing fields, invalid complexity, and a non-boolean cross-cutting flag
+    raise ``ValueError`` rather than being silently normalised.
+    """
+    if declared_complexity not in _VALID_COMPLEXITIES:
+        raise ValueError(
+            "evaluate_trivial_path: declared_complexity "
+            f"{declared_complexity!r} is not one of {_VALID_COMPLEXITIES}"
+        )
+    if not isinstance(is_cross_cutting, bool):
+        raise ValueError(
+            f"evaluate_trivial_path: is_cross_cutting must be bool, got {is_cross_cutting!r}"
+        )
+
+    file_count, insertions, deletions = _diff_counts(diff_stats)
+    changed_lines = insertions + deletions
+    if file_count == 0:
+        actual_complexity: Complexity = "SIMPLE"
+    else:
+        actual_complexity = classify_complexity(
+            file_count,
+            changed_lines,
+            is_cross_cutting=is_cross_cutting,
+        )
+
+    violations: list[TrivialPathViolation] = []
+    if file_count == 0:
+        violations.append(
+            TrivialPathViolation(
+                "TSP001",
+                "S1 short path requires exactly one changed file; actual files=0",
+            )
+        )
+    elif file_count != 1:
+        violations.append(
+            TrivialPathViolation(
+                "TSP002",
+                f"S1 short path requires exactly one changed file; actual files={file_count}",
+            )
+        )
+    if changed_lines >= _TRIVIAL_LOC_CEILING:
+        violations.append(
+            TrivialPathViolation(
+                "TSP003",
+                f"S1 short path requires insertions + deletions < 20; actual total={changed_lines}",
+            )
+        )
+    if is_cross_cutting:
+        violations.append(
+            TrivialPathViolation(
+                "TSP004",
+                "S1 short path does not support cross-cutting changes",
+            )
+        )
+    if _COMPLEXITY_RANK[declared_complexity] < _COMPLEXITY_RANK[actual_complexity]:
+        violations.append(
+            TrivialPathViolation(
+                "TSP005",
+                f"declared complexity {declared_complexity!r} is below "
+                f"facts-supported {actual_complexity!r}",
+            )
+        )
+
+    return TrivialPathResult(
+        passed=not violations,
+        declared_complexity=declared_complexity,
+        diff_stats=diff_stats,
+        actual_complexity=actual_complexity,
+        is_cross_cutting=is_cross_cutting,
+        upgrade_target=actual_complexity if violations else None,
+        violations=tuple(violations),
+    )
 
 
 def activation_verdict(

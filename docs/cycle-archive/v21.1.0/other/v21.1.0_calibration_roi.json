@@ -1,0 +1,1602 @@
+{
+  "artifacts": {
+    "raw_probe_dir": ".local/telemetry/cli-probes/v21.1.0",
+    "report_dir": ".local/research"
+  },
+  "matrix": {
+    "arms": [
+      "skill-off",
+      "skill-on"
+    ],
+    "channels": [
+      "claude",
+      "codex",
+      "kimi"
+    ],
+    "order": [
+      "task_class",
+      "channel",
+      "arm",
+      "replicate"
+    ],
+    "planned_specs": 240,
+    "replicates": 10,
+    "task_classes": [
+      "read-only",
+      "tool-heavy",
+      "multi-file",
+      "recovery"
+    ],
+    "timeout_seconds": 10.0,
+    "total_timeout_seconds": 600.0
+  },
+  "metadata": {
+    "generated_at": "2026-08-29T06:10:19.703173+00:00",
+    "repo_root": ".",
+    "salt": "70000002",
+    "seed": "v21.1.0-pv02"
+  },
+  "preflight": [
+    {
+      "auth_evidence": "INSUFFICIENT",
+      "auth_status": "INSUFFICIENT",
+      "channel": "claude",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "status": "AVAILABLE",
+        "wall_time_seconds": 0.0818021249724552
+      }
+    },
+    {
+      "auth_evidence": "INSUFFICIENT",
+      "auth_status": "INSUFFICIENT",
+      "channel": "codex",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "status": "AVAILABLE",
+        "wall_time_seconds": 0.07384120795177296
+      }
+    },
+    {
+      "auth_evidence": "INSUFFICIENT",
+      "auth_status": "INSUFFICIENT",
+      "channel": "kimi",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "status": "AVAILABLE",
+        "wall_time_seconds": 0.8361427909694612
+      }
+    }
+  ],
+  "report_type": "cli_calibration_roi",
+  "run_id": "calibration-990ffb5f71a60dd60f1e71a7d20492cf5a77862e71d52bf933ea09be7dd2ee3d",
+  "schema_version": 1,
+  "summary": {
+    "cells": [
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-6a5677e933459196c709b442d519055cd86ef1524f5dda7c3119b1209ee12d91.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-bdb8baa555d0311e0122e2c6007e328dec414f135c5ec0fe3e64388a64747a83.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-8bf9c9e01c80c1a4b3f38d10bfced56286c9da1f65c5ddcfc638a2204d33900f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b74fd4986c6fd40165a0013e04d7f5d9c0dd36ac86da8efcbd0fadb9b501d5b3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-91110a770bd4b7e5f0b582a562e24eb7501b7c7742cb2e0e4ee57c431911692f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-2a2c7c88fe78f40c14826a677a8a295ba3e52d7ccf3d8d063c7236d0c4ccf0d4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-16302dbc105fa8584e5440bae6aa433aa40d4d19c396d663b906d27f5245325d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ba7214dfa1581afde6b68b3a37ec0a2946742c77948a09b5abb07f11bc62e7bb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-813cc5fa9e6555c4d0f28b897bd8cf05cb7d93acb012fe2a8ea6281ffab93170.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b56afd91bec2f2cc056a0ee35ba3c4f3eaa2ca0a8d680ee2547c98754f5106b6.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.015660083969124,
+          "p95": 10.024477750004735,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-353599889cf691edff07643f99fccddc0f172892f3b6d92a1a199b1ecd8e6054.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-118871da22b74ea7acfb20546a18f1b10188a12060c56212287584d074f9c0c8.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-77dbda3a3bf966abb867a549eda1275e533b9d12d84e02a1cf9f36a80f46c74c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-dec5986a6dd18ddb3c76454da54191259fb85da2f38574d2e8a4f2ac71a6de4b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cf601fb03cf8276876334afed9a9f1d5de128fb4371fcc91454c30aadcb7ca38.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b48185733abfd176c43a330748a5f857e1517c58c0507480019a66d0573b197b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9c51c6ba64fc5941be4318c877366f2397258597b4ba90775d7c46a8e6685420.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-965c54570c0b720479d6a4b0b3531b8375fd0a22342bcd8c10849089d0a5abc5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-10c8e05a70b1e57a30e43ad386aa173811411abc04570cfc4f0c82b53e33820a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-23d8b1183ce5be1be4d80f6e44ad7d84ee7a31a78b1ef9624f3abf1105441817.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.016574957990088,
+          "p95": 10.019637416000478,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-258b4b6d18cfd441dbeb8d5538cbaf4e0995abc60953e14e740778b570b82632.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d94e913c3386f04875e2df240b0e7fde14543a701f52036db243bc8bba47b3e2.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-fdb2e4510683d1d7a14d65e348d485d4ef72ca2abfdf2e098cda3933aecb8d0a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-008aedfe83a85bd4ad382afe30429b3e5d7b81af23de589400a02199889915a4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b55d64a2557ad56a93ccadc493f5872c2b5c7b0b7d5d7020f76d301570b5ef72.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e127643aa62b97ed38972bd27c050216d88a5ef2934e31a901e87d7f90a5682f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-aa5ced7236eefa7299537866d8860006f974c0cc0032e5d9453d9de1d0bf5764.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6e8bb9a9f240d44ebfacb24fa67ee0e647033a9e96005a461c072444a1b19aa5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cefd0f481359db01d318d8b1a475d1dae626b4f6f5bfebc3ec7beae5ab01f932.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a04bea938471beadb7be101d7f65b908833b8a179c352d824cc3d68efa52d9d6.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.008568916004151,
+          "p95": 10.011752832971979,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-1d92a58ce8575470911820c13b77f7534670eee32d4aece169c67ddd1ff25390.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-241112b53766cb489cd6f50bb86abfe1e27b0ce4bd7b142de7c9674beb742646.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-fb90fd3445a697a59433194b3f9431a643ddc2cc2823c4ac342ad4a9ee3a1e6b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4526de892ffe02370720db14d993f086d5492c0de56f13f3aa1bb975b8d0a798.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e9f0160a5a9d4a2924b2c7846e76526cf7cf9a6c1935d1b27594bb7f042429b7.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d4b2ea63dd8eed8f52c70fea2125bf2f6de0c08d6f9db279190aecf4b752baff.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cc441a78cf3eae83e7d8193382a84b325125588e50a7664f681fd1ee015a9116.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ee6e6627127206018dd5a918bbb1dc5140fe34f20ce85cb24932fcc376e61352.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b1efdaaba734b2d0ade20710df222902480b474cf5683f2d248ee308572d4968.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d015f8cf686e890fa7ffe13da6860ab95b0ab4dcf791359af516332897821dcd.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.010050499986392,
+          "p95": 10.015727667021565,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-f9f42e5710ed7a8af95ad0ecb5fce04ee7cc82937dded567fb77b58ecc212a5d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6b49398841afa6b4759344abd186bf471d4bda8eca4cc28dc08550c2700203ae.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f3ef1dc721d96cb4fdcc6b624d7ad01bd3944430ad89b7b6be252524f0e56878.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6f6840283385eeb10789bd5846c728892351b5821d8c012b75be6801b0defba4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-95356c32a318caa7c8c360fa8b620e31aeb6f18bceaa375f0f1bef4052f5780f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-539d82786530fa0189c4fa44b7eabfcbc3f35408213f15f5ad5e88d6ca70b000.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0ed07f673f43597f699ec8f120b590b3c45b75f9add6cb6a6c26ec043e35ca30.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ff041854c35c41388bf1ea4b6361c99513851df64494f8c6794f4ce460bf9f2d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c79cdb7fbcf432dbe2bfee19e2da3ed44120107856ef2d950088c6ce66c8a9e4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f42a1fd606c7d5ffd75504440e8a45fabb9e7fcc3c627428695f2dbf46f0a9f0.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.025031375000253,
+          "p95": 10.032746666984167,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-09b488cfc7b064b02c19b351ce74a525afe3a955c94a6810e603e783854fdb95.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-bb8a02058a60deb8ddf94dea0d31654667d080d8b0fe7e82e2369b4e73a1de8a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c5c41f53cfe6bd8062810385255ac56393990a071f30d3dfea7d45b50bbfdc24.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ea77550703bf9f34a51e4fb9eabee7bb18cf93445c4db439b84f2b239b8f3695.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d17098863179502bc4c73d3e0717cb8b097e5d287ff31ad1816670277c1d0b15.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-29fb70a401b3022ad3017f784da7598be41c948488a3758db98c6c16382e4234.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a0adee80e0b9570d07cbeeb27d1b41adb38110680770fa2457c93d826f02f2bc.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c112c7636977cd83f2864f9e00bbf7c02464b3477cd8621b1f41a844718ba2e5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-153eb00afffb0e4d3339e2f5228d3cec8b22919efbf0f6b6c80499306e0a0a45.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b0c5b46175975d5e01200ed68863892becd94d599b45923b1ee68d429dbbce1b.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 10,
+          "p50": 10.025239792012144,
+          "p95": 10.031200792000163,
+          "status": "AVAILABLE"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-f48d6efe67ffc8a60033f93d1e233786c04f031126f4b603316154d4dc0f0351.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-7d145ea2d2e5c28fa4c8224ce4bb0c68c11ec71ea3e6bf1d06612f08e1a82e10.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f18977cdb57e11f7a299aaa286bb4ba37f369aa7647fef540e0b206f3e271070.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-64645b6163c5298fcdd235030b0647f1e0bee4282834647d161fa1e3a8562216.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f89450a9fd9ca7cd34ef8555f25490e75d91940db5c5d5ef67a922fca3bd04b2.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6dd296e3bc5e12dc49abdc2b1ab6c814ffe571dda669a741e798a5025826c739.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e320cad7184629aeda6b613154498b4614d0811945bb419b177e809770e85545.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-aab132bd3fc686fabf86d81ca36dbec4577397467113a4734e42adaba688958b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-00d33b8dab6608746f0b0021e47a5d79d8480dec54bf8f2bbc53a3fe47c3116a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-305e341893497e41fda942036cf74dc82bae68c8999d8aa7676237410720b4e5.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-d73d8f5b1f5ceb7962149180cdcb8b6ae73782b498c2ed114aa91ddd2a5546aa.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b862190556d123c4a0dcfd0451f9652336a7c13b19e31312bca6b1267443353e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-159c01fa91f2db53c884568091e6c927293ac94b49ecf8253e54b070d47c3326.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-00bb62a272bdb1e7671b72e3626c7ff65bc55b71e457f618339be9b8084bcb30.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-11b8e662a85ee5c64fbef3f68e187dc2d04aae44df8ab09954b3aa68047d17bc.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f92d98b793fe6af591bd69a94c086e45741c3c1311be35cbe3bf51aa52b8d1ef.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-13796a21eab0d64475a6c1c3aea070cde1263b51b9e8083cdfe44eeabee71024.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-7f92c8d2900c99b49f967686af2b980b78dda17a22adc9c3e2bf6d3ae8fef657.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-315ac794840520cf4f1466c4275f0991c6840f64c988b16072ab1e27697cb264.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-efa58b09cf17de67697498c85443bb178b3aa3ae9219e92d53f4f321240606e0.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-3bbdc989e15bf4d76adb064b80322d907b79ee05557e528b3e16e1e21e7ae40f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-fc3bc77ddc4026f73d13dd040a6e7f2b93c9736d6b739286b50ffc577dca2bfe.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0582538955414dcb0e684613e74e80565b027378c516b4e1a515508f338feef3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e8773c1388b31936128905e1277a85fd142e045b06348932917b3433ad1b2f4a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-292856ec410311e9afe62a6ec9611d80bcbd354629ebaacf7a4a264daf2e7d08.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ca56d73eb1215d71d80b326bd50cce00e8aaf0cdab33f8e33688c22eb4be3eef.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-eb6f55d187fc92b498d22c247ac4d10528d5ab8b89053c2e06e0328508f90078.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0855513a318754002cfc7f253b299ad3f39d878e09f5a6c6a1460a993e1d903f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-fb1689d4c20e1bcd31ef006d8e953df95f3d6df918c5ddec61fb15035f6d343a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-872f5bf544e25cc9367f0c9c141c2ae0434b574c0cb4a1ddfb6c95eb2dc45449.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-11ea086ad351c5eecc49249ceb2eec03ba5762c004b779ee9f7d9265995633c0.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b085c417f8b43f124bf0a07fe4153777a1f2f9dc12307fbe09d614576e896edc.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-78a84a693bc671c7100544097026dea643d8d51c2f4ea2c35a1c4ceadfe2e09d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f2e6594cd088fe98180345f56c9be0b14d20b085c5624c79027a166e76114079.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-7592ac0410818c573d430c2cd7a73292c79b334d786139754bfbfc632779cb71.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-17c3b7d7ec957e9a40a6aa2df2f5db40eb353255f23eb468086dffbd648ddb5b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d9aad57f3891ad7564cd8b378c0004257bc7193a1b9999bc45ee8c3a8f6ad331.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-69ccd6a3ed1c0f0fa2f925e1b70f0dfb4647d8c6589812df718ac43f9c4a6e64.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-109736f959f0f80480e154ef9d713854235a4dc42bc96fe1c08e7184d1251484.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-653002af92e537153c415c4480fe14d05e4fce2a991c2f325d18acdbe5d2390d.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-8538bdcc8710cf0b0fc2cebfea62efdfe7630f4ffd52bb2d1ddcd58cb1fddeab.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-93113fcf6f8f1a465811eaaa601e7d52d6d2c7966625a859ade5aa4d318a91a1.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-58321152af1b99d951ce3f22609e1849877c25a6bb04e63b143de069a0ee0bcb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b6095c2673189792edb0f91cd756b5f401c8ebb7bb659d12c074ebae55254f4c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-7008670dbca1e668db78e08002c2b5dfe55c2277d9905dba81bedd63465e99bb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-44e24ba0a855bd94f4d1ab5539155efd4e93c8acb2eb3ef5335a02e392025397.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e2023ee2e09de558ab5e0e8697170ef8527d25200a33369af75733737839dede.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-2eb4d112debbefec22c6e76eefef4c73717ba385dde3f38eea686484f685973c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e15b3f523cab1a7c8a4e2f958f143215d16b6e743f8546c808b616a5336f8d4d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0419db26a5ef02a09287abb5fbdfb6643c3ec6fec27dbae0c45431f562468457.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-25bde3808e8f76601e4a06225b9b1c26f98bbee270d0889f95eb99a347c484ce.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4bede8d3cf388c3f8c2dc7099d109f52e875662d181a42091056e93ac1401fb6.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3ee2f865d16c80f4f77b10a2d7f22cd6426b7041d41eec0e53a112f6a16b9591.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cb30fd489c2fdc8a7987478949a1118694e301a772e3a48e67bb35004c46cc55.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3b56feb7afc86e0eacc51b3ec7ede3f64807a68770d65f44d9196524d6c252f7.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-576759d32cfa8372509018427cd81809018714c51bc507f495057fc3fe4e732c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a78e65fa90394307d70b4349e03668de2f566cc2d808442860beae79c012c553.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4c541f2b3696001e6e9ac002a5ef64ec2a2d076fe1038cc1a3f66b3f22ccce5e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-59bc8ec91ee10ac2a8d4ad20fc3a9f16d774e3155b32f99e92ad7d42fced66f9.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-56df25f6203bbe50835cf7779baf943b53cc64179f882c7b6646aad48ea31a85.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-911f659ea0bb0b49d808efdfa7d5c71494c9d7d71bef9131a419d696598c5a5c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3026f7fa18c1c161450031990782c31706923004a935ce16a9b765f2c57a4cee.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ffef16ee0b831502d88f7512c5dfa61ff41d2524759aba1f6ed214c3503aab5e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0ffd0b7bda4ff333162763840fe372b7889c4cac9eb8c807588c70a0bda69f30.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0e6b6193279fa0559d2daabeb1f591e20b39db0523080cf98674ee107bbcd416.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-dac2d8a30bcc24444365936db13b72f17a5a4076e70a2bc2a433dba0527a3032.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c31b202d23ff56ddabaad31d22f5561d2efa7c16f4c7f22d693d045e345f7793.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-91514b940f07e21c5a1941bc49ba3c3876d85cab0f13b5410ce1b45df960c561.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c6637c2ecccce3f4b9dbfe4197042b992b7476f35e1b18fa1c8556068e43fdcb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e19f40ec38c81793e4e3af75e680629f5bc891b7c4adcc8a60db5aabce782f41.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-0083afa6947c6541e75684bc6f3a2143433a48ab65baa7b36e0424460506b9e4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6128fa801215dea9cf9803c8e77533d82b8d0a6cc027bdb2843dd70690e5d7e0.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-44b96b3310d8bd12577ef3619f1fc33c95454defd7f7ed9ded7401e34eeb0e08.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cf67cf17538ab6c7437c158d689b88d4c6ba591b3b44b4e195f2d97121dcb275.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e640a3f4c36acc96376874eb74a96467b5fc16d5c9268c86a3686a59fb556950.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-8a58bbdadb0feecec0a1265fd10539bbfae367b760ca67c3728ff3b47269a355.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3476b060b9fb4db58bc852d1d6b87e7de210ff48440007241830a4c24ffc8ee5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3c1430422dc88181e0f10181f4b0a95589680009916eba49dab0c358e43ac308.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f6228e4794e9fe0b79a4aa6636e776757bd308baa127c104a40e7106d3712853.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-32905d8b63c606db83e3cf2fe9a79f7f5ffc3dff9f9edaed44a2bab278bc3346.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-466b1a5b5ce57ab46f1e619394f393358efdc0df87d438561663a421a6ee3194.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c28dde5fd8cd0942dce9c226a42d87f48fc59df56f5212684628286a8b353c5e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-5c3c9e9d1ff05dafeed27bae031ed6568c026e1601f644d935ac15d95aafde70.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e85d3820b6ad7ff9eb3e1bed9478b14a9795702f96fb288d7e98cb74dd0297a3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cfead1bd1bf06878a80c1d038f22c336aebc94502dcc98411a89f3a81a8f1ed2.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6016f832565d3f0ce3197b24ac8ad4407e60ad457fc6cda58469313867de25b5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ab25a74453257eba1ec02b2b8f15e90f2d5d9e8cc0243918c5675a693d3cc667.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4edff2ad5cfad1adc1990608da0a8b5236d81e30b26efe6aea25e04e6b5bbfbb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9549f7f5633f1e2f8454506071fbe58cb1b2635fd7781dbe2beff9c36b2c878f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3e345f4b6aff1bd1f33ad50e300dce528623b02e14bf863daa8c168cbc831e6b.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-a206bfe13221bcf057b7da99f063cfc6cd2c94faa8275a19a5b1a57094d18f2e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9a014d6f560dade3a5ee39dffff1904a2a2abe5abc0bc6eee9a58c24cd1b3488.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cc2a4988d6235922d04ea5e903cc385475c5ffd3ab59f39161a8a3073034ae83.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9a164de5758f40ba444bad52c4c8cefb0e96473161a04a49a21d92dd69b25bed.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9e2b7a2904cb94750e2cefce8aeeba10d7a315bed73eaf2892404a28a33b9e61.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-dc16d052401847b531d2d633e511d7dcb659d34b24d4d53e3a38b3407e6b37ba.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0ebec968647c02d46f4fe78fe273a56a985b2717859b2c5174a924e078c9350c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0b19b6dc820250d7c65801f5ac881688a240a1c747c875b4ccdd9841bcc1fef3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a51e75fc4fa3a8c0160046aa66be4341bc0811bc0a09db67245171fe3c13f24d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4d112d1661ec79cc119c8c028749b8a2a4c2c13c37c8396b92942c1d78d5981b.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-b06dc731f897983b54f882c30f6b356a08acce5ae94c7417d1ca9eb4c50c45c3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-dc020819d5f0fcd327976ee4aca6c13fe2de7e2873af947ca1208b00dd8f9392.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c29fc80ca60462f2a1dd81d8845c645f029ef464f11bd65a31a4df5eac6ef2a7.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-145c84930565c6b5ebcb65374873bc863d2057f7aebd78a00af3a99bdeaf22f8.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-774903b994914c125293f61d94b1545822d7455394df10f924698b2970c0af7b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-8184b0c032e43335c105ae7078894e23f5e8c202daa06693b3f05624b4c886ac.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e92bf43b1c132cfd98ad8d6a180c974a09fb95676cd423c1978bc58709969004.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-209f29227da1ecf7d504d9fa75179c1511c6b292a04fac1de45e44d72970907e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b41aaf3b4c8155ee6d67d5c68bd9ead94a38125867ee009c7e4e3c1f58d381cb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-364fa3cf17aac18ede1f39277d0852c2b35cb262bc1c33536af2e7bb7a0030da.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-6410ac19ba8bb3bfa4bd4e4c5f7c10802b3c30ed579a99a9f398a00a5ad0fd34.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3915ba95b6ef1753a7cfff8e1107face618990d3326f133032c6ee4abd2cc957.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4ed04114b044a8630a4f3f709ab076ee2cb8d91650795d71ac6add71dc11af7a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f6570581995e0565cfa0d3f9ea95f984584c30b607179b3f31e58f356c305158.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-89a3699cc841552e463fffd07a6b500b56498e7fd58adeedd2c69a85788195ff.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-49c81e1dba06401f651a32aacd3027bf291d8ce45939ead99164faf4481d7b2a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-5d670e9458dc31f9f84426727fd0bd81fb291d4b22580838632c86695cd8ef37.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-13b1b6bb4de5fc2fb2ee052eb6381992dcc52a4e17c6eba03d556783c0e83e76.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0843e38df19e4eea09b0ded6ef425d6c974aa6d685b482f0684f036c911c4c98.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-fa98b5a734d277a838ac7b48098351a7aa9d072b2da6e309438362211a09c4e3.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "multi-file",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-0b894dbb62c4bf3577c4228d697ae9793b573d8dd25e1894bde968dc660efab7.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-95fc4ed868680da05e000bc442a92117dcecaa3e0003b9999b4c24dd7b7cbcd6.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-12f6ec21f5be1b8336d771eecabaa25ddd2932d38ef86d853cec078af19d08c4.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-46c161f7d6cb773edb8cac4572d3a7d8686519937e4e47a0597f764b0ec5dd97.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-910f47a27d3890ba14223f0f54b94b90862929eeca57e2936c3731e32e0ff25c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-6945a1089efd0fe29ac8888a9e1789e624e2477e6781575d6fba7dcf9a784ad5.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-28a558fce7927af75c633a878dd246681b318e80caf1c89eeb255d616661bc07.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-1e6201b6c1cc8c33b82f48c6136a7438208f0e590b3fd8dbdde5130cae79d5f3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e2655812bdde1fb1e8646d042b71db0fde605c22d1714f95a9185394cae6c691.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-62b68cac5be85558f292f0c94a11079b8a94488f598e9da752e76310148c196d.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-ce817c1b00238ec043c60955e971c6c65865495293c078ce7b3db3d8b6fabcb9.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-969455f4389732a9fc7cf7528a2e00e09f1c0818441bad10bc3d1fc3c76e5b13.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3b20abe9de0cc7f22b25451bbe46be9f5479d288deeb8589101ea13af8f68edc.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-24cd075767364eacc1b6e65c7f7f7faea21f3b9c785b96e46f621ada14074d0b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a5034cbbed4fbe1bc9fb1a9040ef8d5cfd0b0caff21c4b6625f7831d6539fee0.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ba9ddb6aead818d65dec14ad40a93ec2b10ceea23f1e6297034ad05dd0483fff.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a6bafad5b5a632634e6f567fb40e5b0c9a7890b87faf0d1e7b6c2d47b68caa3b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-bc187021136f6d192896090dd898a66e7badb51718aa1dbbfce84441857232ad.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b8a020cdf47c073f333125b58c5d151e27d30f2e39a12008c636b8ef56cf5243.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9b6bc7270afdb25fef9361a4791dcfbd7eeede3aa88a6ea87ea6693562b742b1.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-e0ea8236c7721596f69d50e6a9e5bb9815e08fa83a1da03a7125fa321a63e35c.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-8d35ab0738cde0db43011b5692d07450ba01c03d4dd93b261e6fb624d3aa4b70.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-322b0dcd6541d04bd31b6b31592d1637341716e45317aa5cbd6a41aa0d657309.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b9ac7b1ccd12ecfe1225d42fb8f210864c3cb4ce5eb885fb71359e00128cbcec.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-406b1f6aac5a142d31cac399b23e224b8ada17c11af19d83c0bab5806d1e17df.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-dfa9f1aa9e00a27b2e13112a29db7d42df07382e420602115b49c0e3a2a47948.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-edf168a7937535359fc99025eaa628566129fa04991e511d28397d629856c084.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-eeedc9e31fff0f832d12b9ae85b3472220ccab1a184ab81dd509d8c5adb8a687.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-e57c7b538869e560ea3ed330d2666df0e31fe9d2b9e42e63a37e07fbfd430a1a.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d70ec3226a092d0e20a33d6b1ba6a4f9ab4dcd05b59cdea92a3f0d02bb004460.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-e0583250bd053100886678eb67463c2eae7178c58a797fcf3c0d523ae7d7ea3d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-3d796747ad0201edb146b48dd6562b2e6eae0a63daa388ff833cdecf8a7e29c0.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-04a7615a6d146c7275deae58db02564bc15a60cfc574ebbf101a692e888d21e3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ab54f8bacaa2e25a78da1d1d060f9d2f4a46cb960ff43aaed03bc40d3a133952.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-cf984e3f45b01806c2ae000bd1f478f04607f1eba4dde06e0545a6fec4dce189.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-91edf428753287d65be147b002ad2f03bc6bd025499835139a6fe861b2f6a872.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-2e7f60e29cd527f8961b3baa003e122512405438fa9d84ae22fb19cc64293242.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-ea0f8f5bb3a55a374f7422626823681866db656afc38616eb8c958a9f89388c2.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f3ad31099f4cce76cb90ca6a88e0c2493ef9599461298909cdcfb22b0b74d46d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4f36e6be664d4ed4741f9ace2415fe1eda533f1c0b5f849ca5f590bc9a5de3ec.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-79228ad0088baa11a547af85e24e428cb08471bbb116df57b26898cea2702f68.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b1abd6bee49ef40e455eeac173c6b2aa2e0a21c042ca19d3b41d854d0a2267a9.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-9efeb94ca7070b116d82ee2fed9a60ac3cbd2bf00a3703448096a91dc3d5c847.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-051fd25377feab31f5a3b864f7268167b92f6243db87c93a42cf326fb17ed6eb.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-b3edd57472395c5f05294a42208eeef7467bd74d7044cb7a1ab5f0d2bc4d9b0f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c1e62c2a7e76215da35d6d8833fe25f3e4dc0cddf63138e348ce06abe5235b9f.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-47790627f9d03ef43ee45e20d1aeb5e47c61c4bacd5d6756d93d318199db8c08.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-34b26dbe3ca9333e88e5affe3d3b60ed3ba6eda6bd60951a4f345c4032be78bf.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-4c798a59f7808417558e1fdff3dcb7a2ee812779980338a827dbacff1246228e.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-787c16cac676af00d9e85ce346ecdf59d26c025b9e44edeab58026c88ec59527.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/cli-probes/v21.1.0/probe-ede03307aa1506e96090dfb68e477a996eca00ea3ef41d5e68457be35a3c48dd.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-004d6e325022ccd5150cc9052181754e739f6a353d98b0ebb1cbddde050c1588.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d5dd32d4bba56cedb4f956aaa3f02f0374fd20c0c6e2a26d13e9fed717dd9056.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-f775a91b2b23dcb1759e30b423972dc2078cd8a114f98b695da2d87f8f5d3e10.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c1e0099dfe8fb848e318c2d950edc43b5ee0907fb9a3079e68051a91ef626503.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-d300d0a419fd6afe717bd2e9e52dd6075c278a981547f3120ff75ffaad43a7e3.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-0da455b7b9bef2b23e53646f923526b9afaad66bf4b1f695477b3e371756ac5b.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-68ae3d5bda8a9281f0e6b8443d4a698d3d6117535f1c1ff95790b7082b23ad13.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-a4ef16c9f729274da88fac82ac85ec445171d1a20bf72549b1c9389ffe8c239d.json",
+          ".local/telemetry/cli-probes/v21.1.0/probe-c1fa2d2467c8196fbcb742147b12400a2179dab3d2f2a35543c35fa7374715ff.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "INSUFFICIENT",
+        "counts": {
+          "fail": 0,
+          "insufficient": 10,
+          "n": 10,
+          "pass": 0
+        },
+        "expected_n": 10,
+        "pass_rate": {
+          "ci95": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 10,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "recovery",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 10,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "status": "INSUFFICIENT"
+        }
+      }
+    ],
+    "comparisons": [
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": 0.0009148740209639072,
+          "status": "AVAILABLE",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": 0.0014815839822404087,
+          "status": "AVAILABLE",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": 0.0002084170118905604,
+          "status": "AVAILABLE",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "multi-file",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "multi-file",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "multi-file",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "recovery",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "recovery",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "pass_rate_difference": {
+          "ci95": null,
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT"
+        },
+        "task_class": "recovery",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      }
+    ],
+    "counts": {
+      "completed": 0,
+      "fail": 0,
+      "insufficient": 240,
+      "observed": 240,
+      "pass": 0,
+      "planned": 240,
+      "unrecorded": 0
+    },
+    "roi": {
+      "conclusion": "INSUFFICIENT: incomplete cells or missing token/skill telemetry prevent a reproducible ROI claim. No causal quality improvement is established.",
+      "quality_causality": "NOT_ESTABLISHED",
+      "skill_loaded": "INSUFFICIENT",
+      "status": "INSUFFICIENT",
+      "token_cost": "INSUFFICIENT",
+      "uncertainty": "95% Wilson intervals for complete pass-rate cells; normal-approximation difference intervals; latency and token differences retain explicit limitations."
+    },
+    "run_id": "calibration-990ffb5f71a60dd60f1e71a7d20492cf5a77862e71d52bf933ea09be7dd2ee3d",
+    "schema_version": 1
+  }
+}

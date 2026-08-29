@@ -10,9 +10,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+from devolaflow.harness.metadata import MetadataError, validate_run_metadata
 from devolaflow.harness.telemetry import (
     CONSOLIDATION_METRIC_NAMES,
     CONSOLIDATION_METRICS_EVENT,
+    CONTEXT_TOKEN_EVENT,
+    CONTEXT_TOKEN_FIELDS,
     METRIC_OBSERVATION_EVENT,
     METRIC_OBSERVATION_FIELDS,
     SI10_GATE_EVENT,
@@ -70,6 +73,15 @@ _CONSOLIDATION_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
         "event_id",
         "ts",
         *CONSOLIDATION_METRIC_NAMES,
+    }
+)
+_CONTEXT_TOKEN_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schema_version",
+        "event",
+        "event_id",
+        "ts",
+        "context_tokens",
     }
 )
 _METRIC_OBSERVATION_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
@@ -174,15 +186,33 @@ def _validate_timestamp(value: object, *, path: Path, line: int) -> str:
     return timestamp
 
 
+def _validate_optional_metadata(record: dict[str, Any], *, path: Path, line: int) -> None:
+    if "metadata" not in record:
+        return
+    try:
+        validate_run_metadata(record["metadata"])
+    except MetadataError as exc:
+        raise _error(path, line, str(exc)) from exc
+
+
+def _check_event_fields(
+    record: dict[str, Any],
+    expected: frozenset[str],
+    *,
+    path: Path,
+    line: int,
+    label: str,
+) -> None:
+    actual = set(record) - {"metadata"}
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        raise _error(path, line, f"{label} keys mismatch; missing={missing}, extra={extra}")
+    _validate_optional_metadata(record, path=path, line=line)
+
+
 def _validate_si10_event(record: dict[str, Any], *, path: Path, line: int) -> dict[str, Any]:
-    if set(record) != _SI10_EVENT_FIELDS:
-        missing = sorted(_SI10_EVENT_FIELDS - record.keys())
-        extra = sorted(record.keys() - _SI10_EVENT_FIELDS)
-        raise _error(
-            path,
-            line,
-            f"SI-10 event keys mismatch; missing={missing}, extra={extra}",
-        )
+    _check_event_fields(record, _SI10_EVENT_FIELDS, path=path, line=line, label="SI-10 event")
     if record["schema_version"] != 1:
         raise _error(path, line, "SI-10 event schema_version must equal 1")
     _validate_timestamp(record["ts"], path=path, line=line)
@@ -206,14 +236,13 @@ def _validate_consolidation_metrics_event(
     path: Path,
     line: int,
 ) -> dict[str, Any]:
-    if set(record) != _CONSOLIDATION_EVENT_FIELDS:
-        missing = sorted(_CONSOLIDATION_EVENT_FIELDS - record.keys())
-        extra = sorted(record.keys() - _CONSOLIDATION_EVENT_FIELDS)
-        raise _error(
-            path,
-            line,
-            f"consolidation event keys mismatch; missing={missing}, extra={extra}",
-        )
+    _check_event_fields(
+        record,
+        _CONSOLIDATION_EVENT_FIELDS,
+        path=path,
+        line=line,
+        label="consolidation event",
+    )
     if record["schema_version"] != 1:
         raise _error(path, line, "consolidation event schema_version must equal 1")
     _validate_timestamp(record["ts"], path=path, line=line)
@@ -234,20 +263,50 @@ def _validate_consolidation_metrics_event(
     return record
 
 
+def _validate_context_token_event(
+    record: dict[str, Any],
+    *,
+    path: Path,
+    line: int,
+) -> dict[str, Any]:
+    _check_event_fields(
+        record,
+        _CONTEXT_TOKEN_EVENT_FIELDS,
+        path=path,
+        line=line,
+        label="context token event",
+    )
+    if record["schema_version"] != 1:
+        raise _error(path, line, "context token event schema_version must equal 1")
+    _validate_timestamp(record["ts"], path=path, line=line)
+    _non_empty_string(record["event_id"], path=path, line=line, field="event_id")
+    accounting = record["context_tokens"]
+    if not isinstance(accounting, dict) or set(accounting) != set(CONTEXT_TOKEN_FIELDS):
+        raise _error(
+            path,
+            line,
+            "context_tokens must contain exactly skill_tokens, rule_tokens, report_tokens",
+        )
+    for field in CONTEXT_TOKEN_FIELDS:
+        value = accounting[field]
+        if value is not None:
+            _integer(value, path=path, line=line, field=f"context_tokens.{field}", minimum=0)
+    return record
+
+
 def _validate_metric_observation_event(
     record: dict[str, Any],
     *,
     path: Path,
     line: int,
 ) -> dict[str, Any]:
-    if set(record) != _METRIC_OBSERVATION_EVENT_FIELDS:
-        missing = sorted(_METRIC_OBSERVATION_EVENT_FIELDS - record.keys())
-        extra = sorted(record.keys() - _METRIC_OBSERVATION_EVENT_FIELDS)
-        raise _error(
-            path,
-            line,
-            f"metric observation event keys mismatch; missing={missing}, extra={extra}",
-        )
+    _check_event_fields(
+        record,
+        _METRIC_OBSERVATION_EVENT_FIELDS,
+        path=path,
+        line=line,
+        label="metric observation event",
+    )
     if record["event"] != METRIC_OBSERVATION_EVENT:
         raise _error(path, line, "metric observation event has an unsupported event name")
     if not isinstance(record["event_id"], str) or not record["event_id"].strip():
@@ -267,17 +326,12 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
         return _validate_si10_event(record, path=path, line=line)
     if record.get("event") == CONSOLIDATION_METRICS_EVENT:
         return _validate_consolidation_metrics_event(record, path=path, line=line)
+    if record.get("event") == CONTEXT_TOKEN_EVENT:
+        return _validate_context_token_event(record, path=path, line=line)
     if record.get("event") == METRIC_OBSERVATION_EVENT:
         return _validate_metric_observation_event(record, path=path, line=line)
     if "event" in record:
-        if set(record) != _EVENT_FIELDS:
-            missing = sorted(_EVENT_FIELDS - record.keys())
-            extra = sorted(record.keys() - _EVENT_FIELDS)
-            raise _error(
-                path,
-                line,
-                f"proposal event keys mismatch; missing={missing}, extra={extra}",
-            )
+        _check_event_fields(record, _EVENT_FIELDS, path=path, line=line, label="proposal event")
         if record["schema_version"] != 1:
             raise _error(path, line, "proposal event schema_version must equal 1")
         if record["event"] != "proposal_applied":
@@ -420,6 +474,7 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
             or not 0.0 <= float(savings) <= 100.0
         ):
             raise _error(path, line, "slice_savings_pct must be a finite number in [0, 100]")
+    _validate_optional_metadata(record, path=path, line=line)
     return record
 
 
@@ -471,6 +526,26 @@ def _optional_mean(records: list[dict[str, Any]], field: str) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
+
+
+def _context_token_summary(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Summarize explicit component counts without turning missing into zero."""
+    events = [record for record in records if record.get("event") == CONTEXT_TOKEN_EVENT]
+    dispatch_records = [record for record in records if "event" not in record]
+    sources = [*events, *dispatch_records]
+    result: dict[str, dict[str, Any]] = {}
+    for field in CONTEXT_TOKEN_FIELDS:
+        values = []
+        for record in sources:
+            accounting = record.get("context_tokens")
+            if isinstance(accounting, dict) and accounting.get(field) is not None:
+                values.append(accounting[field])
+        result[field] = {
+            "mean": sum(values) / len(values) if values else None,
+            "observed_records": len(values),
+            "status": "AVAILABLE" if values else "INSUFFICIENT",
+        }
+    return result
 
 
 def _measurement_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -572,6 +647,9 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         raise AggregationError("cannot aggregate an empty ledger")
     events = [record for record in records if record.get("event") == "proposal_applied"]
     dispatch_records = [record for record in records if "event" not in record]
+    context_token_records = [
+        record for record in records if record.get("event") == CONTEXT_TOKEN_EVENT
+    ]
     rounds = [record["round"] for record in dispatch_records]
     if dispatch_records:
         token_metrics = _token_metrics(dispatch_records)
@@ -584,6 +662,7 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         token_metrics["slice_savings_pct_mean"] = _optional_mean(
             dispatch_records, "slice_savings_pct"
         )
+        token_metrics["context_tokens"] = _context_token_summary(records)
         token_metrics["by_layer"] = {
             layer: {
                 "records": sum(record["layer"] == layer for record in dispatch_records),
@@ -605,6 +684,7 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "host_rule_tokens_mean": None,
             "agents_md_tokens_mean": None,
             "slice_savings_pct_mean": None,
+            "context_tokens": _context_token_summary(records),
             "by_layer": {},
         }
 
@@ -643,6 +723,17 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "models": models,
         "measurements": _measurement_summary(dispatch_records, records),
     }
+    metadata_records = [record["metadata"] for record in records if "metadata" in record]
+    if metadata_records:
+        encoded = {
+            json.dumps(metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            for metadata in metadata_records
+        }
+        if len(encoded) != 1:
+            raise AggregationError("ledger contains inconsistent run metadata")
+        result["metadata"] = metadata_records[0]
+    if context_token_records:
+        result["context_token_records"] = context_token_records
     observations = _metric_observation_records(records)
     if observations:
         result["metric_observations"] = observations

@@ -250,6 +250,17 @@ def test_v19_rule_refactor_contracts_are_present(project_root: Path) -> None:
     assert "position 17 in the live schema" in architecture
 
 
+def test_w3_reproducibility_metadata_and_uncertainty_contract(project_root: Path) -> None:
+    """W-3 claims require reproducibility context and non-single-run evidence."""
+    workflow = (project_root / ".rules" / "workflow.mdc").read_text(encoding="utf-8")
+
+    assert "single seeded run" in workflow
+    assert "run identifier" in workflow
+    assert "caller-supplied salt" in workflow
+    assert "variance or uncertainty" in workflow
+    assert "metadata or uncertainty evidence is `INSUFFICIENT`, never `PASS`" in workflow
+
+
 # The 6 deprecated `.cursor/rules/` pointer stubs RETIRED at v15.0.0
 # (clean_repo C1-2, decision D1 — dated retirement record in the
 # CHANGELOG `## [Unreleased]` PR-8 entry). Content is fully preserved in
