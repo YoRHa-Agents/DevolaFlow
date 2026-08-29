@@ -9,6 +9,33 @@ import yaml
 
 from devolaflow.host_contract import REQUIRED_EXTRA_AXES, load_host_contract
 
+_V21_1_ARTIFACT_PATHS: dict[str, tuple[Path, Path]] = {
+    "skill_residency_design": (
+        Path(".local/research/v21.1.0_skill_residency_design.md"),
+        Path("docs/cycle-archive/v21.1.0/design/v21.1.0_skill_residency_design.md"),
+    ),
+    "calibration_roi": (
+        Path(".local/research/v21.1.0_calibration_roi.json"),
+        Path("docs/cycle-archive/v21.1.0/other/v21.1.0_calibration_roi.json"),
+    ),
+    "harness_baseline": (
+        Path(".local/telemetry/baselines/harness_baseline_v21.1.0.json"),
+        Path("docs/cycle-archive/v21.1.0/harness/v21.1.0_harness_baseline.json"),
+    ),
+}
+
+
+def _resolve_v21_1_artifact(project_root: Path, artifact_name: str) -> Path:
+    """Prefer local v21.1.0 artifacts, falling back to tracked archive copies."""
+    local_path, archive_path = _V21_1_ARTIFACT_PATHS[artifact_name]
+    for relative_path in (local_path, archive_path):
+        candidate = project_root / relative_path
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(
+        f"v21.1.0 artifact {artifact_name!r} is missing at {local_path} and {archive_path}"
+    )
+
 
 def test_skill_residency_axis_is_wired_across_ssot_and_schema(project_root: Path) -> None:
     contract = load_host_contract(project_root / "workflow-system/agent/hosts.yaml")
@@ -39,7 +66,7 @@ def test_skill_residency_implemented_claims_have_allowed_evidence(project_root: 
 
 
 def test_skill_residency_design_records_fact_and_channel_limits(project_root: Path) -> None:
-    design = (project_root / ".local/research/v21.1.0_skill_residency_design.md").read_text(
+    design = _resolve_v21_1_artifact(project_root, "skill_residency_design").read_text(
         encoding="utf-8"
     )
     for phrase in (
@@ -56,7 +83,7 @@ def test_skill_residency_design_records_fact_and_channel_limits(project_root: Pa
 def test_v21_t4_calibration_and_baseline_keep_evidence_boundaries(project_root: Path) -> None:
     """T4 close evidence records unavailable ROI rather than inventing outcomes."""
     calibration = json.loads(
-        (project_root / ".local/research/v21.1.0_calibration_roi.json").read_text(encoding="utf-8")
+        _resolve_v21_1_artifact(project_root, "calibration_roi").read_text(encoding="utf-8")
     )
     summary = calibration["summary"]
     assert calibration["matrix"]["planned_specs"] == 240
@@ -73,9 +100,7 @@ def test_v21_t4_calibration_and_baseline_keep_evidence_boundaries(project_root: 
     assert summary["roi"]["quality_causality"] == "NOT_ESTABLISHED"
 
     baseline = json.loads(
-        (project_root / ".local/telemetry/baselines/harness_baseline_v21.1.0.json").read_text(
-            encoding="utf-8"
-        )
+        _resolve_v21_1_artifact(project_root, "harness_baseline").read_text(encoding="utf-8")
     )
     assert baseline["cycle"] == "v21.1.0"
     assert baseline["settlement"]["status"] == "SETTLED"
