@@ -43,6 +43,9 @@ class RuntimePluginSpec:
     # shipped occupant as of v15.2.0). Validated against _SUPPORTED_TIERS
     # in resolve_plugin.
     tier: str = "suggest"
+    # v21.1.1 — optional plugins can stay registered without entering the
+    # default global install bundle; singleton profiles remain explicit.
+    default_install: bool = True
 
 
 @dataclass(frozen=True)
@@ -317,6 +320,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
             verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
             upgrade_cmd=entry.get("upgrade_cmd"),
             tier=str(tier),
+            default_install=bool(entry.get("default_install", True)),
         )
 
     raise PluginNotFoundError(

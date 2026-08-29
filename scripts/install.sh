@@ -13,7 +13,7 @@
 #           zed, cline, roo, local, standalone, all, auto (default),
 #           update, uninstall
 # Flags:    --global      install to the tool's user-wide location (ALSO
-#                         installs all runtime plugins by default)
+#                         installs default-bundled runtime plugins)
 #           --project     install to the repo-local location (default)
 #           --no-plugins  with --global, skip the bundled runtime-plugin install
 #           --base-url U  override the download base (mirrors / offline
@@ -441,7 +441,8 @@ install_standalone() {
   ok "Standalone SKILL.md downloaded"
 }
 
-# v13.0.0 — bundled runtime-plugin install for --global. Delegates to the
+# v13.0.0 — bundled runtime-plugin install for --global. The registry's
+# default_install field controls bundle membership. Delegates to the
 # Python installer (A-5 SSOT: same ensure_plugin path devola-init uses) when
 # the devolaflow package is importable; otherwise emits clear guidance.
 # Warn-not-fatal (S-5): plugin failures NEVER abort the skill install.
@@ -453,7 +454,6 @@ install_plugins() {
   else
     warn "devolaflow package not importable — skipping bundled plugin install."
     warn "  Install plugins manually, e.g.:"
-    warn "    npm install -g uipro-cli && uipro init --ai cursor --global"
     warn "    npm install -g @colbymchenry/codegraph"
     warn "    npm install -g impeccable && impeccable skills install --yes"
   fi
@@ -737,8 +737,8 @@ case "$TARGET" in
 
   Flags:
     --project     repo-local install path (default)
-    --global      user-wide install path when supported; ALSO installs all
-                  runtime plugins (ui-pro/rtk/si-chip/codegraph/impeccable)
+    --global      user-wide install path when supported; ALSO installs the
+                  default-bundled runtime plugins (codegraph/impeccable)
                   by default — failures are warn-not-fatal
     --no-plugins  with --global, skip the bundled runtime-plugin install
                   (skill files only)
@@ -755,9 +755,11 @@ USAGE
     exit 1 ;;
 esac
 
-# v13.0.0 — a --global skill install ALSO installs all runtime plugins by
-# default (the cycle ask: "make devola install also install all plugins").
-# --no-plugins opts out. Project-scope installs stay lean (no plugin install).
+# v13.0.0 — a --global skill install ALSO installs default-bundled runtime
+# plugins by default (the cycle ask: "make devola install also install all
+# plugins"). Optional plugins can remain explicitly selectable without entering
+# this bundle. --no-plugins opts out. Project-scope installs stay lean (no
+# plugin install).
 # uninstall never installs plugins regardless of scope.
 if [ "$REQUESTED_SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ] && [ "$TARGET" != "uninstall" ]; then
   install_plugins

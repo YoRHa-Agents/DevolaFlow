@@ -105,3 +105,22 @@ def test_v21_t4_calibration_and_baseline_keep_evidence_boundaries(project_root: 
     assert baseline["cycle"] == "v21.1.0"
     assert baseline["settlement"]["status"] == "SETTLED"
     assert baseline["settlement"]["historical_comparison"] == "INSUFFICIENT"
+
+
+def test_optional_plugins_are_explicit_only_not_default_dependencies(project_root: Path) -> None:
+    """Patch contract: optional plugins remain registered but are not bundled."""
+    from devolaflow.plugins.installer import available_plugin_profiles, select_plugin_profile
+
+    registry_path = project_root / "workflow-system/agent/knowledge/runtime-plugins.yaml"
+    registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    optional_ids = {"rtk", "ui-pro", "si-chip"}
+    for plugin_id in optional_ids:
+        entry = next(entry for entry in registry["plugins"] if entry["id"] == plugin_id)
+        assert entry["tier"] == "suggest"
+        assert entry["default_install"] is False
+
+    profiles = available_plugin_profiles(registry_path=registry_path)
+    for plugin_id in optional_ids:
+        assert plugin_id not in profiles["all"]
+        assert plugin_id not in profiles["global"]
+        assert select_plugin_profile(plugin_id, registry_path=registry_path) == [plugin_id]

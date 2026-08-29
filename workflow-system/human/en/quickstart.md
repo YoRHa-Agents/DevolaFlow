@@ -4,8 +4,8 @@ description: "Install DevolaFlow, verify the correct channel, and run a first ch
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-29T07:25:58Z"
-source_version: "21.1.0"
+last_synced: "2026-08-29T08:32:55Z"
+source_version: "21.1.1"
 ---
 
 # Quick Start Guide
@@ -45,9 +45,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 The curl `all` target installs every supported host target plus the `local`
 scaffold; it excludes `standalone`. Some hosts are project-only even when
-`--global` is requested. A global install also attempts the registered runtime
-plugins; add `--no-plugins` for skill files only. The curl installer has no
-doctor command.
+`--global` is requested. A global install also attempts the default-bundled
+runtime plugins; optional plugins RTK, ui-pro, and Si-Chip remain explicit-only.
+Add `--no-plugins` for skill files only. The curl installer has no doctor command.
 
 ### pip or wheel: Python runtime and local scaffold
 
@@ -72,8 +72,9 @@ devola-init cursor
 ```
 
 The Python meaning of `all` is Cursor, Claude, Copilot, and Codex; it excludes
-the local scaffold. With `--global`, plugin installation is attempted unless
-`--no-plugins` is present.
+the local scaffold. With `--global`, default-bundled plugin installation is
+attempted unless `--no-plugins` is present. Optional plugins RTK, ui-pro, and
+Si-Chip remain explicit-only.
 
 **Manual fallback**
 

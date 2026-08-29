@@ -1359,13 +1359,19 @@ def _check_plugin_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
     view = yaml.safe_load(view_path.read_text(encoding="utf-8"))
     plugin_ids = [entry["id"] for entry in runtime["plugins"]]
     expected_ids = ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
+    expected_default_ids = ["codegraph", "impeccable"]
     profiles = available_plugin_profiles(registry_path=runtime_path)
     registry = create_default_registry(plugins_yaml=view_path)
     if (
         plugin_ids != expected_ids
         or runtime["defaults"]["auto_install"] is not False
         or any(entry.get("tier") != "suggest" for entry in runtime["plugins"])
-        or profiles["all"] != expected_ids
+        or profiles["all"] != expected_default_ids
+        or profiles["global"] != expected_default_ids
+        or any(
+            entry.get("default_install", True) is not (entry["id"] in expected_default_ids)
+            for entry in runtime["plugins"]
+        )
         or any(
             select_plugin_profile(plugin_id, registry_path=runtime_path) != [plugin_id]
             for plugin_id in expected_ids

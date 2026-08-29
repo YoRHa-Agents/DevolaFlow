@@ -5,10 +5,10 @@ Usage:
   devola-init cursor                Install for Cursor only
   devola-init claude                Install for Claude Code only
   devola-init claude --global       Install Claude Code globally
-  devola-init <tool> --global       Global skill install ALSO installs all
-                                    runtime plugins (ui-pro/rtk/si-chip/
-                                    codegraph/impeccable) by default; per-plugin
-                                    failures are warn-not-fatal (S-5)
+  devola-init <tool> --global       Global skill install ALSO installs the
+                                    default-bundled runtime plugins
+                                    (codegraph/impeccable);
+                                    per-plugin failures are warn-not-fatal (S-5)
   devola-init <tool> --global --no-plugins
                                     Global install WITHOUT the bundled
                                     runtime-plugin install (skill files only)
@@ -142,10 +142,10 @@ def _parse_no_plugins(argv: list[str]) -> bool:
 
 
 def install_plugins(scope: str) -> None:
-    """Install every runtime-registered plugin (default-ON for ``--global``).
+    """Install default-bundled runtime plugins (default-ON for ``--global``).
 
     v13.0.0 — closes the cycle ask "make devola install also install all
-    plugins". Iterates the runtime plugin registry
+    plugins". Iterates the default bundle in the runtime plugin registry
     (``workflow-system/agent/knowledge/runtime-plugins.yaml``) and calls
     :func:`devolaflow.plugins.installer.ensure_plugin` per plugin, so the
     install commands stay single-source-of-truth (A-5 — no duplication of the
@@ -181,7 +181,7 @@ def install_plugins(scope: str) -> None:
     plugin_ids = [
         entry["id"]
         for entry in registry.get("plugins", [])
-        if isinstance(entry, dict) and entry.get("id")
+        if isinstance(entry, dict) and entry.get("id") and entry.get("default_install", True)
     ]
     if not plugin_ids:
         print("  WARN plugin install skipped (no plugins registered)")
@@ -1093,7 +1093,8 @@ def main() -> None:
             )
 
     # v13.0.0 — bundled runtime-plugin install. Default-ON for --global
-    # (the cycle ask: "make devola install also install all plugins"),
+    # (the cycle ask: "make devola install also install all plugins");
+    # the registry's default_install field controls bundle membership,
     # suppressed by --no-plugins. Project-scope installs do NOT auto-install
     # plugins (kept lean; plugins are user-wide tools). Warn-not-fatal per S-5.
     if scope == "global" and not _parse_no_plugins(sys.argv[1:]):

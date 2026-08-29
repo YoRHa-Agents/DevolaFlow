@@ -2410,5 +2410,18 @@
       "agents_md_tokens": 11169,
       "calibration": "240 INSUFFICIENT; ROI unverified"
     }
+  },
+  {
+    "version": "21.1.1",
+    "date": "2026-08-29",
+    "era": "dependency-boundaries",
+    "headline": "PATCH — Optional runtime plugins: RTK, ui-pro, and Si-Chip are explicit-only",
+    "summary": "The default global plugin bundle now contains only default-bundled entries from the runtime registry. RTK, ui-pro, and Si-Chip remain registered and individually installable without being treated as repository dependencies.",
+    "highlights": [
+      "Default plugin bundle membership is controlled by the runtime registry's default_install field",
+      "RTK, ui-pro, and Si-Chip remain available through explicit singleton plugin profiles",
+      "RTK shell-output compression remains opt-in via DEVOLAFLOW_RTK_PROXY=1"
+    ],
+    "metrics": {}
   }
 ]

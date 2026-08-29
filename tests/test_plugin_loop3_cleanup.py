@@ -23,6 +23,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 _RUNTIME = _ROOT / "workflow-system/agent/knowledge/runtime-plugins.yaml"
 _VIEW = _ROOT / "workflow-system/agent/plugins.yaml"
 _PLUGIN_IDS = ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
+_DEFAULT_PLUGIN_IDS = ["codegraph", "impeccable"]
 
 
 def test_runtime_plugins_remain_optional_suggest_tier() -> None:
@@ -34,10 +35,11 @@ def test_runtime_plugins_remain_optional_suggest_tier() -> None:
 
 def test_global_profiles_are_explicit_and_ssot_derived() -> None:
     assert available_plugin_profiles(registry_path=_RUNTIME) == {
-        "all": _PLUGIN_IDS,
-        "global": _PLUGIN_IDS,
+        "all": _DEFAULT_PLUGIN_IDS,
+        "global": _DEFAULT_PLUGIN_IDS,
         **{plugin_id: [plugin_id] for plugin_id in _PLUGIN_IDS},
     }
+    assert select_plugin_profile("rtk", registry_path=_RUNTIME) == ["rtk"]
     assert select_plugin_profile("si-chip", registry_path=_RUNTIME) == ["si-chip"]
     with pytest.raises(ValueError, match="Unknown plugin profile"):
         select_plugin_profile("missing", registry_path=_RUNTIME)
