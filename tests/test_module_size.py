@@ -86,6 +86,56 @@ def test_comment_ratio_boundary_passes_and_above_boundary_fails() -> None:
     ]
 
 
+def test_existing_over_limit_density_is_grandfathered() -> None:
+    legacy = ModuleMetrics(code_lines=2, comment_lines=3, docstring_lines=0, nonblank_lines=5)
+
+    assert (
+        check_comment_ratios(
+            {"src/legacy.py": legacy},
+            baseline_metrics={"src/legacy.py": legacy},
+        )
+        == []
+    )
+
+
+def test_existing_over_limit_density_increase_fails() -> None:
+    baseline = ModuleMetrics(code_lines=2, comment_lines=3, docstring_lines=0, nonblank_lines=5)
+    current = ModuleMetrics(code_lines=2, comment_lines=4, docstring_lines=0, nonblank_lines=6)
+
+    assert check_comment_ratios(
+        {"src/legacy.py": current},
+        baseline_metrics={"src/legacy.py": baseline},
+    ) == [
+        "src/legacy.py: comment/docstring ratio 66.7% exceeds 50% "
+        "(4 comment/docstring lines / 6 nonblank physical lines)"
+    ]
+
+
+def test_existing_module_crossing_ratio_limit_fails() -> None:
+    baseline = ModuleMetrics(code_lines=2, comment_lines=2, docstring_lines=0, nonblank_lines=4)
+    current = ModuleMetrics(code_lines=2, comment_lines=3, docstring_lines=0, nonblank_lines=5)
+
+    assert check_comment_ratios(
+        {"src/example.py": current},
+        baseline_metrics={"src/example.py": baseline},
+    ) == [
+        "src/example.py: comment/docstring ratio 60.0% exceeds 50% "
+        "(3 comment/docstring lines / 5 nonblank physical lines)"
+    ]
+
+
+def test_new_module_over_ratio_limit_fails() -> None:
+    current = ModuleMetrics(code_lines=2, comment_lines=3, docstring_lines=0, nonblank_lines=5)
+
+    assert check_comment_ratios(
+        {"src/new.py": current},
+        baseline_metrics={},
+    ) == [
+        "src/new.py: comment/docstring ratio 60.0% exceeds 50% "
+        "(3 comment/docstring lines / 5 nonblank physical lines)"
+    ]
+
+
 def test_code_metric_makes_comment_growth_irrelevant_to_ratchet() -> None:
     baseline = measure_source("value = 1\n")
     current = measure_source("# explanation\n\nvalue = 1\n")
@@ -103,7 +153,10 @@ def test_code_metric_makes_comment_growth_irrelevant_to_ratchet() -> None:
 def test_main_uses_code_metric_for_git_baseline(monkeypatch, tmp_path, capsys) -> None:
     module = tmp_path / "src" / "devolaflow" / "example.py"
     module.parent.mkdir(parents=True)
-    module.write_text("# current explanation\nvalue = 1\n", encoding="utf-8")
+    module.write_text(
+        "# current explanation\n# another explanation\nvalue = 1\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
@@ -112,7 +165,11 @@ def test_main_uses_code_metric_for_git_baseline(monkeypatch, tmp_path, capsys) -
     )
     monkeypatch.setattr(
         "scripts.check_module_size._git",
-        lambda root, *args: "value = 1\n" if args[0] == "show" else "",
+        lambda root, *args: (
+            "# baseline explanation\n# another explanation\nvalue = 1\n"
+            if args[0] == "show"
+            else ""
+        ),
     )
 
     assert main(["--baseline-ref", "BASE", "--maximum", "0"]) == 0
