@@ -1092,8 +1092,7 @@ def main() -> None:
                 "(use: cursor, claude, copilot, codex, kimicode, dsh, local, all)"
             )
 
-    # v13.0.0 — bundled runtime-plugin install. Default-ON for --global
-    # (the cycle ask: "make devola install also install all plugins");
+    # v13.0.0 — bundled runtime-plugin install, Default-ON for --global;
     # the registry's default_install field controls bundle membership,
     # suppressed by --no-plugins. Project-scope installs do NOT auto-install
     # plugins (kept lean; plugins are user-wide tools). Warn-not-fatal per S-5.
