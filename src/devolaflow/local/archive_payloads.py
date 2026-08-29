@@ -41,19 +41,24 @@ def _local_archive_entry_payload(entry: object) -> dict[str, object]:
 
 
 def _local_archive_plan_payload(plan: object) -> dict[str, object]:
-    return {
-        "artifact_type": "task-archive-plan",
+    surface = getattr(plan, "surface", "tasks")
+    payload: dict[str, object] = {
+        "artifact_type": "task-archive-plan" if surface == "tasks" else f"{surface}-archive-plan",
         "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
         "source_boundary": plan.source_boundary,
         "fingerprint": plan.fingerprint,
         "entries": [_local_archive_entry_payload(entry) for entry in plan.entries],
         "findings": [_local_archive_finding(finding) for finding in plan.findings],
     }
+    if surface != "tasks":
+        payload["surface"] = surface
+    return payload
 
 
 def _local_archive_result_payload(result: object) -> dict[str, object]:
-    return {
-        "artifact_type": "task-archive-result",
+    surface = getattr(result, "surface", "tasks")
+    payload: dict[str, object] = {
+        "artifact_type": "task-archive-result" if surface == "tasks" else "local-archive-result",
         "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
         "applied": [_local_archive_entry_payload(entry) for entry in result.applied],
         "mappings": [
@@ -73,6 +78,9 @@ def _local_archive_result_payload(result: object) -> dict[str, object]:
         "recovery_required": result.recovery_required,
         "recovery_hint": result.recovery_hint,
     }
+    if surface != "tasks":
+        payload["surface"] = surface
+    return payload
 
 
 def _local_archive_json(payload: object) -> str:
@@ -88,14 +96,23 @@ def _local_archive_require_text(
     return value
 
 
-def _local_archive_validate_path(value: str, *, field: str, entry_number: int) -> None:
+def _local_archive_validate_path(
+    value: str,
+    *,
+    field: str,
+    entry_number: int,
+    boundaries: tuple[str, ...] = (".local/tasks",),
+) -> None:
     path = PurePosixPath(value)
     if "\\" in value or path.is_absolute() or ".." in path.parts:
         raise _LocalArchiveInputError(
             f"entry {entry_number}: {field} must be repository-relative POSIX"
         )
-    if not value.startswith(".local/tasks/"):
-        raise _LocalArchiveInputError(f"entry {entry_number}: {field} is outside .local/tasks")
+    if not any(value.startswith(f"{boundary}/") for boundary in boundaries):
+        boundary_label = (
+            ".local/tasks" if boundaries == (".local/tasks",) else "the archive surface"
+        )
+        raise _LocalArchiveInputError(f"entry {entry_number}: {field} is outside {boundary_label}")
 
 
 def _local_archive_findings(
@@ -129,12 +146,23 @@ def _local_archive_plan_from_payload(payload: object) -> object:
 
     if not isinstance(payload, dict):
         raise _LocalArchiveInputError("plan must be a mapping")
-    if payload.get("artifact_type") != "task-archive-plan":
-        raise _LocalArchiveInputError("artifact_type must be task-archive-plan")
+    artifact_type = payload.get("artifact_type")
+    surface = "tasks" if artifact_type == "task-archive-plan" else payload.get("surface")
+    if not isinstance(surface, str) or (
+        artifact_type != "task-archive-plan" and artifact_type != f"{surface}-archive-plan"
+    ):
+        raise _LocalArchiveInputError("artifact_type must identify a registered archive surface")
     if payload.get("schema_version") != _LOCAL_ARCHIVE_SCHEMA_VERSION:
         raise _LocalArchiveInputError("schema_version must be 1")
-    if payload.get("source_boundary") != ".local/tasks":
-        raise _LocalArchiveInputError("source_boundary must be .local/tasks")
+    from devolaflow.local.archive import get_archive_adapter
+
+    try:
+        adapter = get_archive_adapter(surface)
+    except ValueError as exc:
+        raise _LocalArchiveInputError(str(exc)) from exc
+    if payload.get("source_boundary") != adapter.source_root:
+        raise _LocalArchiveInputError(f"source_boundary must be {adapter.source_root}")
+    boundaries = (adapter.source_root, adapter.archive_root)
     entries_payload = payload.get("entries")
     if not isinstance(entries_payload, list):
         raise _LocalArchiveInputError("entries must be a list")
@@ -149,8 +177,12 @@ def _local_archive_plan_from_payload(payload: object) -> object:
         destination = _local_archive_require_text(
             item.get("destination"), field="destination", entry_number=entry_number
         )
-        _local_archive_validate_path(source, field="source", entry_number=entry_number)
-        _local_archive_validate_path(destination, field="destination", entry_number=entry_number)
+        _local_archive_validate_path(
+            source, field="source", entry_number=entry_number, boundaries=boundaries
+        )
+        _local_archive_validate_path(
+            destination, field="destination", entry_number=entry_number, boundaries=boundaries
+        )
         cluster_key = _local_archive_require_text(
             item.get("cluster_key"), field="cluster_key", entry_number=entry_number
         )
@@ -191,7 +223,8 @@ def _local_archive_plan_from_payload(payload: object) -> object:
     plan = ArchivePlan(
         entries=tuple(entries),
         findings=findings,
-        source_boundary=".local/tasks",
+        source_boundary=adapter.source_root,
+        surface=surface,
     )
     fingerprint = payload.get("fingerprint")
     if fingerprint is not None and (
@@ -226,8 +259,30 @@ def _local_archive_approval_from_payload(payload: object) -> object:
         destination = _local_archive_require_text(
             item.get("destination"), field="destination", entry_number=entry_number
         )
-        _local_archive_validate_path(source, field="source", entry_number=entry_number)
-        _local_archive_validate_path(destination, field="destination", entry_number=entry_number)
+        _local_archive_validate_path(
+            source,
+            field="source",
+            entry_number=entry_number,
+            boundaries=(
+                ".local/tasks",
+                ".local/feedbacks",
+                ".local/feedbacks/archive",
+                ".local/research",
+                ".local/research/archive",
+            ),
+        )
+        _local_archive_validate_path(
+            destination,
+            field="destination",
+            entry_number=entry_number,
+            boundaries=(
+                ".local/tasks",
+                ".local/feedbacks",
+                ".local/feedbacks/archive",
+                ".local/research",
+                ".local/research/archive",
+            ),
+        )
         key = (source, destination)
         if key in entries:
             raise _LocalArchiveInputError(f"approved entry {entry_number} is duplicated")

@@ -1,0 +1,227 @@
+# Create the first stable release tag for a version merged into main.
+#
+# Tags created with GITHUB_TOKEN do not emit another push event. The explicit
+# workflow_call jobs below therefore replace the tag-triggered downstream runs
+# for this path without creating a recursion loop.
+name: Auto-tag merged release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/devolaflow/__init__.py"
+
+permissions: {}
+
+concurrency:
+  group: auto-tag-release-main
+  cancel-in-progress: false
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag_created: ${{ steps.tag.outputs.tag_created }}
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+      release_sha: ${{ steps.tag.outputs.release_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Validate merged main state
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::auto-tag runs only for refs/heads/main"
+            exit 1
+          fi
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [ "$checked_out_sha" != "$GITHUB_SHA" ]; then
+            echo "::error::checkout resolved $checked_out_sha, expected $GITHUB_SHA"
+            exit 1
+          fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          origin_main_sha="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$origin_main_sha" != "$GITHUB_SHA" ]; then
+            echo "::error::main advanced during auto-tag preparation"
+            exit 1
+          fi
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "::error::initial main push has no prior commit to compare"
+            exit 1
+          fi
+          if ! git cat-file -e "${BEFORE_SHA}^{commit}"; then
+            echo "::error::push predecessor $BEFORE_SHA is unavailable locally"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$BEFORE_SHA" "$GITHUB_SHA"; then
+            echo "::error::push predecessor is not an ancestor of the released main commit"
+            exit 1
+          fi
+          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- src/devolaflow/__init__.py; then
+            echo "::error::workflow was invoked without a version-file change"
+            exit 1
+          fi
+
+      - name: Create missing annotated version tag
+        id: tag
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          version_file="src/devolaflow/__init__.py"
+          current_source="$(git show "$GITHUB_SHA:$version_file")"
+          previous_source="$(git show "$BEFORE_SHA:$version_file")"
+          current_version="$(
+            VERSION_SOURCE="$current_source" python -c '
+          import os
+          import re
+          import sys
+          match = re.search(r'"'"'__version__\s*=\s*"([^"]+)"'"'"', os.environ["VERSION_SOURCE"])
+          if match is None:
+              print("unable to read __version__", file=sys.stderr)
+              raise SystemExit(1)
+          print(match.group(1))
+          '
+          )"
+          previous_version="$(
+            VERSION_SOURCE="$previous_source" python -c '
+          import os
+          import re
+          import sys
+          match = re.search(r'"'"'__version__\s*=\s*"([^"]+)"'"'"', os.environ["VERSION_SOURCE"])
+          if match is None:
+              print("unable to read predecessor __version__", file=sys.stderr)
+              raise SystemExit(1)
+          print(match.group(1))
+          '
+          )"
+          if [ "$current_version" = "$previous_version" ]; then
+            echo "::notice::version file changed without changing __version__; no tag created"
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$current_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::main version '$current_version' is not a stable X.Y.Z release"
+            exit 1
+          fi
+          if ! python - "$previous_version" "$current_version" <<'PY'
+          import re
+          import sys
+
+          stable = re.compile(r"^\d+\.\d+\.\d+$")
+          previous, current = sys.argv[1:]
+          if not stable.fullmatch(previous):
+              raise SystemExit(f"predecessor version {previous!r} is not stable X.Y.Z")
+          if tuple(map(int, current.split("."))) <= tuple(map(int, previous.split("."))):
+              raise SystemExit(
+                  f"version moved backwards or stayed equal: {previous} -> {current}"
+              )
+          PY
+          then
+            echo "::error::version progression is not a forward release"
+            exit 1
+          fi
+
+          if ! VERSION="$current_version" python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          from scripts.bump_version import VERSION_LOCATIONS
+
+          version = os.environ["VERSION"]
+          mismatches = []
+          for location in VERSION_LOCATIONS:
+              path = Path(location["path"])
+              if not path.exists():
+                  continue
+              text = path.read_text(encoding="utf-8")
+              pattern = re.compile(location["pattern"], re.MULTILINE)
+              matches = pattern.findall(text)
+              if len(matches) != 1:
+                  mismatches.append(f"{path}: expected one canonical version match")
+                  continue
+              replacement = location["replacement"].format(version=version)
+              updated, count = pattern.subn(replacement, text, count=1)
+              if count != 1 or updated != text:
+                  mismatches.append(str(path))
+          if mismatches:
+              raise SystemExit(
+                  "canonical version surfaces are not synchronized: "
+                  + ", ".join(mismatches)
+              )
+          PY
+          then
+            echo "::error::canonical version surfaces are not synchronized"
+            exit 1
+          fi
+
+          tag_name="v$current_version"
+          set +e
+          git ls-remote --exit-code --refs origin "refs/tags/$tag_name" >/dev/null
+          remote_tag_status=$?
+          set -e
+          if [ "$remote_tag_status" -eq 0 ]; then
+            git fetch --no-tags origin "refs/tags/$tag_name:refs/tags/$tag_name"
+            existing_tag_sha="$(git rev-parse "$tag_name^{commit}")"
+            if [ "$existing_tag_sha" != "$GITHUB_SHA" ]; then
+              echo "::error::$tag_name already exists but points to $existing_tag_sha, not $GITHUB_SHA"
+              exit 1
+            fi
+            echo "::notice::$tag_name already exists at this exact commit; re-running downstream release jobs"
+            echo "tag_created=true" >> "$GITHUB_OUTPUT"
+            echo "release_tag=$tag_name" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "$remote_tag_status" -ne 2 ]; then
+            echo "::error::could not safely determine whether $tag_name exists remotely"
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$tag_name"; then
+            echo "::error::$tag_name exists locally but not on origin; refusing to reuse it"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "$tag_name" "$GITHUB_SHA" --message "Release $tag_name"
+          if ! git push origin "refs/tags/$tag_name"; then
+            echo "::error::tag push failed; no downstream release workflow was invoked"
+            exit 1
+          fi
+          release_sha="$(git rev-parse "$GITHUB_SHA^{commit}")"
+          echo "tag_created=true" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
+
+  release:
+    if: needs.create-tag.outputs.tag_created == 'true'
+    needs: create-tag
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      release_tag: ${{ needs.create-tag.outputs.release_tag }}
+      release_sha: ${{ needs.create-tag.outputs.release_sha }}
+
+  npm-publish:
+    if: needs.create-tag.outputs.tag_created == 'true'
+    needs: create-tag
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/npm-publish.yml
+    with:
+      release_tag: ${{ needs.create-tag.outputs.release_tag }}
+      release_sha: ${{ needs.create-tag.outputs.release_sha }}
+    secrets: inherit

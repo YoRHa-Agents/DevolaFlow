@@ -428,6 +428,8 @@ def _local_archive_exit_code(
 def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ...]:
     from devolaflow.local import archive as archive_module
 
+    adapter = archive_module.get_archive_adapter(getattr(plan, "surface", "tasks"))
+
     findings = list(plan.findings)
     destinations = {entry.destination for entry in plan.entries}
     for destination in sorted(
@@ -451,12 +453,12 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
                 )
             )
 
-    index_path = root / archive_module.INDEX_PATH
+    index_path = root / adapter.index_path
     if index_path.is_symlink():
         findings.append(archive_module.Finding("SYMLINK_INDEX", "index target is a symlink"))
         index_pairs: set[tuple[str, str]] = set()
     elif not index_path.exists():
-        findings.append(archive_module.Finding("INDEX_MISSING", str(archive_module.INDEX_PATH)))
+        findings.append(archive_module.Finding("INDEX_MISSING", adapter.index_path))
         index_pairs: set[tuple[str, str]] = set()
     else:
         try:
@@ -465,7 +467,7 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
             findings.append(archive_module.Finding("UNREADABLE_INDEX", str(exc)))
             index_pairs = set()
         else:
-            if not index_text.startswith(archive_module.INDEX_MARKER):
+            if not index_text.startswith(adapter.index_marker):
                 findings.append(
                     archive_module.Finding(
                         "HUMAN_INDEX", "refusing to treat a human index as generated"
@@ -476,7 +478,7 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
                 for destination, source in _LOCAL_ARCHIVE_INDEX_LINE.findall(index_text)
             }
 
-    mapping_path = root / archive_module.MAPPING_PATH
+    mapping_path = root / adapter.mapping_path
     if mapping_path.is_symlink():
         findings.append(archive_module.Finding("MAPPING_CONFLICT", "mapping path is a symlink"))
         mappings = ()
@@ -500,7 +502,10 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
         expected_pairs.add(pair)
         destination_path = root / mapping.destination
         source_path = root / mapping.source
-        if not destination_path.is_dir():
+        destination_exists = (
+            destination_path.is_dir() if adapter.requires_directory else destination_path.is_file()
+        )
+        if not destination_exists:
             findings.append(
                 archive_module.Finding(
                     "MAPPING_DESTINATION_MISSING",
@@ -533,25 +538,34 @@ def _local_archive_doctor_findings(root: Path, plan: object) -> tuple[object, ..
     for entry in plan.entries:
         if entry.action != "move":
             continue
-        inspection = archive_module.inspect_safety(root, entry.source, entry.destination)
+        inspection = archive_module.inspect_safety(
+            root,
+            entry.source,
+            entry.destination,
+            source_boundary=adapter.source_root,
+            destination_boundary=adapter.archive_root,
+            requires_directory=adapter.requires_directory,
+        )
         findings.extend(inspection.findings)
     return tuple(findings)
 
 
-def _local_archive_doctor(root: Path, plan_path: Path | None) -> tuple[dict[str, object], int]:
+def _local_archive_doctor(
+    root: Path, plan_path: Path | None, surface: str = "tasks"
+) -> tuple[dict[str, object], int]:
     from devolaflow.local.archive import ArchiveApproval, build_archive_plan
 
     try:
         plan = (
             _local_archive_load_plan(plan_path)
             if plan_path is not None
-            else build_archive_plan(root)
+            else build_archive_plan(root, surface=surface)
         )
         if isinstance(plan, ArchiveApproval):
-            raise _LocalArchiveInputError("doctor requires a task-archive-plan artifact")
+            raise _LocalArchiveInputError("doctor requires an archive-plan artifact")
     except _LocalArchiveInputError as exc:
         payload = {
-            "artifact_type": "task-archive-doctor",
+            "artifact_type": f"{surface}-archive-doctor",
             "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
             "findings": [{"code": "MALFORMED_PLAN", "message": str(exc)}],
             "healthy": False,
@@ -559,7 +573,7 @@ def _local_archive_doctor(root: Path, plan_path: Path | None) -> tuple[dict[str,
         return payload, LOCAL_ARCHIVE_MALFORMED
     findings = _local_archive_doctor_findings(root, plan)
     payload = {
-        "artifact_type": "task-archive-doctor",
+        "artifact_type": f"{getattr(plan, 'surface', surface)}-archive-doctor",
         "schema_version": _LOCAL_ARCHIVE_SCHEMA_VERSION,
         "plan_fingerprint": plan.fingerprint,
         "findings": [_local_archive_finding(finding) for finding in findings],
@@ -569,12 +583,10 @@ def _local_archive_doctor(root: Path, plan_path: Path | None) -> tuple[dict[str,
 
 
 def local_archive_cmd() -> None:
-    """Report or explicitly apply a reviewed local-task archive plan."""
+    """Report or explicitly apply a reviewed local archive plan."""
     parser = argparse.ArgumentParser(
         prog="devola-local-archive",
-        description=(
-            "Report-only local-task archive planning; apply requires an approved plan file."
-        ),
+        description=("Report-only local archive planning; apply requires an approved plan file."),
     )
     parser.add_argument(
         "mode",
@@ -583,6 +595,12 @@ def local_archive_cmd() -> None:
         help="validate plan, index, mapping, safety, and no-clobber contracts",
     )
     parser.add_argument("--repo-root", type=Path, default=Path.cwd(), help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--surface",
+        choices=("tasks", "feedbacks", "research"),
+        default="tasks",
+        help="registered local surface to inventory",
+    )
     parser.add_argument("--plan", type=Path, help="plan artifact to validate or use as approval")
     parser.add_argument(
         "--apply", metavar="PLAN", type=Path, help="apply the approved PLAN artifact"
@@ -595,14 +613,14 @@ def local_archive_cmd() -> None:
     if args.mode == "doctor" or args.doctor:
         if args.apply is not None:
             parser.error("doctor cannot be combined with --apply")
-        payload, exit_code = _local_archive_doctor(root, args.plan)
+        payload, exit_code = _local_archive_doctor(root, args.plan, args.surface)
         print(_local_archive_json(payload), end="")
         sys.exit(exit_code)
 
     if args.apply is None:
         from devolaflow.local.archive import build_archive_plan
 
-        plan = build_archive_plan(root)
+        plan = build_archive_plan(root, surface=args.surface)
         print(_local_archive_json(_local_archive_plan_payload(plan)), end="")
         sys.exit(LOCAL_ARCHIVE_REPORT)
 

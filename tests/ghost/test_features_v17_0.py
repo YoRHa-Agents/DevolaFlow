@@ -51,9 +51,9 @@ def test_v17_0_0_safe_release_tag_contract_wired(tmp_path: Path) -> None:
     release_source = (workflows / "release.yml").read_text(encoding="utf-8")
     npm_source = (workflows / "npm-publish.yml").read_text(encoding="utf-8")
     assert "verify-release-ref:" in release_source
-    assert 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' in release_source
+    assert 'git merge-base --is-ancestor "$RELEASE_SHA" origin/main' in release_source
     assert "uses: ./.github/workflows/ci-checks.yml" in npm_source
-    assert 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' in npm_source
+    assert 'git merge-base --is-ancestor "$RELEASE_SHA" origin/main' in npm_source
 
 
 def test_v17_0_0_r4_web_experience_shell_wired(project_root: Path) -> None:

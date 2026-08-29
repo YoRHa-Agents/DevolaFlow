@@ -1,7 +1,7 @@
 # DevolaFlow shared CI checks — reusable workflow (OPT-1 / D7, clean_repo PR-12).
-# Consumed by ci.yml (push/PR -> main) and release.yml (tag push). Each caller
-# checks out ITS OWN ref — on a tag push these jobs run ON the tagged SHA, so
-# the release gate is a real re-test, not a reuse of historical CI status.
+# Consumed by ci.yml (push/PR -> main) and release.yml (tag push or reusable
+# release call). A release caller supplies an immutable SHA so every check
+# runs against the exact commit validated by the release gate.
 # Unification also fixes the proven drift: release.yml previously lacked the
 # CHANGELOG lint; it now inherits every shared check defined here.
 #
@@ -11,7 +11,18 @@
 name: CI Checks
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: "Exact ref or SHA to check out"
+        required: false
+        default: ""
+        type: string
+      expected_sha:
+        description: "When set, the checkout must resolve to this full SHA"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -22,6 +33,18 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+      - name: Verify requested checkout SHA
+        if: ${{ inputs.expected_sha != '' }}
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || {
+            echo "::error::shared check resolved an unexpected SHA"
+            exit 1
+          }
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
@@ -64,6 +87,18 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+      - name: Verify requested checkout SHA
+        if: ${{ inputs.expected_sha != '' }}
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || {
+            echo "::error::shared check resolved an unexpected SHA"
+            exit 1
+          }
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
@@ -86,6 +121,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+      - name: Verify requested checkout SHA
+        if: ${{ inputs.expected_sha != '' }}
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || {
+            echo "::error::shared check resolved an unexpected SHA"
+            exit 1
+          }
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
@@ -120,6 +167,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+      - name: Verify requested checkout SHA
+        if: ${{ inputs.expected_sha != '' }}
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || {
+            echo "::error::shared check resolved an unexpected SHA"
+            exit 1
+          }
       - name: Set up Node 20
         uses: actions/setup-node@v5
         with:

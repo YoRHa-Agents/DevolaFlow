@@ -7,16 +7,15 @@
 ## 1. Overview
 
 DevolaFlow uses a **trunk-based workflow** with short-lived feature branches
-merged into `main` via Pull Requests. Releases are **tag-driven**: after the
-version bump is verified and merged, the release operator refreshes local
-`main`, tags that exact `origin/main` commit, and pushes only the `v*` tag.
+merged into `main` via Pull Requests. Releases are **tag-driven**: the
+`release-prep.yml` workflow can mechanically prepare the version PR, and the
+`auto-tag-release.yml` workflow tags a newly merged stable version. The local
+tagging sequence remains supported for operators who do not use Actions.
 
 ```
-Feature Branch: bump → release-preflight → commit ──PR/merge──> main
+Feature Branch: release-prep (bump → preflight) ──PR/merge──> main
                                                                │
-                                            checkout + fetch origin/main
-                                                               │
-                                                         tag + push v*
+                                              auto-tag v* (if version changed)
                                                                │
                                             verify-release-ref (ancestor gate)
                                                  ├── checks (shared CI)
@@ -61,7 +60,23 @@ derived from `pyproject.toml`. The benchmark page derives its displayed
 version from the newest `version-timeline/versions.json` entry at load time;
 neither derived display is bumped by `scripts/bump_version.py`.
 
-### 2.2 Preflight and Release Commit
+### 2.2 Automated Release Preparation
+
+From the Actions tab, run `.github/workflows/release-prep.yml` on `main` with
+the next stable `X.Y.Z` version. It starts from the current remote `main`,
+refuses stale, dirty, duplicate-tag, duplicate-branch, and non-forward
+requests, then runs:
+
+```text
+scripts/bump_version.py → make sync-human-docs → make release-preflight
+```
+
+The workflow requires a dated `## [X.Y.Z]` entry to already exist in
+`CHANGELOG.md`; it never writes release-note prose. It commits only the
+verified mechanical changes to a new `release/vX.Y.Z` branch and opens the
+release PR with the repository `GITHUB_TOKEN`.
+
+### 2.3 Preflight and Release Commit
 
 Run the authoritative preflight after every generated version surface has been
 updated, then commit the verified result:
@@ -92,7 +107,7 @@ Manual checks:
 - [ ] The generated seed catalog is current: `make check-demo-seed-catalog`
 - [ ] The local Pages inventory builds successfully: `make build-site`
 
-### 2.3 Tag and Push
+### 2.4 Tag and Push
 
 Phase two starts only after the release PR is merged. Refresh local `main`
 before asking the script to perform its read-only readiness preview:
@@ -115,9 +130,19 @@ commit. The dry run performs the same read-only readiness checks when the
 requested version already matches, so branch, merge, cleanliness, and
 duplicate-tag blockers appear before any ref is created.
 
-Pushing the tag triggers `.github/workflows/release.yml`:
-1. **verify-release-ref** — fetches full history plus `origin/main`, then
-   requires `git merge-base --is-ancestor "$GITHUB_SHA" origin/main`
+After the release PR merges, a push that changes
+`src/devolaflow/__init__.py` invokes `.github/workflows/auto-tag-release.yml`.
+It checks the predecessor and current versions, stable tag format, current
+`origin/main` SHA, and local/remote tag absence before creating an annotated
+`vX.Y.Z` tag. A `GITHUB_TOKEN` tag push does not trigger workflows, so the
+workflow directly calls both release workflows with the exact tag and commit
+SHA. A manually pushed local tag still triggers `.github/workflows/release.yml`
+normally.
+
+The tag-triggered and reusable-call paths both run:
+1. **verify-release-ref** — fetches full history plus `origin/main`, validates
+   the exact tag/SHA pair, then requires
+   `git merge-base --is-ancestor "$RELEASE_SHA" origin/main`
 2. **checks** — after ref verification, invokes the shared CI workflow on the
    tagged SHA
 3. **release-extras** — after ref verification, regenerates human docs,
@@ -133,7 +158,7 @@ Pushing the tag triggers `.github/workflows/release.yml`:
 Its `publish` job then fetches `origin/main`, repeats the ancestor test, checks
 tag/package version parity, and only then invokes `npm publish`.
 
-### 2.4 Post-Release Verification
+### 2.5 Post-Release Verification
 
 After the release workflow completes:
 - [ ] GitHub Release page shows correct tag and generated notes
@@ -158,7 +183,9 @@ Triggers: push to `main`, PR to `main`.
 
 ### 3.2 Release Pipeline (`.github/workflows/release.yml`)
 
-Triggers: push of tags matching `v*`.
+Triggers: push of tags matching `v*`, or a reusable `workflow_call` carrying
+the exact `release_tag` and `release_sha`. The called path checks out the SHA
+explicitly and passes it through every shared check.
 
 | Job | Steps | Depends On |
 |-----|-------|-----------|
@@ -170,7 +197,9 @@ Triggers: push of tags matching `v*`.
 
 ### 3.3 npm Publication Pipeline (`.github/workflows/npm-publish.yml`)
 
-Triggers: push of tags matching `v*`.
+Triggers: push of tags matching `v*`, or a reusable `workflow_call` carrying
+the exact `release_tag` and `release_sha`. The existing `NPM_TOKEN` secret is
+inherited only by the auto-tag caller; no new secret is required.
 
 | Job | Steps | Depends On |
 |-----|-------|-----------|

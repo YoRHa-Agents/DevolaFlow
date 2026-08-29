@@ -3,19 +3,23 @@ kind: checklist-seed
 metadata:
   name: local-archive
   version: "1.0.0"
-  description: "Seed for bounded local-task inventory, approved non-deletion moves, and archive verification."
+  description: "Seed for bounded multi-surface local inventory, approved non-deletion moves, and archive verification."
   category: control
   intent_keywords:
     - local-archive
     - local archive
     - task archive
     - task clustering
+    - feedback archive
+    - research archive
     - archive mapping
     - task index
   applicable_scenarios:
     - canonical-task-layout
     - brownfield-task-layout
     - approved-task-migration
+    - approved-feedback-migration
+    - approved-research-migration
   source:
     kind: composition
     name: local-archive
@@ -29,7 +33,7 @@ partitions:
       - {id: inventory, primitive: analyze}
     assertions:
       - key: inventory-bounded
-        statement_template: "Task folders are inventoried without modification, and task inventory stays out of default scan_workspace discovery."
+        statement_template: "Registered task, feedback, and research candidates are inventoried without modification; archive inventory stays out of default scan_workspace discovery."
         suggested_priority: P0
         verify: {mode: manual}
   - key: classify
@@ -38,7 +42,7 @@ partitions:
       - {id: classify, primitive: analyze}
     assertions:
       - key: classification-independent
-        statement_template: "Each candidate has one active, done, stale, or unknown lifecycle value plus a separate protection verdict."
+        statement_template: "Each candidate has a lifecycle and protection verdict; feedback needs released and resolved TRACKER status, research needs an existing cycle archive."
         suggested_priority: P0
         verify: {mode: manual}
   - key: report-only-plan
@@ -74,7 +78,7 @@ partitions:
       - {id: move, primitive: implement}
     assertions:
       - key: non-deletion-move
-        statement_template: "Only approved candidates move while task context is preserved and no deletion action is performed."
+        statement_template: "Only approved candidates move while source content is preserved and no deletion action is performed; human and agent lifecycle surfaces remain out of scope."
         suggested_priority: P0
         verify: {mode: manual}
   - key: mapping-index-verification
@@ -83,6 +87,6 @@ partitions:
       - {id: mapping-index, primitive: verify}
     assertions:
       - key: mapping-index-verified
-        statement_template: "Each move appends a complete old-path-to-new-path mapping and verifies unique destinations and index coverage."
+        statement_template: "Each move appends a complete surface-local old-path-to-new-path mapping and verifies unique destinations and generated-index coverage."
         suggested_priority: P0
         verify: {mode: manual}

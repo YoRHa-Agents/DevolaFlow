@@ -380,43 +380,53 @@ Source: v17.4.0 HSC design.
 ## W-26 — Local-Archive Deletion Safety (C-G4.3)
 
 Deletion is permanently operator-only. The local-archive runtime exposes no
-automatic deletion API and no deletion workflow mode. Report-only planning and
-approved non-deletion moves remain allowed; clean checks and plan approval
-never authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
+automatic deletion API or deletion workflow mode for any registered surface
+(`tasks`, `feedbacks`, or `research`). Report-only planning and approved
+non-deletion moves remain allowed; clean checks and plan approval never
+authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
 equivalent destructive command.
 
 Dirty, ambiguous, missing, unreadable, nested-repository, symlink, protected,
 or worktree-conflicted paths MUST produce explicit refusal findings. A refused
 candidate remains in place. The operator owns any later deletion decision and
-action outside this runtime.
+action outside this runtime. `.local/human/` and `.local/.agent/` remain owned
+by their existing lifecycle mechanisms and are never adapter inputs.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §§6–7,
 `src/devolaflow/local/archive.py`, and
 `docs/cycle-archive/v17.4.0/design/v17.4.0_local_archive_design.md` §§3.4–3.5.
-Enforcement: `tests/test_local_archive.py` and
-`tests/ghost/test_features_v17_5.py`.
+Enforcement: `tests/test_local_archive.py`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-27 — Local-Archive Mapping Append-Only Behavior (C-G4.4)
 
-Every physical move MUST append one dedicated task-archive mapping record to
-`.local/tasks/archive-mappings.yaml`. Each row records `sequence`, `source`,
-`destination`, `reason`, and `timestamp`; sequence values increase from the
-existing maximum. Existing rows are immutable, and duplicate source or
-destination paths MUST be refused.
+Every physical move MUST append one dedicated mapping record to the ledger
+owned by its registered surface. Tasks retain
+`.local/tasks/archive-mappings.yaml`; feedbacks use
+`.local/feedbacks/archive/archive-mappings.yaml`; research uses
+`.local/research/archive/archive-mappings.yaml`. Each row records `sequence`,
+`source`, `destination`, `reason`, and `timestamp`; sequence values increase
+from the existing maximum. Existing rows are immutable, and duplicate source
+or destination paths MUST be refused.
 
-This record is a dedicated task-archive ledger, not an existing
-`.local/.agent/` handoff envelope; S-9 remains independently enforced.
+These are dedicated surface ledgers, not existing `.local/.agent/` handoff
+envelopes; S-9 remains independently enforced.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §8 and
 `src/devolaflow/local/archive.py::append_mapping_record`. Enforcement:
-`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber` and
-the current-cycle local-archive ghost audit.
+`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-28 — Local-Archive Index-Generation Honesty (C-G4.5)
 
-`.local/tasks/INDEX.md` is a generated navigation view, not the mapping source
-of truth. Generated output MUST carry
-`<!-- devolaflow: generated task archive index -->`. A missing index may be
+Each registered surface owns a generated navigation view beside its mapping
+ledger. Tasks retain `.local/tasks/INDEX.md`; feedbacks use
+`.local/feedbacks/archive/INDEX.md`; research uses
+`.local/research/archive/INDEX.md`. Generated output MUST carry its
+surface-specific generated marker (the tasks marker remains
+`<!-- devolaflow: generated task archive index -->`). A missing index may be
 created only by an approved apply operation.
 
 A human-maintained, symlinked, or unreadable index MUST never be silently
@@ -425,8 +435,9 @@ refusal or drift finding.
 
 Primary references: `workflow-system/agent/references/local-archive.md` §8 and
 `src/devolaflow/local/archive.py::render_index` /
-`_validate_index_target`. Enforcement: `tests/test_local_archive.py` and the
-current-cycle local-archive ghost audit.
+`_validate_index_target`. Enforcement: `tests/test_local_archive.py`,
+`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
+ghost audit.
 
 ## W-29 — Retro-Digest Evidence and Consent
 

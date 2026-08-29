@@ -124,3 +124,14 @@ def test_optional_plugins_are_explicit_only_not_default_dependencies(project_roo
         assert plugin_id not in profiles["all"]
         assert plugin_id not in profiles["global"]
         assert select_plugin_profile(plugin_id, registry_path=registry_path) == [plugin_id]
+
+
+def test_local_archive_registers_only_safe_workspace_surfaces() -> None:
+    """The v21 archive expansion has one registry and three bounded adapters."""
+    from devolaflow.local.archive import ARCHIVE_ADAPTERS
+
+    assert set(ARCHIVE_ADAPTERS) == {"tasks", "feedbacks", "research"}
+    assert all(
+        adapter.source_root not in {".local/human", ".local/.agent"}
+        for adapter in ARCHIVE_ADAPTERS.values()
+    )

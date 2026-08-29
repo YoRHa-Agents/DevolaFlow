@@ -1,8 +1,11 @@
 """DevolaFlow local workspace and rules management."""
 
 from devolaflow.local.archive import (
+    ARCHIVE_ADAPTERS,
+    ArchiveAdapter,
     ArchiveError,
     ArchivePlan,
+    ArchiveRecord,
     ArchiveResult,
     Finding,
     Lifecycle,
@@ -14,7 +17,10 @@ from devolaflow.local.archive import (
     append_mapping_record,
     apply_archive_plan,
     build_archive_plan,
+    build_surface_archive_plan,
+    get_archive_adapter,
     inspect_safety,
+    inventory_surface,
     inventory_tasks,
     render_index,
 )
@@ -24,7 +30,10 @@ from devolaflow.local.workspace import scaffold_local
 
 __all__ = [
     "ArchiveError",
+    "ARCHIVE_ADAPTERS",
+    "ArchiveAdapter",
     "ArchivePlan",
+    "ArchiveRecord",
     "ArchiveResult",
     "Finding",
     "Lifecycle",
@@ -37,9 +46,12 @@ __all__ = [
     "append_mapping_record",
     "apply_archive_plan",
     "build_archive_plan",
+    "build_surface_archive_plan",
     "check_rules_drift",
     "inspect_safety",
     "inventory_tasks",
+    "inventory_surface",
+    "get_archive_adapter",
     "render_index",
     "scaffold_local",
 ]
