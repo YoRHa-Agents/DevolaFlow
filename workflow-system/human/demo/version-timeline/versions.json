@@ -2364,5 +2364,51 @@
       "ghost_loc": 12414,
       "agents_md_tokens": 10857
     }
+  },
+  {
+    "version": "21.0.0",
+    "date": "2026-08-29",
+    "era": "evidence-bounded-execution",
+    "headline": "MAJOR — Evidence-Bounded Execution: trivial-path validation, bounded StatusReport evidence, component-level context accounting, and reproducibility metadata",
+    "summary": "v21.0.0 adds runtime contracts for validating trivial-path declarations, bounded evidence references, separate skill/rule/report token accounting, and explicit reproducibility metadata. The final evaluator reports READY at 9.84/10, while missing matched task-quality evidence remains explicit.",
+    "highlights": [
+      "Trivial-path validation compares declared TRIVIAL scope with measured one-file diff statistics and exposes a stable upgrade target",
+      "Bounded StatusReport evidence validates typed references and preserves the configured inline byte budget",
+      "Component-level context accounting separates skill, rule, and report tokens and warns when fixed ceremony dominates task context",
+      "Reproducibility metadata preserves explicit run, repository, salt, and provenance status fields across harness and StatusReport evidence",
+      "Current-cycle ghost audit covers the T1, T2, T3, and T6 close surfaces"
+    ],
+    "metrics": {
+      "harness_composite": "9.84 READY",
+      "coverage_pct": 91.0,
+      "suite_wall_seconds": 212.648735958006,
+      "cjk_violations": 0,
+      "ghost_loc": 12719,
+      "agents_md_tokens": 11169,
+      "release_preflight": "BLOCKED at check-module-size"
+    }
+  },
+  {
+    "version": "21.1.0",
+    "date": "2026-08-29",
+    "era": "skill-residency-calibration",
+    "headline": "MINOR — Skill Residency and Calibration Evidence: host-contract runtime facts, bounded CLI probes, and fail-closed ROI reporting",
+    "summary": "v21.1.0 adds an evidence contract for observed skill residency and a bounded CLI calibration matrix across four task classes, three channels, and skill-on/off arms. The final built-in evaluator is a repository-readiness probe; all 240 calibration artifacts remain INSUFFICIENT and ROI/quality causality are not established.",
+    "highlights": [
+      "Skill residency axis — host support declarations distinguish delivery from observed runtime skill_loaded facts and require explicit provenance",
+      "Bounded CLI probes — Claude, Codex, and Kimi outcomes preserve relative artifacts, redacted diagnostics, timeout handling, token status, and skill observations",
+      "Calibration matrix — read-only, tool-heavy, multi-file, and recovery task classes run in canonical channel/arm/replicate order",
+      "Fail-closed ROI — 240 observed artifacts remain INSUFFICIENT when authentication, outcomes, tokens, or skill observations are unavailable",
+      "Evidence boundary — the cycle makes no real-task quality, token-saving, latency, or cross-channel skill-loaded claim"
+    ],
+    "metrics": {
+      "harness_composite": "9.83 READY (repository probe; not a quality claim)",
+      "coverage_pct": 91.0,
+      "suite_wall_seconds": 229.2747400419903,
+      "cjk_violations": 0,
+      "ghost_loc": 12793,
+      "agents_md_tokens": 11169,
+      "calibration": "240 INSUFFICIENT; ROI unverified"
+    }
   }
 ]

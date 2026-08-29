@@ -121,6 +121,27 @@ $defs:
       primitive: {type: [string, "null"]}
       config: {type: [string, "null"]}
       reason: {type: string}
+  skillResidency:
+    type: object
+    additionalProperties: false
+    required: [status, scope, observation_method, fixtures, fixture_provenance, reason]
+    properties:
+      status: {$ref: "#/$defs/status"}
+      scope:
+        oneOf:
+          - {$ref: "#/$defs/path"}
+          - {$ref: "#/$defs/stringList"}
+      observation_method:
+        type: string
+        minLength: 1
+      fixtures: {$ref: "#/$defs/stringList"}
+      fixture_provenance: {$ref: "#/$defs/provenance"}
+      provenance_ref:
+        type: [string, "null"]
+        format: uri
+      reason:
+        type: string
+        minLength: 1
   vocabulary:
     type: object
     additionalProperties: false
@@ -132,13 +153,22 @@ $defs:
   extras:
     type: object
     additionalProperties: false
-    required: [boundary_bridge, session_resume, subagent_dispatch, mcp, tool_vocabulary]
+    required:
+      [
+        boundary_bridge,
+        session_resume,
+        subagent_dispatch,
+        mcp,
+        tool_vocabulary,
+        skill_residency,
+      ]
     properties:
       boundary_bridge: {$ref: "#/$defs/boundaryBridge"}
       session_resume: {$ref: "#/$defs/statusAxis"}
       subagent_dispatch: {$ref: "#/$defs/statusAxis"}
       mcp: {$ref: "#/$defs/statusAxis"}
       tool_vocabulary: {$ref: "#/$defs/vocabulary"}
+      skill_residency: {$ref: "#/$defs/skillResidency"}
   host:
     type: object
     additionalProperties: false
@@ -180,3 +210,11 @@ example:
         subagent_dispatch: {status: undeclared}
         mcp: {status: undeclared}
         tool_vocabulary: {status: undeclared}
+        skill_residency:
+          status: undeclared
+          scope: none
+          observation_method: No stable host runtime observation channel is declared.
+          fixtures: []
+          fixture_provenance: TBD-audit
+          provenance_ref: null
+          reason: Example host has no declared skill residency observation evidence.

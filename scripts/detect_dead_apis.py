@@ -634,6 +634,19 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registry symbol per A-5.2 — pure read-and-validate helper with no
         # module-level registration data.
         "devolaflow.harness.fixtures:load_harness_fixture",
+        # v21.0.0 PV-04/PV-05 — bounded StatusReport evidence and explicit
+        # context-token telemetry helpers are public integration surfaces.
+        # ``prepare_status_report_evidence`` is wired at the handoff
+        # serializer boundary; these validation/serialization aliases are
+        # intentionally available to external StatusReport producers.
+        # The accounting builders and append helper are consumed by external
+        # harness runners and tests, not by the legacy dispatch path. They
+        # carry no registry state and are not A-5 domain-SSOT symbols.
+        "devolaflow.compressor.evidence:validate_status_report_evidence",
+        "devolaflow.compressor.evidence:serialize_status_report_evidence",
+        "devolaflow.harness.telemetry:build_context_token_accounting",
+        "devolaflow.harness.telemetry:build_report_telemetry_record",
+        "devolaflow.harness.telemetry:append_context_token_record",
         # NOTE (v15.0.0 R1): `devolaflow.gate.artifact_score:score_artifact_evidence`
         # was allowlisted here during the v15-ADR-007 phase-2 standalone
         # landing; the entry was REMOVED when the R1 gate wiring gave it a

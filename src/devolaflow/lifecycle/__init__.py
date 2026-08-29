@@ -190,6 +190,9 @@ from devolaflow.lifecycle.validate_surgical_scope import (
     register_surgical_scope_hook,
     validate_surgical_scope,
 )
+from devolaflow.lifecycle.validate_trivial_path import (
+    validate_trivial_path,
+)
 
 # v11.0.0 PV-02 D-Q-3 — NEW canonical lifecycle event names per the
 # `pre_*` / `post_*` / `check_*` taxonomy. Each NEW name is wired as a
@@ -238,6 +241,11 @@ if record_dispatch_telemetry not in list_handlers(_POST_DISPATCH_EVENT):
     register_hook(_POST_DISPATCH_EVENT, record_dispatch_telemetry)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
+# v21.0.0 PV-02 T1 — post-hoc S1/trivial-path verification. This is an
+# additive extra on the canonical post_task_complete event (the legacy
+# task_stop alias resolves to the same handler list); reports without the
+# opt-in declaration or diff telemetry remain clean compatibility no-ops.
+register_hook(POST_TASK_COMPLETE_EVENT, validate_trivial_path)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
 _set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 _set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
@@ -499,6 +507,7 @@ __all__ = [
     "validate_dispatch",
     "validate_owned_files",
     "validate_surgical_scope",
+    "validate_trivial_path",
 ]
 
 

@@ -10,8 +10,10 @@ from devolaflow.gate.acceptance_v2 import (
 )
 from devolaflow.gate.budget import (
     BREAK_UTILIZATION_THRESHOLD,
+    CEREMONY_SHARE_WARN_THRESHOLD,
     WARN_UTILIZATION_THRESHOLD,
     TokenBudgetBreaker,
+    check_ceremony_share,
     from_profile_name,
 )
 from devolaflow.gate.complexity_detector import (
@@ -116,6 +118,7 @@ __all__ = [
     "AcceptanceCriterionVerdict",
     "ArtifactSnapshot",
     "BREAK_UTILIZATION_THRESHOLD",
+    "CEREMONY_SHARE_WARN_THRESHOLD",
     "BudgetAction",
     "BudgetDecision",
     "BudgetRecommendation",
@@ -160,6 +163,7 @@ __all__ = [
     "TaskComplexityTier",
     "TierBudgets",
     "TokenBudgetBreaker",
+    "check_ceremony_share",
     "VALID_TASK_COMPLEXITY_TIERS",
     "VALID_VERIFICATION_TYPES",
     "VerificationType",

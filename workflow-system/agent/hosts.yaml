@@ -41,6 +41,14 @@ hosts:
         status: implemented
         write: [Write, StrReplace]
         shell: [Bash]
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Cursor runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Cursor skill delivery is declared separately; runtime residency evidence is not captured.
 
   claude:
     display_name: Claude Code
@@ -80,6 +88,14 @@ hosts:
         status: implemented
         write: [Write, Edit, MultiEdit]
         shell: [Bash]
+      skill_residency:
+        status: designed
+        scope: [cli-probe, runtime]
+        observation_method: CLI JSON skill_loaded boolean; absent output normalizes to null and INSUFFICIENT.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Probe parsing exists, but no captured Claude host fixture is available for an implemented claim.
 
   codex:
     display_name: OpenAI Codex
@@ -121,6 +137,14 @@ hosts:
         status: implemented
         write: [apply_patch]
         shell: [Bash]
+      skill_residency:
+        status: designed
+        scope: [cli-probe, runtime]
+        observation_method: CLI JSON skill_loaded boolean; absent output normalizes to null and INSUFFICIENT.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Probe parsing exists, but no captured Codex host fixture is available for an implemented claim.
 
   copilot:
     display_name: GitHub Copilot
@@ -158,6 +182,14 @@ hosts:
       subagent_dispatch: {status: undeclared, primitive: null}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Copilot runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Copilot skill delivery is declared separately; runtime residency evidence is not captured.
 
   kimicode:
     display_name: KimiCode
@@ -199,6 +231,14 @@ hosts:
         status: implemented
         write: [WriteFile, StrReplaceFile]
         shell: [Shell]
+      skill_residency:
+        status: designed
+        scope: [cli-probe, runtime]
+        observation_method: CLI JSON skill_loaded boolean; absent output normalizes to null and INSUFFICIENT.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Probe parsing exists, but no captured KimiCode host fixture is available for an implemented claim.
 
   dsh:
     display_name: DeepSeek Harness
@@ -240,6 +280,14 @@ hosts:
         status: implemented
         write: [write, edit, str_replace_editor]
         shell: [bash, pwsh]
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable DSH runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: DSH plugin delivery is declared separately; runtime residency evidence is not captured.
 
   windsurf:
     display_name: Windsurf
@@ -261,6 +309,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Windsurf runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Windsurf skill delivery is declared separately; runtime residency evidence is not captured.
 
   zed:
     display_name: Zed
@@ -282,6 +338,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Zed runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Zed skill delivery is declared separately; runtime residency evidence is not captured.
 
   cline:
     display_name: Cline
@@ -303,6 +367,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Cline runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Cline skill delivery is declared separately; runtime residency evidence is not captured.
 
   roo:
     display_name: Roo Code
@@ -324,6 +396,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Roo runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Roo skill delivery is declared separately; runtime residency evidence is not captured.
 
   continue:
     display_name: Continue
@@ -345,6 +425,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Continue runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Continue skill delivery is declared separately; runtime residency evidence is not captured.
 
   openclaw:
     display_name: OpenClaw
@@ -366,6 +454,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable OpenClaw runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: OpenClaw skill delivery is declared separately; runtime residency evidence is not captured.
 
   gemini:
     display_name: Gemini
@@ -387,6 +483,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Gemini runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Gemini skill delivery is declared separately; runtime residency evidence is not captured.
 
   jetbrains:
     display_name: JetBrains
@@ -408,6 +512,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable JetBrains runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: JetBrains skill delivery is declared separately; runtime residency evidence is not captured.
 
   amazon_q:
     display_name: Amazon Q
@@ -429,6 +541,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Amazon Q runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Amazon Q skill delivery is declared separately; runtime residency evidence is not captured.
 
   augment:
     display_name: Augment
@@ -450,6 +570,14 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Augment runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Augment skill delivery is declared separately; runtime residency evidence is not captured.
 
   trae:
     display_name: Trae
@@ -471,3 +599,11 @@ hosts:
       subagent_dispatch: {status: undeclared}
       mcp: {status: undeclared}
       tool_vocabulary: {status: undeclared}
+      skill_residency:
+        status: undeclared
+        scope: none
+        observation_method: No stable Trae runtime observation channel is declared.
+        fixtures: []
+        fixture_provenance: TBD-audit
+        provenance_ref: null
+        reason: Trae skill delivery is declared separately; runtime residency evidence is not captured.

@@ -22,10 +22,13 @@ REQUIRED_EXTRA_AXES = (
     "subagent_dispatch",
     "mcp",
     "tool_vocabulary",
+    "skill_residency",
 )
 IMPLEMENTED_PROVENANCE = frozenset({"captured", "vendor-doc"})
 VALID_STATUSES = frozenset({"implemented", "designed", "broken", "undeclared", "native"})
 VALID_PROVENANCE = frozenset({"captured", "vendor-doc", "synthetic", "TBD-audit"})
+SKILL_OBSERVATION_PROVENANCE = "probe-runtime"
+SKILL_IMPLEMENTED_STATUSES = frozenset({"implemented", "native"})
 
 
 class HostContractError(ValueError):
@@ -103,6 +106,24 @@ def _validate_boundary_axis(host: str, axis: dict[str, Any], source_path: Path) 
         )
 
 
+def _validate_skill_residency_axis(host: str, axis: dict[str, Any], source_path: Path) -> None:
+    provenance = axis["fixture_provenance"]
+    if axis["status"] != "implemented":
+        return
+    if not axis["fixtures"]:
+        raise _error(source_path, f"{host}.skill_residency implemented without fixtures")
+    if provenance not in IMPLEMENTED_PROVENANCE:
+        raise _error(
+            source_path,
+            f"{host}.skill_residency implemented requires captured or vendor-doc provenance",
+        )
+    if provenance == "vendor-doc" and not axis.get("provenance_ref"):
+        raise _error(
+            source_path,
+            f"{host}.skill_residency vendor-doc provenance requires provenance_ref",
+        )
+
+
 def _validate_semantics(data: dict[str, Any], source_path: Path) -> None:
     hosts = data["hosts"]
     if len(hosts) != 17:
@@ -139,6 +160,8 @@ def _validate_semantics(data: dict[str, Any], source_path: Path) -> None:
                 raise _error(source_path, f"{name}.{axis_name} has invalid status {status!r}")
             if axis_name == "boundary_bridge":
                 _validate_boundary_axis(name, axis, source_path)
+            elif axis_name == "skill_residency":
+                _validate_skill_residency_axis(name, axis, source_path)
             elif (
                 axis_name == "tool_vocabulary"
                 and status == "implemented"
@@ -148,6 +171,71 @@ def _validate_semantics(data: dict[str, Any], source_path: Path) -> None:
                     source_path,
                     f"{name}.tool_vocabulary implemented requires write and shell lists",
                 )
+
+
+def validate_skill_observation(
+    host: str,
+    observed: bool | None,
+    *,
+    contract: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Normalize one probe fact against the host's residency declaration.
+
+    ``observed`` is a fact from this run, never an inference from the HSC.
+    The legacy ``value``/``status`` pair remains intact; ``hsc_validation``
+    makes the separate capability claim explicit.  A host with a designed,
+    undeclared, or broken observation axis therefore cannot turn a probe
+    value into an implemented capability claim.
+    """
+
+    if observed is not None and type(observed) is not bool:
+        raise HostContractError("skill observation must be true, false, or null")
+    resolved_contract = contract or load_host_contract()
+    canonical_host = resolve_host(host, resolved_contract)
+    axis = resolved_contract["hosts"][canonical_host]["extras"]["skill_residency"]
+    capability_status = axis["status"]
+    observation_status = "AVAILABLE" if observed is not None else "INSUFFICIENT"
+    if observed is None:
+        validation_status = "INSUFFICIENT"
+        validation_reason = reason or (
+            "skill_loaded was not recorded by the probe; channel unavailable or "
+            "the runtime skill state is not observable"
+        )
+    elif capability_status in SKILL_IMPLEMENTED_STATUSES:
+        validation_status = "PASS"
+        validation_reason = None
+    else:
+        validation_status = "INSUFFICIENT"
+        validation_reason = (
+            f"host contract skill_residency status is {capability_status}; "
+            "the runtime fact is recorded but capability evidence is not implemented"
+        )
+    return {
+        "value": observed,
+        "observed": observed,
+        "status": observation_status,
+        "provenance": SKILL_OBSERVATION_PROVENANCE,
+        "host": canonical_host,
+        "contract_status": capability_status,
+        "contract_provenance": axis["fixture_provenance"],
+        "hsc_validation": {
+            "status": validation_status,
+            "reason": validation_reason,
+        },
+    }
+
+
+def normalize_skill_observation(
+    host: str,
+    observed: bool | None,
+    *,
+    contract: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Compatibility-named wrapper for :func:`validate_skill_observation`."""
+
+    return validate_skill_observation(host, observed, contract=contract, reason=reason)
 
 
 def validate_host_contract(
@@ -213,11 +301,14 @@ def profile_projection(contract: dict[str, Any] | None = None) -> dict[str, dict
 __all__ = [
     "HOSTS_FILENAME",
     "IMPLEMENTED_PROVENANCE",
+    "SKILL_OBSERVATION_PROVENANCE",
     "REQUIRED_EXTRA_AXES",
     "HostContractError",
     "host_names",
     "load_host_contract",
     "profile_projection",
+    "normalize_skill_observation",
     "resolve_host",
+    "validate_skill_observation",
     "validate_host_contract",
 ]

@@ -22,6 +22,17 @@ from __future__ import annotations
 import os as _os
 
 # Public re-exports (covered by __all__ below).
+from devolaflow.compressor.evidence import (
+    DEFAULT_EVIDENCE_INLINE_MAX_BYTES,
+    EVIDENCE_BLOCKS,
+    EVIDENCE_TYPE,
+    EvidenceReferenceError,
+    EvidenceReferenceRequired,
+    prepare_status_report_evidence,
+    serialize_status_report_evidence,
+    validate_evidence_ref,
+    validate_status_report_evidence,
+)
 from devolaflow.compressor.layout import (
     DEFAULT_DISPATCH_LAYOUT,
     FROZEN_PREFIX_LENGTH,
@@ -332,6 +343,15 @@ __all__ = [
     "assert_dispatch_layout",
     "assert_layout_spec_invariant",
     "compute_dispatch_lcp_pct",
+    "DEFAULT_EVIDENCE_INLINE_MAX_BYTES",
+    "EVIDENCE_BLOCKS",
+    "EVIDENCE_TYPE",
+    "EvidenceReferenceError",
+    "EvidenceReferenceRequired",
+    "prepare_status_report_evidence",
+    "serialize_status_report_evidence",
+    "validate_evidence_ref",
+    "validate_status_report_evidence",
     "truncate_tool_output",
     "clear_old_tool_uses",
     "summarise_predecessor",

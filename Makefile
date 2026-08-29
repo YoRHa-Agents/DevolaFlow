@@ -7,7 +7,7 @@
        release-preflight release-dry-run ghost-full scaffold-agent agent-reports \
        compile-rules check-rules-drift check-module-size check-agent-language precommit precommit-fast precommit-full \
        scaffold-template scaffold-reference audit-references audit-long-references \
-       telemetry-append telemetry-check telemetry-gate check-import-graph
+       telemetry-append telemetry-check telemetry-gate check-import-graph check-repo-hygiene
 
 define RUN_TIMED
 start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; record_gate=false; case "$(1)" in test-core|lint|test-version|test-harness|check-cursor-skill|iteration-delta-gate) record_gate=true;; esac; if [ -n "$(TELEMETRY_PV)" ] && [ "$$record_gate" = true ]; then telemetry_status=0; python -m devolaflow.harness telemetry append --ledger "$(TELEMETRY_LEDGER)" --pv "$(TELEMETRY_PV)" --gate "$(1)" --status "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" || telemetry_status=$$?; if [ $$status -eq 0 ] && [ $$telemetry_status -ne 0 ]; then status=$$telemetry_status; fi; fi; exit $$status
@@ -195,6 +195,15 @@ check-rules-drift:
 check-module-size:
 	@$(call RUN_TIMED,check-module-size,python scripts/check_module_size.py --baseline-ref origin/main)
 
+# Release-side repository hygiene is one batch so L2 task paths do not
+# repeatedly run unchanged inventories. The batch owns CJK, import-graph,
+# module-size, functional-matrix, and historical ghost checks. Current-cycle
+# ghost, facade, and dead-API contracts remain in `test-core`; the batch
+# deliberately runs only the historical ghost complement to avoid duplicate
+# task-suite evidence. Individual checks remain callable for diagnosis.
+check-repo-hygiene:
+	@$(call RUN_TIMED,check-repo-hygiene,python scripts/check_repo_hygiene.py --root . --baseline-ref origin/main)
+
 check-agent-language:
 	@$(call RUN_TIMED,check-agent-language,python scripts/check_agent_language.py)
 
@@ -257,7 +266,7 @@ telemetry-gate: telemetry-check
 # count; they are release-hygiene targets that only the preflight chain
 # (and `make all`) runs:
 #
-#   release-only extras: ghost-full, check-functional-matrix,
+#   release-only extras: check-repo-hygiene,
 #                        validate-templates,
 #                        check-template-metadata-parity, build-skill,
 #                        sync-human-docs, compile-rules, check-drift,
@@ -268,7 +277,7 @@ telemetry-gate: telemetry-check
 #
 # SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core ghost-full lint test-version test-harness check-import-graph check-agent-language check-cursor-skill iteration-delta-gate telemetry-gate check-functional-matrix validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift check-module-size
+release-preflight: test-core lint test-version test-harness check-cursor-skill iteration-delta-gate telemetry-gate check-repo-hygiene validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift
 	$(MAKE) check-demo-seed-catalog
 	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"

@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "20.1.0"
+version: "21.1.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v20.1.0**
+> **Now Using DevolaFlow v21.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 20.1.0 — Check only on explicit update request:
+**Current version:** 21.1.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -91,12 +91,11 @@ Scanning is always read-only. Workspace auto-writes remain default-OFF unless
 | Standard | 3–10 files, multiple checks | L0 → L1 → L2 cascade |
 | Complex | 10+ files or cross-cutting | Full cascade, strict preflight |
 
-STANDARD+ requires the three-layer cascade. Match ceremony to risk.
-For STANDARD or COMPLEX work, `cascade_requirement(complexity)` returns
-`CASCADE_REQUIRED`: set `gate.cascade_required: true` and
-`gate.cascade_min_layers: 3` (default 3), then traverse
-L0 Project → L1 Wave → L2 Task. SIMPLE/TRIVIAL work is
-`CASCADE_OPTIONAL`; the single-file, under-20-line trivial waiver remains.
+STANDARD+ requires the three-layer cascade. For STANDARD/COMPLEX,
+`cascade_requirement` returns `CASCADE_REQUIRED`; set the gate fields and traverse
+L0 Project → L1 Wave → L2 Task (default 3 layers). SIMPLE/TRIVIAL is
+`CASCADE_OPTIONAL`.
+The S1 short path is machine-detectable only when StatusReport execution metadata has `trivial_path.declared_complexity == "TRIVIAL"` and `trivial_path.is_cross_cutting == false`, while measured `diff_stats` has `files == 1` and `insertions + deletions < 20`; zero files fails. The canonical `task_stop`/`post_task_complete` chain returns stable violation codes plus `upgrade_target`; strict mode raises blocker/`HookViolation`, lite (`strict=False`) warns, and non-TRIVIAL or declaration/evidence-free reports remain no-ops.
 
 ## Mode Awareness
 
@@ -252,6 +251,11 @@ Shared constraints: escalation is **Task → Wave → Project → Human**; waves
 Native delegation follows the HSC: Cursor/Claude Code/Codex/KimiCode use
 `Task`; DSH uses `subagent`; Copilot is `undeclared`. Host syntax maps to
 L0 → L1 → L2 without bypassing ownership or cascade checks.
+
+### Skill Residency Observation
+
+HSC `floor.skill_delivery` declares installation delivery only; `skill_loaded` is a runtime fact, never inferred from the skill-on arm or delivery path.
+If unobservable, record `null` with status `INSUFFICIENT` and an explicit reason.
 ### Rationalization Prevention
 
 | Rationalization | Reality |

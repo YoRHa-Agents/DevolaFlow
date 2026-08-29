@@ -367,6 +367,8 @@ def run_hooks(
             if not isinstance(result, HookResult):
                 raise TypeError(f"handler returned {type(result).__name__}, expected HookResult")
             aggregate.violations.extend(result.violations)
+            for key, value in result.metadata.items():
+                aggregate.metadata.setdefault(key, copy.deepcopy(value))
             if not result.passed:
                 aggregate.passed = False
         except Exception as exc:  # noqa: BLE001 - isolate buggy extensions

@@ -5,6 +5,80 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.1.0] - 2026-08-29 — MINOR — Skill Residency and Calibration Evidence
+
+Evidence: [SI-1 gap analysis](.local/research/v21.1.0_gap_analysis.md), the
+[final harness evaluation](.local/research/v21.1.0_harness_evaluation_final.json),
+the [retrospective](.local/research/v21.1.0_retrospective.md), the settled
+baseline at `.local/telemetry/baselines/harness_baseline_v21.1.0.json`, and the
+current-cycle ghost audit in `tests/ghost/test_features_v21_1.py`.
+
+### Added
+
+- **Skill residency contract**: `hosts.yaml` and the host-contract schema now
+  distinguish delivery from an observed runtime `skill_loaded` fact, with
+  explicit status and provenance requirements.
+- **Bounded CLI probe and calibration matrix**: the harness records structured
+  Claude/Codex/Kimi probe outcomes for read-only, tool-heavy, multi-file, and
+  recovery classes across skill-on/off arms, preserving timeout and unavailable
+  states.
+- **Report-only ROI evidence**: calibration aggregation retains relative
+  artifact identity and uncertainty without treating missing token usage,
+  authentication, or skill observations as zero or PASS.
+
+### Evidence limits
+
+- The calibration produced 240 observed artifacts; all 240 are
+  `INSUFFICIENT` (completed 0, PASS 0, FAIL 0). ROI is
+  `INSUFFICIENT` and quality causality is `NOT_ESTABLISHED`.
+- The final built-in evaluator is a repository-readiness probe only. Its
+  `READY` result does not establish a real-task quality improvement, token
+  saving, latency improvement, or replicated release delta.
+- CLI authentication and runtime skill-loading evidence were unavailable for
+  this run. No claim is made that the skill was successfully loaded or
+  validated through every supported channel.
+
+## [21.0.0] - 2026-08-29 — MAJOR — Evidence-Bounded Execution
+
+Evidence: [gap analysis](.local/research/v21.0.0_gap_analysis.md), the
+[final harness evaluation](.local/research/v21.0.0_harness_evaluation_final.json),
+the [retrospective](.local/research/v21.0.0_retrospective.md), and the current-cycle
+ghost audit in `tests/ghost/test_features_v21_0.py`.
+
+### Added
+
+- **Trivial-path validation**: verifies the declared TRIVIAL scope against measured
+  one-file diff statistics and returns a stable upgrade target for violations.
+- **Bounded StatusReport evidence**: validates typed evidence references and keeps
+  inline evidence within the configured byte budget.
+- **Component-level context accounting**: records skill, rule, and report token
+  components separately and emits a ceremony-share warning when fixed context
+  dominates the task budget.
+- **Reproducibility metadata**: preserves explicit run, repository, salt, and
+  provenance status fields in harness and StatusReport evidence.
+
+### Metrics
+
+- The final evaluator reports `READY` with a `9.84/10` composite against the
+  `8.5` threshold; its test-adequacy dimension is `10.0` and its full-suite
+  probe returned `true`.
+- Available measurements are `coverage_pct: 91.0`, `suite_wall_seconds:
+  212.648735958006`, `cjk_violations: 0`, `ghost_loc: 12719`, and
+  `agents_md_tokens: 11169`. Historical, per-PV, matched task-quality, and
+  salt-based release-delta evidence remain `INSUFFICIENT`.
+- W-9 `release-preflight` exited 2 at `check-module-size`: the modified
+  `harness/evaluator.py` and `harness/telemetry.py` exceed their recorded
+  module-size baselines. The evaluator's READY result does not override this
+  release blocker.
+
+### Deferred / insufficient evidence
+
+- Matched real-task quality outcomes, per-stage latency/output tokens, and
+  replicated release-delta comparisons remain deferred because the ledger has
+  no matched v20.1.0/v21.0.0 workload series.
+- Per-record skill/rule/report context-token observations remain `INSUFFICIENT`;
+  the current ledger contains no such component records.
+
 ## [20.1.0] - 2026-08-29 — MINOR — Retro-Digest Evidence
 
 ### Added

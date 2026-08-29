@@ -39,6 +39,7 @@ so callers do not branch on the env-flag manually.
 from __future__ import annotations
 
 import logging
+import math
 import os
 
 from devolaflow.gate.models import (
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 # against ``max_tokens=10_000`` (utilizations 0.50 / 0.80 / 1.50).
 WARN_UTILIZATION_THRESHOLD: float = 0.75
 BREAK_UTILIZATION_THRESHOLD: float = 1.00
+CEREMONY_SHARE_WARN_THRESHOLD: float = 0.50
 
 # Profiles that escalate immediately on BREAK rather than asking the
 # orchestrator to iterate with a throttled budget. STRICT and AUDIT both
@@ -180,6 +182,91 @@ def _disabled_decision(cumulative_tokens: int, profile_name: str) -> BudgetDecis
         utilization=0.0,
         rationale=(f"Profile {profile_name!r} sets max_tokens=0 (unlimited); breaker disabled."),
         recommendation=BudgetRecommendation.NONE,
+    )
+
+
+def _ceremony_decision(
+    ceremony_tokens: int,
+    max_tokens: int,
+    profile_name: str,
+    *,
+    warn_at: float,
+    break_at: float,
+) -> BudgetDecision:
+    """Classify ceremony usage against a task/layer budget."""
+    if type(ceremony_tokens) is not int or ceremony_tokens < 0:
+        raise ValueError("ceremony_tokens must be a non-negative integer")
+    if type(max_tokens) is not int or max_tokens < 0:
+        raise ValueError("max_tokens must be a non-negative integer")
+    if (
+        isinstance(warn_at, bool)
+        or isinstance(break_at, bool)
+        or not isinstance(warn_at, (int, float))
+        or not isinstance(break_at, (int, float))
+        or not math.isfinite(float(warn_at))
+        or not math.isfinite(float(break_at))
+        or not 0.0 <= warn_at < break_at
+    ):
+        raise ValueError("ceremony thresholds must satisfy 0 <= warn_at < break_at")
+    if max_tokens == 0:
+        return _disabled_decision(ceremony_tokens, profile_name)
+
+    utilization = ceremony_tokens / max_tokens
+    if utilization >= break_at:
+        action = BudgetAction.BREAK
+    elif utilization > warn_at:
+        action = BudgetAction.WARN
+    else:
+        action = BudgetAction.CONTINUE
+    recommendation = _recommendation_for(action, profile_name)
+    pct = utilization * 100.0
+    if action is BudgetAction.CONTINUE:
+        rationale = (
+            f"Ceremony usage {ceremony_tokens}/{max_tokens} ({pct:.1f}%) "
+            f"at or below {warn_at * 100:.1f}% share threshold."
+        )
+    elif action is BudgetAction.WARN:
+        rationale = (
+            f"Ceremony usage {ceremony_tokens}/{max_tokens} ({pct:.1f}%) "
+            f"exceeded {warn_at * 100:.1f}% share threshold; warning."
+        )
+    else:
+        rationale = (
+            f"Ceremony usage {ceremony_tokens}/{max_tokens} ({pct:.1f}%) "
+            f"reached the {break_at * 100:.1f}% share threshold; circuit broken."
+        )
+    return BudgetDecision(
+        action=action,
+        cumulative_tokens=ceremony_tokens,
+        max_tokens=max_tokens,
+        utilization=round(utilization, 4),
+        rationale=rationale,
+        recommendation=recommendation,
+    )
+
+
+def check_ceremony_share(
+    ceremony_tokens: int | None,
+    max_tokens: int,
+    *,
+    warn_at: float = CEREMONY_SHARE_WARN_THRESHOLD,
+    break_at: float = BREAK_UTILIZATION_THRESHOLD,
+    profile_name: str = "standard",
+) -> BudgetDecision:
+    """Classify fixed ceremony tokens relative to an explicit budget.
+
+    ``None`` is unavailable evidence and is rejected rather than treated as
+    zero.  The strict ``> warn_at`` boundary matches ALB002; reaching
+    ``break_at`` returns ``BREAK`` for callers that use the breaker surface.
+    """
+    if ceremony_tokens is None:
+        raise ValueError("ceremony_tokens is unavailable; pass an explicit count")
+    return _ceremony_decision(
+        ceremony_tokens,
+        max_tokens,
+        profile_name,
+        warn_at=warn_at,
+        break_at=break_at,
     )
 
 
@@ -309,6 +396,22 @@ class TokenBudgetBreaker:
             recommendation=recommendation,
         )
 
+    def check_ceremony_share(
+        self,
+        ceremony_tokens: int | None,
+        *,
+        warn_at: float = CEREMONY_SHARE_WARN_THRESHOLD,
+        break_at: float = BREAK_UTILIZATION_THRESHOLD,
+    ) -> BudgetDecision:
+        """Evaluate fixed ceremony usage using the breaker's budget semantics."""
+        return check_ceremony_share(
+            ceremony_tokens,
+            self._effective_max,
+            warn_at=warn_at,
+            break_at=break_at,
+            profile_name=self._profile.name,
+        )
+
 
 def from_profile_name(
     profile_name: str,
@@ -334,7 +437,9 @@ def from_profile_name(
 
 __all__ = [
     "BREAK_UTILIZATION_THRESHOLD",
+    "CEREMONY_SHARE_WARN_THRESHOLD",
     "WARN_UTILIZATION_THRESHOLD",
     "TokenBudgetBreaker",
+    "check_ceremony_share",
     "from_profile_name",
 ]

@@ -238,12 +238,17 @@ class HandoffEnvelope:
                     f"{block_name!r} block; got presence of multiple variant blocks"
                 )
 
-    def to_yaml(self) -> str:
+    def to_yaml(self, *, repo_root: str | Path | None = None) -> str:
         """Serialise to YAML in canonical key order.
 
         The on-disk layout matches the schema's ``instance_top_level_required``
         order verbatim: schema_version → seq → from_layer → to_layer →
         change_id → created → envelope_kind → variant_block.
+
+        StatusReport evidence is normalized at this serializer boundary:
+        small blocks remain inline, while oversized blocks are stored under the
+        active change's evidence directory and represented by an
+        ``evidence_ref``. The envelope object is never mutated.
         """
         ordered: dict = {
             "schema_version": self.schema_version,
@@ -255,7 +260,16 @@ class HandoffEnvelope:
             "envelope_kind": self.envelope_kind,
         }
         block_name = self.variant_block_name()
-        ordered[block_name] = self.variant_block()
+        variant = self.variant_block()
+        if self.envelope_kind == "StatusReport":
+            from devolaflow.compressor import prepare_status_report_evidence
+
+            variant = prepare_status_report_evidence(
+                variant,
+                repo_root=repo_root if repo_root is not None else Path.cwd(),
+                change_id=self.change_id,
+            )
+        ordered[block_name] = variant
         return yaml.safe_dump(
             ordered, sort_keys=False, default_flow_style=False, allow_unicode=True
         )
@@ -410,7 +424,7 @@ class HandoffStore:
         tmp = Path(tmp_name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
-                stream.write(envelope.to_yaml())
+                stream.write(envelope.to_yaml(repo_root=self.repo_root))
                 stream.flush()
                 os.fsync(stream.fileno())
             try:
