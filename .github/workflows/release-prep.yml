@@ -130,6 +130,32 @@ jobs:
       - name: Synchronize human documentation
         run: make sync-human-docs
 
+      - name: Promote prepared demo release window
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          REQUESTED_VERSION="$REQUESTED_VERSION" python - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("workflow-system/human/demo/index.html")
+          text = path.read_text(encoding="utf-8")
+          version = os.environ["REQUESTED_VERSION"]
+          replacements = (
+              ("Upcoming release ·", f"New in v{version} ·"),
+              ("即将发布 ·", f"v{version} 新变化 ·"),
+          )
+          updated = text
+          for old, new in replacements:
+              updated = updated.replace(old, new, 1)
+          if updated == text:
+              raise SystemExit(
+                  "demo/index.html has no prepared release-window placeholder to promote"
+              )
+          path.write_text(updated, encoding="utf-8")
+          PY
+
       - name: Run release preflight
         run: make release-preflight
 
@@ -173,7 +199,8 @@ jobs:
               src/devolaflow/__init__.py|pyproject.toml|\
               workflow-system/agent/SKILL.md|workflow-system/agent/workflow-skill.yaml|\
               scripts/generate_human_docs.py|tests/test_smoke.py|README.md|\
-              packages/npm/package.json|workflow-system/human/en/*|workflow-system/human/zh/*)
+              packages/npm/package.json|workflow-system/human/en/*|workflow-system/human/zh/*|\
+              workflow-system/human/demo/index.html)
                 ;;
               *)
                 echo "::error::unexpected changed path: $changed_path"
