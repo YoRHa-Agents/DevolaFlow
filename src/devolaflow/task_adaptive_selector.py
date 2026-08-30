@@ -550,22 +550,14 @@ def estimate_tokens(text: str) -> int:
     try:
         import tiktoken  # noqa: F401  (probe import only — actual use is in the cached helper)
     except ImportError:
-        # Expected optional-dependency path: the deterministic estimator is
-        # the documented result when tiktoken is unavailable.
         return _estimate_tokens_fallback_cached(text)
     except Exception:
-        logger.warning(
-            "tiktoken availability probe failed; using deterministic token fallback",
-            exc_info=True,
-        )
+        logger.warning("tiktoken probe failed; using fallback", exc_info=True)
         return _estimate_tokens_fallback_cached(text)
     try:
         return _estimate_tokens_tiktoken_cached(text)
     except Exception:
-        logger.warning(
-            "tiktoken estimator failed; using deterministic token fallback",
-            exc_info=True,
-        )
+        logger.warning("tiktoken estimator failed; using fallback", exc_info=True)
         return _estimate_tokens_fallback_cached(text)
 
 
@@ -1582,14 +1574,7 @@ def warmup_selector_cache(
                 select_context(task_type=task_type, round_num=round_num)
                 completed += 1
             except Exception as exc:  # noqa: BLE001 - S-5 graceful warmup
-                logger.warning(
-                    "warmup_selector_cache: select_context(task_type=%r, "
-                    "round_num=%d) raised %s; continuing with next pair",
-                    task_type,
-                    round_num,
-                    exc,
-                    exc_info=True,
-                )
+                logger.warning("warmup %r/%d failed: %s", task_type, round_num, exc, exc_info=True)
     return completed
 
 
