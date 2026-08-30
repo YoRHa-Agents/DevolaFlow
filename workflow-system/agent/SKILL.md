@@ -66,8 +66,7 @@ Banners are operator chat output only. L1/L2 reports MUST NOT include them;
 
 ## Workspace Engagement
 
-Before classifying work, call
-`devolaflow.workspace_context.scan_workspace(repo_root)` and inspect:
+Before classifying work, call `devolaflow.workspace_context.scan_workspace(repo_root)` and inspect:
 
 | Surface | L0 use |
 |---|---|
@@ -75,12 +74,13 @@ Before classifying work, call
 | `.local/memory/specs/<domain>/spec.md` | Treat as source-of-truth behavior |
 | `.local/memory/cases/*.md` | Consult when memory routing is enabled |
 | `.local/.agent/active/<id>/` | Resume active state instead of duplicating it |
-| `.local/.agent/active/<id>/entrance.md` | Onboarding router — read first, then only scenario-needed artifacts |
+| `.local/.agent/active/<id>/entrance.md` | MUST be written in the first change/task artifact batch; read first, then only scenario-needed artifacts |
 | `.rules/*.mdc` and `AGENTS.md` | Apply governance contract |
 | `.codegraph/codegraph.db` | Prefer indexed planning lookup when available |
+Every active change/task first-batch write MUST include `entrance.md` with `goal.md`, `checklist.md`, `stage.md`, `preflight.md`, `spec.md`, `STATUS.yaml`, `owned_files.txt`, and `evidence/`; `learnings.jsonl` remains opt-in.
+`entrance.md` is a required write artifact, not only a read surface.
 
-Scanning is always read-only. Workspace auto-writes remain default-OFF unless
-`DEVOLAFLOW_AGENT_WORKSPACE=1`. See `references/agent-workspace.md`.
+Scanning is always read-only. Workspace auto-writes remain default-OFF unless `DEVOLAFLOW_AGENT_WORKSPACE=1`. See `references/agent-workspace.md`.
 
 ## Quick Action Decision
 

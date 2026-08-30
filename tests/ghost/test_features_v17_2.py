@@ -71,15 +71,15 @@ def test_change_entrance_onboarding_router(tmp_path: Path, monkeypatch: pytest.M
     )
 
     # Lint: a fresh scaffold yields zero ENTRANCE_* findings; removing the
-    # router downgrades to the ENTRANCE_MISSING WARN (exit code unchanged)
-    # per the design D-4 backfill window.
+    # router produces an ENTRANCE_MISSING hard failure. The canonical
+    # Change.to_active_folder backfill remains covered below.
     clean = lint_change(scaffold.name, repo_root=tmp_path)
     assert _entrance_findings(clean) == []
     entrance_path.unlink()
     missing = lint_change(scaffold.name, repo_root=tmp_path)
-    assert missing.exit_code == 0
+    assert missing.exit_code == 1
     kinds = [(v.kind, v.severity) for v in _entrance_findings(missing)]
-    assert kinds == [("ENTRANCE_MISSING", "WARN")]
+    assert kinds == [("ENTRANCE_MISSING", "FAIL")]
 
     # D-5: the router is never injected into dispatch payloads — the
     # hydrate_change_context key set stays the pinned v16 nine.

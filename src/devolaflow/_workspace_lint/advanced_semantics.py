@@ -500,10 +500,10 @@ def _check_entrance(
 ) -> None:
     """Validate the entrance.md onboarding router (change-entrance schema).
 
-    A missing file yields ``ENTRANCE_MISSING`` at WARN severity — pre-v17.2
-    folders are backfilled by the next canonical store write
-    (``Change.to_active_folder``, design D-4), so absence must not flip the
-    lint exit code. A present-but-malformed file fails loud (S-5).
+    A missing file yields ``ENTRANCE_MISSING`` at FAIL severity. The canonical
+    store write (``Change.to_active_folder``, design D-4) may backfill older
+    folders, but absence still blocks the lint exit code. A
+    present-but-malformed file fails loud (S-5).
     """
     result = _read_artifact(change_folder, "entrance.md", report, cache)
     if result.state == "missing":
@@ -511,9 +511,10 @@ def _check_entrance(
             SemanticViolation(
                 "entrance.md",
                 "ENTRANCE_MISSING",
-                "agent onboarding entry point is absent; backfill from the "
-                "scaffold template (schemas/agent-workspace/change-entrance.yaml)",
-                severity="WARN",
+                "agent onboarding entry point is absent; materialize it from "
+                "the scaffold template "
+                "(schemas/agent-workspace/change-entrance.yaml)",
+                severity="FAIL",
             )
         )
         return
