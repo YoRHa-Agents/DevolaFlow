@@ -748,13 +748,27 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
     metadata_records = [record["metadata"] for record in records if "metadata" in record]
     if metadata_records:
-        encoded = {
-            json.dumps(metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-            for metadata in metadata_records
-        }
-        if len(encoded) != 1:
-            raise AggregationError("ledger contains inconsistent run metadata")
-        result["metadata"] = metadata_records[0]
+        distinct_metadata: list[dict[str, Any]] = []
+        seen_metadata: set[str] = set()
+        for metadata in metadata_records:
+            encoded = json.dumps(
+                metadata,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            if encoded not in seen_metadata:
+                seen_metadata.add(encoded)
+                distinct_metadata.append(metadata)
+        if len(distinct_metadata) == 1:
+            # Preserve the historical singleton envelope for callers that
+            # expect ``summary["metadata"]``.
+            result["metadata"] = distinct_metadata[0]
+        else:
+            # Append-only ledgers may contain several valid run envelopes.
+            # Keep each repository-relative envelope intact; never merge
+            # facts from separate runs into a synthetic singleton.
+            result["metadata_records"] = distinct_metadata
     if context_token_records:
         result["context_token_records"] = context_token_records
     observations = _metric_observation_records(records)

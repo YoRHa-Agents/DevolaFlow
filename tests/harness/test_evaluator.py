@@ -428,6 +428,77 @@ def test_evaluator_persists_collected_measurements_with_caller_metadata(
     assert result["measurements"]["agents_md_tokens"]["value"] == 1200
 
 
+def test_evaluator_keeps_prior_run_metadata_when_current_collection_appends(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    prior_metadata = {
+        "run_id": "run-pre-merge",
+        "sampled_at": "2026-08-29T00:00:00+00:00",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "salt": "pre-merge-salt",
+        "salt_status": "AVAILABLE",
+        "ledger_path": None,
+        "ledger_status": "INSUFFICIENT",
+        "repo_ref": None,
+        "repo_sha": None,
+        "base_ref": None,
+        "base_ref_status": "INSUFFICIENT",
+        "repo_status": "INSUFFICIENT",
+        "status": "INSUFFICIENT",
+    }
+    prior_event = build_consolidation_metrics_record(
+        {
+            "agents_md_tokens": None,
+            "suite_wall_seconds": None,
+            "cjk_violations": None,
+            "ghost_loc": None,
+        },
+        timestamp="2026-08-29T00:00:00+00:00",
+        metadata=prior_metadata,
+    )
+    with ledger.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(prior_event) + "\n")
+
+    values = _signals()
+    collected = {key: SignalResult(available=True, value=values[key]) for key in SIGNAL_KEYS}
+    monkeypatch.setattr(
+        "devolaflow.harness.evaluator.collect_signals",
+        lambda *_args, **_kwargs: collected,
+    )
+
+    def metadata_runner(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess:
+        if "--abbrev-ref" in argv:
+            stdout = "main\n"
+        elif argv[-1] == "HEAD":
+            stdout = f"{'c' * 40}\n"
+        else:
+            stdout = f"{'d' * 40}\n"
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
+
+    result = evaluate_harness(
+        ledger,
+        repo_root=tmp_path,
+        run_id="run-post-merge",
+        salt="post-merge-salt",
+        metadata_runner=metadata_runner,
+    )
+
+    assert result["metadata"]["run_id"] == "run-post-merge"
+    assert result["metadata"]["salt"] == "post-merge-salt"
+    assert result["harness_summary"]["metadata"] == result["metadata"]
+    assert result["harness_summary"]["metadata_records"] == [
+        prior_metadata,
+        result["metadata"],
+    ]
+    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["provenance"] == [
+        {"source": "telemetry", "metadata": prior_metadata},
+        {"source": "telemetry", "metadata": result["metadata"]},
+    ]
+
+
 def test_evaluator_preserves_unavailable_collected_measurements_as_insufficient(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

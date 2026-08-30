@@ -306,6 +306,73 @@ def test_consolidation_metrics_are_aggregated_with_explicit_missing_values(
     }
 
 
+def test_multi_run_metadata_is_retained_without_merging_or_losing_provenance(
+    tmp_path: Path,
+) -> None:
+    metadata_a = {
+        "run_id": "run-a",
+        "sampled_at": "2026-08-29T00:00:00+00:00",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "salt": "salt-a",
+        "salt_status": "AVAILABLE",
+        "ledger_path": "harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "main",
+        "repo_sha": "a" * 40,
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE",
+    }
+    metadata_b = {
+        "run_id": "run-b",
+        "sampled_at": "2026-08-29T01:00:00+00:00",
+        "generated_at": "2026-08-29T01:00:00+00:00",
+        "salt": "salt-b",
+        "salt_status": "AVAILABLE",
+        "ledger_path": None,
+        "ledger_status": "INSUFFICIENT",
+        "repo_ref": None,
+        "repo_sha": None,
+        "base_ref": None,
+        "base_ref_status": "INSUFFICIENT",
+        "repo_status": "INSUFFICIENT",
+        "status": "INSUFFICIENT",
+    }
+    event_a = build_consolidation_metrics_record(
+        {
+            "agents_md_tokens": 100,
+            "suite_wall_seconds": None,
+            "cjk_violations": None,
+            "ghost_loc": None,
+        },
+        timestamp="2026-08-29T00:00:00+00:00",
+        metadata=metadata_a,
+    )
+    event_b = build_consolidation_metrics_record(
+        {
+            "agents_md_tokens": 200,
+            "suite_wall_seconds": None,
+            "cjk_violations": None,
+            "ghost_loc": None,
+        },
+        timestamp="2026-08-29T01:00:00+00:00",
+        metadata=metadata_b,
+    )
+    _write_jsonl(tmp_path / "harness.jsonl", [event_a, event_b])
+
+    summary = aggregate_ledger(tmp_path)
+
+    assert "metadata" not in summary
+    assert summary["metadata_records"] == [metadata_a, metadata_b]
+    assert summary["metadata_records"][1]["ledger_path"] is None
+    assert summary["metadata_records"][1]["ledger_status"] == "INSUFFICIENT"
+    assert summary["measurements"]["agents_md_tokens"]["provenance"] == [
+        {"source": "telemetry", "metadata": metadata_a},
+        {"source": "telemetry", "metadata": metadata_b},
+    ]
+
+
 def test_historical_dispatch_without_consolidation_metrics_is_explicitly_insufficient(
     tmp_path: Path,
 ) -> None:
