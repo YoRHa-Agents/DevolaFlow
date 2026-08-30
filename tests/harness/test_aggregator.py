@@ -16,6 +16,7 @@ from devolaflow.harness.aggregator import (
 from devolaflow.harness.telemetry import (
     CONSOLIDATION_METRIC_NAMES,
     MetricObservationError,
+    append_context_token_record,
     append_metric_observation,
     build_consolidation_metrics_record,
     build_metric_observation,
@@ -318,6 +319,46 @@ def test_historical_dispatch_without_consolidation_metrics_is_explicitly_insuffi
             "observed_records": 0,
             "status": "INSUFFICIENT",
         }
+
+
+def test_context_token_aggregation_preserves_availability_and_provenance(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    metadata = {
+        "run_id": "run-context",
+        "sampled_at": "2026-08-29T00:00:00+00:00",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "salt": "context-salt",
+        "salt_status": "AVAILABLE",
+        "ledger_path": "harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "main",
+        "repo_sha": "a" * 40,
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE",
+    }
+    append_context_token_record(
+        ledger,
+        None,
+        context_tokens={"skill_tokens": 100, "rule_tokens": None, "report_tokens": 0},
+        metadata=metadata,
+        timestamp="2026-08-29T00:00:00+00:00",
+    )
+
+    summary = aggregate_ledger(ledger)
+
+    assert summary["tokens"]["context_tokens"]["skill_tokens"]["mean"] == 100
+    assert summary["tokens"]["context_tokens"]["skill_tokens"]["status"] == "AVAILABLE"
+    assert summary["tokens"]["context_tokens"]["rule_tokens"]["mean"] is None
+    assert summary["tokens"]["context_tokens"]["rule_tokens"]["status"] == "INSUFFICIENT"
+    assert summary["tokens"]["context_tokens"]["report_tokens"]["mean"] == 0
+    assert summary["tokens"]["context_tokens"]["skill_tokens"]["provenance"][0] == {
+        "source": "telemetry",
+        "metadata": metadata,
+    }
 
 
 def test_metric_observation_is_strict_and_aggregate_surfaces_provenance(
