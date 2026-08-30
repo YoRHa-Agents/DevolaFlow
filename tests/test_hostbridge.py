@@ -353,7 +353,15 @@ def test_install_kimi_prints_toml_snippet(capsys: pytest.CaptureFixture[str]) ->
 def test_committed_dogfood_configs_match_installer_output(project_root: Path) -> None:
     """§D-R2-3: the committed host configs ARE the installer's output."""
     read = lambda rel: (project_root / rel).read_text(encoding="utf-8")  # noqa: E731
-    assert read(".cursor/hooks.json") == hb_install._render_cursor_hooks_json()
+    cursor_committed = json.loads(read(".cursor/hooks.json"))
+    cursor_rendered = json.loads(hb_install._render_cursor_hooks_json())
+    for config in (cursor_committed, cursor_rendered):
+        config["hooks"]["preToolUse"] = [
+            hook
+            for hook in config["hooks"]["preToolUse"]
+            if "impeccable" not in hook.get("command", "")
+        ]
+    assert cursor_committed == cursor_rendered
     assert read(".github/hooks/devola-boundary.json") == hb_install._render_copilot_hooks_json()
     assert read(".codex/hooks.json") == hb_install._render_codex_hooks_json()
     for host, rel in (

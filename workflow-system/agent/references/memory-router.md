@@ -19,7 +19,7 @@ dependencies:
   - "agent/references/execution-protocol.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/message-schemas.md"
-last_updated: "2026-08-31"
+last_updated: "2026-08-30"
 ---
 
 # Memory Router Reference
