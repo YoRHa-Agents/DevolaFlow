@@ -15,6 +15,7 @@ from devolaflow.harness.evaluator import (
     MEASUREMENT_KEYS,
     SIGNAL_KEYS,
     EvaluationError,
+    SignalResult,
     collect_signals,
     compare_historical_companion,
     evaluate_harness,
@@ -382,6 +383,93 @@ def test_collect_signals_measures_available_consolidation_surfaces(tmp_path: Pat
     assert collected["suite_wall_seconds"].value >= 0
     assert collected["cjk_violations"].value == 0
     assert collected["ghost_loc"].value == 2
+
+
+def test_evaluator_persists_collected_measurements_with_caller_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    values = _signals()
+    collected = {key: SignalResult(available=True, value=values[key]) for key in SIGNAL_KEYS}
+    monkeypatch.setattr(
+        "devolaflow.harness.evaluator.collect_signals",
+        lambda *_args, **_kwargs: collected,
+    )
+
+    def metadata_runner(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess:
+        if "--abbrev-ref" in argv:
+            stdout = "feature/t2\n"
+        elif argv[-1] == "HEAD":
+            stdout = f"{'a' * 40}\n"
+        else:
+            stdout = f"{'b' * 40}\n"
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
+
+    result = evaluate_harness(
+        ledger,
+        repo_root=tmp_path,
+        run_id="run-t2-regression",
+        salt="t2-test-salt",
+        metadata_runner=metadata_runner,
+    )
+
+    assert result["metadata"]["run_id"] == "run-t2-regression"
+    assert result["metadata"]["salt"] == "t2-test-salt"
+    assert result["harness_summary"]["metadata"] == result["metadata"]
+    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["status"] == "AVAILABLE"
+    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["observed_records"] == 1
+    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["provenance"][0] == {
+        "source": "telemetry",
+        "metadata": result["metadata"],
+    }
+    assert result["measurements"]["agents_md_tokens"]["source"] == "telemetry"
+    assert result["measurements"]["agents_md_tokens"]["value"] == 1200
+
+
+def test_evaluator_preserves_unavailable_collected_measurements_as_insufficient(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "harness.jsonl"
+    _write_ledger(ledger)
+    values = _signals()
+    collected = {
+        key: (
+            SignalResult(available=False, error=f"{key} unavailable")
+            if key in MEASUREMENT_KEYS
+            else SignalResult(available=True, value=values[key])
+        )
+        for key in SIGNAL_KEYS
+    }
+    monkeypatch.setattr(
+        "devolaflow.harness.evaluator.collect_signals",
+        lambda *_args, **_kwargs: collected,
+    )
+
+    def unavailable_metadata_runner(
+        *_args: object,
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess([], 1, stdout="", stderr="git unavailable")
+
+    result = evaluate_harness(
+        ledger,
+        repo_root=tmp_path,
+        run_id="run-t2-insufficient",
+        salt="t2-test-salt",
+        metadata_runner=unavailable_metadata_runner,
+    )
+
+    for key in MEASUREMENT_KEYS:
+        measurement = result["harness_summary"]["measurements"][key]
+        assert measurement["mean"] is None
+        assert measurement["observed_records"] == 0
+        assert measurement["status"] == "INSUFFICIENT"
+        assert measurement["provenance"][0]["metadata"]["run_id"] == "run-t2-insufficient"
+        assert result["measurements"][key]["status"] == "INSUFFICIENT"
+        assert result["measurements"][key]["value"] is None
 
 
 def test_module_cli_pins_fixture_style_envelope_and_exit_codes(

@@ -11,7 +11,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
@@ -34,7 +34,12 @@ from devolaflow.harness.metadata import (
     build_run_metadata,
     validate_run_metadata,
 )
-from devolaflow.harness.telemetry import MetricObservationError, validate_metric_observation
+from devolaflow.harness.telemetry import (
+    MetricObservationError,
+    TelemetryGateError,
+    append_consolidation_metrics,
+    validate_metric_observation,
+)
 from devolaflow.task_adaptive_selector import estimate_tokens
 
 MEASUREMENT_KEYS: Final[tuple[str, ...]] = (
@@ -616,6 +621,38 @@ def _render_measurements(
     return rendered
 
 
+def _persist_collected_measurements(
+    ledger: str | Path,
+    collected: Mapping[str, SignalResult],
+    *,
+    metadata: RunMetadata,
+) -> None:
+    """Append one complete current-run measurement envelope.
+
+    ``None`` is retained for an unavailable probe.  The event is written only
+    for evaluator-owned collection, never for injected or historical values.
+    """
+
+    measurements = {
+        key: (collected[key].value if collected[key].available else None)
+        for key in MEASUREMENT_KEYS
+    }
+    try:
+        append_consolidation_metrics(
+            ledger,
+            measurements,
+            timestamp=metadata["generated_at"],
+            metadata=metadata,
+        )
+    except TelemetryGateError as exc:
+        raise EvaluationError(f"cannot persist evaluator measurements: {exc}") from exc
+
+
+def _ledger_aggregation_source(ledger: str | Path) -> str | Path:
+    path = Path(ledger)
+    return path.parent if path.name == "harness.jsonl" else ledger
+
+
 def _mean_available(subcomponents: Mapping[str, Mapping[str, Any]]) -> float:
     scores = [
         float(component["score"])
@@ -651,8 +688,11 @@ def evaluate_harness(
     ):
         raise EvaluationError("threshold must be a finite number in [0, 10]")
 
-    records = load_ledger_records(ledger)
-    resolved_sampled_at = sampled_at or _latest_timestamp(records)
+    aggregation_source = _ledger_aggregation_source(ledger)
+    records = load_ledger_records(aggregation_source)
+    resolved_sampled_at = sampled_at or (
+        _latest_timestamp(records) if signals is not None else datetime.now(UTC).isoformat()
+    )
     try:
         metadata: RunMetadata = (
             validate_run_metadata(run_metadata)
@@ -685,6 +725,11 @@ def evaluate_harness(
         }
     else:
         resolved_signals = normalize_signals(signals)
+    if collected_signals is not None:
+        _persist_collected_measurements(ledger, collected_signals, metadata=metadata)
+        records = load_ledger_records(aggregation_source)
+        summary = aggregate_records(records)
+        summary = {**summary, "metadata": metadata}
     measurement_signals, measurement_sources = _resolve_measurements(
         summary,
         injected=signals,

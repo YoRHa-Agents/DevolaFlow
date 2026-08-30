@@ -540,11 +540,19 @@ def _context_token_summary(records: list[dict[str, Any]]) -> dict[str, dict[str,
             accounting = record.get("context_tokens")
             if isinstance(accounting, dict) and accounting.get(field) is not None:
                 values.append(accounting[field])
-        result[field] = {
+        entry: dict[str, Any] = {
             "mean": sum(values) / len(values) if values else None,
             "observed_records": len(values),
             "status": "AVAILABLE" if values else "INSUFFICIENT",
         }
+        provenance = [
+            {"source": "telemetry", "metadata": record["metadata"]}
+            for record in sources
+            if "metadata" in record
+        ]
+        if provenance:
+            entry["provenance"] = provenance
+        result[field] = entry
     return result
 
 
@@ -554,6 +562,14 @@ def _measurement_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _metric_observation_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [record for record in records if record.get("event") == METRIC_OBSERVATION_EVENT]
+
+
+def _measurement_provenance(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {"source": "telemetry", "metadata": record["metadata"]}
+        for record in records
+        if "metadata" in record
+    ]
 
 
 def _observation_provenance(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -584,23 +600,30 @@ def _measurement_summary(
         if observations:
             matching = [record for record in observations if record["metric"] == field]
             values = [record["value"] for record in matching]
-            summary[field] = {
+            entry = {
                 "mean": sum(values) / len(values) if values else None,
                 "observed_records": len(values),
                 "status": "AVAILABLE" if values else "INSUFFICIENT",
                 "provenance": [_observation_provenance(record) for record in matching],
             }
+            if not matching:
+                entry.pop("provenance")
+            summary[field] = entry
             continue
         values = (
             [event[field] for event in events if event[field] is not None]
             if events
             else [record[field] for record in dispatch_records if field in record]
         )
-        summary[field] = {
+        entry = {
             "mean": sum(values) / len(values) if values else None,
             "observed_records": len(values),
             "status": "AVAILABLE" if values else "INSUFFICIENT",
         }
+        provenance = _measurement_provenance(events)
+        if provenance:
+            entry["provenance"] = provenance
+        summary[field] = entry
     return summary
 
 
