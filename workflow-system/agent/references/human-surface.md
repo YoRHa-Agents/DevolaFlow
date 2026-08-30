@@ -513,16 +513,6 @@ PRIVATE (ignored) — the bounded (C-4-capped) convergence reports + digest
 are local-only, not PR-visible. D-4 is closed via the tracked `input/`
 zone (the authoritative, reviewable, durable requirements/constraints).
 
-### 7b. sichip-deferred relocation
-
-Agent-authored `sichip_deferred_*.md` DEFER docs (+ the
-`.sichip_deferred_fingerprints.txt` dedup sidecar) move OUT of the
-human-facing `.local/feedbacks/` into the private agent tree at
-`.local/.agent/sichip-deferred/` — these are agent OUTPUT, NOT human
-INPUT, so they do NOT belong in `.local/human/`. The relocation
-preserves the dedup fingerprint set verbatim (a transition-window
-dual-read protects against a duplicate DEFER re-emit during migration).
-
 ### 7c. TRACKER fate
 
 `.local/feedbacks/TRACKER.md` is retained ONLY as the reactive

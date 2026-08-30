@@ -722,6 +722,3 @@ def test_install_plugins_warn_not_fatal(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "WARN plugin codegraph install failed" in out
     assert "impeccable @ 9.9.9" in out  # loop continued past the codegraph failure
-    assert "plugin rtk" not in out  # optional plugins are explicit-only
-    assert "plugin ui-pro" not in out
-    assert "plugin si-chip" not in out

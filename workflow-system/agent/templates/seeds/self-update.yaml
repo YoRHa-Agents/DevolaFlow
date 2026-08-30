@@ -28,11 +28,11 @@ partitions:
     title_template: "Integration and verification"
     source_stages:
       - {id: integrate, primitive: implement}
-      - {id: si_chip_gate, primitive: validate}
+      - {id: validate, primitive: validate}
       - {id: test, primitive: test}
     assertions:
       - key: integration-green
-        statement_template: "Approved changes pass tests, lint, coverage, and applicable iteration-delta checks"
+        statement_template: "Approved changes pass tests, lint, and coverage checks"
         suggested_priority: P0
         verify: {mode: metric, template: "test_failures == 0 and lint_errors == 0 and coverage_pct >= 80"}
   - key: evaluation

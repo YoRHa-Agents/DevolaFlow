@@ -52,7 +52,7 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     assert 4 in _SUPPORTED_SCHEMA_VERSIONS
     assert frozenset({"require", "suggest"}) == _SUPPORTED_TIERS
     plugin_ids = [e["id"] for e in raw["plugins"]]
-    assert plugin_ids == ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
+    assert plugin_ids == ["ui-pro", "codegraph", "impeccable"]
     for entry in raw["plugins"]:
         assert entry.get("tier") == "suggest", (
             f"B-6: plugin {entry.get('id')!r} must ship tier: suggest "
@@ -107,7 +107,12 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
         assert registry.load_seed(entry["name"]) is not None
 
     expected_workflows = {
-        "si-chip": {"skill-optimization", "self-update", "nines-assisted"},
+        "codegraph": {
+            "repo-init",
+            "onboarding",
+            "security-audit",
+            "product-verification",
+        },
         "ui-pro": {"product-verification", "web-design"},
         "impeccable": {"web-design"},
     }

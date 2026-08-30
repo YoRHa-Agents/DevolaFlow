@@ -8,8 +8,6 @@ W-20 checklist step 3 for the NEW flag authored in v17.0.0 R2 (see
    nonexistent repo_root prove no probe fires), and
 2. the CLI allows for every host protocol and writes NO audit ledger.
 
-The filename mirrors ``tests/test_shell_proxy_disabled_is_noop.py`` —
-do not delete without an explicit retrospective entry.
 """
 
 from __future__ import annotations

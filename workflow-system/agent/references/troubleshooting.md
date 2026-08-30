@@ -35,7 +35,6 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | `PPI002` (warning) plugin payload malformed | plugin lifecycle | §2.2 | v10.2.1 PV-02 |
 | `PPI003` (warning) plugin daily-upgrade boundary | plugin lifecycle | §2.2 | v10.2.1 PV-02 |
 | `FOE001` format-on-edit failure | lifecycle hooks | §2.3 | v9.4.0 |
-| `PSE001` / `PSE002` post-skill-edit failure | lifecycle hooks | §2.3 | v10.2.1 PV-02 |
 | `AWH001` / `AWH002` auto-write handoff failure | lifecycle hooks | §2.3 | v10.0.0 PV-04 |
 | `CEA002` envelope-append-only violation | S-9 enforcement | §2.4 | v8.2.4 |
 | `TOC001..TOC006` test-on-complete | lifecycle hooks | §2.3 | v8.0.0 P-08 |
@@ -54,13 +53,11 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | Soul-set freeze (W-21) violation on PR | governance | §2.10 | v9.0.0 PV-07 |
 | W-20 env-flag reuse rejected | governance | §2.10 | v9.0.0 PV-05 |
 | Built-in harness evidence is `INSUFFICIENT` | harness evaluation | §2.11 | v16.0.0 |
-| Si-Chip iteration_delta DEFER pattern | Si-Chip integration | §2.12 | v10.2.3 PV-04 |
 | MR/PR rejection on protected branch push | git workflow | §2.13 | v9.5.0 |
 | `test_demo_index_gate_types` "automated" trip | doc consistency | §2.14 | v10.0.0 §4.2 |
 | Reference doc loaded but never cited in artefacts | reference utilization | §2.15 | v10.4.0 (D-D audit) |
 | `assert len(actual) == N` adapter golden mismatch | reference set drift | §2.6 | v9.0.0 PV-01 |
 | `EnvelopeRecord` filename parse rejection | handoff schema | §2.4 | v8.2.4 |
-| Bridge defect (upstream shape vs unit fixture) | Si-Chip | §2.12 | v10.2.3 PV-04 |
 | Baseline regen scores diverge ~7pp from pytest scoring | tokenization determinism | §2.16 | v11.1.3 D-3 |
 | `devola-init` target fails on a pip-wheel-only install | install / CLI | §2.17 | v9.2.2 (I-001/I-004) |
 | Pre-existing working-tree corruption at cycle entry | working-tree sanity | §2.18 | v12.2.0 retro §4.3 |
@@ -116,16 +113,13 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
      `python -m devolaflow.plugins.installer upgrade <plugin_id>` to
      refresh and silence next-cycle.
 
-#### 2.3 `FOE001`, `PSE001..PSE002`, `TOC001..TOC006` — lifecycle hooks
+#### 2.3 `FOE001`, `TOC001..TOC006` — lifecycle hooks
 
-* **Symptom**: format-on-edit, post-skill-edit, or test-on-complete hooks
+* **Symptom**: format-on-edit or test-on-complete hooks
   raise. The hook name + code is in the violation payload.
 * **Root cause**: a strict-mode hook detected a contract breach.
   * `FOE001` — ruff formatter exited non-zero on a SKILL/CLAUDE/yaml
     write.
-  * `PSE001` / `PSE002` — fingerprint-based dedup mismatch on
-    `_write_feedback_doc`; usually the operator hand-edited the
-    `.sichip_deferred_fingerprints.txt` sidecar.
   * `TOC001..TOC006` — covers test failure, lint fail, coverage drop,
     timeout, environment misconfig, and abort-after-retry. The exact
     code is mapped in `src/devolaflow/lifecycle/test_on_complete.py`.
@@ -284,29 +278,6 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   and preserve the explicit `INSUFFICIENT` state until evidence satisfies
   the release gate. Do not fabricate a score or replace the evaluator output.
 
-#### 2.12 Si-Chip iteration_delta DEFER + bridge defect
-
-* **Symptom A — DEFER pattern**: Si-Chip iteration_delta returns DEFER
-  rather than APPLY despite the operator believing the SKILL.md edit
-  was substantive.
-* **Root cause A**: prior to v10.2.3 PV-04 (bridge defect fix), the
-  unit-fixture `MetricsReport.from_yaml_dict` consumed legacy
-  top-level keys (`T1_pass_rate`, `baseline_delta`, etc.) but the
-  v3.3.0+ MVP-8 nested keys
-  (`metrics.task_quality.T1_pass_rate`,
-  `summary.baseline_delta`,
-  `metrics.context_economy.{C1_metadata_tokens,C2_body_tokens}`)
-  silently fell through.
-* **Fix A**: pin to DevolaFlow ≥ v10.2.3 (the bridge layer reads MVP-8
-  nested keys with legacy top-level shape preserved as backward-compat
-  fallback). Upgrade via `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow`.
-* **Symptom B — bridge defect surfaced ONLY at end-to-end dogfood**:
-  unit fixtures pass green but `make iteration-delta-gate` produces
-  a stale verdict.
-* **Fix B**: end-to-end smoke test BEFORE landing the cycle. The
-  v10.3.0 retro §4 codified this as: "schedule a real-data dogfood
-  pass with the freshly-bumped wheel before authoring the CHANGELOG".
-
 #### 2.13 Protected branch push rejection
 
 * **Symptom**: `git push origin yc_dev` (or `main`, `master`,
@@ -341,7 +312,7 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
 * **Root cause**: the reference was added in cycle-N for an opt-in
   surface, but no profile in `context_profiles.yaml` declares it under
   `extra_context`. Common for `compression-pipeline.md` (advanced
-  opt-in) and `shell-proxy.md` (RTK opt-in).
+  opt-in).
 * **Fix**:
   1. Confirm the reference is intended to be opt-in. If yes, the
      long-tail signal is correct; tag the reference's SKILL.md row
@@ -417,12 +388,6 @@ rounds despite at most five severity-filtered reinforcement rules, L0
 escalates regardless of `max_rounds`. Include checked deltas, open/reverted
 item IDs, reinforcement history, and composite trend as supporting context.
 
-**External-upstream pattern**: when the failure is in Si-Chip MVP-8
-(nested-key contract change), or any other
-external dependency, the escalation should distinguish "DevolaFlow
-implementation defect" from "upstream issue" and preserve the explicit
-degraded or insufficient verdict rather than fabricating a pass.
-
 ## Cross-References
 
 - `references/agent-hierarchy.md` — L0/L1/L2 layer contracts
@@ -443,8 +408,7 @@ degraded or insufficient verdict rather than fabricating a pass.
   compatibility aliases.
 - `references/plan-mode-enforcement.md` — plan-mode L0 contract,
   reinforcement rules, convergence loop.
-- `references/shell-proxy.md` — RTK plugin, command mapping recipes,
-  memory-router fast-path.
+- `references/memory-router.md` — memory-router fast-path.
 - `references/team-roles.md` — team participation matrix, per-team
   responsibilities.
 

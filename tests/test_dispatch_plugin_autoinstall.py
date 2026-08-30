@@ -16,7 +16,7 @@ test-mocked invocation surface in feedback._emit_dispatch's hook chain).
 Test contract (covers the end-to-end wiring + the new helper):
 
 §1 — `plugins_for_workflow` helper resolves registry correctly
-§2 — Dispatch with workflow=`skill-optimization` triggers ensure_plugin("si-chip")
+§2 — Dispatch with workflow=`product-verification` triggers registered plugins
 §3 — Dispatch with workflow=`product-verification` triggers ensure_plugin("ui-pro")
 §4 — Dispatch with no workflow / no plugin candidates → no install
 §5 — Env-flag OFF → no install regardless of workflow
@@ -92,10 +92,6 @@ class TestPluginsForWorkflowHelper:
         ids = plugins_for_workflow("product-verification")
         assert "ui-pro" in ids
 
-    def test_shell_proxy_resolves_to_rtk(self) -> None:
-        ids = plugins_for_workflow("shell-proxy")
-        assert "rtk" in ids
-
     def test_unknown_workflow_returns_empty_list(self) -> None:
         assert plugins_for_workflow("nonexistent-workflow") == []
 
@@ -119,12 +115,9 @@ class TestDispatchAutoInstall:
     def test_product_verification_dispatch_triggers_ui_pro(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """v9.4.0 PV-03 baseline: product-verification → [ui-pro].
+        """Product-verification resolves to [ui-pro, codegraph].
 
-        v12.5.0 PV-05 D-1.2 update: product-verification now ALSO invokes
-        codegraph (workflow wiring per ``plugins.yaml#codegraph.workflows`` +
-        ``runtime-plugins.yaml#codegraph.invoked_by_workflows``). Registry
-        order: ui-pro first (legacy), codegraph second (v12.5.0 addition).
+        Product-verification retains ui-pro and Codegraph integrations.
         """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
@@ -143,8 +136,7 @@ class TestDispatchAutoInstall:
                 round_num=1,
             )
         assert invocations == ["ui-pro", "codegraph"], (
-            f"v12.5.0 PV-05 contract: product-verification dispatch MUST trigger "
-            f"ensure_plugin('ui-pro') AND ensure_plugin('codegraph'); got {invocations!r}"
+            f"product-verification dispatch MUST trigger ui-pro and codegraph; got {invocations!r}"
         )
 
     def test_dispatch_without_workflow_does_not_install(
@@ -283,7 +275,7 @@ class TestWorkflowEdgeCases:
     def test_workflow_combined_with_explicit_plugin_id_dedupes(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Explicit si-chip plus skill-optimization deduplicates to one install."""
+        """Explicit plugin plus product-verification deduplicates to one install."""
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
 
@@ -295,15 +287,15 @@ class TestWorkflowEdgeCases:
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=fake_ensure,
         ):
-            pre_plugin_invocation({"workflow": "skill-optimization", "plugin_id": "si-chip"})
-        assert invocations == ["si-chip"]
+            pre_plugin_invocation({"workflow": "product-verification", "plugin_id": "impeccable"})
+        assert invocations == ["impeccable", "ui-pro", "codegraph"]
 
     def test_explicit_plugin_id_runs_first_workflow_appended(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """plugin_ids merged with workflow-resolved IDs preserves explicit-first order.
 
-        Explicit plugin_ids=["rtk"] comes first; workflow-resolved IDs follow.
+        Explicit plugin_ids=["ui-pro"] comes first; workflow-resolved IDs follow.
         """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
@@ -318,9 +310,9 @@ class TestWorkflowEdgeCases:
         ):
             pre_plugin_invocation(
                 {
-                    "plugin_ids": ["rtk"],
-                    "workflow": "skill-optimization",  # resolves to si-chip
+                    "plugin_ids": ["ui-pro"],
+                    "workflow": "product-verification",  # resolves to ui-pro
                 }
             )
         # plugin_ids comes first (explicit), workflow-resolved IDs second (in registry order)
-        assert invocations == ["rtk", "si-chip"]
+        assert invocations == ["ui-pro", "codegraph"]

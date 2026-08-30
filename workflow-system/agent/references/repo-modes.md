@@ -301,7 +301,6 @@ the in-memory `RepoModeProfile`) rather than re-running detection.
 | Plugin / Tool | Mode-gated behaviour | Fallback when mode absent |
 |---|---|---|
 | `agent_workspace` | Records `repo_mode` in change-folder `STATUS.yaml`; skips GitHub-specific PR metadata emission in `local` / `other-git` | Treat as `local` (safe default) |
-| `shell_proxy` | Enables `gh` command recipes only in `github` mode; enables `glab` recipes in `other-git` `gitlab` variant | Skip platform-specific recipes |
 | `mergeability_check` | Probes `gh pr view` / `glab mr show` / `tea pr list` based on mode variant | Reject the probe (no remote API) |
 | Adapter build | Selects default release channel per mode (`github` → GitHub Releases; `other-git gitlab` → GitLab Package Registry; `local` → artifact archive only) | Fall through to archive-only |
 | Built-in harness | Runs fixture, telemetry, evaluation, and bounded probe contracts without remote upload | Local evidence only |

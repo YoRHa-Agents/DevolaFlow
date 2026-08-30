@@ -28,8 +28,9 @@ from tests.ghost.test_registries import _SF4_REFERENCE_SET
 #     contract files + captured fixtures) + `scripts/refresh_bridge_fixtures.py`
 #     + `.github/workflows/bridge-fixture-refresh.yml` weekly cron.
 #  3. D-C-3 — `lifecycle/pre_plugin_invocation_install.py` +
-#     `lifecycle/pre_plugin_invocation_upgrade.py` (DEFAULT_EVENTS 10 → 12
-#     per A-2.2 append-only) + `tests/test_pre_plugin_invocation_split.py`.
+#     `lifecycle/pre_plugin_invocation_upgrade.py` (currently at
+#     DEFAULT_EVENTS positions 9 + 10 after v22 re-numbering) +
+#     `tests/test_pre_plugin_invocation_split.py`.
 #  4. CHANGELOG `## [10.8.0]` + canonical 7 sync 10.7.0 → 10.8.0.
 #  5. `.local/research/v10.8.0_retrospective.md` (W-7 / SI-8).
 
@@ -48,8 +49,6 @@ _V10_8_0_INTEGRATION_CONFTEST: Path = Path("tests/integration/conftest.py")
 
 
 _V10_8_0_INTEGRATION_TESTS: tuple[Path, ...] = (
-    Path("tests/integration/test_si_chip_shape_contract.py"),
-    Path("tests/integration/test_rtk_shape_contract.py"),
     Path("tests/integration/test_ui_pro_shape_contract.py"),
 )
 
@@ -101,9 +100,9 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
     * NEW `.github/workflows/bridge-fixture-refresh.yml` (D-C-2 weekly
       cron).
     * NEW `src/devolaflow/lifecycle/pre_plugin_invocation_install.py`
-      (D-C-3 install handler at DEFAULT_EVENTS position 11).
+      (D-C-3 install handler at current DEFAULT_EVENTS position 9).
     * NEW `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py`
-      (D-C-3 upgrade handler at DEFAULT_EVENTS position 12).
+      (D-C-3 upgrade handler at current DEFAULT_EVENTS position 10).
     * NEW `tests/test_pre_plugin_invocation_split.py` (D-C-3 regression).
     * NEW Makefile target `refresh-bridge-fixtures`.
     * Canonical 7 sync 10.7.0 → 10.8.0 + CHANGELOG `## [10.8.0]`.
@@ -157,11 +156,9 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"{_V10_8_0_PPI_SPLIT_TESTS}. v10.8.0 D-C-3 ships 5+ tests."
     )
 
-    # DEFAULT_EVENTS length bump (10 → 12 by v10.8.0 D-C-3 split). The
-    # SUPERSET containment check (`>= 12`) accommodates future
-    # APPEND-ONLY additions per A-2.2 — e.g., v11.0.0 PV-02 D-Q-3
-    # appends 4 NEW canonical event names (positions 13-16) without
-    # disturbing positions 1-12 (which stay byte-stable per A-2.4).
+    # The split handlers remain in current positions 9 + 10 after v22
+    # removed the retired events. The SUPERSET check accommodates
+    # future APPEND-ONLY additions per A-2.2.
     from devolaflow.lifecycle import DEFAULT_EVENTS
 
     assert len(DEFAULT_EVENTS) >= 12, (

@@ -214,10 +214,8 @@ def test_cli_version_cmd():
 # v8.3.0 PV-09 grew this set 13 -> 14 by appending references/agent-workspace.md
 # (the change-driven workspace reference covering .local/.agent/, append-only
 # handoff envelopes, source-of-truth specs, and per-artifact token budgets).
-# v8.4.0 rollup grew this set 14 -> 15 by appending references/shell-proxy.md
-# (the RTK + memory-router stack reference covering runtime-plugins.yaml RTK row,
-# the shell_proxy/ package, the pre_shell_call lifecycle hook, the memory_router/
-# planning fast-path, and the .local/memory/{cases,commands}/ recipe layers).
+# v8.4.0 rollup grew this set 14 -> 15 by appending references/memory-router.md
+# (the memory-router planning fast-path and its .local/memory/cases recipes).
 # v9.0.0 PV-01 (v8.4.1) grew this set 15 -> 16 by appending references/plan-mode-enforcement.md
 # (the plan-mode L0 operating contract reference absorbing SKILL.md §"Mode
 # Awareness" PLAN MODE detail + §"Reinforcement Rules" mechanism, freeing
@@ -235,7 +233,7 @@ _MIRRORED_SKILL_FILES = [
     "references/team-roles.md",
     "references/context-isolation.md",
     "references/behavioral-guidelines.md",
-    "references/shell-proxy.md",
+    "references/memory-router.md",
     "references/plan-mode-enforcement.md",
     # v8.5.0 PV-05 — 13th SF-4 canonical reference (env-flag inventory).
     "references/env-flags.md",
@@ -247,13 +245,13 @@ _MIRRORED_SKILL_FILES = [
     "references/troubleshooting.md",
     # v10.7.0 D-O-1 — 16th SF-4 canonical reference (three-evaluator
     # rosetta). 6 × 9 cross-walk between SI-3 dimensions + NineS axes +
-    # Si-Chip iteration_delta with per-cell verbatim source citations.
+    # quality scalar with per-cell verbatim source citations.
     # Pairs with `scripts/auto_collect_si3_metrics.py` (D-O-2) and
     # `scripts/generate_evaluator_rosetta.py` (D-O-1 companion).
     "references/evaluator-rosetta.md",
     # v10.8.0 D-C-1 — 17th SF-4 canonical reference (upstream-unreachable
-    # degraded-mode contract). Per-plugin fallback doc for NineS / Si-Chip /
-    # RTK / ui-pro with "Degraded ≠ Full" leading warning (D-C-1 §9 R1
+    # degraded-mode contract). Per-plugin fallback doc for NineS /
+    # ui-pro with "Degraded ≠ Full" leading warning (D-C-1 §9 R1
     # mitigation). Pairs with `tests/test_degraded_mode.py` regression
     # suite and closes the v10.3.0 retrospective §3 NineS A1 pain.
     "references/degraded-mode.md",

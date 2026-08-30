@@ -116,17 +116,17 @@ def test_render_markdown_lists_each_long_reference(audit_module, tmp_path: Path)
 
 def test_render_json_round_trip(audit_module, tmp_path: Path) -> None:
     _seed_pyproject(tmp_path)
-    _seed_long_reference(tmp_path, "shell-proxy")
+    _seed_long_reference(tmp_path, "memory-router")
     _seed_envelope(
         tmp_path,
         from_layer="operator",
         to_layer="L0",
         change_id="abc",
         seq=1,
-        cited="references/shell-proxy.md",
+        cited="references/memory-router.md",
     )
     report = audit_module.build_report(repo_root=tmp_path)
     payload = json.loads(audit_module.render_json(report))
     assert payload["envelope_count"] == 1
-    assert payload["citations"]["shell-proxy.md"] == 1
-    assert "shell-proxy.md" in payload["long_references"]
+    assert payload["citations"]["memory-router.md"] == 1
+    assert "memory-router.md" in payload["long_references"]

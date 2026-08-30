@@ -45,7 +45,7 @@ KNOWN_DOMAINS = frozenset(
         "selector_and_context_routing",
         "plugin_registry_and_lifecycle",
         "code_intelligence",
-        "shell_output_compression",
+        "compression_pipeline",
         "local_task_archive",
         "hostbridge_protocol",
         "agent_skill_delivery",
@@ -1358,7 +1358,7 @@ def _check_plugin_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
     runtime = load_registry(runtime_path)
     view = yaml.safe_load(view_path.read_text(encoding="utf-8"))
     plugin_ids = [entry["id"] for entry in runtime["plugins"]]
-    expected_ids = ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
+    expected_ids = ["ui-pro", "codegraph", "impeccable"]
     expected_default_ids = ["codegraph", "impeccable"]
     profiles = available_plugin_profiles(registry_path=runtime_path)
     registry = create_default_registry(plugins_yaml=view_path)
@@ -1448,40 +1448,6 @@ def _write_executable(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
-def _check_rtk_adapter(row: MatrixRow, _repo_root: Path) -> FunctionalOutcome:
-    with tempfile.TemporaryDirectory(prefix="devolaflow-rtk-") as directory:
-        root = Path(directory)
-        binary_dir = root / "bin"
-        binary_dir.mkdir()
-        calls = root / "calls"
-        _write_executable(
-            binary_dir / "rtk",
-            f'printf "%s\\n" "$*" > "{calls}"\nprintf "not a gain report\\n"',
-        )
-        previous_path = os.environ.get("PATH")
-        os.environ["PATH"] = str(binary_dir)
-        try:
-            from devolaflow.shell_proxy import ShellProxy
-
-            proxy = ShellProxy({"DEVOLAFLOW_RTK_PROXY": "1"})
-            rewritten = proxy.wrap_command("pytest tests/ -q")
-            observed_probe = calls.read_text(encoding="utf-8").strip()
-        finally:
-            if previous_path is None:
-                os.environ.pop("PATH", None)
-            else:
-                os.environ["PATH"] = previous_path
-    if (
-        not proxy.config.proxy_enabled
-        or rewritten != "rtk pytest tests/ -q"
-        or observed_probe != "gain"
-    ):
-        return _outcome(row, OutcomeStatus.FAIL, "RTK fake process did not enable rewrite")
-    return _outcome(
-        row, OutcomeStatus.PASS, "RTK fake binary success and output degradation passed"
-    )
-
-
 def _check_codegraph_adapter(row: MatrixRow, _repo_root: Path) -> FunctionalOutcome:
     with tempfile.TemporaryDirectory(prefix="devolaflow-codegraph-") as directory:
         root = Path(directory)
@@ -1568,7 +1534,6 @@ ADAPTERS: dict[str, Adapter] = {
     "check_npm_delivery": _check_npm_adapter,
     "check_plugin_ssot_profiles": _check_plugin_adapter,
     "check_hostbridge_process": _check_hostbridge_adapter,
-    "check_rtk_process": _check_rtk_adapter,
     "check_codegraph_process": _check_codegraph_adapter,
     "check_network_denial": _check_network_adapter,
     "check_telemetry_serialization": _check_telemetry_adapter,

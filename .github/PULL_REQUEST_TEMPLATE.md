@@ -10,7 +10,7 @@
 
 -
 
-## W-9 Pre-Commit Gates (all 7 must pass — or run `make precommit-full`)
+## W-9 Pre-Commit Gates (all 6 must pass — or run `make precommit-full`)
 
 - [ ] `make test-core`
 - [ ] `ruff check src/ tests/`
@@ -18,7 +18,6 @@
 - [ ] `make test-version`
 - [ ] `make test-harness`
 - [ ] `make check-cursor-skill`
-- [ ] `make iteration-delta-gate`
 
 ## Rule Checklist (S/A/C/W/ST — compiled corpus: `.cursor/rules/repo-governance.mdc` / `AGENTS.md`; sources: `.rules/*.mdc`)
 

@@ -340,7 +340,7 @@ active_tracking:
       wrapper package + seed provenance across 4 analyze primitives
       + context_profiles top-level codegraph_integration
       block + new Tier-2 reference doc. Reuses
-      DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 per W-20 reuse-first; NO new
+      DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 per W-20; NO new
       env flag (count stays at 7).
 
   - id: impeccable

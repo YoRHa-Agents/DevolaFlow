@@ -126,7 +126,7 @@ Most subcommands accept `--json` to force JSON output (machine-friendly); the de
 |---|---|---|
 | Plugin catalog (PluginRegistry consumer) | `workflow-system/agent/plugins.yaml` | `plugins.codegraph` block + `plugin_roles.code_intelligence` |
 | Runtime registry (installer consumer) | `workflow-system/agent/knowledge/runtime-plugins.yaml` | `plugins[id=codegraph]` entry |
-| Reference tracking (W-2 / SI-2 reference review) | `workflow-system/agent/knowledge/reference-dependencies.yaml` | `active_tracking[id=codegraph]` entry (12th of 12) |
+| Reference tracking (W-2 / SI-2 reference review) | `workflow-system/agent/knowledge/reference-dependencies.yaml` | `active_tracking[id=codegraph]` entry (12th of 13) |
 
 ### §4.2 — Checklist seeds and sole runtime
 

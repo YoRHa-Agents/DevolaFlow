@@ -1,5 +1,0 @@
-# captured_from_plugin_version: 0.37.2
-# Captured from: `rtk rewrite "pytest tests/ -q"` v0.37.2 stdout
-# Shape pinned by v10.8.0 D-C-2; do NOT edit by hand.
-# Canonical RTK URL: https://github.com/rtk-ai/rtk
-rtk pytest tests/ -q

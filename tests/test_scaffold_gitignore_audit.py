@@ -61,14 +61,10 @@ def _whitelist_lines() -> list[str]:
 def _fresh_scaffold_lines() -> list[str]:
     """Return the full expected fresh-repo `.gitignore` (Track C-1 contract).
 
-    The v12.2.0 whitelist block, then one blank separator, then the
-    deterministic scaffold-entries block (`_SCAFFOLD_ENTRIES_HEADER` +
-    `SCAFFOLD_GITIGNORE_ENTRIES`) written by `ensure_gitignore_entries`.
+    The v12.2.0 whitelist block, then the deterministic scaffold-entries
+    block written by `ensure_gitignore_entries`.
     """
-    from devolaflow.local.workspace import (
-        _SCAFFOLD_ENTRIES_HEADER,
-        SCAFFOLD_GITIGNORE_ENTRIES,
-    )
+    from devolaflow.local.workspace import _SCAFFOLD_ENTRIES_HEADER, SCAFFOLD_GITIGNORE_ENTRIES
 
     return (
         list(_LOCAL_WHITELIST_BLOCK_LINES)
@@ -85,8 +81,6 @@ def test_no_gitignore_writes_v12_2_0_whitelist_block(
     The default rules track `.local/memory/specs/` (A-4) + `.local/research/`
     (W-7/W-19) and keep every other `.local/` subdir private. ZERO warnings
     on a fresh repo (no narrow rules to repair). Since Track C-1 the file
-    additionally carries the deterministic scaffold-entries block
-    (`.codegraph/` et al.) appended by `ensure_gitignore_entries`.
     """
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     assert not (tmp_repo / ".gitignore").exists(), "fixture precondition"

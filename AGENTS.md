@@ -215,8 +215,8 @@ allowing the merge.
 
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
-Every domain registry surface (whitelist / recipe / value-type cache /
-plugin manifest / archive adapter) MUST have **exactly one owner module** — the canonical
+Every domain registry surface (value-type cache / plugin manifest /
+archive adapter) MUST have **exactly one owner module** — the canonical
 source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
@@ -227,19 +227,15 @@ The current SSOT registries are listed below. Parity is enforced by
 | # | Registry surface | Owner module / file |
 |---|---|---|
 | 1 | Plugin registry (membership, canonical IDs, install/upgrade/version truth, workflow wiring) | `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by `devolaflow.plugins.installer.load_registry`). `workflow-system/agent/plugins.yaml` is its DERIVED capability/role/stage-mapping view (v15.0.0 G-021; loaded by `devolaflow.plugins.loader`; mirror pinned by `tests/test_plugins.py::TestV15PluginRegistryUnification`) — not a second owner |
-| 2 | Shell-proxy whitelist | `src/devolaflow/shell_proxy/registry.py::WHITELIST` |
-| 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
-| 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
-| 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
-| 6 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
+| 2 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
+| 3 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
+| 4 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
 
 ### A-5.1 — Single-Owner Invariant
 
 Adding a registry surface requires picking **ONE** owner module and routing
-every consumer through it. Splitting
-the registration data across two modules (e.g. half the whitelist in
-`shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
-invalidates cache reasoning and is a release blocker. Enforced by
+every consumer through it. Splitting the registration data across two
+modules invalidates cache reasoning and is a release blocker. Enforced by
 `tests/ghost/test_registries.py::test_registry_single_owner` which
 fails when an AST walk over `src/devolaflow/` finds more than one
 module-level definition for the same registry name.
@@ -567,18 +563,17 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 
 ## W-9 — Test-Then-Commit Protocol (SI-10)
 
-Every iteration follows this strict pre-commit sequence — all 7 must pass:
+Every iteration follows this strict pre-commit sequence — all 6 must pass:
 1. `make test-core` — all tests pass (`pytest tests/ -q --tb=short`, excluding the three standalone gate surfaces for gates 4/5/7)
 2. `ruff check src/ tests/` — no lint errors
 3. `ruff format --check src/ tests/` — formatting correct (`make lint` runs gates 2–3)
 4. `make test-version` — version consistency (`tests/test_version.py`, standalone)
 5. `make test-harness` — built-in harness contracts (`tests/harness/`, standalone)
 6. `make check-cursor-skill` — exit 0
-7. `make iteration-delta-gate` — Si-Chip iteration_delta gate (7th gate per v10.2.1 D-V-1)
 
 Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps its own red/green attribution. `make test` stays the undeduplicated full suite (not a chain gate).
 
-`make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus the release-only extras (NOT SI-10 gates) enumerated in the Makefile's `release-preflight` section — rule prose does not hand-pin the extras count. The extras include `check-functional-matrix` (Loop v3): the hard-fail functional-matrix contract gate (`scripts/check_functional_matrix.py`); functional row execution itself stays inside `test-core` via pytest markers per G-033 single-execution.
+`make precommit-full` (alias for `release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 6 SI-10 core gates plus the release-only extras (NOT SI-10 gates) enumerated in the Makefile's `release-preflight` section — rule prose does not hand-pin the extras count. The extras include `check-functional-matrix` (Loop v3): the hard-fail functional-matrix contract gate (`scripts/check_functional_matrix.py`); functional row execution itself stays inside `test-core` via pytest markers per G-033 single-execution.
 
 ## W-16 — Harness Baseline Settlement
 

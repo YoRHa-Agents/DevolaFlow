@@ -448,7 +448,7 @@ rows:
       - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-08
   # Loop v3 O-09 — compression protocol and reducer.
   - id: pv5.o09.compression-protocol
-    domain: shell_output_compression
+    domain: compression_pipeline
     surface: runtime_api
     call: check_compression_protocol
     fixture: src/devolaflow/compression_pipeline.py
@@ -515,11 +515,11 @@ rows:
     fixture: workflow-system/agent/knowledge/runtime-plugins.yaml
     tier: fast
     required: true
-    expected: all five plugins remain suggest-tier and explicit profiles remain optional
+    expected: all three plugins remain suggest-tier and explicit profiles remain optional
     design_source:
       - workflow-system/agent/knowledge/runtime-plugins.yaml#plugins
       - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-13
-  # Loop v3 O-14 — synthetic hostbridge and fake process boundaries.
+  # Loop v3 O-14 — synthetic hostbridge process boundary.
   - id: pv5.o14.hostbridge-process
     domain: hostbridge_protocol
     surface: external_binary
@@ -531,17 +531,6 @@ rows:
     design_source:
       - src/devolaflow/hostbridge/__main__.py#main
       - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-14
-  - id: pv5.o14.rtk-process
-    domain: shell_output_compression
-    surface: external_binary
-    call: check_rtk_process
-    fixture: src/devolaflow/shell_proxy/proxy.py
-    tier: fast
-    required: true
-    expected: a fake RTK process enables rewrite on successful gain probing
-    design_source:
-      - src/devolaflow/shell_proxy/proxy.py#_probe_distinguish
-      - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-14
   - id: pv5.o14.codegraph-process
     domain: code_intelligence
     surface: external_binary
@@ -552,6 +541,7 @@ rows:
     expected: a fake codegraph process produces parsed researcher results
     design_source:
       - src/devolaflow/codegraph/_cli.py#run_codegraph_cli
+      - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-14
       - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-14
   # Loop v3 O-15 — offline denial and deterministic telemetry.
   - id: pv5.o15.network-denial

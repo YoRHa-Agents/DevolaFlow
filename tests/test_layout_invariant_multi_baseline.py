@@ -28,7 +28,7 @@ Baselines covered:
   hash-based dedup state for round-N>1 convergence dispatches)
 * v10.2.0 — length 17 stable (v10.2.0 PV-01 cycle-start MINOR; W-16 wholesale
   baseline regen at MINOR cycle-start. v10.2.0 is the v10.2 cycle kick-off
-  (plugin deep review + Si-Chip integration); ZERO schema changes. The
+  (plugin deep review + runtime plugin integration); ZERO schema changes. The
   witness baseline is byte-identical to v9.7.0 — a future renamer /
   re-orderer / sneaky inserter that disturbs v9.7.0 would also break this
   v10.2.0 pin.)
@@ -307,7 +307,7 @@ def _v10_2_0_payload() -> dict:
     """v10.2.0 17-key stable payload — byte-identical to v9.7.0.
 
     v10.2.0 PV-01 is the v10.2 cycle-start MINOR (plugin deep review +
-    W-16 wholesale baseline regen + Si-Chip integration groundwork).
+    W-16 wholesale baseline regen + runtime plugin integration groundwork).
     The v10.2 cycle ships ZERO schema changes in PV-01: canonical_order
     length stays at 17 and version stays at 6. The fixture at
     ``benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml``
@@ -587,7 +587,7 @@ class TestMultiBaselineByteStability:
         """v10.2.0 cycle-start witness — byte-identical to v9.7.0.
 
         v10.2.0 PV-01 fires the W-16 wholesale baseline regen at MINOR
-        cycle-start. The cycle itself (plugin deep review + Si-Chip
+        cycle-start. The cycle itself (plugin deep review + runtime plugin
         integration) ships ZERO schema changes, so the fixture
         ``benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml``
         is a byte-identical copy of

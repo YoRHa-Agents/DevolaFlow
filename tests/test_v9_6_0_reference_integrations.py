@@ -328,8 +328,9 @@ def test_pv04_yaml_header_comment_corrected(yaml_data: dict) -> None:
 
     v9.6.0 PV-04 corrected the header from "10 + 9 = 19" → "11 + 10 = 21".
     v12.5.0 PV-05 D-1.1 grew active_tracking 11 → 12 (codegraph appended),
-    so the header now reads "12 + 10 = 22" — the test pins the current
-    canonical line.
+    v13.0.0 grew active_tracking 12 → 13 by appending the impeccable entry,
+    so the header now reads "13 + 10 = 23" — the test pins the current
+    line.
     """
     raw = (REPO_ROOT / "workflow-system/agent/knowledge/reference-dependencies.yaml").read_text(
         encoding="utf-8"

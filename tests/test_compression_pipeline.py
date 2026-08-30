@@ -333,26 +333,9 @@ class TestPipelineStrictModeAndTelemetry:
 class TestStageWrappersAroundExistingTransforms:
     """Smoke test proving the protocol wraps the existing transforms."""
 
-    def test_existing_transforms_compose_through_pipeline(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """The 4 module-level transforms compose under the unified pipeline.
-
-        Combines the truncate / directed_compact / apply_local_recipe
-        smoke tests into a single composition assertion: run all three as
-        stages in one pipeline, verify each stage's expected behaviour
-        (truncate shortens, directed_compact preserves keyword, recipe
-        bypasses when env-flag unset). Per W-17 single-assertion smoke
-        tests are consolidated.
-        """
+    def test_existing_transforms_compose_through_pipeline(self) -> None:
+        """The module-level transforms compose under the unified pipeline."""
         from devolaflow.compressor import directed_compact, truncate_tool_output
-        from devolaflow.shell_proxy.commands import (
-            apply_local_recipe,
-            is_command_mapping_active,
-        )
-
-        monkeypatch.delenv("DEVOLAFLOW_RTK_PROXY", raising=False)
 
         def truncate_transform(payload, ctx):
             text, _ = truncate_tool_output(
@@ -369,23 +352,10 @@ class TestStageWrappersAroundExistingTransforms:
                 max_drop_pct=ctx.get("max_drop_pct", 0.50),
             )
 
-        def recipe_transform(payload, ctx):
-            new_output, _ = apply_local_recipe(ctx.get("cmd", "pytest"), payload)
-            return new_output
-
-        def recipe_bypass(_payload, _ctx):
-            return not is_command_mapping_active()
-
         pipeline = CompressionPipeline(
             stages=(
                 make_stage("truncate", truncate_transform),
                 make_stage("compact", compact_transform),
-                CompressionStage(
-                    name="apply_local_recipe",
-                    transform=recipe_transform,
-                    bypass=recipe_bypass,
-                    bypass_conditions=("env_flag_unset",),
-                ),
             )
         )
         long_text = (
@@ -398,9 +368,6 @@ class TestStageWrappersAroundExistingTransforms:
             context={"focus_keywords": ["API"], "head_chars": 50, "tail_chars": 50},
         )
         assert "API" in result.payload
-        assert "apply_local_recipe" in result.bypassed_stages, (
-            "recipe stage MUST bypass when env-flag unset (R5 strict)"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -409,14 +376,14 @@ class TestStageWrappersAroundExistingTransforms:
 
 
 class TestAllStagesImplementProtocol:
-    """Verify the 6 v8.5.1 transforms are wrapped behind CompressionStage."""
+    """Verify the 5 v8.5.1 transforms are wrapped behind CompressionStage."""
 
     def test_all_stages_implement_protocol(self) -> None:
         """Every canonical transform has a CompressionStage wrapper.
 
-        This pins the v9-ADR-006 acceptance criterion: the 6 v8.0.0+
+        This pins the v9-ADR-006 acceptance criterion: the 5 v8.0.0+
         transforms (truncate_tool_output, summarise_predecessor extractive +
-        Stage A + Stage B, directed_compact, apply_local_recipe) MUST be
+        Stage A + Stage B, directed_compact) MUST be
         accessible as CompressionStage instances. The wrappers may live in
         the modules themselves or be constructed at call time via make_stage;
         this test asserts the make_stage path is exposed in __all__.
@@ -437,8 +404,6 @@ class TestAllStagesImplementProtocol:
             ("devolaflow.compressor", "summarise_predecessor"),
             ("devolaflow.compressor", "directed_compact"),
             ("devolaflow.compressor", "compression_pipeline_stages"),
-            ("devolaflow.shell_proxy.commands", "apply_local_recipe"),
-            ("devolaflow.shell_proxy.commands", "compression_pipeline_stage"),
             ("devolaflow.llm_client", "compression_pipeline_stage"),
         ]:
             mod = __import__(transform_module, fromlist=[transform_name])

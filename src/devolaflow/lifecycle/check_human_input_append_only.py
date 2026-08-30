@@ -31,8 +31,7 @@ Payload contract (a prior↔proposed diff of ONE input file):
 
 NOTE on registration: since v15.0.0 (G-038 flip 4) this hook IS wired into
 ``lifecycle.DEFAULT_EVENTS`` as the canonical default handler for the
-``check_human_input_write`` event (position 17, appended per A-2.2; the two
-former ``len(DEFAULT_EVENTS) == 16`` pins were re-pinned in the same MAJOR).
+``check_human_input_write`` event (position 15 after v22 re-numbering).
 The wiring is inert for non-callers — the event fires only when a caller
 dispatches ``run_hooks("check_human_input_write", payload)`` — and the
 hook's own ``strict=False`` permissive default is unchanged (callers opt

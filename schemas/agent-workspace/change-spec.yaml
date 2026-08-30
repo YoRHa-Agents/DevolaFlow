@@ -135,7 +135,7 @@ invariants:
   - "Source-of-truth at `.local/memory/specs/<delta_target>/spec.md` is updated ONLY at archive time AFTER the gate has PASSED (per A-4 / W-3 SI-3)."
   - "Mergeability check (v8.2.5 reporter module) MUST pass before delta merge into source-of-truth."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
-  - "External references (e.g. OpenSpec, Codegraph, Si-Chip) MUST use canonical GitHub URLs (S-7 / SF-6)."
+  - "External references (e.g. OpenSpec, ui-pro) MUST use canonical GitHub URLs (S-7 / SF-6)."
 
 # Worked example — illustrative only.
 example: |

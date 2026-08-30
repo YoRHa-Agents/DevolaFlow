@@ -326,9 +326,7 @@ class TestGenerateHelpers:
 class TestEnsureGitignoreEntries:
     """full_review_and_improve Track C-1 — deterministic gitignore entries.
 
-    R5 F1-H1: `.codegraph/` historically depended on the prompt-side
-    `add_to_gitignore` template semantic and was lost whenever `codegraph
-    init` failed. These tests pin the code-path replacement.
+    R5 F1-H1: `.codegraph/` is handled independently from plugin execution.
     """
 
     def test_creates_file_when_absent(self, tmp_repo: Path) -> None:
@@ -368,11 +366,9 @@ class TestEnsureGitignoreEntries:
 
 
 class TestScaffoldGitignoreSelfCheck:
-    """Track C-1 — scaffold writes .codegraph/ deterministically + verifies."""
+    """Track C-1 — scaffold verifies its managed gitignore contract."""
 
     def test_scaffold_writes_codegraph_entry_without_codegraph_cli(self, tmp_repo: Path) -> None:
-        # No codegraph CLI exists in the test environment — the entry must
-        # land anyway (decoupled from `codegraph init` outcome; R5 F1-H1).
         scaffold_local(tmp_repo)
 
         rules = (tmp_repo / ".gitignore").read_text(encoding="utf-8").splitlines()
@@ -383,7 +379,6 @@ class TestScaffoldGitignoreSelfCheck:
         missing = verify_scaffold_gitignore(tmp_repo)
 
         assert ".codegraph/" in missing
-        assert ".local/*" in missing
 
     def test_scaffold_raises_when_gitignore_unwritable(self, tmp_repo: Path) -> None:
         # A directory named `.gitignore` defeats both read and write paths;

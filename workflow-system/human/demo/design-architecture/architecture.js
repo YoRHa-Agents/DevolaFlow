@@ -53,7 +53,7 @@
     reference("plan-mode-enforcement"),
     reference("repo-modes"),
     reference("retro-digest"),
-    reference("shell-proxy"),
+    reference("memory-router"),
     reference("subagent-patterns"),
     reference("task-quality-score"),
     reference("team-roles"),

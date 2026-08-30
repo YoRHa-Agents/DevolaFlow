@@ -4,8 +4,8 @@ description: "Manifest-derived host profiles, installation channels, and optiona
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-30T16:01:24Z"
-source_version: "21.3.0"
+last_synced: "2026-08-30T23:06:56Z"
+source_version: "22.0.0"
 ---
 
 # Integration Guide
@@ -75,7 +75,8 @@ devola-init cursor --global --no-plugins
 `core` skips compilation and examples, `standard` compiles without examples,
 and `full` compiles and seeds examples. Global curl/Python installs attempt
 default-bundled runtime plugins by default; `--no-plugins` keeps only skill
-files. Optional plugins RTK, ui-pro, and Si-Chip remain explicit-only. Plugin
+files. Codegraph and impeccable are bundled; optional plugin ui-pro remains
+explicit-only. Plugin
 installation is separate from whether the host can discover the copied skill.
 
 ## Doctor and update boundaries

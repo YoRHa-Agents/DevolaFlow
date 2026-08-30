@@ -15,10 +15,8 @@ from pathlib import Path
 
 # v9.6.0 PV-04 yaml entry-count contract: 11 active + 10 periodic = 21 total.
 # Header comment was stale "10 + 9 = 19" pre-PV-04; corrected per D-R-7.
-# v12.5.0 PV-05 D-1.1 grew active_tracking 11 → 12 by appending the codegraph
-# entry (12th of 12); header comment refreshed to "12 + 10 = 22 total".
-# v13.0.0 grew active_tracking 12 → 13 by appending the impeccable entry
-# (13th of 13); header comment refreshed to "13 + 10 = 23 total".
+# v12.5.0 grew active_tracking by appending codegraph, and v13.0.0
+# appended impeccable; header comment refreshed to "13 + 10 = 23 total".
 _V9_6_0_TOTAL_REFS: int = 23
 
 
@@ -113,8 +111,8 @@ def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
     )
 
     # §2 — Bulk freshness. v9.6.0 PV-04 D-R-5 closure pinned all 21 entries
-    # at 2026-05-02. v12.5.0 PV-05 D-1.1 added codegraph (12th active entry)
-    # at 2026-05-23 — that newer date is explicitly permitted per D-R-5
+    # at 2026-05-02. v12.5.0 added codegraph at 2026-05-23; newer entries
+    # are explicitly permitted per D-R-5,
     # which requires entries to be ≥ 2026-05-02 (the floor; not equality).
     # The carve-out preserves the no-stale-entries invariant while allowing
     # legitimately fresher additions to land per cycle.

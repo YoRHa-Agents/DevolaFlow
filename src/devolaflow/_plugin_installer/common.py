@@ -22,7 +22,7 @@ _DEFAULT_REGISTRY_PATH = Path("workflow-system/agent/knowledge/runtime-plugins.y
 
 _VERSION_RX = re.compile(r"\d+\.\d+(?:\.\d+)?")
 
-_SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init", "curl_install_script"})
+_SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init"})
 
 _SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2, 3, 4})
 

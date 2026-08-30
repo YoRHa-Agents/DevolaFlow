@@ -345,12 +345,12 @@ def test_check_allowlist_domain_overlap_helper_detects_collisions() -> None:
       so callers in the rest of the codebase can call it positionally.
     """
     fake_allowlist = {
-        "devolaflow.shell_proxy.registry:WHITELIST",
+        "devolaflow.memory_router.cache:MemoryCase",
         "devolaflow.harmless:public_helper",
     }
-    fake_registries = {"devolaflow.shell_proxy.registry:WHITELIST"}
+    fake_registries = {"devolaflow.memory_router.cache:MemoryCase"}
     assert detect._check_allowlist_domain_overlap(fake_allowlist, fake_registries) == {
-        "devolaflow.shell_proxy.registry:WHITELIST"
+        "devolaflow.memory_router.cache:MemoryCase"
     }
 
     assert (
@@ -359,8 +359,8 @@ def test_check_allowlist_domain_overlap_helper_detects_collisions() -> None:
 
     # Default registry_names argument resolves to SSOT_REGISTRY_QUALIFIED_NAMES.
     assert detect._check_allowlist_domain_overlap(
-        {"devolaflow.shell_proxy.registry:WHITELIST"}
-    ) == {"devolaflow.shell_proxy.registry:WHITELIST"}
+        {"devolaflow.memory_router.cache:MemoryCase"}
+    ) == {"devolaflow.memory_router.cache:MemoryCase"}
 
 
 def test_dead_api_json_output_valid(tmp_path: Path) -> None:

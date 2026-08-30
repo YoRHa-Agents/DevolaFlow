@@ -92,9 +92,9 @@ Request, wait for required CI and review, and merge it into protected `main`.
 Do not create the release tag on the feature branch or on an unmerged local
 `main` commit.
 
-The preflight preserves the seven W-9 gates in order: `test-core` → Ruff check
-→ Ruff format → `test-version` → `test-harness` → `check-cursor-skill` →
-`iteration-delta-gate`. Release-only validation, adapter, documentation,
+The preflight preserves the six W-9 gates in order: `test-core` → Ruff check
+→ Ruff format → `test-version` → `test-harness` → `check-cursor-skill`.
+Release-only validation, adapter, documentation,
 compiler, and drift checks run afterward. Once those prerequisites complete,
 the preflight checks the generated demo seed catalog and builds `_site/`.
 

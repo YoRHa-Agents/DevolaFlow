@@ -30,12 +30,8 @@ import pytest
 
 FIXTURES_DIR: Path = Path(__file__).resolve().parent / "fixtures"
 
-# Canonical plugin registry (name → path under fixtures/).
-_PLUGIN_DIRS: dict[str, str] = {
-    "si-chip": "si-chip",
-    "rtk": "rtk",
-    "ui-pro": "ui-pro",
-}
+# Canonical bridge-plugin registry (name → path under fixtures/).
+_PLUGIN_DIRS: dict[str, str] = {"ui-pro": "ui-pro"}
 
 
 @pytest.fixture

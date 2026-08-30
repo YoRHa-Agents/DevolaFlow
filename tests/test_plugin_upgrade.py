@@ -200,7 +200,6 @@ class TestReadLastChecked:
                     "event": "plugin_already_installed",
                     "details": {},
                 },
-                {"ts": ts_new, "plugin_id": "rtk", "event": "plugin_installed", "details": {}},
             ],
         )
         result = read_last_checked("ui-pro", log_path=log)
@@ -218,7 +217,7 @@ class TestReadLastChecked:
                 {
                     "ts": ts,
                     "plugin_id": "ui-pro",
-                    "event": "plugin_install_distinguish_failed_postinstall",
+                    "event": "plugin_install_failed",
                     "details": {},
                 },
             ],
@@ -311,7 +310,9 @@ class TestParseLogEventTimestamp:
                 "event": "plugin_installed",
             }
         )
-        assert _parse_log_event_timestamp(line, "rtk", _LAST_CHECKED_SUCCESSFUL_EVENTS) is None
+        assert (
+            _parse_log_event_timestamp(line, "impeccable", _LAST_CHECKED_SUCCESSFUL_EVENTS) is None
+        )
 
     def test_helper_returns_none_for_defensive_inputs(self) -> None:
         """All defensive branches return None without raising."""
@@ -514,7 +515,7 @@ class TestRefreshAll:
     def test_refresh_skips_fresh_plugins(self, tmp_path: Path, mock_subprocess: dict) -> None:
         """When all plugins are fresh, refresh_all upgrades nothing.
 
-        The active registry contains five plugins.
+        The active registry contains three plugins.
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
@@ -527,22 +528,15 @@ class TestRefreshAll:
                     "event": "plugin_installed",
                     "details": {},
                 },
-                {"ts": recent_ts, "plugin_id": "rtk", "event": "plugin_installed", "details": {}},
                 {
                     "ts": recent_ts,
-                    "plugin_id": "si-chip",
+                    "plugin_id": "impeccable",
                     "event": "plugin_installed",
                     "details": {},
                 },
                 {
                     "ts": recent_ts,
                     "plugin_id": "codegraph",
-                    "event": "plugin_installed",
-                    "details": {},
-                },
-                {
-                    "ts": recent_ts,
-                    "plugin_id": "impeccable",
                     "event": "plugin_installed",
                     "details": {},
                 },
@@ -553,8 +547,6 @@ class TestRefreshAll:
         assert all(action == "skipped_fresh" for action in actions.values())
         assert set(actions.keys()) == {
             "ui-pro",
-            "rtk",
-            "si-chip",
             "codegraph",
             "impeccable",
         }
@@ -564,7 +556,7 @@ class TestRefreshAll:
     ) -> None:
         """--force bypasses the staleness check.
 
-        The active registry has five entries, so ``--force`` upgrades all five.
+        The active registry has three entries, so ``--force`` upgrades all three.
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
@@ -577,10 +569,9 @@ class TestRefreshAll:
                     "event": "plugin_installed",
                     "details": {},
                 },
-                {"ts": recent_ts, "plugin_id": "rtk", "event": "plugin_installed", "details": {}},
                 {
                     "ts": recent_ts,
-                    "plugin_id": "si-chip",
+                    "plugin_id": "impeccable",
                     "event": "plugin_installed",
                     "details": {},
                 },
@@ -590,17 +581,11 @@ class TestRefreshAll:
                     "event": "plugin_installed",
                     "details": {},
                 },
-                {
-                    "ts": recent_ts,
-                    "plugin_id": "impeccable",
-                    "event": "plugin_installed",
-                    "details": {},
-                },
             ],
         )
         outcomes = refresh_all(log_path=log, force=True)
         upgraded = [o for o in outcomes if o.action == "upgraded"]
-        assert len(upgraded) == 5, (
+        assert len(upgraded) == 3, (
             f"--force must upgrade ALL plugins regardless of staleness; "
             f"got upgraded={[o.plugin_id for o in upgraded]!r}"
         )
@@ -658,7 +643,7 @@ class TestListPlugins:
         log = tmp_path / "plugin_install.log"
         rows = list_plugins(log_path=log)
         ids = {row["id"] for row in rows}
-        assert ids == {"ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+        assert ids == {"ui-pro", "codegraph", "impeccable"}
 
     def test_list_plugins_carries_last_checked(self, tmp_path: Path, mock_subprocess: dict) -> None:
         log = tmp_path / "plugin_install.log"
@@ -670,15 +655,13 @@ class TestListPlugins:
         rows = list_plugins(log_path=log)
         ui_pro_row = next(r for r in rows if r["id"] == "ui-pro")
         assert ui_pro_row["last_checked"] == ts
-        rtk_row = next(r for r in rows if r["id"] == "rtk")
-        assert rtk_row["last_checked"] is None
 
     def test_list_plugins_carries_invoked_workflows(
         self, tmp_path: Path, mock_subprocess: dict
     ) -> None:
         rows = list_plugins(log_path=tmp_path / "missing.log")
-        si_chip_row = next(r for r in rows if r["id"] == "si-chip")
-        assert "skill-optimization" in si_chip_row["invoked_by_workflows"]
+        ui_pro_row = next(r for r in rows if r["id"] == "ui-pro")
+        assert "web-design" in ui_pro_row["invoked_by_workflows"]
 
     def test_list_plugins_marks_explicit_upgrade_cmd(
         self, tmp_path: Path, mock_subprocess: dict

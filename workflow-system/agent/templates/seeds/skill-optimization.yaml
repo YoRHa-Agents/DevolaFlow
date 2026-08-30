@@ -27,13 +27,13 @@ partitions:
     title_template: "Optimization and quality gates"
     source_stages:
       - {id: optimize, primitive: implement}
-      - {id: si_chip_dogfood, primitive: validate}
+      - {id: validate, primitive: validate}
       - {id: benchmark, primitive: test}
     assertions:
       - key: candidate-improves
-        statement_template: "The candidate clears the 0.10 iteration delta, has no regressions, and retains eighty percent coverage"
+        statement_template: "The candidate passes quality checks, has no regressions, and retains eighty percent coverage"
         suggested_priority: P0
-        verify: {mode: metric, template: "iteration_delta >= 0.10 and regression_count == 0 and coverage_pct >= 80"}
+        verify: {mode: metric, template: "test_failures == 0 and lint_errors == 0 and regression_count == 0 and coverage_pct >= 80"}
   - key: documentation
     title_template: "Optimization record"
     source_stages:

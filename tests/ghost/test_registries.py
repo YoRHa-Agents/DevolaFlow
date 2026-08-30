@@ -47,14 +47,10 @@ _SF4_REFERENCE_SET = frozenset(
         # the change-driven workflow template (v8.2.6) and the
         # devolaflow.agent_workspace Python API (v8.2.5+).
         "agent-workspace.md",
-        # v8.4.0 rollup — RTK + memory-router stack reference. Documents the
-        # rtk runtime plugin (workflow-system/agent/knowledge/runtime-plugins.yaml),
-        # the shell_proxy/ package (registry + proxy + commands), the
-        # pre_shell_call lifecycle hook (5th canonical event), the
-        # memory_router/ planning fast-path, and the .local/memory/{cases,commands}/
-        # recipe layers. Pairs with the v8.3.1 PV-01 + v8.3.2 PV-02 +
-        # v8.3.3 PV-03 + v8.3.4 PV-04 surface area (R-001 + R-002 + M-001 + M-002).
-        "shell-proxy.md",
+        # v8.4.0 rollup — memory-router planning fast-path reference.
+        # Documents the memory_router/ package and .local/memory/cases/
+        # recipe layer.
+        "memory-router.md",
         # v9.0.0 PV-01 (v8.4.1) — Plan-mode L0 operating contract reference.
         # Absorbs SKILL.md §"Mode Awareness" PLAN MODE detail + §"Reinforcement
         # Rules" mechanism into a single Tier-2 reference, freeing ~57 lines of
@@ -65,8 +61,8 @@ _SF4_REFERENCE_SET = frozenset(
         # Pairs with src/devolaflow/gate/reinforcement.py (W-8 / SI-9).
         "plan-mode-enforcement.md",
         # v9.0.0 PV-05 (v8.5.0) — DEVOLAFLOW_* env-flag inventory reference.
-        # Single source of truth for the 8 active runtime flags
-        # (PLAN_MODE, RTK_PROXY, RTK_PROXY_TIER2, MEMORY_ROUTER, AUTO_INSTALL,
+        # Single source of truth for the active runtime flags
+        # (PLAN_MODE, MEMORY_ROUTER, AUTO_INSTALL,
         # NINES_EDITABLE_PATH, PROBE_SCENARIO, MOCK_KEY) + the 6 forward-
         # declared gate-primitive flags scheduled for v8.5.1 PV-06 flip
         # (TOKEN_BUDGET_BREAKER, CYCLE_DETECTOR, GATE_RATCHET,
@@ -75,15 +71,13 @@ _SF4_REFERENCE_SET = frozenset(
         # Workflow Rule W-20 (env-flag reuse vs new-flag policy) so the
         # rule has an actionable inventory to enforce against.
         "env-flags.md",
-        # v9.0.0 PV-06 (v8.5.1) — CompressionPipeline protocol + 6-transform
-        # unification + multi-pass filter chain (T3 #5). Documents the
+        # v9.0.0 PV-06 (v8.5.1) — CompressionPipeline protocol + transform
+        # unification. Documents the
         # CompressionStage ABC, the CompressionPipeline orchestrator (with
         # R5 strict byte-identical bypass invariant), the three canonical
-        # compositions (predecessor extractive / predecessor + Stage B LLM /
-        # command-mapping + directed_compact + truncate), and the
-        # compose: list[str] field semantics for command-mapping recipes
-        # schema_version 2. Pairs with src/devolaflow/compression_pipeline.py
-        # and schemas/compression-pipeline.yaml.
+        # compositions (predecessor extractive / predecessor + Stage B LLM).
+        # Pairs with src/devolaflow/compression_pipeline.py and
+        # schemas/compression-pipeline.yaml.
         "compression-pipeline.md",
         # v10.4.0 PV-05 — Operator troubleshooting handbook (15th SF-4
         # canonical). Quick lookup index + per-symptom diagnostic patterns
@@ -96,7 +90,7 @@ _SF4_REFERENCE_SET = frozenset(
         "troubleshooting.md",
         # v10.7.0 D-O-1 — Three-evaluator rosetta (16th SF-4 canonical).
         # 6 × 9 cross-walk between SI-3 dimensions (rows) + NineS hygiene
-        # axes / capability sub-bundles + Si-Chip iteration_delta scalar
+        # axes / capability sub-bundles + quality scalar
         # (columns) with per-cell verbatim source citations. Load tier:
         # `important` for L3 SI-3 evaluation authoring, `critical` for
         # nines-assisted / self-update workflows. Pairs with v10.7.0
@@ -105,7 +99,7 @@ _SF4_REFERENCE_SET = frozenset(
         "evaluator-rosetta.md",
         # v10.8.0 D-C-1 — Upstream-unreachable degraded-mode contract
         # (17th SF-4 canonical). Per-plugin fallback doc for NineS /
-        # Si-Chip / RTK / ui-pro with a "Degraded ≠ Full" leading warning
+        # ui-pro with a "Degraded ≠ Full" leading warning
         # per D-C-1 §9 R1 mitigation (the FIRST section of the reference,
         # before any per-plugin detail; operators reading top-down hit the
         # caveat immediately). Load tier: `important` for most task types,
@@ -167,23 +161,9 @@ _SF4_REFERENCE_SET = frozenset(
         # with the v12.3.0 PV-02 §"Session Banner Contract" (the version
         # literal flows into the footer line via SKILL.md cross-link).
         "task-quality-score.md",
-        # v12.5.0 PV-05 D-1.3 — codegraph plugin reference (22nd SF-4
-        # canonical). Tier 2 Large-tier reference (~248 lines under the
-        # ≤1000 ceiling). Documents the upstream `colbymchenry/codegraph`
-        # MCP-first pre-indexed code knowledge graph, the 9 MCP tools
-        # (search/context/callers/callees/impact/node/explore/files/
-        # status), the CLI surface, the DevolaFlow integration map
-        # (3 SSOT registries + 4 workflow templates + context profile +
-        # Python wrapper package), the structured-cause degraded-mode
-        # contract (CodegraphUnavailableError with cause: path_missing /
-        # timeout / nonzero_exit / json_parse_error), and cache
-        # management discipline. NO new env flag (W-20 reuse-first
-        # preservation: codegraph reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS
-        # for opt-in runtime install). Pairs with
-        # `src/devolaflow/codegraph/` (the Python wrapper package),
-        # `tests/test_codegraph.py` (39 tests at 98% coverage), and
-        # `tests/test_codegraph_workflow_wiring.py` (12 structural
-        # assertions across 4 workflow templates + context profile).
+        # v12.5.0 PV-05 — codegraph plugin reference (22nd SF-4 canonical).
+        # Pairs with the Python wrapper, workflow wiring, and degraded-mode
+        # fallback contract; codegraph reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS.
         "codegraph.md",
         # v13.0.0 — impeccable plugin reference (23rd SF-4 canonical).
         # Tier 2 Large-tier reference (~179 lines under the ≤1000 ceiling).
@@ -206,7 +186,7 @@ _SF4_REFERENCE_SET = frozenset(
         # requirements + append-only amendments ledger; Lifecycle:RATIFIED
         # append-only per Rule S-9) / OUTPUT (conclusion-first convergence
         # report + read-first DIGEST) layout, the per-artifact C-9 token
-        # budgets, the INPUT-only git-tracking + sichip-deferred relocation
+        # budgets, and the INPUT-only git-tracking + output relocation
         # de-pollution, the `scan_workspace` discovery fields
         # (has_human_dir / human_constitution / human_requirements /
         # human_digest) + When-to-Engage routing, and the
@@ -404,9 +384,7 @@ def test_reference_skill_md_tier2_parity(project_root: Path) -> None:
 
 # Python-backed SSOT registries: symbol_name -> canonical owner relpath.
 _SSOT_PYTHON_REGISTRIES: dict[str, str] = {
-    "WHITELIST": "src/devolaflow/shell_proxy/registry.py",
     "MemoryCase": "src/devolaflow/memory_router/cache.py",
-    "CommandMapping": "src/devolaflow/shell_proxy/commands.py",
 }
 
 

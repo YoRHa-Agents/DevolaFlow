@@ -1,10 +1,9 @@
-"""Wave-execution + dogfood-cycle dispatch wrappers — extracted from ``feedback.py``.
+"""Wave-execution dispatch wrappers — extracted from ``feedback.py``.
 
 v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
-``feedback.py`` (``dispatch_wave_tasks`` + ``dispatch_dogfood_cycle``) per
+``feedback.py`` (``dispatch_wave_tasks``) per
 ``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
-item 3 ("``dispatch_wave_tasks`` / ``dispatch_dogfood_cycle`` move to a
-dispatch module").
+item 3 ("``dispatch_wave_tasks`` move to a dispatch module").
 
 Shim tracking table (per the ADR's "tracking table needed in the dispatch
 module docstring" clause). v17.0.0 shim retirement (the ADR's "revisit at
@@ -31,7 +30,6 @@ Pinned by ``tests/test_module_split_shims.py``.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -286,145 +284,3 @@ async def async_dispatch_wave_tasks(
     if mode == "parallel" and len(callables) > 1:
         return await executor.dispatch_parallel_async(callables, timeouts=timeouts)
     return await executor.dispatch_sequential_async(callables, timeouts=timeouts)
-
-
-# ---------------------------------------------------------------------------
-# v10.2.1 (PV-02 — Formal Si-Chip integration) — Dogfood-cycle dispatch wrapper
-#
-# Closes D-S-2 from `.local/research/v10.2.0_gap_analysis.md` §3.2: prior to
-# v10.2.1 the persistent BasicAbility optimisation factory in
-# :mod:`devolaflow.si_chip_bridge.runner` (``run_dogfood_cycle``) was reachable
-# ONLY via the v9.5.0 PV-04 ``post_skill_edit`` lifecycle hook, gated on
-# ``DEVOLAFLOW_SI_CHIP_DEEP=1``. L0/L1 dispatchers had no programmatic entry
-# point even though ``skill-optimization`` / ``self-update`` and the opaque
-# historical seed ID ``nines-assisted`` declare ``si-chip`` in
-# ``invoked_by_workflows``. This wrapper closes that integration gap.
-#
-# P1 dispatcher-not-implementer (Soul Rule S-1): the wrapper is a thin
-# delegation layer. It does NOT mutate any skill file directly. It invokes
-# :func:`devolaflow.si_chip_bridge.runner.run_dogfood_cycle` which orchestrates
-# profile + count_tokens + (optional) evaluate. The verdict (APPLY / DEFER) is
-# returned to the caller; the caller is responsible for any downstream skill
-# edit decision (typically delegated to an L2 Task Agent).
-#
-# Activation gate: this is a Python API entry point — the workflow stage
-# itself opts in by calling the wrapper. The post_skill_edit lifecycle hook
-# remains separately gated on ``DEVOLAFLOW_SI_CHIP_DEEP=1`` per the v9.5.0
-# DEEP integration contract; the wrapper bypasses that env-flag because
-# direct callers are explicit opt-ins by virtue of importing + invoking.
-#
-# Source: v10.2.0 cycle plan §3 PV-02 owned-files manifest (D-S-2 closure).
-# External tool reference: https://github.com/YoRHa-Agents/Si-Chip
-# ---------------------------------------------------------------------------
-
-
-def dispatch_dogfood_cycle(
-    workflow_name: str,
-    *,
-    skill_files: list[str | Path] | None = None,
-    runs_dir: Path | str | None = None,
-    baseline_dir: Path | str | None = None,
-    threshold: float = 0.10,
-    work_dir: Path | str | None = None,
-) -> Any:
-    """Dispatch a Si-Chip dogfood cycle from the L0/L1 workflow surface.
-
-    Bridges the gap between the workflow-stage layer (``skill-optimization``,
-    ``self-update``, and the opaque historical seed ID ``nines-assisted`` that
-    declare ``si-chip`` in ``invoked_by_workflows``) and the persistent
-    BasicAbility optimisation factory implemented in
-    :mod:`devolaflow.si_chip_bridge`. Closes D-S-2 from
-    ``.local/research/v10.2.0_gap_analysis.md`` §3.2.
-
-    P1 dispatcher-not-implementer is preserved: this wrapper does NOT
-    perform skill edits itself. It invokes
-    :func:`devolaflow.si_chip_bridge.runner.run_dogfood_cycle` which
-    orchestrates the static profile + token audit + iteration_delta evaluation
-    pipeline. APPLY / DEFER verdicts are returned to the caller; downstream
-    L2 Task Agents are responsible for any actual skill-file mutation.
-
-    Activation gate (R5 strict):
-    - Always available as a Python API.
-    - When called from inside the ``post_skill_edit`` lifecycle hook,
-      the env flag ``DEVOLAFLOW_SI_CHIP_DEEP=1`` gates auto-invocation.
-      Direct callers (this wrapper) bypass the env gate — the workflow
-      itself opts in by declaring the dogfood stage.
-
-    Workflow → ability mapping: the ``workflow_name`` argument is passed
-    through as the underlying ``ability_name`` for the Si-Chip
-    ``profile_static.py`` invocation. ``skill-optimization``, ``self-update``,
-    and the opaque historical seed ID ``nines-assisted`` all map to the same
-    ``"devola-flow"`` ability for profiling purposes; this wrapper preserves
-    the verbatim ``workflow_name`` so callers retain provenance in the
-    returned :class:`SiChipResult.notes` list.
-
-    Multi-file ``skill_files``: when the caller supplies multiple files, only
-    the FIRST entry is forwarded as ``skill_md`` to the underlying
-    ``run_dogfood_cycle`` call. Multi-file batch dogfooding is on the
-    v10.4.0+ roadmap (per gap analysis §5); v10.2.1 ships the integration
-    surface, not the batch loop.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Name of the workflow stage requesting the dogfood cycle. Pass-through
-        as ``ability_name`` to ``run_dogfood_cycle``. Current examples are
-        ``"skill-optimization"`` and ``"self-update"``; the exact opaque
-        historical seed ID ``"nines-assisted"`` remains accepted.
-    skill_files : list[str | Path] | None, keyword-only
-        Skill files to evaluate. Only the first entry is consumed in v10.2.1;
-        when ``None`` or empty, defaults to ``"workflow-system/agent/SKILL.md"``
-        (the canonical entry point per the v9.5.0 PV-04 lifecycle precedent).
-    runs_dir, baseline_dir : Path | str | None, keyword-only
-        Eval directories for the ``aggregate_eval.py`` pass. When either is
-        ``None``, ``run_dogfood_cycle`` returns a DEFER verdict with
-        ``"evaluate: skipped"`` notes (the expected v10.2.1 PV-02 dogfood
-        pass #1 outcome; a later historical evaluation adapter supplied
-        the data).
-    threshold : float, keyword-only
-        Apply/defer threshold; default 0.10 per Si-Chip spec §23.
-    work_dir : Path | str | None, keyword-only
-        Where intermediate Si-Chip YAML files land. Defaults to
-        ``Path.cwd() / ".local" / "dogfood" / __version__`` (v10.2.1 D-S-6
-        version-tracking default; supersedes the v9.5.0 hardcoded ``"v9.5.0"``
-        literal).
-
-    Returns
-    -------
-    SiChipResult
-        The orchestrated profile + audit + evaluate envelope. Verdict
-        accessible via ``result.verdict`` (``ApplyVerdict.APPLY`` /
-        ``ApplyVerdict.DEFER``).
-
-    Raises
-    ------
-    SiChipUnavailable
-        Si-Chip not installed (resolver returned None). Callers can
-        downgrade to "skip" semantics on this exception per the v9.5.0
-        PV-04 lifecycle hook precedent.
-    SiChipError
-        Si-Chip subprocess failure on a stage that should have succeeded.
-    """
-    from devolaflow.si_chip_bridge.runner import run_dogfood_cycle
-
-    if work_dir is None:
-        from devolaflow import __version__
-
-        work_dir = Path.cwd() / ".local" / "dogfood" / __version__
-    elif not isinstance(work_dir, Path):
-        work_dir = Path(work_dir)
-
-    files = skill_files or ["workflow-system/agent/SKILL.md"]
-    primary_skill = Path(files[0])
-
-    runs_dir_resolved = Path(runs_dir) if isinstance(runs_dir, str) else runs_dir
-    baseline_dir_resolved = Path(baseline_dir) if isinstance(baseline_dir, str) else baseline_dir
-
-    return run_dogfood_cycle(
-        ability_name=workflow_name,
-        skill_md=primary_skill,
-        runs_dir=runs_dir_resolved,
-        baseline_dir=baseline_dir_resolved,
-        threshold=threshold,
-        work_dir=work_dir,
-    )

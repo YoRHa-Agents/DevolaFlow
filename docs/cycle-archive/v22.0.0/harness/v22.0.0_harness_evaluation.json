@@ -1,0 +1,7 @@
+{
+  "cycle": "v22.0.0",
+  "status": "INSUFFICIENT",
+  "reason": "The repository telemetry ledger contains historical iteration-delta-gate records, which are invalid under the six-gate v22 contract. A filtered evaluator invocation did not complete within the bounded local run.",
+  "source_ledger": ".local/telemetry/harness.jsonl",
+  "required_follow_up": "Regenerate the v22 harness evaluation from a clean six-gate ledger before making quantitative harness claims."
+}

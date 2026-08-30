@@ -64,11 +64,11 @@ _REQUIREMENTS_MD = textwrap.dedent(
     - **Status:** Blocked
     - **Amendments:** none
 
-    ### REQ-SEP-09: Sichip docs leave feedbacks
-    - **Constraint:** Agent-authored DEFER docs MUST NOT live under `.local/feedbacks/`.
-    - **Acceptance:** `tests/test_post_skill_edit_hook.py::test_defer_dir` PASS.
-    - **Lifecycle:** RATIFIED 2026-06-03
-    - **Status:** Satisfied
+    ### REQ-TEST-99: Unmapped requirements remain visible
+    - **Constraint:** A requirement without a traceability row MUST remain explicit.
+    - **Acceptance:** The trace reports `unmet` with `no evidence`.
+    - **Lifecycle:** DRAFT
+    - **Status:** Pending
     - **Amendments:** none
 
     ## Traceability
@@ -98,7 +98,12 @@ def _write_requirements(tmp_path: Path, body: str = _REQUIREMENTS_MD) -> Path:
 def test_trace_enumerates_every_req_block(tmp_path: Path) -> None:
     """Every ``### REQ-*`` block is keyed in the result (none silently dropped)."""
     results = trace_requirements(_write_requirements(tmp_path))
-    assert set(results) == {"REQ-INPUT-01", "REQ-INPUT-02", "REQ-OUT-01", "REQ-SEP-09"}
+    assert set(results) == {
+        "REQ-INPUT-01",
+        "REQ-INPUT-02",
+        "REQ-OUT-01",
+        "REQ-TEST-99",
+    }
 
 
 def test_trace_satisfied_status_maps_to_met_with_verbatim_evidence(tmp_path: Path) -> None:
@@ -132,12 +137,12 @@ def test_trace_blocked_status_maps_to_unmet(tmp_path: Path) -> None:
 def test_trace_missing_matrix_row_is_unmet_no_evidence(tmp_path: Path) -> None:
     """A REQ block with NO ``## Traceability`` row → unmet + 'no evidence' (S-5).
 
-    REQ-SEP-09 has a ``### REQ-*`` block but is absent from the matrix, so it
+    REQ-TEST-99 has a ``### REQ-*`` block but is absent from the matrix, so it
     must surface as an explicit unmet row — never silently dropped.
     """
     results = trace_requirements(_write_requirements(tmp_path))
-    assert "REQ-SEP-09" in results
-    row = results["REQ-SEP-09"]
+    assert "REQ-TEST-99" in results
+    row = results["REQ-TEST-99"]
     assert row.result == "unmet"
     assert row.evidence == "no evidence"
 

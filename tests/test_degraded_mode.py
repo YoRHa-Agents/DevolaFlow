@@ -14,8 +14,6 @@ invariant to catch future edits that might dilute the warning.
 
 External canonical URLs (S-7 compliance):
     * DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-    * Si-Chip: https://github.com/YoRHa-Agents/Si-Chip
-    * RTK: https://github.com/rtk-ai/rtk
     * ui-pro: https://github.com/YoRHa-Agents/ui-pro
 """
 
@@ -30,7 +28,6 @@ from devolaflow.lifecycle import (
     HookResult,
     HookViolation,
     clear_hooks,
-    pre_shell_call,
 )
 
 
@@ -87,142 +84,13 @@ class TestDegradedNotFullWarning:
         # Body assertions (merged from deleted tests to keep W-17 tight):
         text = _degraded_mode_doc_text()
         assert "What STOPS working" in text
-        for plugin in ("Si-Chip", "RTK", "ui-pro", "codegraph", "impeccable"):
+        for plugin in ("ui-pro", "impeccable"):
             assert plugin in text
         # S-7 external URL contract — canonical GitHub URL for every plugin.
-        assert "https://github.com/YoRHa-Agents/Si-Chip" in text
-        assert "https://github.com/rtk-ai/rtk" in text
         # S-2 no-absolute-paths in any committed reference.
         assert "/home/" not in text
         assert "/Users/" not in text
         assert "/root/" not in text
-
-
-# ---------------------------------------------------------------------------
-# §2 — Si-Chip unreachable → PSE001 + SKIPPED_PERMISSIVE verdict
-# ---------------------------------------------------------------------------
-
-
-class TestSiChipUnreachableEmitsPSE001AndDefers:
-    """Si-Chip degraded path: SiChipUnavailable → PSE001 + SKIPPED_PERMISSIVE.
-
-    Codified at ``src/devolaflow/lifecycle/post_skill_edit.py::_run_si_chip_evaluation``
-    lines 452-476. This test pins the cycle-level contract: the hook
-    catches SiChipUnavailable; emits PSE001 (severity warning); sets
-    ``metadata["verdict"] = "SKIPPED_PERMISSIVE"``; dispatch continues.
-    """
-
-    def test_si_chip_unreachable_emits_pse001_and_defers(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Pin the PSE001 + SKIPPED_PERMISSIVE + dispatch-continue contract.
-
-        Monkeypatches the Si-Chip subprocess path so that `run_dogfood_cycle`
-        raises `SiChipUnavailable`; asserts that `post_skill_edit` aggregates
-        the PSE001 HookViolation on the HookResult and sets the verdict
-        to `SKIPPED_PERMISSIVE` WITHOUT raising.
-        """
-        # Activate DEEP integration (req'd for non-trivial hook body).
-        monkeypatch.setenv("DEVOLAFLOW_SI_CHIP_DEEP", "1")
-        from devolaflow.lifecycle.post_skill_edit import post_skill_edit
-        from devolaflow.si_chip_bridge import SiChipUnavailable
-
-        def _fake_run_dogfood_cycle(**_kwargs):  # type: ignore[no-untyped-def]
-            raise SiChipUnavailable(
-                "Si-Chip not installed — DEEP integration skipped "
-                "(install via https://github.com/YoRHa-Agents/Si-Chip)"
-            )
-
-        # Patch the import point inside the evaluator helper. post_skill_edit
-        # filters touched_files against SKILL_CORPUS_PREFIX="workflow-system/agent/"
-        # so the payload uses repo-relative paths (NOT tmp_path absolute) — the
-        # file doesn't need to exist for the hook body to fire (Si-Chip is
-        # monkeypatched to raise before any real IO).
-        with patch(
-            "devolaflow.si_chip_bridge.run_dogfood_cycle",
-            side_effect=_fake_run_dogfood_cycle,
-        ):
-            payload = {"touched_files": ["workflow-system/agent/SKILL.md"]}
-            result = post_skill_edit(payload, strict=False)
-
-        assert isinstance(result, HookResult)
-        # Dispatch continues (no exception raised).
-        assert result.passed is True or result.passed is False  # finalize returns either
-        # PSE001 present with warning severity.
-        pse001 = [v for v in result.violations if v.code == "PSE001"]
-        assert len(pse001) == 1, (
-            f"expected 1 PSE001 violation, got {len(pse001)}: {[v.code for v in result.violations]}"
-        )
-        assert pse001[0].severity == "warning"
-        # Verdict metadata marks SKIPPED_PERMISSIVE.
-        assert result.metadata.get("verdict") == "SKIPPED_PERMISSIVE", (
-            f"expected metadata['verdict']='SKIPPED_PERMISSIVE', got "
-            f"{result.metadata.get('verdict')!r}"
-        )
-        # degraded-mode.md §2 must document PSE001 + SKIPPED_PERMISSIVE
-        # (consolidated from deleted `test_degraded_mode_doc_cites_pse001_path`).
-        text = _degraded_mode_doc_text()
-        assert "PSE001" in text
-        assert "SKIPPED_PERMISSIVE" in text
-        assert "post_skill_edit" in text
-
-
-# ---------------------------------------------------------------------------
-# §3 — RTK unreachable → native-shell passthrough
-# ---------------------------------------------------------------------------
-
-
-class TestRTKUnreachableBypassesToNativeShell:
-    """RTK degraded path: env-flag ON + binary missing → passthrough.
-
-    The existing `tests/test_shell_proxy_disabled_is_noop.py` covers the
-    env-flag UNSET case. THIS test covers the EXTENDED case: env-flag is
-    ON, but `shutil.which("rtk")` returns None → passthrough still applies.
-    """
-
-    def test_rtk_unreachable_bypasses_to_native_shell(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Flag ON + rtk missing → wrap_command passthrough + passed HookResult."""
-        monkeypatch.setenv("DEVOLAFLOW_RTK_PROXY", "1")
-
-        from devolaflow.shell_proxy import ShellProxy
-        from devolaflow.shell_proxy import proxy as proxy_module
-
-        # Force shutil.which to report rtk as missing.
-        with patch.object(proxy_module.shutil, "which", return_value=None):
-            proxy = ShellProxy(env={"DEVOLAFLOW_RTK_PROXY": "1"})
-            # Even with the env-flag ON, proxy_enabled must be False when
-            # the binary is missing — this IS the R5 strict fallback path.
-            assert proxy.config.proxy_enabled is False
-            assert proxy.config.env_flag_set is True
-            assert proxy.config.rtk_path is None
-            # wrap_command returns the input unchanged.
-            cmd = "pytest tests/ -q"
-            assert proxy.wrap_command(cmd) == cmd
-
-    def test_rtk_unreachable_pre_shell_call_metadata(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """pre_shell_call hook surfaces proxy_enabled=False + was_rewritten=False.
-
-        Also confirms degraded-mode.md §3 cites the RTK fallback contract
-        (consolidated from deleted `test_degraded_mode_doc_cites_rtk_fallback`).
-        """
-        monkeypatch.setenv("DEVOLAFLOW_RTK_PROXY", "1")
-
-        from devolaflow.shell_proxy import proxy as proxy_module
-
-        with patch.object(proxy_module.shutil, "which", return_value=None):
-            payload = {"cmd": "git status", "cwd": None}
-            result = pre_shell_call(payload)
-
-        assert result.metadata["proxy_enabled"] is False
-        assert result.metadata["was_rewritten"] is False
-        assert result.metadata["wrapped_cmd"] == "git status"
-        # Doc citation check (consolidated):
-        text = _degraded_mode_doc_text()
-        assert "RTK" in text
-        assert "shutil.which" in text
-        assert "DEVOLAFLOW_RTK_PROXY" in text
 
 
 # ---------------------------------------------------------------------------
@@ -347,20 +215,18 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
 class TestDegradedModeCoverageAudit:
     """Pin degraded-scenario coverage for the remaining bridge-backed plugins."""
 
-    def test_all_four_plugins_have_an_unreachable_scenario_test(self) -> None:
-        """Plugins with executable degraded paths have an unreachable scenario test."""
+    def test_remaining_plugins_have_unreachable_scenario_tests(self) -> None:
+        """Remaining plugins with executable degraded paths have scenario tests."""
         test_text = Path(__file__).read_text(encoding="utf-8")
         # Each plugin's dedicated test function must exist in THIS file.
         expected_tests = (
-            "test_si_chip_unreachable_emits_pse001_and_defers",
-            "test_rtk_unreachable_bypasses_to_native_shell",
             "test_ui_pro_unreachable_emits_ppi001_permissive_continues",
             "test_impeccable_unreachable_emits_ppi001_permissive_continues",
         )
         for name in expected_tests:
             assert name in test_text, (
                 f"D-C-1 §5 coverage audit: missing scenario test {name!r}. "
-                f"Every covered plugin (Si-Chip/RTK/ui-pro/impeccable) "
+                f"Every covered plugin (ui-pro/impeccable) "
                 f"MUST have an explicit unreachable-scenario test."
             )
 

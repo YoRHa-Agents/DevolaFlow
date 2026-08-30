@@ -22,10 +22,9 @@ entry point is :func:`decide`:
    allowed list before the hook fires). A ``CFO006`` blocker from
    ``run_hooks("file_write", ...)`` denies with a reason quoting the
    path and the active change id(s).
-3. **shell** — ALWAYS allowed. ``run_hooks("pre_shell_call", ...)``
-   fires for advisory rewrite metadata only (this bridge is the FIRST
-   production caller of that hook); its errors are swallowed into the
-   audit record (S-5 — logged, never crashing the bridge).
+3. **shell** — ALWAYS allowed. Shell events carry no ownership-sensitive
+   file target, so the bridge records an allow decision without invoking
+   a shell-rewrite integration.
 4. **Audit** — every enforced decision appends one JSONL line to
    ``.local/telemetry/hostbridge.jsonl`` (see :mod:`.audit`).
 5. **Fail-open** — ANY internal exception yields ``verdict
@@ -188,40 +187,11 @@ def _decide_file_write(
 
 
 def _decide_shell(
-    event: BridgeEvent,
-    record_extra: dict[str, Any],
+    _event: BridgeEvent,
+    _record_extra: dict[str, Any],
 ) -> tuple[str, str]:
-    """Shell events are ALWAYS allowed; pre_shell_call is advisory only.
-
-    S-1 shell denial would require dispatch-layer role evidence the
-    host event does not carry — this round records rewrite metadata for
-    the audit ledger and nothing more (design §D-R2-1 step 3).
-
-    The handler is invoked DIRECTLY (the lifecycle package exports it
-    with the uniform ``(payload, *, strict=False)`` signature for
-    exactly this) because ``run_hooks`` aggregates violations but does
-    not propagate per-handler ``metadata`` — and the rewrite metadata
-    (``wrapped_cmd`` / ``proxy_enabled`` / ``was_rewritten``) is the
-    entire point of this advisory call.
-    """
-    try:
-        from devolaflow.lifecycle import pre_shell_call
-
-        result = pre_shell_call({"cmd": event.command, "cwd": event.cwd}, strict=False)
-        advisory = {
-            key: result.metadata[key]
-            for key in ("wrapped_cmd", "proxy_enabled", "was_rewritten")
-            if key in result.metadata
-        }
-        if result.violations:
-            advisory["violations"] = [str(v) for v in result.violations]
-        record_extra["shell_advisory"] = advisory
-    except Exception as exc:
-        # S-5: swallow-and-log — the error lands in the audit ledger,
-        # the shell call itself is never blocked by advisory failure.
-        logger.warning("hostbridge pre_shell_call advisory failed", exc_info=True)
-        record_extra["shell_advisory_error"] = repr(exc)
-    return VERDICT_ALLOW, "shell events are advisory-only in v17 R2 — allowed"
+    """Allow shell events without a rewrite integration."""
+    return VERDICT_ALLOW, "shell events are outside ownership enforcement — allowed"
 
 
 def decide(event: BridgeEvent, repo_root: Path) -> BridgeDecision:

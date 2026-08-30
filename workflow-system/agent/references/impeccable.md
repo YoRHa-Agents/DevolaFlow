@@ -127,7 +127,13 @@ evidence for that item.
 
 ### §4.2 — Install backend (npm_then_init)
 
-Impeccable reuses the `npm_then_init` backend (ui-pro / codegraph precedent): `npm install -g impeccable`, then a per-harness skill install. **Unlike** ui-pro (`uipro init --ai {ai_platform}`) and codegraph (`codegraph install --target {ai_platform}`), impeccable's `skills install` **auto-detects** the harness — it scans for `.cursor` / `.claude` / `.agents` (codex) / `.gemini` / ... folders, with an optional `--providers=` narrowing flag. There is **no per-AI `--ai` flag**, so the init template carries no `{ai_platform}` placeholder and `init_targets` is a single sentinel `auto` entry:
+Impeccable reuses the `npm_then_init` backend (the ui-pro precedent):
+`npm install -g impeccable`, then a per-harness skill install. Its
+`skills install` **auto-detects** the harness — it scans for `.cursor` /
+`.claude` / `.agents` (codex) / `.gemini` / ... folders, with an optional
+`--providers=` narrowing flag. There is **no per-AI `--ai` flag**, so the init
+template carries no `{ai_platform}` placeholder and `init_targets` is a
+single sentinel `auto` entry:
 
 ```yaml
 init_cmd_template: "impeccable skills install --yes"
@@ -146,11 +152,15 @@ resolving `[ui-pro, impeccable]` in registry order.
 
 ### §4.4 — Context profile
 
-`workflow-system/agent/context_profiles.yaml` — the `impeccable_integration` top-level block (parallel to `ui_integration` / `codegraph_integration`) surfaces the polish / critique / audit / detect recipes to the dispatcher. Marked `important` for the web-design profile, `skip` elsewhere.
+`workflow-system/agent/context_profiles.yaml` — the `impeccable_integration`
+top-level block surfaces the polish / critique / audit / detect recipes to the
+dispatcher. Marked `important` for the web-design profile, `skip` elsewhere.
 
 ### §4.5 — Env flag (per W-20 reuse-first)
 
-Runtime auto-install reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` flag (same surface as ui-pro / codegraph). **NO new `DEVOLAFLOW_*` flag** is introduced for impeccable.
+Runtime auto-install reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` flag
+(same surface as ui-pro). **NO new `DEVOLAFLOW_*` flag** is introduced for
+impeccable.
 
 ## §5 — Degraded-mode contract
 

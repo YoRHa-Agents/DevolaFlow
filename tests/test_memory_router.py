@@ -1,6 +1,6 @@
 """Tests for the memory_router package (v8.3.3 PV-03 — closes M-001).
 
-Mirrors the test discipline of v8.3.2 PV-02 (``tests/test_shell_proxy.py``):
+Mirrors the test discipline of the earlier cache tests:
 loops-with-asserts inside single test functions where the cases exercise
 the same code path with different inputs, so we stay within the
 ``+30`` PV-03 test-count cap (cycle plan §4.3) while exercising every
@@ -72,11 +72,11 @@ def _write_index(tmp_path: Path, body: str) -> Path:
 def _make_case(**overrides) -> MemoryCase:
     """Build a fully-populated :class:`MemoryCase` with sensible defaults."""
     base = {
-        "case_id": "rtk-plugin-entry",
+        "case_id": "sample-plugin-entry",
         "workflow_type": "feature-implementation",
         "task_type": "implement",
-        "summary": "RTK plugin entry recipe.",
-        "recipe_path": ".local/memory/cases/rtk-plugin-entry.md",
+        "summary": "Sample plugin entry recipe.",
+        "recipe_path": ".local/memory/cases/sample-plugin-entry.md",
         "version_stamp": "8.3.3",
     }
     base.update(overrides)
@@ -170,11 +170,11 @@ class TestLookupCaseHappyPath:
 schema_version: 1
 last_updated: "{_TODAY_ISO}"
 cases:
-  - case_id: rtk-plugin-entry
+  - case_id: sample-plugin-entry
     workflow_type: feature-implementation
     task_type: implement
-    summary: "RTK plugin entry."
-    recipe_path: ".local/memory/cases/rtk-plugin-entry.md"
+    summary: "Sample plugin entry."
+    recipe_path: ".local/memory/cases/sample-plugin-entry.md"
     version_stamp: "8.3.3"
 """,
         )
@@ -186,8 +186,8 @@ cases:
             current_version="8.3.3",
         )
         assert result is not None
-        assert result.case_id == "rtk-plugin-entry"
-        assert result.recipe_path == ".local/memory/cases/rtk-plugin-entry.md"
+        assert result.case_id == "sample-plugin-entry"
+        assert result.recipe_path == ".local/memory/cases/sample-plugin-entry.md"
         assert result.last_updated == _TODAY_ISO
 
     def test_lookup_miss_when_no_row_matches(self, tmp_path: Path) -> None:
@@ -197,11 +197,11 @@ cases:
 schema_version: 1
 last_updated: "2026-04-23"
 cases:
-  - case_id: rtk-plugin-entry
+  - case_id: sample-plugin-entry
     workflow_type: feature-implementation
     task_type: implement
-    summary: "RTK plugin entry."
-    recipe_path: ".local/memory/cases/rtk-plugin-entry.md"
+    summary: "Sample plugin entry."
+    recipe_path: ".local/memory/cases/sample-plugin-entry.md"
     version_stamp: "8.3.3"
 """,
         )
@@ -269,13 +269,13 @@ cases:
     recipe_path: ".local/memory/cases/devola-recipe.md"
     version_stamp: "8.3.3"
     repo_signal: "DevolaFlow"
-  - case_id: rtk-recipe
+  - case_id: sample-recipe
     workflow_type: feature-implementation
     task_type: implement
-    summary: "rtk-ai/rtk specific."
-    recipe_path: ".local/memory/cases/rtk-recipe.md"
+    summary: "Sample repository specific."
+    recipe_path: ".local/memory/cases/sample-recipe.md"
     version_stamp: "8.3.3"
-    repo_signal: "rtk-ai/rtk"
+    repo_signal: "sample-repo"
 """,
         )
         # No repo_signal → first row wins.
@@ -288,15 +288,15 @@ cases:
         )
         assert any_match is not None and any_match.case_id == "devola-recipe"
 
-        rtk_match = lookup_case(
+        sample_match = lookup_case(
             "feature-implementation",
             "implement",
-            repo_signal="rtk-ai/rtk",
+            repo_signal="sample-repo",
             env={ENV_FLAG: "1"},
             index_path=idx,
             current_version="8.3.3",
         )
-        assert rtk_match is not None and rtk_match.case_id == "rtk-recipe"
+        assert sample_match is not None and sample_match.case_id == "sample-recipe"
 
         # Unknown repo_signal — no match.
         none_match = lookup_case(
@@ -759,23 +759,23 @@ class TestEndToEnd:
 schema_version: 1
 last_updated: "{_TODAY_ISO}"
 cases:
-  - case_id: rtk-plugin-entry
+  - case_id: plugin-entry
     workflow_type: feature-implementation
     task_type: implement
-    summary: "RTK plugin entry pattern from v8.3.1 PV-01."
-    recipe_path: ".local/memory/cases/rtk-plugin-entry.md"
+    summary: "Plugin entry pattern."
+    recipe_path: ".local/memory/cases/plugin-entry.md"
     version_stamp: "8.3.3"
     repo_signal: "DevolaFlow"
     ttl_days: 60
-    tags: [plugin, rtk, schema-v2]
-  - case_id: shell-proxy-registry
+    tags: [plugin, schema-v2]
+  - case_id: memory-router-registry
     workflow_type: feature-implementation
     task_type: implement
-    summary: "shell_proxy registry pattern from v8.3.2 PV-02."
-    recipe_path: ".local/memory/cases/shell-proxy-registry.md"
+    summary: "Memory-router registry pattern."
+    recipe_path: ".local/memory/cases/memory-router-registry.md"
     version_stamp: "8.3.3"
     repo_signal: "DevolaFlow"
-    tags: [shell-proxy, rtk, lifecycle-hook, r5-strict]
+    tags: [memory-router, lifecycle-hook, r5-strict]
   - case_id: evobench-doc-coupling
     workflow_type: version-bump
     task_type: doc-consistency
@@ -787,7 +787,7 @@ cases:
         )
         # Three discrete probes that hit each recipe.
         for wt, tt, expected in [
-            ("feature-implementation", "implement", "rtk-plugin-entry"),
+            ("feature-implementation", "implement", "plugin-entry"),
             ("version-bump", "doc-consistency", "evobench-doc-coupling"),
         ]:
             result = lookup_case(

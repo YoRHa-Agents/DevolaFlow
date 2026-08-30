@@ -88,11 +88,9 @@ def test_canonical_lists_match_sf3_contract() -> None:
     template (v8.2.6) and the ``devolaflow.agent_workspace`` Python API (v8.2.5+).
 
     v8.4.0 rollup grew the reference set 10 → 11 by appending
-    ``references/shell-proxy.md`` (the RTK + memory-router stack reference
-    covering the runtime-plugins.yaml RTK row, the shell_proxy/ package, the
-    pre_shell_call lifecycle hook, the memory_router/ planning fast-path, and
-    the ``.local/memory/{cases,commands}/`` recipe layers). Pairs with the
-    v8.3.1..v8.3.4 PV-01..PV-04 surface area closing R-001+R-002+M-001+M-002.
+    ``references/memory-router.md`` (the memory-router planning fast-path and
+    its ``.local/memory/cases/`` recipe layer). Pairs with the v8.3.3 PV-03
+    surface area closing M-001.
 
     v9.0.0 PV-01 (v8.4.1) grew the reference set 11 → 12 by appending
     ``references/plan-mode-enforcement.md`` (the plan-mode L0 operating
@@ -137,37 +135,24 @@ def test_canonical_lists_match_sf3_contract() -> None:
     v10.7.0 D-O-1 grew the reference set 15 → 16 by appending
     ``references/evaluator-rosetta.md`` (the 6 × 9 cross-walk between
     SI-3 dimensions + NineS hygiene axes / capability sub-bundles +
-    Si-Chip iteration_delta scalar with per-cell verbatim source
+    quality scalar with per-cell verbatim source
     citations — ~505 lines, comfortably within the Large tier 1000
     ceiling per SF-1). Pairs with `scripts/auto_collect_si3_metrics.py`
     (D-O-2 6-dim auto-collection) and `scripts/generate_evaluator_rosetta.py`
     (D-O-1 companion CSV emitter). Sources verbatim from
     `.local/research/v10.0.0_nines.md`, `.local/research/v10.0.0_evaluation.md`,
-    `.local/research/v10.3.0_evaluation.md`, and `tests/test_sichip_iteration_delta_gate.py`.
+    `.local/research/v10.3.0_evaluation.md`, and the harness gate tests.
 
     v10.8.0 D-C-1 grew the reference set 16 → 17 by appending
     ``references/degraded-mode.md`` (the per-plugin upstream-unreachable
-    fallback contract for NineS / Si-Chip / RTK / ui-pro — ~347 lines,
+    fallback contract for NineS / ui-pro — ~347 lines,
     well within the Large tier 1000 ceiling per SF-1). Opens with the
     "Degraded ≠ Full" warning section per D-C-1 §9 R1 mitigation so
     operators reading top-down hit the caveat immediately. Pairs with
-    `tests/test_degraded_mode.py` (16 regression tests pinning the
-    4-plugin fallback contract) and closes the v10.3.0 retrospective §3
+    `tests/test_degraded_mode.py` regression suite and closes the v10.3.0 retrospective §3
     NineS A1 ticket pain point.
 
-    v12.5.0 PV-05 D-1.3 grew the reference set 17 → 18 by appending
-    ``references/codegraph.md`` (the codegraph plugin operating
-    contract — pre-indexed code knowledge graph via tree-sitter +
-    SQLite FTS5; documents the 9 MCP tools / 5 Python wrapper helpers
-    / DevolaFlow integration map / structured-cause degraded-mode /
-    cache management; ~248 lines, well within the Large tier 1000
-    ceiling per SF-1). Pairs with `src/devolaflow/codegraph/` (the
-    Python wrapper package) + `tests/test_codegraph.py` (39 tests
-    at 98% coverage) + `tests/test_codegraph_workflow_wiring.py`
-    (12 structural assertions) + `tests/test_handoff_strip_metadata.py`
-    (11 handoff-helper contract tests).
-
-    v13.0.0 grew the reference set 18 → 19 by appending
+    v13.0.0 grew the reference set 17 → 18 by appending
     ``references/impeccable.md`` (the impeccable plugin operating
     contract — design language system with 23 /impeccable steering
     commands + the no-LLM `impeccable detect` anti-pattern detector;

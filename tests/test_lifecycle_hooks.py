@@ -173,19 +173,11 @@ def test_default_events_match_skill_md_table() -> None:
     byte output for operators who haven't opted into the dispatcher
     pre-flight plugin install surface.
 
-    v9.5.0 PV-04 — bumped 9 → 10 with the addition of
-    ``post_skill_edit`` (D-S-4 closure: user Q2=B DEEP integration
-    signoff from ``.local/research/v9.5.0_gap_analysis.md`` §3.1).
-    The new slot is APPENDED at the END of the tuple to preserve
-    A-2.4 cache-prefix invariants — positions 1-9 stay byte-stable.
-    The default handler is a no-op when ``DEVOLAFLOW_SI_CHIP_DEEP``
-    is unset (R5 strict byte-identical), so adding the tenth event
-    preserves byte output for operators who haven't opted into the
-    Si-Chip DEEP integration surface.
+    v22 removes the retired skill-evaluation event and re-numbers the
+    remaining lifecycle event slots.
     """
     from devolaflow.lifecycle import (
         ENVELOPE_WRITE_EVENT,
-        POST_SKILL_EDIT_EVENT,
         PRE_HANDOFF_EVENT,
         PRE_PLUGIN_INVOCATION_EVENT,
     )
@@ -197,9 +189,8 @@ def test_default_events_match_skill_md_table() -> None:
     assert ENVELOPE_WRITE_EVENT == "envelope_write"
     assert PRE_HANDOFF_EVENT == "pre_handoff"
     assert PRE_PLUGIN_INVOCATION_EVENT == "pre_plugin_invocation"
-    assert POST_SKILL_EDIT_EVENT == "post_skill_edit"
-    # v10.8.0 D-C-3 appended `pre_plugin_invocation_install` (position 11)
-    # and `pre_plugin_invocation_upgrade` (position 12); positions 1-10
+    # v10.8.0 D-C-3 appended `pre_plugin_invocation_install` and
+    # `pre_plugin_invocation_upgrade`; earlier positions
     # remain byte-stable per A-2.2. Verify as a SUPERSET containment check
     # rather than exact equality so future APPEND-ONLY additions don't
     # regress this test.
@@ -209,32 +200,24 @@ def test_default_events_match_skill_md_table() -> None:
         "file_write",
         "task_stop",
         "format_on_edit",
-        "pre_shell_call",
         "envelope_write",
         "pre_handoff",
         "pre_plugin_invocation",
-        "post_skill_edit",
     }
     assert required_events.issubset(set(DEFAULT_EVENTS))
-    assert len(DEFAULT_EVENTS) >= 10
+    assert len(DEFAULT_EVENTS) >= 9
 
-    # A-2.4 cache-prefix invariant: positions 1-9 byte-identical with the
-    # v9.4.0 DEFAULT_EVENTS tuple. The v9.5.0 PV-04 bump appended
-    # `post_skill_edit` at position 10; v10.8.0 D-C-3 appended positions
-    # 11 + 12. Drift in positions 1-10 is a release blocker.
-    assert DEFAULT_EVENTS[:9] == (
+    # A-2.4 cache-prefix invariant: the pre-plugin prefix remains stable
+    # after removal of the retired shell event.
+    assert DEFAULT_EVENTS[:8] == (
         "pre_dispatch",
         "post_dispatch",
         "file_write",
         "task_stop",
         "format_on_edit",
-        "pre_shell_call",
         "envelope_write",
         "pre_handoff",
         "pre_plugin_invocation",
-    )
-    assert DEFAULT_EVENTS[9] == POST_SKILL_EDIT_EVENT, (
-        "v9.5.0 PV-04: post_skill_edit MUST be at position 10 (index 9; A-2.4)"
     )
 
 
@@ -298,8 +281,8 @@ def test_list_handlers_returns_default_for_each_event() -> None:
 #     list").
 #  3. Both names propagate to registered handlers (D-Q-3 §4 large_eval
 #     "OLD names continue to register hooks under the NEW name").
-#  4. len(DEFAULT_EVENTS) == 16 after the v11.0.0 PV-02 D-Q-3 append
-#     (4 NEW canonical names appended at positions 13-16 per A-2.2).
+#  4. len(DEFAULT_EVENTS) == 15 after the v22 retired-event removal
+#     (4 NEW canonical names occupy positions 11-14 after re-numbering).
 #  5. 1-cycle deprecation telegraph documented in the lifecycle docstring
 #     (per D-Q-3 §6 "OLD names removed at v12.0.0+").
 
@@ -424,21 +407,16 @@ def test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks() -> None:
     )
 
 
-def test_v11_0_0_pv02_dq3_default_events_length_is_16() -> None:
-    """D-Q-3 §2: DEFAULT_EVENTS appends 4 NEW canonical names (positions 13-16).
+def test_v22_default_events_length_is_15() -> None:
+    """v22 removes the retired event and re-numbers canonical aliases.
 
-    Per A-2.2 APPEND-ONLY, positions 1-12 stay byte-stable. The 4 NEW
-    names land at positions 13-16 in the same order as the rename
+    The 4 canonical aliases land at positions 11-14 in the same order as the rename
     mapping table in D-Q-3 §2.
 
-    v15.0.0 G-038 flip 4 re-pin: this was one of the two ``len == 16``
-    exact pins that motivated the v14.0.0/v14.1.0 deferral of
-    ``check_human_input_append_only``. Growing the tuple is in-contract
-    for the MAJOR — the tuple is now pinned at EXACTLY 17 with
-    ``check_human_input_write`` appended at position 17 (the
-    cache-layout-sensitivity note from the v14.1.0 retro §3 is honoured
-    by the same A-2.2 append-only discipline: positions 1-16 are
-    byte-stable, so prefix-keyed consumers are unaffected).
+    v22 removes the retired ``pre_shell_call`` and ``post_skill_edit``
+    events. The four canonical aliases therefore occupy positions 11-14,
+    and ``check_human_input_write`` remains the final event at position 15.
+    The lifecycle tuple is independent of the dispatch payload cache layout.
     """
     from devolaflow.lifecycle import (
         CHECK_ENVELOPE_WRITE_EVENT,
@@ -449,26 +427,25 @@ def test_v11_0_0_pv02_dq3_default_events_length_is_16() -> None:
         POST_TASK_COMPLETE_EVENT,
     )
 
-    assert len(DEFAULT_EVENTS) == 17, (
-        f"v15.0.0 G-038 flip 4 ships DEFAULT_EVENTS 16 → 17 "
-        f"(check_human_input_write appended at position 17 per A-2.2); "
+    assert len(DEFAULT_EVENTS) == 15, (
+        f"retired shell and skill-evaluation events leave DEFAULT_EVENTS at 15 entries; "
         f"got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
     )
-    assert DEFAULT_EVENTS[16] == CHECK_HUMAN_INPUT_WRITE_EVENT == "check_human_input_write"
+    assert DEFAULT_EVENTS[14] == CHECK_HUMAN_INPUT_WRITE_EVENT == "check_human_input_write"
 
-    # Positions 13-16 carry the 4 NEW canonical names per the rename table.
-    assert DEFAULT_EVENTS[12] == CHECK_FILE_WRITE_EVENT
-    assert DEFAULT_EVENTS[13] == POST_TASK_COMPLETE_EVENT
-    assert DEFAULT_EVENTS[14] == POST_FILE_EDIT_EVENT
-    assert DEFAULT_EVENTS[15] == CHECK_ENVELOPE_WRITE_EVENT
+    # Positions 11-14 carry the 4 canonical names after re-numbering.
+    assert DEFAULT_EVENTS[10] == CHECK_FILE_WRITE_EVENT
+    assert DEFAULT_EVENTS[11] == POST_TASK_COMPLETE_EVENT
+    assert DEFAULT_EVENTS[12] == POST_FILE_EDIT_EVENT
+    assert DEFAULT_EVENTS[13] == CHECK_ENVELOPE_WRITE_EVENT
 
-    # Positions 1-12 stay byte-stable (positions 3, 4, 5, 7 remain the
+    # Positions 1-10 stay stable (positions 3, 4, 5, 7 remain the
     # OLD alias names per D-Q-3 §2 "preserve OLD names at original
     # positions as ALIASES").
     assert DEFAULT_EVENTS[2] == "file_write"
     assert DEFAULT_EVENTS[3] == "task_stop"
     assert DEFAULT_EVENTS[4] == "format_on_edit"
-    assert DEFAULT_EVENTS[6] == "envelope_write"
+    assert DEFAULT_EVENTS[5] == "envelope_write"
 
 
 def test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation() -> None:

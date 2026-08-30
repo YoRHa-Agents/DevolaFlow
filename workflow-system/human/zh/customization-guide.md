@@ -4,8 +4,8 @@ description: "在不分叉运行时事实源的前提下自定义种子、上下
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-30T16:01:24Z"
-source_version: "21.3.0"
+last_synced: "2026-08-30T23:06:56Z"
+source_version: "22.0.0"
 ---
 
 # 自定义指南

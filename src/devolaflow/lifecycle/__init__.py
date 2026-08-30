@@ -117,12 +117,6 @@ from devolaflow.lifecycle.post_dispatch import (
 from devolaflow.lifecycle.post_dispatch import (
     post_dispatch,
 )
-from devolaflow.lifecycle.post_skill_edit import (
-    EVENT as _POST_SKILL_EDIT_EVENT,
-)
-from devolaflow.lifecycle.post_skill_edit import (
-    post_skill_edit,
-)
 from devolaflow.lifecycle.pre_plugin_invocation import (
     EVENT as _PRE_PLUGIN_INVOCATION_EVENT,
 )
@@ -140,12 +134,6 @@ from devolaflow.lifecycle.pre_plugin_invocation_upgrade import (
 )
 from devolaflow.lifecycle.pre_plugin_invocation_upgrade import (
     pre_plugin_invocation_upgrade,
-)
-from devolaflow.lifecycle.pre_shell_call import (
-    EVENT as _PRE_SHELL_CALL_EVENT,
-)
-from devolaflow.lifecycle.pre_shell_call import (
-    pre_shell_call,
 )
 from devolaflow.lifecycle.reject_subagent_banner_emission import (
     reject_subagent_banner_emission,
@@ -247,19 +235,16 @@ _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 # opt-in declaration or diff telemetry remain clean compatibility no-ops.
 register_hook(POST_TASK_COMPLETE_EVENT, validate_trivial_path)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
-_set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 _set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
 _set_default_hook(_PRE_HANDOFF_EVENT, auto_write_handoff)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_EVENT, pre_plugin_invocation)
-_set_default_hook(_POST_SKILL_EDIT_EVENT, post_skill_edit)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_INSTALL_EVENT, pre_plugin_invocation_install)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_UPGRADE_EVENT, pre_plugin_invocation_upgrade)
 # v15.0.0 G-038 flip 4 — the v14.0.0 Wave-3 hook graduates from
 # "exported additively, NOT wired" to a canonical default event (the
 # wiring the v14.0.0 design §3c deferred to "the implementation cycle
-# alongside those test updates"). Both former `len == 16` pins
-# (tests/ghost/test_features_v11_0.py + tests/test_lifecycle_hooks.py)
-# are re-pinned in the same MAJOR.
+# alongside those test updates"). The event remains the final default
+# after the v22 removal of the retired skill-evaluation event.
 _set_default_hook(_CHECK_HUMAN_INPUT_WRITE_EVENT, check_human_input_append_only)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
@@ -298,11 +283,9 @@ POST_DISPATCH_EVENT: str = _POST_DISPATCH_EVENT
 FILE_WRITE_EVENT: str = _FILE_WRITE_EVENT
 TASK_STOP_EVENT: str = _TASK_STOP_EVENT
 FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
-PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
 PRE_HANDOFF_EVENT: str = _PRE_HANDOFF_EVENT
 PRE_PLUGIN_INVOCATION_EVENT: str = _PRE_PLUGIN_INVOCATION_EVENT
-POST_SKILL_EDIT_EVENT: str = _POST_SKILL_EDIT_EVENT
 PRE_PLUGIN_INVOCATION_INSTALL_EVENT: str = _PRE_PLUGIN_INVOCATION_INSTALL_EVENT
 PRE_PLUGIN_INVOCATION_UPGRADE_EVENT: str = _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
 CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
@@ -348,28 +331,13 @@ CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
 # AND from `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle); see
 # `references/env-flags.md` §2.13 for the full argument.
 #
-# v9.5.0 PV-04: bumped 9 → 10 with the addition of `post_skill_edit`
-# per D-S-4 closure (the user Q2=B DEEP integration signoff from
-# `.local/research/v9.5.0_gap_analysis.md` §3.1). The new slot is
-# wired to `post_skill_edit.py` which auto-runs the Si-Chip
-# iteration_delta gate after any commit touching
-# `workflow-system/agent/**` when `DEVOLAFLOW_SI_CHIP_DEEP=1`. The
-# event is APPENDED at the END of the tuple to preserve A-2.4 /
-# cache-prefix invariants — existing event positions 1-9 remain
-# byte-stable. NEW env-flag justified per Workflow Rule W-20 §3
-# orthogonality (different activation surface from
-# `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` plugin pre-flight AND from
-# `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle AND from
-# `DEVOLAFLOW_AUTO_INSTALL` install primitive); see
-# `references/env-flags.md` §2.14 for the full argument.
+# v22.0.0: the retired skill-evaluation event was removed and the
+# remaining event positions were re-numbered. The v10.8.0 D-C-3
+# split of `pre_plugin_invocation` therefore occupies positions 9 + 10.
 #
-# v10.8.0 D-C-3: bumped 10 → 12 with the split of `pre_plugin_invocation`
-# (position 9) into two focused handlers per
-# `.local/research/v11.0.0_patches/D-C-3.md`:
-#
-#   * `pre_plugin_invocation_install` (position 11) — INSTALL
+#   * `pre_plugin_invocation_install` (position 9) — INSTALL
 #     responsibility only (PPI001 surface).
-#   * `pre_plugin_invocation_upgrade` (position 12) — UPGRADE
+#   * `pre_plugin_invocation_upgrade` (position 10) — UPGRADE
 #     responsibility only (PPI003 surface).
 #
 # Both new slots REUSE `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` per
@@ -381,11 +349,11 @@ CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
 # install + upgrade handlers in sequence so operators registering
 # extras on the alias event see identical behaviour.
 #
-# Per A-2.2 append-only, positions 1-10 are byte-stable — positions
-# 11 + 12 appended at the tail preserving the cache-prefix invariant.
+# Per A-2.2 append-only, positions 1-8 are stable — positions 9 + 10
+# are the split handler events after v22 re-numbering.
 # See `references/env-flags.md` §2.13 row for the full split doc.
 #
-# v11.0.0 PV-02 D-Q-3: bumped 12 → 16 by APPENDING the 4 NEW canonical
+# v11.0.0 PV-02 D-Q-3: the 4 NEW canonical event names were appended
 # event names per the `pre_*` / `post_*` / `check_*` taxonomy. The 4
 # OLD names at positions 3, 4, 5, 7 (`file_write`, `task_stop`,
 # `format_on_edit`, `envelope_write`) are preserved BYTE-IDENTICALLY
@@ -393,46 +361,37 @@ CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
 # Both names accept ``register_hook`` / ``run_hooks`` calls; both
 # dispatch the SAME underlying handler list.
 #
-#   * `check_file_write`     (position 13) — alias of `file_write`
-#   * `post_task_complete`   (position 14) — alias of `task_stop`
-#   * `post_file_edit`       (position 15) — alias of `format_on_edit`
-#   * `check_envelope_write` (position 16) — alias of `envelope_write`
+#   * `check_file_write`     (position 11) — alias of `file_write`
+#   * `post_task_complete`   (position 12) — alias of `task_stop`
+#   * `post_file_edit`       (position 13) — alias of `format_on_edit`
+#   * `check_envelope_write` (position 14) — alias of `envelope_write`
 #
 # 1-cycle alias schedule: OLD names removed at v12.0.0+ once operators
 # have migrated their hook registrations. Telegraphed in v11.0.0
 # retrospective §3 deferred items list per the W-21-pattern multi-cycle
 # deliberation cadence (NOT W-21 itself; W-21 governs Soul rules only).
 #
-# Per A-2.2 append-only, positions 1-12 are byte-stable — positions
-# 13-16 appended at the tail preserving the cache-prefix-style
+# Per A-2.2 append-only, positions 1-10 are stable — positions
+# 11-14 are the canonical aliases after v22 re-numbering.
 # invariant for ``DEFAULT_EVENTS`` (note: ``DEFAULT_EVENTS`` is an
 # internal lifecycle tuple, NOT the dispatch payload's ``canonical_order``;
 # the A-2.1 frozen prefix on ``schemas/lean-dispatch.yaml#layout_invariant``
 # is on a SEPARATE registry surface and is unaffected).
 #
-# v15.0.0 G-038 flip 4: bumped 16 → 17 with the addition of
+# v15.0.0 G-038 flip 4: added
 # `check_human_input_write` (the v14.0.0 Wave-3
 # `check_human_input_append_only` hook — exported additively since
-# v14.0.0 but kept OUT of the tuple because two CI tests pinned
-# `len(DEFAULT_EVENTS) == 16` exactly and the v14.1.0 retro §3 deferred
-# the growth as cache-layout-sensitive). Growing the tuple is
-# in-contract for this MAJOR: the event is APPENDED at position 17 per
-# A-2.2 append-only (positions 1-16 stay byte-stable) and both former
-# `== 16` pins (tests/ghost/test_features_v11_0.py +
-# tests/test_lifecycle_hooks.py, plus the derived pins in
-# tests/test_hook_runtime_wiring.py + tests/test_human_input_immutability.py)
-# are re-pinned to the 17-entry shape in the same MAJOR.
+# v14.0.0 and remains the final tuple entry after v22 re-numbering.
+# The lifecycle tuple is not a dispatch cache layout.
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
     FILE_WRITE_EVENT,
     TASK_STOP_EVENT,
     FORMAT_ON_EDIT_EVENT,
-    PRE_SHELL_CALL_EVENT,
     ENVELOPE_WRITE_EVENT,
     PRE_HANDOFF_EVENT,
     PRE_PLUGIN_INVOCATION_EVENT,
-    POST_SKILL_EDIT_EVENT,
     PRE_PLUGIN_INVOCATION_INSTALL_EVENT,
     PRE_PLUGIN_INVOCATION_UPGRADE_EVENT,
     CHECK_FILE_WRITE_EVENT,
@@ -459,14 +418,12 @@ __all__ = [
     "HookViolation",
     "POST_DISPATCH_EVENT",
     "POST_FILE_EDIT_EVENT",
-    "POST_SKILL_EDIT_EVENT",
     "POST_TASK_COMPLETE_EVENT",
     "PRE_DISPATCH_EVENT",
     "PRE_HANDOFF_EVENT",
     "PRE_PLUGIN_INVOCATION_EVENT",
     "PRE_PLUGIN_INVOCATION_INSTALL_EVENT",
     "PRE_PLUGIN_INVOCATION_UPGRADE_EVENT",
-    "PRE_SHELL_CALL_EVENT",
     "ScopeViolation",
     "Severity",
     "SurgicalScopeError",
@@ -490,11 +447,9 @@ __all__ = [
     "is_workspace_engaged",
     "list_handlers",
     "post_dispatch",
-    "post_skill_edit",
     "pre_plugin_invocation",
     "pre_plugin_invocation_install",
     "pre_plugin_invocation_upgrade",
-    "pre_shell_call",
     "register_hook",
     "register_surgical_scope_hook",
     "registered_events",

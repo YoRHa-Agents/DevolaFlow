@@ -3,10 +3,10 @@ id: "agent/references/compression-pipeline"
 version: "8.5.1"
 purpose: >
   Canonical reference for the v9.0.0 PV-06 CompressionStage protocol +
-  CompressionPipeline orchestrator that unify the six v8.0.0+ text-side
+  CompressionPipeline orchestrator that unify the five v8.0.0+ text-side
   compression transforms (`truncate_tool_output`,
   `summarise_predecessor` extractive + Stage A abstractive + Stage B
-  LLM-assisted, `directed_compact`, `apply_local_recipe`) behind one
+  LLM-assisted, `directed_compact`) behind one
   `transform(payload, context) -> payload` contract. Pairs with
   `schemas/compression-pipeline.yaml` (declaration schema) and
   `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
@@ -24,11 +24,10 @@ dependencies:
   - "agent/SKILL.md"
   - "agent/references/env-flags.md"
   - "agent/references/decomposition-gate.md"
-  - "agent/references/shell-proxy.md"
 last_updated: "2026-08-25"
 ---
 
-# Compression Pipeline — CompressionStage Protocol + 6-Transform Unification
+# Compression Pipeline — CompressionStage Protocol + 5-Transform Unification
 
 > Tier-2 reference — load when: designing a new compression transform, composing
 > multiple transforms into an ordered pipeline, diagnosing a byte-identity
@@ -40,11 +39,11 @@ last_updated: "2026-08-25"
 ## 1. Purpose
 
 The `CompressionPipeline` orchestrator + `CompressionStage` protocol unify the
-six compression transforms that ship across the v8.x cycle behind one
+five compression transforms that ship across the v8.x cycle behind one
 `should_bypass(payload, context) -> bool` plus
 `transform(payload, context) -> payload` contract. Three design goals:
 
-1. **One protocol, six transforms.** Callers stop hand-wiring argument lists
+1. **One protocol, five transforms.** Callers stop hand-wiring argument lists
    per-transform; they thread per-stage kwargs through the pipeline `context`
    dict and read the aggregate verdict off `PipelineRunResult`.
 2. **Byte-identical bypass is declarative.** When every stage's `should_bypass`
@@ -114,8 +113,7 @@ BYPASS_ALWAYS(_payload, _context) -> True   # always skip (test-only)
 ```
 
 `BYPASS_NEVER` is the default; production stages override it with a
-per-primitive predicate (e.g. `apply_local_recipe`'s stage reads the PV-02
-env-flag via `is_command_mapping_active(ctx.get("env"))`).
+per-primitive predicate.
 `BYPASS_ALWAYS` is reserved for the byte-identity invariant tests —
 production callers SHOULD NOT use it directly (use a real runtime probe
 instead).
@@ -160,7 +158,7 @@ result: PipelineRunResult = pipeline.run(payload, context={"cmd": "pytest"})
 The default is `strict=True` because the pipeline is deterministic and
 downstream consumers key off the final payload — a silent mid-pipeline
 failure would hide the breaking transform. Callers that want best-effort
-(e.g. `apply_local_recipe` with a malformed recipe) opt in explicitly.
+opt in explicitly.
 
 ### 3.3 Pipeline construction validation
 
@@ -182,7 +180,7 @@ behaviour when multiple dispatchers share a module-level pipeline constant.
 
 ---
 
-## 4. The six v8.5.1 canonical transforms wrapped behind the protocol
+## 4. The five v8.5.1 canonical transforms wrapped behind the protocol
 
 Every transform listed here is accessible via its module's
 `compression_pipeline_stage()` factory (or `compression_pipeline_stages()`
@@ -196,7 +194,6 @@ not gain a hard dependency on the pipeline runtime at import time.
 | 2 | `summarise_predecessor` (extractive + Stage A) | `devolaflow.compressor` | `compression_pipeline_stages()[1]` | always runs (caller passes `mode="extractive"` / `mode="abstractive"`) |
 | 3 | `directed_compact` | `devolaflow.compressor` | `compression_pipeline_stages()[2]` | always runs (empty focus_keywords = no-op) |
 | 4 | `summarise_predecessor` (Stage B — LLM-assisted) | `devolaflow.llm_client` | `compression_pipeline_stage()` | bypass when `context["llm_client"]` is `None` |
-| 5 | `apply_local_recipe` | `devolaflow.shell_proxy.commands` | `compression_pipeline_stage()` | bypass when `DEVOLAFLOW_RTK_PROXY` env-flag unset |
 
 ### 4.1 Why three stages in `compressor.compression_pipeline_stages()`?
 
@@ -221,61 +218,7 @@ have not opted into LLM assistance: Stage B never runs without an explicit
 B — activation is purely context-driven, which is why it does not appear
 in `references/env-flags.md`.
 
-### 4.3 `apply_local_recipe`'s env-flag gate (the PV-02 reuse)
-
-`shell_proxy.commands.compression_pipeline_stage()` returns a stage whose
-bypass reuses the existing `DEVOLAFLOW_RTK_PROXY` env-flag (PV-02) rather
-than minting a new one. This is the canonical **W-20 reuse-first**
-example: the activation surface is identical to PV-02 (the RTK-pattern
-command-output mapping layers ON TOP of `rtk rewrite`), so a fresh
-checkout / CI runner with the flag unset gets a byte-identical pass-through
-with zero IO (no file read, no `shutil.which` lookup).
-
----
-
-## 5. Multi-pass filter chain (T3 #5)
-
-v8.5.1 PV-06 adds `compose: list[str]` to `schemas/command-mapping.yaml`
-(schema version 1 → 2). This promotes a `FilterRule` from a single-pass
-substitution to a multi-pass chain:
-
-```yaml
-schema_version: 2
-pre_filters:
-  - pattern: "^\\s*DeprecationWarning:.*$"
-    replacement: ""
-    compose:
-      - "\\n{3,}"          # run this sibling rule AFTER the parent's sub
-```
-
-### 5.1 The semantics
-
-* The parent rule's substitution runs first.
-* Each `compose` entry (referenced by the sibling rule's `raw_pattern` id)
-  runs AFTER the parent, in declaration order, against the parent's
-  intermediate output.
-* Composed children ALSO run in their own slot in the outer `rules`
-  iteration — so the multi-pass chain is **purely additive**: a recipe with
-  no `compose` entries is byte-identical to the v1 single-pass behaviour
-  (pinned by `tests/test_shell_proxy_commands.py`).
-
-### 5.2 Load-time validation (S-5 loud)
-
-`_validate_compose_references` walks both `pre_filters` and `post_filters`
-after the `FilterRule` tuple is constructed, and raises a
-`CommandMappingError` when a `compose` entry references a non-existent
-sibling. The message carries the recipe id + the missing child id so the
-operator can locate the typo without grep-spelunking.
-
-### 5.3 Back-compat contract
-
-A v1 recipe (schema_version: 1) is byte-identical to a v2 recipe whose
-`compose` fields are all omitted. The loader normalises both into the same
-`FilterRule` tuple. Operators MAY keep their recipes at v1 indefinitely.
-
----
-
-## 6. R5 strict invariants (the canonical test pins)
+## 5. R5 strict invariants (the canonical test pins)
 
 | Invariant | Pin |
 |---|---|
@@ -296,7 +239,7 @@ byte-identical opt-out behavior is pinned by
 
 ---
 
-## 7. Composition recipes (three canonical compositions)
+## 6. Composition recipes (two canonical compositions)
 
 ### 7.1 Predecessor summariser (extractive only)
 
@@ -336,43 +279,7 @@ Stage B bypasses when `llm_client` is missing, so the same pipeline is
 safe to use in callers that pass `None` for the client (byte-identical to
 stage 2 alone).
 
-### 7.3 Command-mapping + directed compact + truncate
-
-```python
-from devolaflow.compression_pipeline import CompressionPipeline, make_stage
-from devolaflow.compressor import compression_pipeline_stages
-from devolaflow.shell_proxy.commands import (
-    apply_local_recipe,
-    is_command_mapping_active,
-    compression_pipeline_stage as recipe_stage,
-)
-
-pipeline = CompressionPipeline(
-    stages=(
-        recipe_stage(),                           # gated by DEVOLAFLOW_RTK_PROXY
-        compression_pipeline_stages()[2],         # directed_compact
-        compression_pipeline_stages()[0],         # truncate_tool_output
-    ),
-    name="command_output_compression",
-)
-result = pipeline.run(
-    tool_output,
-    context={
-        "cmd": "pytest",
-        "focus_keywords": ["FAIL", "ERROR", "PASSED"],
-        "head_chars": 500,
-        "tail_chars": 500,
-    },
-)
-```
-
-When `DEVOLAFLOW_RTK_PROXY` is unset, the recipe stage bypasses and the
-pipeline effectively becomes `directed_compact → truncate` — zero IO spent
-on the bypassed stage, zero regression risk from the PV-02 surface.
-
----
-
-## 8. Adoption guidance
+## 7. Adoption guidance
 
 ### 8.1 When to use the pipeline vs the raw transform
 
@@ -382,9 +289,8 @@ on the bypassed stage, zero regression risk from the PV-02 surface.
   pipeline. The `applied_stages` / `bypassed_stages` / `failed_stages`
   aggregation is what makes status reports greppable.
 * **Call-site needs an opt-in gate** → wrap the transform in a stage with
-  a runtime-probe bypass (e.g. `recipe_stage()` above). This centralises
-  the activation check in one place instead of letting every caller
-  re-implement the env-flag read.
+  a runtime-probe bypass. This centralises the activation check in one place
+  instead of letting every caller re-implement the env-flag read.
 
 ### 8.2 Telemetry emission (status report integration)
 
@@ -394,7 +300,6 @@ key_facts per CO-2:
 
 ```
 applied_stages: [summarise_predecessor, directed_compact]
-bypassed_stages: [apply_local_recipe]   # DEVOLAFLOW_RTK_PROXY unset
 failed_stages: []
 ```
 
@@ -417,7 +322,7 @@ per P4 bounded retry — the pipeline itself does NOT classify the failure.
 
 ---
 
-## 9. Cross-references
+## 8. Cross-references
 
 * `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md` —
   cycle entry with full rationale + alternatives considered.
@@ -426,9 +331,6 @@ per P4 bounded retry — the pipeline itself does NOT classify the failure.
 * `tests/test_compression_pipeline.py` — R5 strict invariant suite.
 * `references/env-flags.md` §2.6..§2.10 — the 5 v8.0.0 gate primitives
   flipped default-ON by the same PV.
-* `references/shell-proxy.md` §11 — the SSOT registry list that includes
-  the `CommandMapping` recipe type (now extended with the `compose` field).
 * Governing rules: S-5 (no silent failures), A-2.3 (nest-vs-append — the
   pipeline nests under existing dispatch blocks), W-17 (+30 test cap — the
-  pipeline suite stays well under), W-20 (env-flag reuse — stage 5 reuses
-  PV-02's flag).
+  pipeline suite stays well under).

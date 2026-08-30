@@ -1,5 +1,0 @@
-# captured_from_plugin_version: 0.37.2
-# Captured from: `rtk rewrite "git diff HEAD"` v0.37.2 stdout
-# Shape: RTK prepends `rtk ` to Tier 1 commands; pass-through for unknown.
-# Canonical RTK URL: https://github.com/rtk-ai/rtk
-rtk git diff HEAD

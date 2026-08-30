@@ -1,7 +1,7 @@
 """Track C-4 — clean minimal-environment matrix smoke (E1 × S1–S3).
 
 The 05-init-quality-fixes §6 matrix: E1 (minimal — python + git only on
-``$PATH``) is the CI must-run axis; E2/E3 (node/npm/curl, codegraph/nines
+``$PATH``) is the CI must-run axis; E2/E3 (node/npm/curl, optional plugins
 preinstalled) stay local/nightly per the CI-time trade-off documented
 there. E1 is reproduced hermetically by running ``devola-init local`` in
 a subprocess whose ``$PATH`` contains a sanitised bin dir with ONLY the
@@ -77,9 +77,9 @@ def _assert_e1_success(repo: Path, result: subprocess.CompletedProcess) -> None:
             assert dep.absent_hint in result.stdout, (
                 f"E1 output missing the {dep.name} degradation hint"
             )
-    # Gitignore entries present exactly once (C-1 idempotency contract).
+    # Local workspace ignore rule present exactly once (C-1 idempotency contract).
     gitignore = (repo / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore.count(".codegraph/") == 1
+    assert gitignore.count(".local/*") == 1
     # Structure contract clean (C-2).
     missing, _drifted = verify_scaffold_structure(repo)
     assert missing == [], f"structure gaps in E1: {missing}"
@@ -110,7 +110,7 @@ def test_e1_minimal_env_matrix(scenario: str, tmp_path: Path) -> None:
         result = _run_init_local(repo, bin_dir, home)
 
     _assert_e1_success(repo, result)
-    # 05 §3 acceptance: foreground critical path ≤ 30s (no codegraph wait).
+    # 05 §3 acceptance: foreground critical path ≤ 30s.
     assert elapsed <= 30, f"E1 foreground path took {elapsed:.1f}s (> 30s budget)"
     if scenario == "S2-existing":
         assert user_line in (repo / ".gitignore").read_text(encoding="utf-8")

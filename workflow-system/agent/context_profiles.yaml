@@ -75,9 +75,9 @@ meta:
       - landing_page
 
   # v12.5.0 PV-04 D-1.2 — codegraph integration block. READ-ONLY metadata
-  # surfaced at workflow-stage entry; the runner never auto-executes these recipes — the agent
-  # invokes them on demand against the project-local .codegraph/ index.
-  # tokens_est: 200. Source: v12.5.0_gap_analysis.md §2 D-1.2.
+  # surfaced at workflow-stage entry; the runner never auto-executes these
+  # recipes — the agent invokes them on demand against the project-local
+  # .codegraph/ index. Source: v12.5.0_gap_analysis.md §2 D-1.2.
   codegraph_integration:
     auto_detect: true
     install_hint: "npm install -g @colbymchenry/codegraph"
@@ -96,8 +96,8 @@ meta:
       - file_structure_lookup
       - test_impact_selection
 
-  # v13.0.0 — impeccable integration block (parallel to ui_integration /
-  # codegraph_integration). READ-ONLY metadata for the web-design
+  # v13.0.0 — impeccable integration block (parallel to ui_integration).
+  # READ-ONLY metadata for the web-design
   # refine/verify stages; the runner never auto-executes these commands.
   # tokens_est: 180. Source: v13.0.0_gap_analysis.md §3 (Phase 2 D-5).
   impeccable_integration:

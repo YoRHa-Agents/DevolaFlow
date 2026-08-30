@@ -19,7 +19,7 @@ dependencies:
   - "agent/SKILL.md"
   - "agent/references/env-flags.md"
   - "agent/references/agent-workspace.md"
-  - "agent/references/shell-proxy.md"
+  - "agent/references/memory-router.md"
   - "agent/references/host-contract.md"
 last_updated: "2026-08-25"
 ---
@@ -51,13 +51,13 @@ reading the host-bridge audit ledger.
 
 Before v17.0.0, S-8 (no writes outside owned files) was enforced only on
 the framework's OWN write surface (`fire_file_write` in
-`src/devolaflow/lifecycle/runtime_wiring.py`), and `pre_shell_call` had
-zero production callers. Host IDE tools (Write / StrReplace / Bash / …)
+  `src/devolaflow/lifecycle/runtime_wiring.py`). Host IDE tools (Write /
+  StrReplace / Bash / …)
 bypassed both entirely. The bridge closes that gap at the host-hook
 layer: every participating host delivers its pre-tool-use event to
 `python -m devolaflow.hostbridge --host <host>` on stdin; the bridge
 normalizes the event, evaluates it against the union of active-change
-`owned_files.txt` manifests through `run_hooks("file_write", ...)`, and
+  `owned_files.txt` manifests through `run_hooks("file_write", ...)`, and
 answers in the host's own block protocol.
 
 ## 2. Six-host matrix
@@ -103,11 +103,8 @@ host-specific configuration, protocol, and evidence-backed fixture are added.
    quoting the path and active change id(s). Codex `apply_patch`
    patches are split into per-file targets (`*** Update/Add/Delete
    File:` markers); every target must pass.
-3. `shell` — ALWAYS allowed this round. The bridge is the first
-   production caller of the `pre_shell_call` hook; its rewrite
-   metadata (`wrapped_cmd` / `proxy_enabled` / `was_rewritten`) is
-   recorded in the ledger as advisory evidence only. Advisory errors
-   are swallowed into the ledger, never raised (S-5).
+3. `shell` — ALWAYS allowed. Shell events are outside ownership
+   enforcement and are recorded as ordinary allow decisions.
 4. Unknown event kind → allow + ledger line.
 
 ## 5. Install per host
@@ -151,8 +148,7 @@ auto-created; ledger failures are logged and never affect the verdict):
 | `reason` | str | human-readable verdict rationale |
 | `elapsed_ms` | float | bridge decision latency |
 | `active_changes` | list? | change ids whose manifests were unioned |
-| `shell_advisory` | obj? | `pre_shell_call` rewrite metadata |
-| `shell_advisory_error` / `error` | str? | swallowed-error evidence (S-5) |
+| `error` | str? | internal error evidence (S-5) |
 
 The ledger feeds the v17 R7 evidence round (real per-event telemetry
 instead of fixture-only baselines).
@@ -211,7 +207,7 @@ context, and boundary enforcement (§2) is unaffected.
 
 - `references/env-flags.md` §2.18 — the enforcement flag row + W-20 walk
 - `references/agent-workspace.md` — change folders, `owned_files.txt`, S-8
-- `references/shell-proxy.md` — the `pre_shell_call` advisory machinery
+- `references/memory-router.md` — planning-time memory-case routing
 - `references/agent-hierarchy.md` — L0/L1/L2 layering the boundary protects
 - `src/devolaflow/hostbridge/` — normalize / decision / audit / install
 - `tests/test_hostbridge.py` + `tests/test_hostbridge_disabled_is_noop.py`

@@ -2,8 +2,8 @@
 
 Closes D-C-3 from `.local/research/v11.0.0_patches/D-C-3.md` (v10.8.0
 cycle). Extracts the INSTALL responsibility from the existing
-``pre_plugin_invocation`` hook (position 9) into a dedicated handler at
-DEFAULT_EVENTS position 11 (A-2.2 append-only).
+``pre_plugin_invocation`` hook (position 8) into a dedicated handler at
+DEFAULT_EVENTS position 9 after v22 re-numbering.
 
 Responsibility (exactly one): for each plugin candidate cited in the
 dispatch payload, call :func:`devolaflow.plugins.installer.ensure_plugin`.
@@ -12,11 +12,11 @@ Surface domain exceptions as :class:`HookViolation` ``PPI001`` (severity
 
 This handler DOES NOT fire ``upgrade_plugin`` / ``is_plugin_stale`` —
 that responsibility lives in :mod:`pre_plugin_invocation_upgrade` at
-DEFAULT_EVENTS position 12.
+DEFAULT_EVENTS position 10.
 
 Activation gate: REUSES ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` per
 Workflow Rule W-20 (same activation surface as the v9.4.0 baseline alias
-at position 9). NO new env flag introduced in v10.8.0 — the
+at position 8). NO new env flag introduced in v10.8.0 — the
 ``DEVOLAFLOW_AUTO_UPGRADE_PLUGINS`` flag is TELEGRAPHED for v12.0.0+
 pending the split's 1-cycle observation period.
 

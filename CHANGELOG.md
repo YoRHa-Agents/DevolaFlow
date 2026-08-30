@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [22.0.0] - 2026-08-31 — MAJOR — Optional Tool Retirement
+
+### Removed
+
+- **RTK and Si-Chip integrations**: removed their plugins, lifecycle hooks,
+  installer backends, workflow stages, schemas, fixtures, and runtime bridges.
+- **Shell-proxy and iteration-delta surfaces**: removed the RTK shell proxy,
+  command-mapping schema, and Si-Chip-specific iteration-delta gate.
+
+### Changed
+
+- **Codegraph remains advised**: it is default-installed but `suggest` tier,
+  so workflows automatically use it when available and degrade to built-in
+  repository search when it is absent.
+- **Lifecycle and release contracts**: the lifecycle event table now contains
+  15 active events, and the SI-10 release chain contains six gates.
+
 ## [21.3.0] - 2026-08-30 — MINOR — Release-Cut Reliability and Evidence
 
 ### Changed
