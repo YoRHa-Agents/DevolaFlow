@@ -100,7 +100,10 @@ def _run_git(root: Path, args: Sequence[str]) -> tuple[str | None, Finding | Non
         try:
             message = message.replace(str(root.resolve()), ".")
         except OSError:
-            logger.warning("could not normalize git inspection error path")
+            logger.warning(
+                "could not normalize git inspection error path",
+                exc_info=True,
+            )
         return None, _finding("GIT_INSPECTION_ERROR", f"git {' '.join(args)}: {message}")
     return completed.stdout, None
 
@@ -233,6 +236,8 @@ def inspect_safety(
                     try:
                         source_resolved.relative_to(registered)
                     except ValueError:
+                        # Expected containment probe: this worktree does not
+                        # contain the source; continue checking other entries.
                         continue
                     if registered != root.resolve():
                         try:

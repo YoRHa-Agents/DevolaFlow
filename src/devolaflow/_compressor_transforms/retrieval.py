@@ -4,7 +4,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from .common import *  # noqa: F403
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _tokenize_for_retrieval(text: str) -> frozenset[str]:
@@ -127,7 +131,12 @@ def _parse_yaml_sections(text: str) -> list[tuple[str, str]]:
         import yaml as _yaml
 
         data = _yaml.safe_load(text)
-    except Exception:
+    except Exception as exc:
+        _LOGGER.warning(
+            "retrieval YAML parsing failed; falling back to markdown sections: %s",
+            exc,
+            exc_info=True,
+        )
         return _parse_markdown_sections(text)
     if not isinstance(data, dict) or not data:
         return [("", text)]
@@ -144,7 +153,12 @@ def _parse_json_sections(text: str) -> list[tuple[str, str]]:
 
     try:
         data = _json.loads(text)
-    except Exception:
+    except Exception as exc:
+        _LOGGER.warning(
+            "retrieval JSON parsing failed; falling back to markdown sections: %s",
+            exc,
+            exc_info=True,
+        )
         return _parse_markdown_sections(text)
     if not isinstance(data, dict) or not data:
         return [("", text)]
@@ -157,7 +171,12 @@ def _parse_toml_sections(text: str) -> list[tuple[str, str]]:
         import tomllib as _tomllib
 
         data = _tomllib.loads(text)
-    except Exception:
+    except Exception as exc:
+        _LOGGER.warning(
+            "retrieval TOML parsing failed; falling back to markdown sections: %s",
+            exc,
+            exc_info=True,
+        )
         return _parse_markdown_sections(text)
     if not isinstance(data, dict) or not data:
         return [("", text)]

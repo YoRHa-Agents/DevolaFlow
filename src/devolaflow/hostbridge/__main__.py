@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -39,6 +40,7 @@ from devolaflow.hostbridge.normalize import (
 
 _CURSOR_ALLOW_JSON = '{"permission": "allow"}'
 _COPILOT_ALLOW_JSON = '{"permissionDecision": "allow"}'
+logger = logging.getLogger(__name__)
 
 
 def _respond(host: str, decision: BridgeDecision) -> int:
@@ -117,22 +119,40 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         args = parser.parse_args(argv)
-    except SystemExit:
+    except SystemExit as exc:
         # Bad argv MUST NOT block the host tool call: emit the most
         # conservative allow shape (harmless stdout for exit-code hosts).
+        logger.warning(
+            "hostbridge argument parsing failed (exit=%r); allowing host tool call via fallback",
+            exc.code,
+            exc_info=True,
+        )
         return _allow_fallback(_host_hint(argv))
 
     try:
         try:
             data = json.loads(sys.stdin.read())
+        except json.JSONDecodeError:
+            logger.debug("hostbridge received malformed stdin; normalizing to unknown event")
+            data = None  # normalize_event degrades this to kind="unknown"
         except Exception:
+            logger.warning(
+                "hostbridge stdin parsing failed unexpectedly; normalizing to unknown event",
+                exc_info=True,
+            )
             data = None  # normalize_event degrades this to kind="unknown"
 
         event = normalize_event(args.host, data, event_override=args.event)
         repo_root = args.repo_root if args.repo_root is not None else Path.cwd()
         decision = decide(event, repo_root)
         return _respond(args.host, decision)
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "hostbridge internal error for host %r; allowing via fail-open fallback: %s",
+            args.host,
+            exc,
+            exc_info=True,
+        )
         return _allow_fallback(args.host)
 
 

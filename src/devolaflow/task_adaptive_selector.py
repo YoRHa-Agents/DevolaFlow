@@ -549,11 +549,15 @@ def estimate_tokens(text: str) -> int:
     """
     try:
         import tiktoken  # noqa: F401  (probe import only — actual use is in the cached helper)
-    except (ImportError, Exception):
+    except ImportError:
+        return _estimate_tokens_fallback_cached(text)
+    except Exception:
+        logger.warning("tiktoken probe failed; using fallback", exc_info=True)
         return _estimate_tokens_fallback_cached(text)
     try:
         return _estimate_tokens_tiktoken_cached(text)
     except Exception:
+        logger.warning("tiktoken estimator failed; using fallback", exc_info=True)
         return _estimate_tokens_fallback_cached(text)
 
 
@@ -781,7 +785,7 @@ def _integrate_learnings(
             return ""
         return format_learnings_section(relevant, max_tokens=learnings_reserve)
     except Exception:
-        logger.debug("Learnings integration skipped due to error", exc_info=True)
+        logger.warning("Learnings integration skipped due to error", exc_info=True)
         return ""
 
 
@@ -1570,13 +1574,7 @@ def warmup_selector_cache(
                 select_context(task_type=task_type, round_num=round_num)
                 completed += 1
             except Exception as exc:  # noqa: BLE001 - S-5 graceful warmup
-                logger.warning(
-                    "warmup_selector_cache: select_context(task_type=%r, "
-                    "round_num=%d) raised %s; continuing with next pair",
-                    task_type,
-                    round_num,
-                    exc,
-                )
+                logger.warning("warmup %r/%d failed: %s", task_type, round_num, exc, exc_info=True)
     return completed
 
 

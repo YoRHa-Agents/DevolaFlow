@@ -673,7 +673,13 @@ class ChangeStore:
                 continue
             try:
                 ids.append(_derive_change_id(child.name))
-            except ChangeStoreError:
+            except ChangeStoreError as exc:
+                logger.warning(
+                    "Skipping malformed active change folder %s: %s",
+                    child,
+                    exc,
+                    exc_info=True,
+                )
                 continue
         return ids
 
@@ -696,13 +702,25 @@ class ChangeStore:
                 date_prefix = name[: len("YYYY-MM-DD")]
                 try:
                     cid = _derive_change_id(name)
-                except ChangeStoreError:
+                except ChangeStoreError as exc:
+                    logger.warning(
+                        "Skipping malformed archived change folder %s: %s",
+                        child,
+                        exc,
+                        exc_info=True,
+                    )
                     continue
             else:
                 date_prefix = ""
                 try:
                     cid = _derive_change_id(name)
-                except ChangeStoreError:
+                except ChangeStoreError as exc:
+                    logger.warning(
+                        "Skipping malformed archived change folder %s: %s",
+                        child,
+                        exc,
+                        exc_info=True,
+                    )
                     continue
             rows.append((date_prefix, cid))
         rows.sort()
@@ -723,7 +741,13 @@ class ChangeStore:
                 continue
             try:
                 cid = _derive_change_id(child.name)
-            except ChangeStoreError:
+            except ChangeStoreError as exc:
+                logger.warning(
+                    "Skipping malformed archived change folder %s: %s",
+                    child,
+                    exc,
+                    exc_info=True,
+                )
                 continue
             if cid == change_id:
                 return Change.from_active_folder(child)
@@ -744,7 +768,13 @@ class ChangeStore:
                 continue
             try:
                 cid = _derive_change_id(child.name)
-            except ChangeStoreError:
+            except ChangeStoreError as exc:
+                logger.warning(
+                    "Skipping malformed archived change folder %s: %s",
+                    child,
+                    exc,
+                    exc_info=True,
+                )
                 continue
             if cid == change_id:
                 return True
@@ -759,7 +789,13 @@ class ChangeStore:
                 continue
             try:
                 cid = _derive_change_id(child.name)
-            except ChangeStoreError:
+            except ChangeStoreError as exc:
+                logger.warning(
+                    "Skipping malformed archived change folder %s: %s",
+                    child,
+                    exc,
+                    exc_info=True,
+                )
                 continue
             if cid == change_id:
                 return child
