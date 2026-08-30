@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Surface-neutral local archive adapters**: approved non-deletion archival
-  now supports tasks, released/resolved feedbacks, and research files gated by
-  an existing cycle archive, with separate append-only mapping ledgers and
-  generated indexes.
-
 ## [21.2.0] - 2026-08-29 — MINOR — Feedback Governance and Cloud Release
 
 ### Added
