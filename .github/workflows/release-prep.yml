@@ -137,23 +137,60 @@ jobs:
           set -euo pipefail
           REQUESTED_VERSION="$REQUESTED_VERSION" python - <<'PY'
           import os
+          import re
           from pathlib import Path
 
           path = Path("workflow-system/human/demo/index.html")
           text = path.read_text(encoding="utf-8")
           version = os.environ["REQUESTED_VERSION"]
-          replacements = (
-              ("Upcoming release ·", f"New in v{version} ·"),
-              ("即将发布 ·", f"v{version} 新变化 ·"),
-          )
           updated = text
-          for old, new in replacements:
-              updated = updated.replace(old, new, 1)
+
+          release_start = updated.index('<section aria-labelledby="release-heading">')
+          release_end = updated.index("</section>", release_start) + len("</section>")
+          release_window = updated[release_start:release_end]
+          current_heading = (
+              r"data-i18n=['\"]home\.release\.v19\.heading['\"][^>]*>"
+          )
+          release_window, english_static_replacements = re.subn(
+              rf"({current_heading})Upcoming release ·",
+              rf"\g<1>New in v{version} ·",
+              release_window,
+          )
+          release_window, zh_static_replacements = re.subn(
+              rf"({current_heading})即将发布 ·",
+              rf"\g<1>v{version} 新变化 ·",
+              release_window,
+          )
+          release_replacements = english_static_replacements + zh_static_replacements
+          updated = updated[:release_start] + release_window + updated[release_end:]
+
+          # The English dictionary entry is outside the HTML release section;
+          # target its stable translation key rather than historical cards.
+          english_heading_pattern = re.compile(
+              r"(['\"]home\.release\.v19\.heading['\"]\s*:\s*['\"])(Upcoming release ·)"
+          )
+          updated, english_dictionary_replacements = english_heading_pattern.subn(
+              rf"\g<1>New in v{version} ·", updated
+          )
+          zh_heading_pattern = re.compile(
+              r"(['\"]home\.release\.v19\.heading['\"]\s*:\s*['\"])(即将发布 ·)"
+          )
+          updated, zh_dictionary_replacements = zh_heading_pattern.subn(
+              rf"\g<1>v{version} 新变化 ·", updated
+          )
           if updated == text:
-              raise SystemExit(
-                  "demo/index.html has no prepared release-window placeholder to promote"
+              print(
+                  "::warning::demo/index.html has no release-window placeholder; "
+                  "it may already be promoted. Continuing."
               )
-          path.write_text(updated, encoding="utf-8")
+          else:
+              path.write_text(updated, encoding="utf-8")
+              print(
+                  "Promoted "
+                  f"{release_replacements} release-window heading occurrence(s) and "
+                  f"{english_dictionary_replacements + zh_dictionary_replacements} "
+                  "dictionary occurrence(s)."
+              )
           PY
 
       - name: Run release preflight
@@ -238,9 +275,21 @@ jobs:
             echo "::error::a pull request already exists for $branch_name"
             exit 1
           fi
-          gh pr create \
+          if gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "$branch_name" \
             --title "chore: prepare release v$REQUESTED_VERSION" \
             --body "Automated mechanical release preparation for v$REQUESTED_VERSION. The existing CHANGELOG entry was verified; this workflow does not author release notes."
+          then
+            echo "Release PR created successfully."
+          else
+            echo "::warning::GitHub Actions could not create the release PR; the release branch was pushed successfully."
+            echo "Branch URL: https://github.com/$GITHUB_REPOSITORY/tree/$branch_name"
+            printf 'Manual command: gh pr create --repo %q --base main --head %q --title %q --body %q\n' \
+              "$GITHUB_REPOSITORY" \
+              "main" \
+              "$branch_name" \
+              "chore: prepare release v$REQUESTED_VERSION" \
+              "Automated mechanical release preparation for v$REQUESTED_VERSION. The existing CHANGELOG entry was verified; this workflow does not author release notes."
+          fi

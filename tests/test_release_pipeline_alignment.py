@@ -108,6 +108,10 @@ def test_tag_release_gates_release_then_deploys_tagged_site() -> None:
 
     npm = _load_workflow("npm-publish.yml")
     assert _triggers(npm)["push"]["tags"] == ["v*"]
+    assert npm["concurrency"] == {
+        "group": "npm-publish-${{ inputs.release_tag || github.ref_name }}",
+        "cancel-in-progress": False,
+    }
     assert npm["permissions"] == {}
     npm_jobs = npm["jobs"]
     assert npm_jobs["checks"] == {
@@ -157,6 +161,47 @@ def test_release_automation_is_guarded_and_reusable() -> None:
         assert command in prep_steps
     assert "git clean" not in prep_steps
     assert "CHANGELOG.md" in prep_steps
+
+
+def test_release_pr_creation_falls_back_to_manual_command_without_token() -> None:
+    prep = _load_workflow("release-prep.yml")
+    open_pr = next(
+        step for step in prep["jobs"]["prepare"]["steps"] if step.get("name") == "Open release PR"
+    )
+    run = open_pr["run"]
+
+    assert "if gh pr create \\" in run
+    assert "then" in run
+    assert "::warning::GitHub Actions could not create the release PR" in run
+    assert "Branch URL: https://github.com/$GITHUB_REPOSITORY/tree/$branch_name" in run
+    assert "Manual command: gh pr create" in run
+    assert "GITHUB_TOKEN" not in run
+    assert "exit 1" not in run[run.index("if gh pr create") :]
+
+
+def test_current_demo_release_window_has_no_upcoming_release_residue(project_root: Path) -> None:
+    demo = (project_root / "workflow-system/human/demo/index.html").read_text(encoding="utf-8")
+
+    assert "Upcoming release" not in demo
+    assert "即将发布" not in demo
+    assert demo.count("New in v21.2.0 · Feedback Governance and Cloud Release") == 2
+    assert "v21.2.0 新变化 · Feedback Governance and Cloud Release" in demo
+
+
+def test_demo_promotion_allows_already_promoted_pages() -> None:
+    prep = _load_workflow("release-prep.yml")
+    promote = next(
+        step
+        for step in prep["jobs"]["prepare"]["steps"]
+        if step.get("name") == "Promote prepared demo release window"
+    )
+    run = promote["run"]
+
+    assert r"home\.release\.v19\.heading" in run
+    assert "if updated == text:" in run
+    assert "::warning::demo/index.html has no release-window placeholder" in run
+    assert "Continuing." in run
+    assert "raise SystemExit" not in run
 
     auto_tag = _load_workflow("auto-tag-release.yml")
     auto_triggers = _triggers(auto_tag)
