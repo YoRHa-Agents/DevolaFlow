@@ -6,14 +6,13 @@ Until v8.5.0, every compression-side primitive (tool-output truncation in
 ``compressor.summarise_predecessor``, directed compaction in
 ``compressor.directed_compact``, abstractive Stage A heuristic in
 ``compressor._assemble_abstractive_summary``, abstractive Stage B LLM in
-``llm_client.LLMClient.complete``, and the RTK-pattern command-output mapping
-in ``shell_proxy.commands.apply_local_recipe``) shipped as an independent
+``llm_client.LLMClient.complete``) shipped as an independent
 function with its own argument shape, its own logging surface, and its own
 opt-in / opt-out condition. Composing two transforms required hand-wiring
 their argument lists at every call site; testing the byte-identical-when-
 bypassed invariant required separate fixtures per primitive.
 
-This module unifies the 6 transforms behind a single :class:`CompressionStage`
+This module unifies the 5 transforms behind a single :class:`CompressionStage`
 protocol — ``should_bypass(payload, context) -> bool`` plus
 ``transform(payload, context) -> payload`` — and a
 :class:`CompressionPipeline` orchestrator that chains stages in order. The
@@ -94,9 +93,8 @@ BYPASS_ALWAYS: Callable[[Any, Mapping[str, Any]], bool] = _bypass_always_impl
 
 Used by :data:`tests.test_compression_pipeline.test_all_stages_bypassed_is_byte_identical`
 to pin the byte-identical invariant. Production callers SHOULD NOT use
-this directly — instead, rely on per-stage runtime probes (e.g.
-``shell_proxy.commands.is_command_mapping_active``) to express the real
-activation condition.
+this directly — instead, rely on per-stage runtime probes to express the
+real activation condition.
 """
 
 
@@ -140,9 +138,9 @@ class StageResult:
     returns (``summary_text`` / ``transformations_applied`` / etc.) at the
     *aggregation* layer — individual stages keep their own return shapes.
 
-    Attributes:
-        name: The stage's canonical id (e.g. ``"truncate_tool_output"``,
-            ``"summarise_predecessor"``, ``"apply_local_recipe"``).
+        Attributes:
+        name: The stage's canonical id (e.g. ``"truncate_tool_output"`` or
+            ``"summarise_predecessor"``).
         bypassed: ``True`` iff the stage's bypass predicate returned True
             (stage was skipped; payload forwarded unchanged).
         applied: ``True`` iff the stage actually mutated the payload.
@@ -285,7 +283,7 @@ def make_stage(
     Equivalent to calling the dataclass constructor directly but accepts
     ``None`` for ``bypass`` / ``bypass_conditions`` to mean "use defaults"
     (the dataclass treats ``None`` as a TypeError because the fields are
-    typed). Used by the v9.0.0 PV-06 refactor of the 6 transforms.
+    typed). Used by the v9.0.0 PV-06 refactor of the 5 transforms.
     """
     return CompressionStage(
         name=name,
@@ -313,9 +311,6 @@ class CompressionPipeline:
       truncation primitive)
     * :func:`devolaflow.compressor.directed_compact` (focus-keyword
       paragraph filter)
-    * :func:`devolaflow.shell_proxy.commands.apply_local_recipe` (RTK
-      pattern command-output mapping with multi-pass filter chain)
-
     R5 strict invariants (verified by
     ``tests/test_compression_pipeline.py``):
 

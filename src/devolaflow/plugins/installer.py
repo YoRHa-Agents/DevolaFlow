@@ -12,73 +12,7 @@ from devolaflow._plugin_installer import *  # noqa: F403, F405
 
 _sys.modules[__name__] = _sys.modules["devolaflow._plugin_installer"]
 
-# Loop v3 PV-3 keeps the curl fallback policy explicit at this compatibility
-# boundary.  The private installer package predates per-plugin fallback
-# metadata and otherwise applies Cargo to every curl-script plugin.  RTK is
-# the only shipped plugin with evidence for that fallback (its upstream
-# collision warning is the reason for ``rtk gain``); Si-Chip and future
-# curl-script plugins must stop after their declared installer fails.
-_CARGO_FALLBACK_PLUGINS = frozenset({"rtk"})
-_ORIGINAL_INSTALL_VIA_CARGO = _plugin_impl.backends._install_via_cargo
-_ORIGINAL_INSTALL_VIA_CURL_SCRIPT = _plugin_impl.backends._install_via_curl_script
 _ORIGINAL_UPGRADE_PLUGIN = _plugin_impl.freshness.upgrade_plugin
-
-
-def _install_via_cargo(spec, *, timeout: int) -> None:
-    """Run the explicitly permitted Cargo fallback for one plugin."""
-    if spec.id not in _CARGO_FALLBACK_PLUGINS:
-        raise PluginInstallError(
-            f"Cargo fallback is not configured for plugin {spec.id!r}; "
-            "curl-script failures are terminal for this plugin.",
-            details={"plugin_id": spec.id, "fallback_backend": None},
-        )
-    _ORIGINAL_INSTALL_VIA_CARGO(spec, timeout=timeout)
-
-
-def _install_via_curl_script(spec, *, timeout: int) -> None:
-    """Install a curl-script plugin, using Cargo only for explicitly allowed IDs."""
-    if spec.id in _CARGO_FALLBACK_PLUGINS:
-        _ORIGINAL_INSTALL_VIA_CURL_SCRIPT(spec, timeout=timeout)
-        return
-
-    try:
-        proc = _plugin_impl.backends._run_cmd(spec.install_cmd, timeout=timeout)
-    except _subprocess.TimeoutExpired as exc:
-        raise PluginInstallError(
-            f"curl install timeout for plugin {spec.id!r} after {timeout}s; "
-            "no fallback backend is configured.",
-            details={
-                "plugin_id": spec.id,
-                "primary_backend": "curl_install_script",
-                "primary_failure": f"timeout after {timeout}s",
-                "fallback_backend": None,
-            },
-        ) from exc
-    except OSError as exc:
-        raise PluginInstallError(
-            f"curl install failed for plugin {spec.id!r} (os-error): {exc}; "
-            "no fallback backend is configured.",
-            details={
-                "plugin_id": spec.id,
-                "primary_backend": "curl_install_script",
-                "primary_failure": f"os-error: {exc}",
-                "fallback_backend": None,
-            },
-        ) from exc
-
-    if proc.returncode != 0:
-        raise PluginInstallError(
-            f"curl install failed for plugin {spec.id!r} "
-            f"(returncode={proc.returncode}): {proc.stderr[:400]!r}; "
-            "no fallback backend is configured.",
-            details={
-                "plugin_id": spec.id,
-                "primary_backend": "curl_install_script",
-                "primary_failure": f"returncode={proc.returncode}",
-                "fallback_backend": None,
-                "stderr": proc.stderr[:400],
-            },
-        )
 
 
 def available_plugin_profiles(*, registry_path=None) -> dict[str, list[str]]:
@@ -215,15 +149,9 @@ def upgrade_plugin(plugin_id: str, *, registry_path=None, log_path=None) -> str:
 # implementation above.  Install the policy hooks into both the package and
 # the implementation modules so lifecycle calls and legacy monkeypatches see
 # the same behavior.
-_plugin_impl.backends._install_via_cargo = _install_via_cargo
-_plugin_impl.backends._install_via_curl_script = _install_via_curl_script
-_plugin_impl.lifecycle._install_via_curl_script = _install_via_curl_script
 _plugin_impl.freshness.upgrade_plugin = upgrade_plugin
 _plugin_impl.refresh.upgrade_plugin = upgrade_plugin
-_plugin_impl._install_via_cargo = _install_via_cargo
-_plugin_impl._install_via_curl_script = _install_via_curl_script
 _plugin_impl.upgrade_plugin = upgrade_plugin
-_plugin_impl._CARGO_FALLBACK_PLUGINS = _CARGO_FALLBACK_PLUGINS
 _plugin_impl.available_plugin_profiles = available_plugin_profiles
 _plugin_impl.select_plugin_profile = select_plugin_profile
 _plugin_impl.install_plugin_profile = install_plugin_profile

@@ -2454,5 +2454,19 @@
     "metrics": {
       "quantifiable_ratio": "INSUFFICIENT — 120/140 = 0.8571428571428571"
     }
+  },
+  {
+    "version": "22.0.0",
+    "date": "2026-08-31",
+    "era": "optional-tool-retirement",
+    "headline": "MAJOR — Optional Tool Retirement: RTK and Si-Chip removed; Codegraph remains advised",
+    "summary": "RTK and Si-Chip integrations are removed from runtime, lifecycle, installer, workflow, and release surfaces. Codegraph remains default-installed at suggest tier and is used automatically when available with built-in search fallback.",
+    "highlights": [
+      "RTK retirement — shell-proxy, command mapping, and RTK lifecycle integration removed",
+      "Si-Chip retirement — bridge, post-skill-edit hook, dogfood stages, and iteration-delta gate removed",
+      "Codegraph advised mode — default-installed, non-forced, automatically used when available, with graceful fallback",
+      "Governance contraction — lifecycle events reduced to 15 and SI-10 release gates reduced to six"
+    ],
+    "metrics": {}
   }
 ]

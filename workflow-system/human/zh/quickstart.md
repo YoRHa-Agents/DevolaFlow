@@ -4,8 +4,8 @@ description: "安装 DevolaFlow，按正确渠道验证，并运行第一个清�
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-30T16:01:24Z"
-source_version: "21.3.0"
+last_synced: "2026-08-30T23:06:56Z"
+source_version: "22.0.0"
 ---
 
 # 快速入门指南
@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 curl 的 `all` 会安装所有受支持宿主目标和 `local` 脚手架，但不包含
 `standalone`。即使传入 `--global`，部分宿主仍只支持项目级。全局安装还会尝试
-安装默认捆绑的运行时插件；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。只复制 skill 文件时
+安装默认捆绑的运行时插件（Codegraph 和 impeccable）；ui-pro 等可选插件仅可显式选择。只复制 skill 文件时
 添加 `--no-plugins`。curl 安装器没有 doctor 命令。
 
 ### pip 或 wheel：Python 运行时与本地脚手架
@@ -71,7 +71,7 @@ devola-init cursor
 
 Python 中的 `all` 表示 Cursor、Claude、Copilot 与 Codex，不包含 local
 脚手架。配合 `--global` 时会尝试安装默认捆绑插件，除非传入
-`--no-plugins`；RTK、ui-pro 和 Si-Chip 等可选插件仅可显式选择。
+`--no-plugins`；Codegraph 和 impeccable 默认捆绑，ui-pro 等可选插件仅可显式选择。
 
 **手动回退**
 

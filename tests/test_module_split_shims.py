@@ -56,9 +56,8 @@ _RETIRED_SHIMS: tuple[tuple[str, str], ...] = (
     ("devolaflow.feedback", "populate_intra_task_convergence"),
     ("devolaflow.feedback", "INTRA_TASK_CONVERGENCE_TASK_TYPES"),
     ("devolaflow.feedback", "INTRA_TASK_MAX_ROUNDS_DEFAULT"),
-    # feedback.py → dispatch.py (wave-execution / dogfood dispatch wrappers)
+    # feedback.py → dispatch.py (wave-execution wrapper)
     ("devolaflow.feedback", "dispatch_wave_tasks"),
-    ("devolaflow.feedback", "dispatch_dogfood_cycle"),
     # task_adaptive_selector.py → agents_md_slice.py (AGENTS.md slicing)
     ("devolaflow.task_adaptive_selector", "select_agents_md_slice"),
     ("devolaflow.task_adaptive_selector", "count_agents_md_rules"),

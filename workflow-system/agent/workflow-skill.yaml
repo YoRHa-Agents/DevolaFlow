@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "21.3.0"
+  version: "22.0.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -203,14 +203,14 @@ content:
       design_source: "design_repo_modes.md"
       load_when: "Detecting repository structure, configuring mode-specific behavior"
       tier: 2
-      estimated_lines: 312
+      estimated_lines: 311
 
     - id: "execution-protocol"
       file: "references/execution-protocol.md"
       design_source: "design_execution_protocol.md"
       load_when: "Running preflight, checkpoints, bounded checklist rounds, or exception handling"
       tier: 2
-      estimated_lines: 956
+      estimated_lines: 921
 
     - id: "message-schemas"
       file: "references/message-schemas.md"

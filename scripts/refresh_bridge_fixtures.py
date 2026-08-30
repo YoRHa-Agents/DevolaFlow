@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Re-capture bridge fixtures from live plugin binaries.
+"""Re-capture bridge fixtures from the live ui-pro binary.
 
-v10.8.0 D-C-2 closure. This script invokes the 3 bridge-backed plugins
-(Si-Chip / RTK / ui-pro) and captures their live stdout / yaml /
+v10.8.0 D-C-2 closure. This script invokes the remaining bridge-backed plugin
+(ui-pro) and captures its live stdout / yaml /
 json output into ``tests/integration/fixtures/<plugin>/``. Every captured
 file carries the R1 ``captured_from_plugin_version: <version>`` header
 mandated by D-C-2 §9 R1 mitigation.
@@ -16,8 +16,8 @@ Behaviour contract:
 * **Existing fixture**: overwritten with the new capture. The weekly CI
   cron job at ``.github/workflows/bridge-fixture-refresh.yml`` diffs the
   result against HEAD and opens a draft PR if drift detected.
-* **Operator on fresh clone without plugins installed**: runs to
-  completion with 3 skip warnings; exits 0 — the fixture directory is
+* **Operator on fresh clone without the plugin installed**: runs to
+  completion with 1 skip warning; exits 0 — the fixture directory is
   already populated from the last refresh.
 
 Usage:
@@ -25,15 +25,11 @@ Usage:
     make refresh-bridge-fixtures
     python scripts/refresh_bridge_fixtures.py
 
-    # Refresh ONE plugin:
-    python scripts/refresh_bridge_fixtures.py --plugin si-chip
-    python scripts/refresh_bridge_fixtures.py --plugin rtk
+    # Refresh the plugin:
     python scripts/refresh_bridge_fixtures.py --plugin ui-pro
 
 External canonical URLs (S-7 compliance):
     * DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-    * Si-Chip: https://github.com/YoRHa-Agents/Si-Chip
-    * RTK: https://github.com/rtk-ai/rtk
     * ui-pro: https://github.com/YoRHa-Agents/ui-pro
 """
 
@@ -56,7 +52,7 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES_DIR = REPO_ROOT / "tests" / "integration" / "fixtures"
 
-PLUGINS: tuple[str, ...] = ("si-chip", "rtk", "ui-pro")
+PLUGINS: tuple[str, ...] = ("ui-pro",)
 
 
 def _probe_binary(binary: str) -> str | None:
@@ -119,71 +115,6 @@ def _write_fixture_with_header(
     logger.info("wrote fixture %s (v%s)", out_path.relative_to(REPO_ROOT), version)
 
 
-def refresh_si_chip() -> bool:
-    """Re-capture Si-Chip fixtures; return True on success, False on skip."""
-    # Si-Chip ships as 3 Python scripts; we probe for the install root.
-    try:
-        from devolaflow.si_chip_bridge import find_si_chip_install
-
-        install = find_si_chip_install()
-    except Exception as exc:  # noqa: BLE001 — best-effort probe
-        logger.warning("Si-Chip probe raised %s: %s; skipping refresh", type(exc).__name__, exc)
-        return False
-    if install is None:
-        logger.warning(
-            "Si-Chip install not found; skipping Si-Chip fixture refresh. "
-            "Install per https://github.com/YoRHa-Agents/Si-Chip"
-        )
-        return False
-    version = getattr(install, "script_version", None) or "unknown"
-    logger.info("capturing Si-Chip v%s fixtures", version)
-    # Placeholder: real implementation would invoke `profile_static.py` /
-    # `count_tokens.py` / `aggregate_eval.py` against the DF skill and
-    # write the captured YAML. Initial fixtures shipped in-tree.
-    logger.info(
-        "Si-Chip fixtures preserved; re-capture path documented at "
-        "https://github.com/YoRHa-Agents/Si-Chip"
-    )
-    return True
-
-
-def refresh_rtk() -> bool:
-    """Re-capture RTK fixtures; return True on success, False on skip."""
-    binary = _probe_binary("rtk")
-    if binary is None:
-        logger.warning(
-            "rtk binary not found on PATH; skipping RTK fixture refresh. "
-            "Install per https://github.com/rtk-ai/rtk"
-        )
-        return False
-    # Probe rtk gain to distinguish from rtk-type-kit (D-C-1 §3 contract).
-    try:
-        probe = subprocess.run(
-            [binary, "gain"],
-            capture_output=True,
-            text=True,
-            timeout=5.0,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.warning("rtk gain probe raised %s: %s; skipping", type(exc).__name__, exc)
-        return False
-    if probe.returncode != 0:
-        logger.warning(
-            "rtk gain exited %d (likely rtk-type-kit collision); skipping RTK refresh",
-            probe.returncode,
-        )
-        return False
-    version = _read_plugin_version(binary, ["--version"])
-    logger.info("capturing RTK v%s fixtures", version)
-    # Placeholder: real implementation would invoke `rtk rewrite <cmd>` for
-    # each canonical fixture command. Initial fixtures shipped in-tree.
-    logger.info(
-        "RTK fixtures preserved; re-capture path documented at https://github.com/rtk-ai/rtk"
-    )
-    return True
-
-
 def refresh_ui_pro() -> bool:
     """Re-capture ui-pro fixtures; return True on success, False on skip."""
     binary = _probe_binary("uipro") or _probe_binary("uipro-cli")
@@ -204,11 +135,7 @@ def refresh_ui_pro() -> bool:
     return True
 
 
-REFRESH_HANDLERS: dict[str, Callable[[], bool]] = {
-    "si-chip": refresh_si_chip,
-    "rtk": refresh_rtk,
-    "ui-pro": refresh_ui_pro,
-}
+REFRESH_HANDLERS: dict[str, Callable[[], bool]] = {"ui-pro": refresh_ui_pro}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -239,9 +166,9 @@ def main(argv: list[str] | None = None) -> int:
         refreshed or "(none)",
         skipped or "(none)",
     )
-    # Exit 0 even when plugins are skipped — this is the "gracefully skips"
-    # contract per D-C-2 §2 step 4 + §9 R2. A weekly CI cron job with all
-    # 3 plugins pre-installed is the ground truth for full refreshes.
+    # Exit 0 even when the plugin is skipped — this is the "gracefully skips"
+    # contract per D-C-2 §2 step 4 + §9 R2. A weekly CI cron job with both
+    # plugin pre-installed is the ground truth for full refreshes.
     return 0
 
 

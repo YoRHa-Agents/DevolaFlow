@@ -16,32 +16,22 @@ def ensure_plugin(
 ) -> str:
     """Ensure ``plugin_id`` is installed at >= its declared ``min_version``.
 
-    Resolution chain (matches design.md §6.5 failure-mode catalog +
-    the historical RTK distinguish-cmd protocol):
+    Resolution chain (matches design.md §6.5 failure-mode catalog):
 
     1. Load + resolve registry entry.
     2. Probe current version via ``version_check_cmd``; if present AND
-       ``>= min_version`` → run distinguish-check (no-op when
-       ``verify_distinguish_cmd`` is unset) → return version (INFO
-       ``plugin_already_installed``). If the pre-install distinguish-check
-       fails, raise :class:`PluginInstallError` loudly per S-5 (the wrong
-       package is on PATH).
+       ``>= min_version`` → return version (INFO
+       ``plugin_already_installed``).
     3. If ``auto_install`` is ``False`` → raise :class:`PluginVersionMismatch`
        loudly per S-5.
-    4. Invoke backend-specific install routine (``pip``, ``npm_then_init``, or
-       ``curl_install_script``); honour ``prefer_local_fallback`` when
-       ``local_fallback_path`` is set. The ``curl_install_script`` backend
-       falls back to ``cargo install --git <canonical_url>`` on primary
-       failure (never bare ``cargo install <pkg>`` per R-2 collision risk).
+    4. Invoke backend-specific install routine (``pip`` or ``npm_then_init``);
+       honour ``prefer_local_fallback`` when
+       ``local_fallback_path`` is set.
     5. Re-probe version; raise :class:`PluginVersionMismatch` if still below
        floor, or :class:`PluginInstallError` when the version command now
        returns nothing parseable.
-    6. Run distinguish-check (no-op when ``verify_distinguish_cmd`` is unset).
-       Failure raises :class:`PluginInstallError` per S-5 with collision
-       warning text (e.g., RTK Rust Token Killer vs rtk-type-kit Rust Type
-       Kit per RTK INSTALL.md).
-    7. Run SHA-256 verification (best-effort; see :func:`_verify_sha256`).
-    8. Append a JSONL install event to ``log_path`` (defaulted from registry).
+    6. Run SHA-256 verification (best-effort; see :func:`_verify_sha256`).
+    7. Append a JSONL install event to ``log_path`` (defaulted from registry).
 
     Parameters
     ----------
@@ -144,38 +134,15 @@ def _handle_already_installed_path(
     timeout: int,
     t_start: float,
 ) -> str:
-    """Cache-hit arm of :func:`ensure_plugin`: distinguish + log + return.
+    """Cache-hit arm of :func:`ensure_plugin`: log + return.
 
     Extracted from :func:`ensure_plugin` in v10.6.0 PV-01 (D-Q-1 row
     #5). Only invoked when ``preinstall_version`` is non-empty AND
     meets ``spec.min_version`` — at that point the binary on PATH is
     accepted as the install. The distinguish-check still runs (for
-    plugins like RTK that ship a ``verify_distinguish_cmd`` to catch
-    rtk-type-kit collisions even when the version string accidentally
-    matches the wrong package).
-
-    Failure surfaces a ``plugin_install_distinguish_failed_preinstall``
-    JSONL log event (event-name PRESERVED VERBATIM per the §9 risk
-    register row #3 named-event ordering contract) and re-raises the
-    original :class:`PluginInstallError` per S-5.
-
-    Success surfaces ``plugin_already_installed`` (also verbatim
-    event name) plus the same INFO log line as the v10.5.x baseline.
+    Success surfaces ``plugin_already_installed`` plus the same INFO log line
+    as the v10.5.x baseline.
     """
-    try:
-        _verify_distinguish(spec, timeout=timeout)
-    except PluginInstallError as exc:
-        _append_log(
-            log_path,
-            "plugin_install_distinguish_failed_preinstall",
-            spec.id,
-            {
-                "preinstall_version": preinstall_version,
-                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
-                "details": exc.details,
-            },
-        )
-        raise
     logger.info(
         "plugin_already_installed: %s at version %s (>= %s)",
         spec.id,
@@ -217,9 +184,7 @@ def _handle_install_path(
        :class:`PluginInstallError`. Below-floor logs
        ``plugin_install_version_mismatch`` and raises
        :class:`PluginVersionMismatch`.
-    3. Run distinguish-check; failure logs
-       ``plugin_install_distinguish_failed_postinstall`` and re-raises.
-    4. Run SHA-256 verify; failure (currently best-effort heuristic)
+    3. Run SHA-256 verify; failure (currently best-effort heuristic)
        on a pip-backend triggers a best-effort pip uninstall, logs
        ``plugin_install_sha_mismatch``, and re-raises.
     5. Log ``plugin_installed`` + INFO line + return version.
@@ -238,8 +203,6 @@ def _handle_install_path(
             )
         elif spec.backend == "npm_then_init":
             _install_via_npm_then_init(spec, timeout=timeout)
-        elif spec.backend == "curl_install_script":
-            _install_via_curl_script(spec, timeout=timeout)
         else:
             raise PluginBackendUnsupported(
                 f"Plugin {spec.id!r} backend {spec.backend!r} not supported.",
@@ -288,25 +251,6 @@ def _handle_install_path(
                 "min_version": spec.min_version,
             },
         )
-
-    # Distinguish-check is a no-op for plugins without verify_distinguish_cmd
-    # (for example, ui-pro); for RTK it runs `rtk gain` to detect rtk-type-kit
-    # name-collisions per the upstream INSTALL.md warning. Loud per S-5.
-    try:
-        _verify_distinguish(spec, timeout=timeout)
-    except PluginInstallError as exc:
-        _append_log(
-            log_path,
-            "plugin_install_distinguish_failed_postinstall",
-            spec.id,
-            {
-                "postinstall_version": postinstall_version,
-                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
-                "backend": spec.backend,
-                "details": exc.details,
-            },
-        )
-        raise
 
     try:
         _verify_sha256(spec)

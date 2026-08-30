@@ -284,10 +284,8 @@ def test_v14_4_0_env_flag_taxonomy_registered(project_root: Path) -> None:
         guidance + the §7 W-20 checklist cross-link.
     (b) The §2.5 AUTO_INSTALL row stays `unwired` but carries the v14.4.0
         resolution (docs fixed; wiring-or-removal deferred to v15.0.0 G-021).
-    (c) references/shell-proxy.md no longer advertises DEVOLAFLOW_AUTO_INSTALL
-        as a working toggle — the honesty paragraph points at
-        runtime-plugins.yaml#defaults.auto_install instead.
-    (d) plugins/installer.py cargo-failure hint points at the yaml knob,
+    (c) plugins/installer.py actionable error text remains free of the
+        retired bare env var,
         never at the dead env var (S-5: advice must be actionable).
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.4 G-023 remainder.
@@ -331,24 +329,7 @@ def test_v14_4_0_env_flag_taxonomy_registered(project_root: Path) -> None:
         "W-18 v14.4.0 violation: the §2.5 tombstone must cite the G-023 deferral it resolves."
     )
 
-    # --- (c) shell-proxy.md honesty fix -------------------------------------
-    shell_text = (refs / "shell-proxy.md").read_text(encoding="utf-8")
-    assert "Plugin auto-install is NOT env-flag controlled" in shell_text, (
-        "W-18 v14.4.0 violation: shell-proxy.md missing the §2 auto-install honesty paragraph."
-    )
-    assert "runtime-plugins.yaml#defaults.auto_install" in shell_text, (
-        "W-18 v14.4.0 violation: shell-proxy.md must point at the live yaml knob."
-    )
-    # The bare flag may appear ONLY inside the honesty paragraph (negative
-    # lookahead excludes the distinct DEVOLAFLOW_AUTO_INSTALL_PLUGINS flag).
-    bare_mentions = re.findall(r"DEVOLAFLOW_AUTO_INSTALL(?!_)", shell_text)
-    assert len(bare_mentions) == 1, (
-        f"W-18 v14.4.0 violation: shell-proxy.md has {len(bare_mentions)} "
-        "bare DEVOLAFLOW_AUTO_INSTALL mentions — expected exactly 1 (the "
-        "honesty paragraph); stale working-toggle advertisements regressed."
-    )
-
-    # --- (d) installer.py actionable error text -----------------------------
+    # --- (c) installer.py actionable error text -----------------------------
     installer_text = (project_root / "src/devolaflow/_plugin_installer/backends.py").read_text(
         encoding="utf-8"
     )

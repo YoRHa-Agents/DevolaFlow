@@ -96,7 +96,7 @@ index_fields:
       - recipe_path
       - version_stamp
     item_optional_fields:
-      - repo_signal     # optional secondary key (e.g. "DevolaFlow", "rtk-ai/rtk")
+      - repo_signal     # optional secondary repository key
       - ttl_days        # default 30
       - last_accessed   # ISO date — bumped on every cache hit
       - tags            # free-form list of strings for human filtering
@@ -189,16 +189,6 @@ examples:
     schema_version: 1
     last_updated: "2026-08-25"
     cases:
-      - case_id: codegraph-plugin-entry
-        workflow_type: repo-init
-        task_type: analyze
-        summary: "Current Codegraph plugin pattern — suggest-tier registry entry plus project-local index setup."
-        recipe_path: ".local/memory/cases/codegraph-plugin-entry.md"
-        version_stamp: "15.2.0"
-        repo_signal: "DevolaFlow"
-        ttl_days: 60
-        tags: [plugin, codegraph, suggest-tier]
-
       - case_id: built-in-harness-evaluation
         workflow_type: skill-optimization
         task_type: test

@@ -7,7 +7,7 @@ Pins the 5 contract invariants from D-C-3 §2 step 7:
 2. **upgrade-only** — `pre_plugin_invocation_upgrade` handles staleness +
    upgrade only (no install fires).
 3. **alias-byte-identical** — the v9.4.0 `pre_plugin_invocation` event at
-   `DEFAULT_EVENTS` position 9 preserves byte-identical observable
+   `DEFAULT_EVENTS` position 8 after v22 re-numbering preserves byte-identical observable
    behaviour when `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`.
 4. **disjoint-violations** — PPI001 fires from the install handler ONLY;
    PPI003 fires from the upgrade handler ONLY.
@@ -395,25 +395,23 @@ class TestAliasTelegraphedFor1CycleDeprecation:
         assert "Alias deprecation telegraph" in env_flags or (
             "alias deprecation telegraph" in env_flags
         ), "env-flags.md §2.13 must document the v10.8.0 → v12.0.0+ alias deprecation"
-        # Positions 11 + 12 cited.
-        assert "event slot #11" in env_flags or "position 11" in env_flags.lower()
-        assert "event slot #12" in env_flags or "position 12" in env_flags.lower()
+        # Post-v22 positions 9 + 10 are cited.
+        assert "event slot #9" in env_flags or "position 9" in env_flags.lower()
+        assert "event slot #10" in env_flags or "position 10" in env_flags.lower()
 
     def test_default_events_length_after_split(self) -> None:
-        """A-2.2 append-only: DEFAULT_EVENTS grows to AT LEAST 12 entries.
+        """A-2.2 append-only: DEFAULT_EVENTS retains the split events.
 
-        Positions 11 + 12 carry the two new event constants per D-C-3;
-        positions 1-10 remain byte-stable per A-2.4. The SUPERSET
-        containment check (``>= 12``) accommodates future APPEND-ONLY
-        additions per A-2.2 — e.g., v11.0.0 PV-02 D-Q-3 appends 4 NEW
-        canonical event names (positions 13-16) without disturbing
-        positions 1-12.
+        The split event constants remain adjacent after the retired shell
+        event is removed. The SUPERSET containment check accommodates future
+        APPEND-ONLY
+        additions per A-2.2 — the four canonical aliases now occupy
+        positions 11-14 without disturbing positions before the split.
         """
-        assert len(DEFAULT_EVENTS) >= 12, (
-            f"D-C-3 ships DEFAULT_EVENTS at length 12 (positions 1-12 "
-            f"byte-stable); got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
+        assert len(DEFAULT_EVENTS) >= 10, (
+            f"D-C-3 retains the split events; got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
         )
-        assert DEFAULT_EVENTS[10] == PRE_PLUGIN_INVOCATION_INSTALL_EVENT
-        assert DEFAULT_EVENTS[11] == PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
-        # Position 9 alias preserved.
-        assert DEFAULT_EVENTS[8] == PRE_PLUGIN_INVOCATION_EVENT
+        assert DEFAULT_EVENTS[8] == PRE_PLUGIN_INVOCATION_INSTALL_EVENT
+        assert DEFAULT_EVENTS[9] == PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
+        # The pre-plugin event remains immediately before the split.
+        assert DEFAULT_EVENTS[7] == PRE_PLUGIN_INVOCATION_EVENT

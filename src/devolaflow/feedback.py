@@ -575,7 +575,7 @@ class ProposalGenerator:
 # identity-preserving re-export below keeps that path contract forever
 # (likewise the S-10-named ``ProposalGenerator.generate_round_dispatch``
 # above, which never moved). The sibling ADR-006 re-exports that lived here
-# (``dispatch_wave_tasks`` / ``dispatch_dogfood_cycle`` /
+# (``dispatch_wave_tasks`` /
 # ``populate_intra_task_convergence`` + its constants) were retired in
 # v17.0.0 after call-site migration — import them from
 # ``devolaflow.dispatch`` / ``devolaflow.gate.cascade``. Pinned by

@@ -18,14 +18,13 @@
 # yields a byte-identical pass-through (R5 strict invariant — pinned by
 # tests/test_compression_pipeline.py::test_*_byte_identical).
 #
-# Six canonical transforms ship in v8.5.1 PV-06 wrapped behind this schema:
+# Five canonical transforms ship in v8.5.1 PV-06 wrapped behind this schema:
 #
 #   1. truncate_tool_output     — head+tail keep, middle elided (v7.0.1 ADR-002)
 #   2. summarise_predecessor_extractive — schema-hint section ranker (v7.0.2 ADR-003)
 #   3. summarise_predecessor_abstractive_a — density-routed (v8.0.0 P-12 Stage A)
 #   4. summarise_predecessor_abstractive_b — LLM-assisted (v8.2.0 PV-01 Stage B)
 #   5. directed_compact         — focus-keyword paragraph filter (v8.0.0 P-02)
-#   6. apply_local_recipe       — RTK-pattern command-output mapping (v8.3.4 PV-04)
 #
 # Per A-2.3 NEST decision rule, this schema NESTS under existing dispatch
 # blocks rather than appending a new top-level key:
@@ -68,7 +67,7 @@ pipeline_fields:
     description: >
       Pipeline id surfaced in error messages, telemetry, and status reports.
       Conventional names: ``predecessor_default``, ``tool_output_default``,
-      ``command_mapping_pytest``, ``directed_compact_focused``.
+      ``directed_compact_focused``.
 
   stages:
     type: list
@@ -149,7 +148,7 @@ pipeline_fields:
 # -----------------------------------------------------------------------------
 invariants:
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
-  - "External references MUST use canonical GitHub URLs (S-7 / SF-6); RTK is `https://github.com/rtk-ai/rtk`."
+  - "External references MUST use canonical GitHub URLs (S-7 / SF-6)."
   - "Empty `stages` list MUST yield a byte-identical pass-through (R5 strict)."
   - "Every stage's `bypass` predicate MUST return True OR False (non-bool returns are treated as True with a WARNING per S-5)."
   - "Stage names within a pipeline MUST be unique (telemetry attribution requirement)."
@@ -192,26 +191,3 @@ examples:
         params:
           mode: "abstractive"
           llm_assist: true
-
-  command_mapping_multi_pass:
-    name: "command_mapping_multi_pass"
-    strict: false
-    context:
-      cmd: "pytest"
-    stages:
-      - name: "apply_local_recipe_pre"
-        transform_ref: "devolaflow.shell_proxy.commands:apply_local_recipe"
-        bypass_ref: "devolaflow.shell_proxy.commands:_bypass_when_inactive"
-        bypass_conditions: ["env_flag_unset", "no_recipe_match"]
-        params:
-          phase: "pre"
-      - name: "directed_compact_focused"
-        transform_ref: "devolaflow.compressor:directed_compact"
-        params:
-          focus_keywords: ["FAIL", "ERROR", "PASSED"]
-          max_drop_pct: 0.20
-      - name: "truncate_tool_output_post"
-        transform_ref: "devolaflow.compressor:truncate_tool_output"
-        params:
-          head_chars: 500
-          tail_chars: 500

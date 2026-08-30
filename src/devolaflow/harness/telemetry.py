@@ -92,7 +92,6 @@ SI10_GATE_NAMES: Final[tuple[str, ...]] = (
     "test-version",
     "test-harness",
     "check-cursor-skill",
-    "iteration-delta-gate",
 )
 SI10_GATE_STATUSES: Final[frozenset[str]] = frozenset({"PASS", "FAIL"})
 LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {

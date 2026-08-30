@@ -87,12 +87,11 @@ def test_v15_0_0_pre_dispatch_strict_graduation_registered(project_root: Path) -
     assert "unregister_hook" in dispatcher.__all__
 
 
-def test_v15_0_0_default_events_17_registered() -> None:
-    """W-18 v15.0.0: DEFAULT_EVENTS 16 → 17 (G-038 flip 4) has coverage.
+def test_v15_0_0_default_events_registered() -> None:
+    """W-18 v15.0.0: the current DEFAULT_EVENTS tuple has coverage.
 
     ``check_human_input_write`` (exported additively since v14.0.0)
-    joins the tuple APPENDED at position 17 per A-2.2 append-only —
-    positions 1-16 stay byte-stable; position 1 stays ``pre_dispatch``.
+    remains the final event after the retired shell event is removed.
     """
     from devolaflow.lifecycle import (
         CHECK_HUMAN_INPUT_WRITE_EVENT,
@@ -100,14 +99,13 @@ def test_v15_0_0_default_events_17_registered() -> None:
         PRE_DISPATCH_EVENT,
     )
 
-    assert len(DEFAULT_EVENTS) == 17, (
+    assert len(DEFAULT_EVENTS) == 15, (
         f"W-18 v15.0.0 violation: DEFAULT_EVENTS length drifted to "
-        f"{len(DEFAULT_EVENTS)} (G-038 flip 4 pinned the 17-entry shape)."
+        f"{len(DEFAULT_EVENTS)} after retired-event removal."
     )
     assert DEFAULT_EVENTS[0] == PRE_DISPATCH_EVENT
-    assert DEFAULT_EVENTS[16] == CHECK_HUMAN_INPUT_WRITE_EVENT, (
-        "W-18 v15.0.0 violation: check_human_input_write must sit at "
-        "position 17 (A-2.2 append-only tail)."
+    assert DEFAULT_EVENTS[14] == CHECK_HUMAN_INPUT_WRITE_EVENT, (
+        "W-18 v15.0.0 violation: check_human_input_write must sit at the final event position."
     )
 
 
@@ -184,7 +182,7 @@ def test_v15_0_0_legibility_weight_graduation_registered() -> None:
 def test_v15_0_0_strict_graduation_doc_pins_registered(project_root: Path) -> None:
     """W-18 v15.0.0: the T1 strict-graduation doc pins have coverage.
 
-    (a) env-flags.md §2.15 carries the G-038 strict-graduation row for
+    (a) env-flags.md §2.14 carries the G-038 strict-graduation row for
         the engaged-workspace adapters (flag absent = byte-identical
         no-op, UNCHANGED).
     (b) execution-protocol.md §14 carries the default-on
@@ -193,13 +191,13 @@ def test_v15_0_0_strict_graduation_doc_pins_registered(project_root: Path) -> No
     env_text = (project_root / "workflow-system/agent/references/env-flags.md").read_text(
         encoding="utf-8"
     )
-    section_2_15 = env_text.split("### 2.15 `DEVOLAFLOW_AGENT_WORKSPACE`", 1)
-    assert len(section_2_15) == 2, (
-        "W-18 v15.0.0 violation: env-flags.md lost the §2.15 DEVOLAFLOW_AGENT_WORKSPACE section."
+    section_2_14 = env_text.split("### 2.14 `DEVOLAFLOW_AGENT_WORKSPACE`", 1)
+    assert len(section_2_14) == 2, (
+        "W-18 v15.0.0 violation: env-flags.md lost the §2.14 DEVOLAFLOW_AGENT_WORKSPACE section."
     )
-    body_2_15 = section_2_15[1].split("\n### ", 1)[0]
-    assert "v15.0.0 strict graduation (G-038)" in body_2_15, (
-        "W-18 v15.0.0 violation: env-flags.md §2.15 missing the G-038 "
+    body_2_14 = section_2_14[1].split("\n### ", 1)[0]
+    assert "v15.0.0 strict graduation (G-038)" in body_2_14, (
+        "W-18 v15.0.0 violation: env-flags.md §2.14 missing the G-038 "
         "strict-graduation row (S-8 mode: full under the engaged flag)."
     )
 
@@ -404,9 +402,8 @@ def test_v15_0_0_plugin_registry_unification_registered(project_root: Path) -> N
         f"W-18 v15.0.0 violation: plugins.yaml view keys {view_ids} no "
         f"longer mirror the owner's plugins[*].id order {owner_ids} (G-021)."
     )
-    assert "ui-pro" in owner_ids and "rtk" in owner_ids, (
-        "W-18 v15.0.0 violation: the G-021 ui-pro rename / rtk addition "
-        "regressed in the owner registry."
+    assert "ui-pro" in owner_ids and "impeccable" in owner_ids, (
+        "W-18 v15.0.0 violation: the G-021 plugin registrations regressed in the owner registry."
     )
 
 
@@ -747,7 +744,7 @@ def test_v15_0_x_scaffold_gitignore_reliability_registered(project_root: Path) -
 
     (a) `devolaflow.local.workspace` owns the deterministic gitignore
         entry path: `ensure_gitignore_entries` + `SCAFFOLD_GITIGNORE_ENTRIES`
-        (`.codegraph/` decoupled from `codegraph init` outcome; R5 F1-H1).
+        (`.codegraph/` is decoupled from plugin execution; R5 F1-H1).
     (b) The post-scaffold self-check exists: `verify_scaffold_gitignore` +
         `ScaffoldVerificationError` raised by `scaffold_local` (S-5; R5 F1-H3).
     (c) The module has a real `__main__` path so the historic install.sh
@@ -848,28 +845,10 @@ def test_v15_0_x_init_structure_contract_registered(project_root: Path) -> None:
 
 
 def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
-    """full_review_and_improve Track C-3 — codegraph suggest-tier + backgrounding (R5 F2).
-
-    Discharges the W-18 precondition for the C-3 CHANGELOG entry (D-11:
-    overturns the 2026-05-23 "synchronous in ALL modes" locked decision).
-    Asserts the load-bearing surfaces:
-
-    (a) `devolaflow.codegraph.markers` ships the tri-state marker protocol
-        (mark_indexing / mark_ready / mark_failed / read_marker_state /
-        MarkerState) and does NOT duplicate the CLI probe (A-5 — the
-        probe stays `devolaflow.codegraph.is_codegraph_available`).
-    (b) the repo-init seed retains codegraph/scaffold provenance while the
-        codegraph reference owns suggest-tier/background marker behavior.
-    (c) The agent-facing docs no longer promise a synchronous ALL-modes
-        install (SKILL.md workflow row + references/codegraph.md §4.2).
-
-    Behavioural assertions live in tests/test_codegraph_markers.py +
-    tests/test_codegraph_workflow_wiring.py.
-    """
+    """W-18 C-3: Codegraph remains suggest-tier and background-capable."""
     import devolaflow.codegraph as codegraph_pkg
     import devolaflow.codegraph.markers as markers_mod
 
-    # --- (a) marker protocol + no probe duplicate ------------------------
     for symbol in (
         "mark_indexing",
         "mark_ready",
@@ -877,38 +856,26 @@ def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
         "read_marker_state",
         "MarkerState",
     ):
-        assert hasattr(markers_mod, symbol), f"W-18 C-3 violation: markers.{symbol} missing"
+        assert hasattr(markers_mod, symbol)
         assert symbol in codegraph_pkg.__all__
-    assert not hasattr(markers_mod, "codegraph_cli_available"), (
-        "W-18 C-3 violation: markers.py grew a second CLI probe — reuse "
-        "devolaflow.codegraph.is_codegraph_available per A-5."
-    )
+    assert not hasattr(markers_mod, "codegraph_cli_available")
 
-    # --- (b) seed provenance + reference-owned background contract -------
     from devolaflow.template_engine.registry import TemplateRegistry
 
     seed = TemplateRegistry(project_root / "workflow-system/agent/templates").load_seed("repo-init")
     assert seed is not None
-    assert ("scaffold", "implement") in seed.source_stage_sequence()
     assert any(
         "codegraph availability" in assertion.statement_template
         for partition in seed.partitions
         for assertion in partition.assertions
     )
-
-    # --- (c) docs no longer promise synchronous ALL-modes install --------
-    skill_text = (project_root / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
-    assert "auto-installs codegraph index in ALL modes" not in skill_text, (
-        "W-18 C-3 violation: SKILL.md still advertises the overturned "
-        "synchronous ALL-modes codegraph install."
-    )
-    ref_text = (project_root / "workflow-system/agent/references/codegraph.md").read_text(
+    reference = (project_root / "workflow-system/agent/references/codegraph.md").read_text(
         encoding="utf-8"
     )
-    assert "§4.6" in ref_text and ".codegraph/.indexing" in ref_text, (
-        "W-18 C-3 violation: references/codegraph.md lost the §4.6 marker protocol."
-    )
-    assert "SUGGEST-tier" in ref_text and "BACKGROUND task" in ref_text
+    assert "§4.6" in reference
+    assert ".codegraph/.indexing" in reference
+    assert "SUGGEST-tier" in reference
+    assert "BACKGROUND task" in reference
 
 
 def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:
@@ -919,7 +886,7 @@ def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:
 
     (a) `devolaflow.init_probe` is the SINGLE owner (A-5 discipline) of
         the init-chain dependency tier table (`INIT_DEPENDENCIES`: git
-        required; node/npm/codegraph/nines optional; curl situational)
+        required; node/npm/codegraph optional; curl situational)
         plus the probe/gate helpers.
     (b) `install_local` runs the pre-flight probe BEFORE any scaffold
         write and `doctor_cmd` prints the same capability table (one

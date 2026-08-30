@@ -27,7 +27,6 @@ class RuntimePluginSpec:
     init_cmd_template: str | None = None
     init_targets: list[str] = field(default_factory=list)
     invoked_by_workflows: list[str] = field(default_factory=list)
-    verify_distinguish_cmd: str | None = None
     # v9.4.0 PV-04 schema v3 — optional upgrade command. When None,
     # upgrade_plugin() falls back to install_cmd (which for pip / npm /
     # curl-script backends is typically idempotent and acts as the upgrade
@@ -271,7 +270,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
         When ``plugin_id`` is absent from the registry.
     PluginBackendUnsupported
         When the entry declares a backend not in
-        ``{pip, npm_then_init, curl_install_script}``.
+        ``{pip, npm_then_init}``.
     PluginInstallError
         When the entry is malformed (missing required keys).
 
@@ -317,7 +316,6 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
             init_cmd_template=entry.get("init_cmd_template"),
             init_targets=list(entry.get("init_targets") or []),
             invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
-            verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
             upgrade_cmd=entry.get("upgrade_cmd"),
             tier=str(tier),
             default_install=bool(entry.get("default_install", True)),

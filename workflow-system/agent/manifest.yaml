@@ -52,13 +52,13 @@ references:
   - references/human-surface.md
   - references/impeccable.md
   - references/local-archive.md
+  - references/memory-router.md
   - references/message-schemas.md
   - references/meta-framework.md
   - references/pathfinder.md
   - references/plan-mode-enforcement.md
   - references/repo-modes.md
   - references/retro-digest.md
-  - references/shell-proxy.md
   - references/subagent-patterns.md
   - references/task-quality-score.md
   - references/team-roles.md

@@ -283,7 +283,7 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
     """
     makefile = (project_root / "Makefile").read_text(encoding="utf-8")
 
-    # --- (a) test-core target + exactly 3 ignores ---------------------------
+    # --- (a) test-core target + exactly 2 ignores ---------------------------
     assert "\ntest-core:" in makefile, (
         "W-18 v14.5.0 violation: Makefile missing the test-core target (G-033)."
     )
@@ -293,11 +293,10 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
     ]
     assert sorted(ignores) == [
         "--ignore=tests/harness",
-        "--ignore=tests/test_sichip_iteration_delta_gate.py",
         "--ignore=tests/test_version.py",
     ], (
         f"W-18 v14.5.0 violation: test-core --ignore set drifted ({ignores}) — "
-        "single-execution requires exactly the 3 standalone gate-4/5/7 files."
+        "single-execution requires exactly the 2 standalone gate-4/5 files."
     )
 
     # --- (b) core-before-extras ordering ------------------------------------
@@ -309,7 +308,6 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
         "test-version",
         "test-harness",
         "check-cursor-skill",
-        "iteration-delta-gate",
     ]
     extras = [
         "validate-templates",

@@ -10,7 +10,7 @@
        telemetry-append telemetry-check telemetry-gate check-import-graph check-repo-hygiene
 
 define RUN_TIMED
-start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; record_gate=false; case "$(1)" in test-core|lint|test-version|test-harness|check-cursor-skill|iteration-delta-gate) record_gate=true;; esac; if [ -n "$(TELEMETRY_PV)" ] && [ "$$record_gate" = true ]; then telemetry_status=0; python -m devolaflow.harness telemetry append --ledger "$(TELEMETRY_LEDGER)" --pv "$(TELEMETRY_PV)" --gate "$(1)" --status "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" || telemetry_status=$$?; if [ $$status -eq 0 ] && [ $$telemetry_status -ne 0 ]; then status=$$telemetry_status; fi; fi; exit $$status
+start=$$(date +%s); printf '[gate:%s] START\n' "$(1)"; $(2); status=$$?; elapsed=$$(($$(date +%s)-start)); printf '[gate:%s] %s elapsed=%ss\n' "$(1)" "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" "$$elapsed"; record_gate=false; case "$(1)" in test-core|lint|test-version|test-harness|check-cursor-skill) record_gate=true;; esac; if [ -n "$(TELEMETRY_PV)" ] && [ "$$record_gate" = true ]; then telemetry_status=0; python -m devolaflow.harness telemetry append --ledger "$(TELEMETRY_LEDGER)" --pv "$(TELEMETRY_PV)" --gate "$(1)" --status "$$([ $$status -eq 0 ] && printf PASS || printf FAIL)" || telemetry_status=$$?; if [ $$status -eq 0 ] && [ $$telemetry_status -ne 0 ]; then status=$$telemetry_status; fi; fi; exit $$status
 endef
 
 PV ?=
@@ -51,9 +51,9 @@ test-cov:
 # ---------------------------------------------------------------------------
 # v14.5.0 G-033 — SI-10 core gate targets (single-execution chain).
 #
-# The W-9 / SI-10 protocol is 7 gates; `.rules/workflow.mdc` §W-9 is
+# The W-9 / SI-10 protocol is 6 gates; `.rules/workflow.mdc` §W-9 is
 # RECOMPILED FROM THIS SECTION (the Makefile is the source of truth for
-# the gate list per the v14.2.1 G-033 recompile). The 7 gates map to 6
+# the gate list per the v14.2.1 G-033 recompile). The 6 gates map to 5
 # make targets (`lint` runs gates 2+3):
 #
 #   gate 1  test-core             pytest suite MINUS the standalone gate files
@@ -62,11 +62,10 @@ test-cov:
 #   gate 4  test-version          version consistency (standalone)
 #   gate 5  test-harness          harness domain guard (standalone)
 #   gate 6  check-cursor-skill    cursor-skill mirror in sync
-#   gate 7  iteration-delta-gate  Si-Chip iteration_delta (standalone)
 #
-# Single-execution design (chosen over no-op-with-note): gates 4, 5 and 7
+# Single-execution design (chosen over no-op-with-note): gates 4 and 5
 # run their test files standalone, and gate 1 `--ignore`s exactly those
-# three files, so no test executes twice in one chain run. Failure
+# two files, so no test executes twice in one chain run. Failure
 # isolation stays meaningful — a version-consistency or harness
 # regression fails its OWN named gate, not a generic step-1 failure
 # (a no-op gate 4/5 would report green without attributable evidence).
@@ -75,8 +74,7 @@ test-cov:
 test-core:
 	@$(call RUN_TIMED,test-core,pytest tests/ -q --tb=short \
 		--ignore=tests/harness \
-		--ignore=tests/test_version.py \
-		--ignore=tests/test_sichip_iteration_delta_gate.py)
+		--ignore=tests/test_version.py)
 
 test-version:
 	@$(call RUN_TIMED,test-version,python -m pytest tests/test_version.py -v)
@@ -222,17 +220,6 @@ check-demo-seed-catalog:
 build-site:
 	bash scripts/build-site.sh
 
-# v10.2.1 PV-02 (D-S-3 / D-V-1) — 7th SI-10 step: Si-Chip iteration_delta gate.
-# The 6 base SI-10 gates are codified at .cursor/rules/repo-governance.mdc §W-9
-# (pytest / ruff check / ruff format / test_version / test-harness /
-# check-cursor-skill). v10.2.1 adds the Si-Chip iteration_delta gate as the
-# 7th step; this Makefile target is the canonical wire so the cycle-wide
-# pre-commit protocol fires deterministically per `.local/research/v10.2.0_cycle_plan.md`
-# §4 D-V-1.
-.PHONY: iteration-delta-gate
-iteration-delta-gate:
-	@$(call RUN_TIMED,iteration-delta-gate,echo "Si-Chip iteration_delta gate (SI-10 step 7)" && python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov)
-
 # PV-0 telemetry enforcement. Gate records are opt-in through the Make
 # variable TELEMETRY_PV so unrelated developer commands retain their existing
 # behaviour. When a PV is selected, RUN_TIMED appends PASS/FAIL evidence for
@@ -260,7 +247,7 @@ telemetry-check:
 
 telemetry-gate: telemetry-check
 
-# v14.5.0 G-033 — release-preflight = SI-10 CORE (the 7 W-9 gates, in
+# v14.5.0 G-033 — release-preflight = SI-10 CORE (the 6 W-9 gates, in
 # W-9 order, single-execution per the `test-core` section above) plus
 # the RELEASE-ONLY EXTRAS. The extras are NOT part of the SI-10 gate
 # count; they are release-hygiene targets that only the preflight chain
@@ -276,8 +263,8 @@ telemetry-gate: telemetry-check
 #                       (the recipe keeps these after generated docs/rules)
 #
 # SI-10 core:           test-core lint test-version test-harness
-#                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core lint test-version test-harness check-cursor-skill iteration-delta-gate telemetry-gate check-repo-hygiene validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift
+#                       check-cursor-skill
+release-preflight: test-core lint test-version test-harness check-cursor-skill telemetry-gate check-repo-hygiene validate-templates check-template-metadata-parity build-skill sync-human-docs compile-rules check-drift check-rules-drift
 	$(MAKE) check-demo-seed-catalog
 	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"
@@ -296,10 +283,10 @@ release-preflight: test-core lint test-version test-harness check-cursor-skill i
 # `precommit-fast` runs ONLY ruff + smoke pytest (`-x --lf`); it is
 # suitable for in-PR iteration but is NEVER a substitute for SI-10.
 # `precommit-full` is an alias for `release-preflight` (the canonical
-# 7-step W-9 chain). `precommit` (no suffix) defaults to the SAFE full
+# 6-step W-9 chain). `precommit` (no suffix) defaults to the SAFE full
 # path so an operator who types `make precommit` always gets full
 # coverage. Per W-9.1 (telegraphed); the SI-10 invariant remains
-# unchanged at 7 gates.
+# unchanged at 6 gates.
 .PHONY: precommit precommit-fast precommit-full
 precommit-fast:
 	@echo "[precommit-fast] ruff check --fix + ruff format + pytest -x --lf"
@@ -372,7 +359,7 @@ gen-evaluator-rosetta:
 
 # D-O-2 — SI-3 6-dim objective metric auto-collection. OPT-IN: not
 # wired into release-preflight per the cycle-budget design (SI-10
-# stays at 7 gates). Cycle-lead invokes manually at PV close.
+# stays at 6 gates). Cycle-lead invokes manually at PV close.
 # `--mock-data` short-circuits real probe invocation for CI smoke.
 auto-collect-si3:
 	@python scripts/auto_collect_si3_metrics.py --mock-data \
@@ -386,7 +373,7 @@ index-research:
 		--output .local/research/v10.7.4_research_index.md
 
 # v10.8.0 D-C-2 — re-capture bridge shape-contract fixtures from live
-# plugin binaries (Si-Chip / RTK / ui-pro). Gracefully skips
+# plugin binaries (ui-pro). Gracefully skips
 # plugins that are missing (logs WARNING, returns exit 0 per D-C-2 §9
 # R2). Per-PR pytest uses CHECKED-IN fixtures from
 # `tests/integration/fixtures/` — this target is operator-pull for

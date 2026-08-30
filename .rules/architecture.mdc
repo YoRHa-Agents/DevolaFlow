@@ -94,8 +94,8 @@ allowing the merge.
 
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
-Every domain registry surface (whitelist / recipe / value-type cache /
-plugin manifest / archive adapter) MUST have **exactly one owner module** — the canonical
+Every domain registry surface (value-type cache / plugin manifest /
+archive adapter) MUST have **exactly one owner module** — the canonical
 source-of-truth for the registration data. Cross-cutting consumers
 import from the owner module; they never re-define or shadow the
 registration data locally.
@@ -106,19 +106,15 @@ The current SSOT registries are listed below. Parity is enforced by
 | # | Registry surface | Owner module / file |
 |---|---|---|
 | 1 | Plugin registry (membership, canonical IDs, install/upgrade/version truth, workflow wiring) | `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by `devolaflow.plugins.installer.load_registry`). `workflow-system/agent/plugins.yaml` is its DERIVED capability/role/stage-mapping view (v15.0.0 G-021; loaded by `devolaflow.plugins.loader`; mirror pinned by `tests/test_plugins.py::TestV15PluginRegistryUnification`) — not a second owner |
-| 2 | Shell-proxy whitelist | `src/devolaflow/shell_proxy/registry.py::WHITELIST` |
-| 3 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
-| 4 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
-| 5 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
-| 6 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
+| 2 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
+| 3 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
+| 4 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
 
 ### A-5.1 — Single-Owner Invariant
 
 Adding a registry surface requires picking **ONE** owner module and routing
-every consumer through it. Splitting
-the registration data across two modules (e.g. half the whitelist in
-`shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
-invalidates cache reasoning and is a release blocker. Enforced by
+every consumer through it. Splitting the registration data across two
+modules invalidates cache reasoning and is a release blocker. Enforced by
 `tests/ghost/test_registries.py::test_registry_single_owner` which
 fails when an AST walk over `src/devolaflow/` finds more than one
 module-level definition for the same registry name.

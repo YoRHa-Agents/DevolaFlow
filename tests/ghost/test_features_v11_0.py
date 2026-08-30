@@ -144,8 +144,8 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
 #     `check_file_write`, `task_stop` → `post_task_complete`,
 #     `format_on_edit` → `post_file_edit`, `envelope_write` →
 #     `check_envelope_write` (per `.local/research/v11.0.0_patches/
-#     D-Q-3.md` §2). DEFAULT_EVENTS bumped 12 → 16 (positions 13-16
-#     APPEND-ONLY per A-2.2; positions 1-12 byte-stable per A-2.4).
+#     D-Q-3.md` §2). The current tuple retains the four canonical aliases
+#     at positions 11-14 after v22 removed the retired events.
 #     OLD names preserved as PURE-ALIAS via dispatcher's
 #     `_EVENT_ALIASES` map for 1-cycle deprecation runway (v11.0.0 →
 #     v12.0.0). 5 NEW alias regression tests in test_lifecycle_hooks.py.
@@ -190,12 +190,12 @@ _V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES: tuple[str, ...] = (
 # "5 tests asserting alias path emits byte-identical to canonical,
 # alias telegraphed for 1-cycle deprecation, both names accept
 # registrations, both names propagate to registered handlers,
-# len(DEFAULT_EVENTS) becomes 16").
+# the current DEFAULT_EVENTS shape and alias positions").
 _V11_0_0_PV02_DQ3_ALIAS_TEST_NAMES: tuple[str, ...] = (
     "test_v11_0_0_pv02_dq3_alias_emits_byte_identical_to_canonical",
     "test_v11_0_0_pv02_dq3_both_names_accept_register_hook",
     "test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks",
-    "test_v11_0_0_pv02_dq3_default_events_length_is_16",
+    "test_v22_default_events_length_is_15",
     "test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation",
 )
 
@@ -212,8 +212,8 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     * D-O-4: `.local/research/v11.0.0_si10_gate_growth_analysis.md`
       — analysis-only forecast; recommends 3-group reorganization
       when gate count crosses 10 (forecast v13.0.0).
-    * D-Q-3: 4-row PURE-ALIAS rename adding 4 NEW canonical event
-      names AT END of DEFAULT_EVENTS (positions 13-16 per A-2.2);
+    * D-Q-3: 4-row PURE-ALIAS rename retaining 4 NEW canonical event
+      names at positions 11-14 after v22 re-numbering;
       OLD names preserved as PURE-ALIAS via dispatcher's
       `_EVENT_ALIASES` map for 1-cycle deprecation runway; 5 NEW
       alias regression tests pin the byte-identical contract.
@@ -267,18 +267,14 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         "`_alias_event` helper; missing from dispatcher.py."
     )
 
-    # DEFAULT_EVENTS length is exactly 16 (12 base + 4 NEW canonical).
+    # v22 removes pre_shell_call and post_skill_edit; the current tuple
+    # has 15 entries, with the four canonical aliases at positions 11-14.
     from devolaflow.lifecycle import DEFAULT_EVENTS
 
-    # v15.0.0 G-038 flip 4 re-pin: the former exact `== 16` freeze
-    # graduated when `check_human_input_write` was APPENDED at position
-    # 17 (A-2.2 append-only; positions 1-16 byte-stable). The v11.0.0
-    # witness is the `>= 16` floor + the position-13..16 checks below;
-    # the exact 17-entry pin lives in tests/test_lifecycle_hooks.py.
-    assert len(DEFAULT_EVENTS) >= 16, (
+    assert len(DEFAULT_EVENTS) == 15, (
         f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 ships DEFAULT_EVENTS "
-        f"12 → 16 (4 NEW canonical names appended at positions 13-16; "
-        f"A-2.2 permits append-only growth — v15.0.0 grew it to 17); "
+        f"with the retired events removed and the four canonical aliases "
+        f"at positions 11-14; "
         f"got len={len(DEFAULT_EVENTS)}."
     )
     # Both NEW canonical AND OLD alias names must be present in the tuple.
@@ -290,9 +286,13 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     for old_name in _V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES:
         assert old_name in DEFAULT_EVENTS, (
             f"W-18 v11.0.0 PV-02 violation: OLD alias event name "
-            f"{old_name!r} must be PRESERVED in DEFAULT_EVENTS at its "
-            f"original position (PURE-ALIAS for 1-cycle deprecation)."
+            f"{old_name!r} must be PRESERVED in DEFAULT_EVENTS "
+            f"(PURE-ALIAS for 1-cycle deprecation)."
         )
+
+    assert DEFAULT_EVENTS[10:14] == _V11_0_0_PV02_DQ3_NEW_CANONICAL_NAMES, (
+        "v22 lifecycle re-numbering must keep the canonical aliases in positions 11-14"
+    )
 
     # 5 NEW alias regression tests must exist in test_lifecycle_hooks.py.
     lifecycle_tests = (project_root / _V11_0_0_PV02_DQ3_LIFECYCLE_TESTS).read_text(encoding="utf-8")

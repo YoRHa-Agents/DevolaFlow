@@ -19,8 +19,8 @@ Pins the execution-side adapter contract from
   (W-20 env-flag reuse — same activation surface as A-6 /
   ``pre_handoff``; NO new flag authored; the activation gate is
   UNCHANGED by the strict flip).
-* ``DEFAULT_EVENTS`` is at 17 entries since v15.0.0 (G-038 flip 4
-  appended ``check_human_input_write`` at position 17 per A-2.2);
+* ``DEFAULT_EVENTS`` is at 15 entries after v22 removed the retired
+  skill-evaluation event (``check_human_input_write`` is position 15);
   ``file_write`` / ``task_stop`` (and their D-Q-3 canonical aliases)
   were already registered at v14.3.0.
 """
@@ -359,15 +359,13 @@ def test_task_stop_not_fired_for_task_dispatch_envelope(tmp_path, monkeypatch) -
 
 
 def test_default_events_contains_wired_runtime_events() -> None:
-    """The 4 wired event names are registered; tuple length is 17 at v15.0.0.
+    """The 4 wired event names are registered; tuple length is 15 after v22.
 
     The v14.3.0 landing added CALL SITES (runtime_wiring adapters), not
     events — ``file_write`` / ``task_stop`` and their D-Q-3 canonical
     aliases (``check_file_write`` / ``post_task_complete``) were already
-    in ``DEFAULT_EVENTS``. v15.0.0 G-038 flip 4 then grew the tuple
-    16 → 17 by APPENDING ``check_human_input_write`` per A-2.2
-    (positions 1-16 byte-stable; both former ``len == 16`` pins
-    re-pinned in the same MAJOR).
+    in ``DEFAULT_EVENTS``. v22 removes the retired skill-evaluation event
+    and re-numbers the remaining tuple to 15 entries.
     """
     import inspect
 
@@ -385,8 +383,8 @@ def test_default_events_contains_wired_runtime_events() -> None:
     assert {"file_write", "task_stop", "check_file_write", "post_task_complete"}.issubset(
         set(DEFAULT_EVENTS)
     )
-    assert len(DEFAULT_EVENTS) == 17, (
-        "v15.0.0 G-038 flip 4: check_human_input_write appended at position 17"
+    assert len(DEFAULT_EVENTS) == 15, (
+        "retired shell and skill-evaluation event removal leaves DEFAULT_EVENTS at 15 entries"
     )
 
     # Default handlers stay bound to the documented hooks.

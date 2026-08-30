@@ -3,7 +3,7 @@
 Pins the contract in :mod:`devolaflow.lifecycle.pre_plugin_invocation`:
 
 1. **Event registered** — ``DEFAULT_EVENTS`` includes
-   ``pre_plugin_invocation`` at position 9 (A-2.2 append-only).
+   ``pre_plugin_invocation`` at position 8 after v22 re-numbering.
 2. **R5 strict env-flag** — ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` exact
    match; rejects loose values; default-OFF.
 3. **Disabled is no-op + byte-identical** — when env-flag OFF, the
@@ -60,53 +60,47 @@ def _clear_extra_hooks():
 
 
 # ---------------------------------------------------------------------------
-# §1 — Event registration (A-2.2 append-only at position 9)
+# §1 — Event registration (position 8 after v22 re-numbering)
 # ---------------------------------------------------------------------------
 
 
 class TestEventRegistration:
-    """Pin the canonical event name + DEFAULT_EVENTS membership at pos 9."""
+    """Pin the canonical event name + DEFAULT_EVENTS membership at pos 8."""
 
     def test_event_constant_matches(self) -> None:
         assert EVENT == "pre_plugin_invocation"
         assert PRE_PLUGIN_INVOCATION_EVENT == EVENT
 
     def test_event_in_default_events(self) -> None:
-        """A-2.2: pre_plugin_invocation APPENDED at the END of DEFAULT_EVENTS at pos 9.
+        """The live tuple keeps pre_plugin_invocation at position 8.
 
-        v9.4.0 PV-02 bumped 8 → 9 with this event at the tail. The
-        v9.5.0 PV-04 cycle bumped 9 → 10 with post_skill_edit appended
-        AFTER pre_plugin_invocation (A-2.2 append-only). This test now
-        relaxes the strict ``== 9`` to ``>= 9`` and asserts the
-        position-9 slot remains pre_plugin_invocation (frozen per
-        A-2.4 cache-prefix invariant).
+        v22 removes the retired shell and skill-evaluation events and
+        re-numbers the remaining lifecycle events.
         """
         assert PRE_PLUGIN_INVOCATION_EVENT in DEFAULT_EVENTS
-        assert len(DEFAULT_EVENTS) >= 9, (
-            f"DEFAULT_EVENTS bumped 8 → 9 in v9.4.0 PV-02 "
-            f"(was {len(DEFAULT_EVENTS)}); A-2.2 append-only invariant "
-            f"requires this slot to remain at position 9 (1-indexed)"
+        assert len(DEFAULT_EVENTS) >= 8, (
+            f"DEFAULT_EVENTS lost the live position-8 pre_plugin_invocation "
+            f"slot (length={len(DEFAULT_EVENTS)}); current tuple={DEFAULT_EVENTS!r}"
         )
-        # Position 9 (1-indexed) — index 8 — MUST be pre_plugin_invocation
-        # per the v9.4.0 PV-02 frozen tail. Future appends (post_skill_edit
-        # at pos 10 in v9.5.0 PV-04) extend AFTER this slot.
-        assert DEFAULT_EVENTS[8] == PRE_PLUGIN_INVOCATION_EVENT, (
+        # Position 8 (1-indexed) — index 7 — MUST be pre_plugin_invocation
+        # after removal of the retired shell and skill-evaluation hooks.
+        assert DEFAULT_EVENTS[7] == PRE_PLUGIN_INVOCATION_EVENT, (
             f"PRE_PLUGIN_INVOCATION_EVENT must remain at 1-indexed "
-            f"position 9 (DEFAULT_EVENTS[8]) per A-2.4 cache-prefix "
-            f"invariant. Actual position-9: {DEFAULT_EVENTS[8]!r}"
+            f"position 8 (DEFAULT_EVENTS[7]) after retired-hook removal. "
+            f"Actual position-8: {DEFAULT_EVENTS[7]!r}"
         )
 
     def test_canonical_8_event_prefix_unchanged(self) -> None:
-        """A-2.4 cache-prefix invariant: positions 1-8 byte-stable since v9.1.3."""
+        """The pre-plugin prefix remains stable after shell-hook removal."""
         assert DEFAULT_EVENTS[:8] == (
             "pre_dispatch",
             "post_dispatch",
             "file_write",
             "task_stop",
             "format_on_edit",
-            "pre_shell_call",
             "envelope_write",
             "pre_handoff",
+            "pre_plugin_invocation",
         )
 
 
@@ -168,7 +162,7 @@ class TestDisabledIsNoopByteIdentical:
 
     def test_disabled_returns_clean_hook_result(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(ENV_FLAG, raising=False)
-        result = pre_plugin_invocation({"plugin_id": "si-chip"})
+        result = pre_plugin_invocation({"plugin_id": "impeccable"})
         assert isinstance(result, HookResult)
         assert result.passed is True
         assert result.violations == []
@@ -193,9 +187,9 @@ class TestDisabledIsNoopByteIdentical:
             side_effect=watcher,
         ):
             for payload in (
-                {"plugin_id": "si-chip"},
-                {"plugin_ids": ["si-chip", "ui-pro", "rtk"]},
-                {"plugin_id": "si-chip", "plugin_ids": ["ui-pro"]},
+                {"plugin_id": "impeccable"},
+                {"plugin_ids": ["impeccable", "ui-pro"]},
+                {"plugin_id": "impeccable", "plugin_ids": ["ui-pro"]},
             ):
                 result = pre_plugin_invocation(payload)
                 assert result.passed is True
@@ -257,8 +251,8 @@ class TestActiveDelegation:
                 return_value=False,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
-        assert invocations == ["si-chip"]
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
+        assert invocations == ["impeccable"]
         assert result.passed is True
         assert result.violations == []
 
@@ -282,10 +276,11 @@ class TestActiveDelegation:
                 return_value=False,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_ids": ["si-chip", "ui-pro", "rtk"]})
-        assert invocations == ["si-chip", "ui-pro", "rtk"], (
-            "list iteration must preserve insertion order"
-        )
+            result = pre_plugin_invocation({"plugin_ids": ["impeccable", "ui-pro"]})
+        assert invocations == [
+            "impeccable",
+            "ui-pro",
+        ], "list iteration must preserve insertion order"
         assert result.passed is True
 
     def test_dedup_preserves_order(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -308,9 +303,9 @@ class TestActiveDelegation:
             ),
         ):
             pre_plugin_invocation(
-                {"plugin_ids": ["si-chip", "ui-pro", "si-chip"], "plugin_id": "ui-pro"}
+                {"plugin_ids": ["impeccable", "ui-pro", "impeccable"], "plugin_id": "ui-pro"}
             )
-        assert invocations == ["si-chip", "ui-pro"], (
+        assert invocations == ["impeccable", "ui-pro"], (
             f"duplicates must be removed while preserving first-seen order; got {invocations!r}"
         )
 
@@ -336,18 +331,18 @@ class TestFailureHandling:
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=boom,
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
         assert result.passed is False
         assert len(result.violations) == 1
         violation = result.violations[0]
         assert violation.code == "PPI001"
-        # v15.2.0 B-6 — si-chip is suggest-tier: PPI001 degrades to warning
+        # v15.2.0 B-6 — impeccable is suggest-tier: PPI001 degrades to warning
         # severity (tier recorded in context; one-time hint appended).
         assert violation.severity == "warning"
         assert violation.context["tier"] == "suggest"
-        assert "si-chip" in violation.message
+        assert "impeccable" in violation.message
         assert "PluginInstallError" in violation.message
-        assert violation.context["plugin_id"] == "si-chip"
+        assert violation.context["plugin_id"] == "impeccable"
 
     def test_plugin_not_found_error_becomes_ppi001(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
@@ -368,7 +363,7 @@ class TestFailureHandling:
     def test_schema_violation_becomes_ppi002_warning(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         # plugin_ids must be a list, not a string
-        result = pre_plugin_invocation({"plugin_ids": "si-chip"})
+        result = pre_plugin_invocation({"plugin_ids": "impeccable"})
         assert result.passed is False
         ppi002 = [v for v in result.violations if v.code == "PPI002"]
         assert len(ppi002) == 1
@@ -391,9 +386,9 @@ class TestFailureHandling:
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=maybe_boom,
         ):
-            result = pre_plugin_invocation({"plugin_ids": ["si-chip", "ui-pro", "rtk"]})
+            result = pre_plugin_invocation({"plugin_ids": ["impeccable", "ui-pro"]})
         # All three plugins were attempted, even after ui-pro failed.
-        assert seen == ["si-chip", "ui-pro", "rtk"]
+        assert seen == ["impeccable", "ui-pro"]
         assert result.passed is False
         ppi001 = [v for v in result.violations if v.code == "PPI001"]
         assert len(ppi001) == 1
@@ -414,9 +409,9 @@ class TestFailureHandling:
             ),
             pytest.raises(HookViolation) as exc_info,
         ):
-            pre_plugin_invocation({"plugin_id": "si-chip"}, strict=True)
+            pre_plugin_invocation({"plugin_id": "impeccable"}, strict=True)
         assert exc_info.value.code == "PPI001"
-        # v15.2.0 B-6 — si-chip is suggest-tier so the severity is warning,
+        # v15.2.0 B-6 — impeccable is suggest-tier so the severity is warning,
         # but finalize's strict contract is unchanged: strict=True re-raises
         # the TOP violation regardless of severity (strict is strict).
         assert exc_info.value.severity == "warning"
@@ -435,7 +430,7 @@ class TestFailureHandling:
             ),
             pytest.raises(OSError, match="disk full"),
         ):
-            pre_plugin_invocation({"plugin_id": "si-chip"})
+            pre_plugin_invocation({"plugin_id": "impeccable"})
 
 
 # ---------------------------------------------------------------------------
@@ -564,10 +559,10 @@ class TestDailyUpgradeIntegration:
                 side_effect=fake_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
 
-        assert ensure_calls == ["si-chip"]
-        assert upgrade_calls == ["si-chip"], (
+        assert ensure_calls == ["impeccable"]
+        assert upgrade_calls == ["impeccable"], (
             "D-P-2 violation: stale plugin did NOT trigger upgrade_plugin"
         )
         assert result.passed is True
@@ -599,7 +594,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=fake_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
 
         assert upgrade_calls == [], (
             f"D-P-2 idempotency violation: fresh plugin triggered "
@@ -638,7 +633,7 @@ class TestDailyUpgradeIntegration:
             ),
         ):
             # Permissive default — must NOT raise.
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
 
         ppi003 = [v for v in result.violations if v.code == "PPI003"]
         assert len(ppi003) == 1, (
@@ -646,7 +641,7 @@ class TestDailyUpgradeIntegration:
             f"PPI003 warning; got {[v.code for v in result.violations]!r}"
         )
         assert ppi003[0].severity == "warning"
-        assert "si-chip" in ppi003[0].message
+        assert "impeccable" in ppi003[0].message
         assert ppi003[0].context["stage"] == "daily_upgrade"
         # PPI003 is a warning, not error → permissive HookResult.passed
         # depends on the dispatcher's pass_if floor; we assert no PPI001
@@ -690,7 +685,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=watcher_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
 
         assert ensure_calls == [], "R5 strict: ensure_plugin must not fire when env flag is OFF"
         assert upgrade_calls == [], (
@@ -734,7 +729,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=watcher_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+            result = pre_plugin_invocation({"plugin_id": "impeccable"})
 
         assert upgrade_calls == [], (
             "Stale probe failure must skip the upgrade attempt for that plugin"
@@ -799,7 +794,7 @@ class TestRunInstallThenUpgradeHelper:
             ),
         ):
             violations = _run_install_then_upgrade_for_plugin(
-                "si-chip",
+                "impeccable",
                 threshold_hours=24,
             )
         assert violations == [], (
@@ -815,7 +810,7 @@ class TestRunInstallThenUpgradeHelper:
         with (
             patch(
                 "devolaflow.plugins.installer.ensure_plugin",
-                side_effect=PluginInstallError("si-chip: boom"),
+                side_effect=PluginInstallError("impeccable: boom"),
             ),
             patch(
                 "devolaflow.plugins.installer.is_plugin_stale",
@@ -823,7 +818,7 @@ class TestRunInstallThenUpgradeHelper:
             ),
         ):
             violations = _run_install_then_upgrade_for_plugin(
-                "si-chip",
+                "impeccable",
                 threshold_hours=24,
             )
         assert len(violations) == 1

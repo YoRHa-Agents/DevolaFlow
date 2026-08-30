@@ -707,42 +707,7 @@ caller falls through to the existing planner unchanged. Operators can
 list all stale entries via `python -m devolaflow.memory_router.cli list --stale`
 (forward-defined for v8.5.0 PV-05).
 
-## 11. Shell Proxy + Pre-Shell-Call Hook (v8.3.2+)
-
-The shell proxy is a runtime-opt-in compression layer that wraps Shell
-tool calls in `rtk rewrite` (and a local-recipe layer) for whitelisted
-commands. The activation env-flag is `DEVOLAFLOW_RTK_PROXY=1` (R5 strict
-default-OFF). Lives in `src/devolaflow/shell_proxy/` (registry +
-proxy + commands); the lifecycle hook lives in
-`src/devolaflow/lifecycle/pre_shell_call.py` (148 lines, 5th canonical
-lifecycle event).
-
-**5th canonical lifecycle event** — `pre_shell_call`. The other 4
-events: `pre_dispatch` (forward-defined v8.4.4 PV-04), `pre_review`,
-`pre_test`, `pre_verify`. The `pre_shell_call` event fires immediately
-before every Shell tool invocation; the hook signature is
-`pre_shell_call(command: str, args: list[str], cwd: Path) -> Verdict`
-where Verdict is one of `ACCEPT`, `REWRITE`, `BLOCK`. Rewrites flow
-through `apply_local_recipe()` then RTK; blocks raise
-`PreShellCallError`.
-
-**4 PSC violation codes** — operators triaging shell-proxy violations
-consult these codes in StatusReport `findings[*].rule_id`:
-
-| Code | Trigger condition | Severity | Recovery |
-|------|-------------------|----------|----------|
-| **PSC001** | command not in WHITELIST (`shell_proxy/registry.py::WHITELIST` Tier 1 / Tier 2 sets) | blocker (mode: full) / warn (mode: lite) | Either add command to WHITELIST via PR, or run with the hook bypassed (CI-only escape hatch) |
-| **PSC002** | RTK rewrite fails (subprocess error, RTK binary missing, RTK schema mismatch) | warn | Falls through to passthrough; no execution blocked |
-| **PSC003** | destructive operation detected without explicit `--force` (matches `BYPASS_PATTERNS["destructive_operation"]` regex from `src/devolaflow/compressor.py`) | blocker | Re-issue with `--force` flag explicitly; otherwise authoring requires CI-only escape hatch |
-| **PSC004** | local recipe schema validation failure on `.local/memory/commands/<repo>/<cmd>.yaml` | warn (with cache-miss fallback) | Repair the recipe (see `references/shell-proxy.md` §6.3); recipe loader skips bad rows + logs |
-
-All 4 codes are emitted via `_log_pre_shell_call_violation()` per S-5
-(structured WARNING / ERROR — never silent). The `mode: lite` vs
-`mode: full` knob is set in `workflow-system/agent/context_profiles.yaml`
-under `shell_proxy.enforcement_mode`. CI is strict by default
-(`mode: full` in `tests/test_pre_shell_call.py` fixtures).
-
-## 12. Change-Driven Workflow Envelope Lifecycle (v8.3.0+)
+## 11. Change-Driven Workflow Envelope Lifecycle (v8.3.0+)
 
 `change-driven.yaml`, introduced historically as the 22nd builtin template in
 v8.3.0 PV-06 (commit `6bb83fa`), is now the sole executable runtime. It binds a
@@ -817,7 +782,7 @@ a plugin, environment flag, or dispatch-schema field. These additions are
 nest-aware metadata and leave `schemas/lean-dispatch.yaml` `canonical_order`
 at 17.
 
-## 13. Wave dispatch
+## 12. Wave dispatch
 
 The L1 Wave async-dispatch boundary is documented in
 `references/wave-dispatch.md`. Load that reference when selecting a wave

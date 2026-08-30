@@ -27,7 +27,7 @@ tier: 2
 token_estimate: 4500
 dependencies:
   - "agent/SKILL.md"
-  - "agent/references/shell-proxy.md"
+  - "agent/references/memory-router.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/plan-mode-enforcement.md"
 last_updated: "2026-08-25"
@@ -48,10 +48,8 @@ Two distinct hygiene gaps motivate this reference (the **13th SF-4
 canonical**, added in v8.5.0 PV-05):
 
 1. **Operator surface bloat** — without a single source-of-truth, every
-   PV that adds a new feature is tempted to author its own env-flag
-   ("the PV-04 command-mapping layer reuses `DEVOLAFLOW_RTK_PROXY`
-   precisely because the PV-04 design doc consulted PV-02's wording
-   and chose REUSE"). Without this reference, the next PV will lack
+   PV that adds a new feature is tempted to author its own env-flag.
+   Without this reference, the next PV will lack
    that lookup.
 2. **W-20 enforceability** — Rule W-20 (added in v8.5.0 PV-05) states
    *"new behaviours should reuse existing env-flags rather than
@@ -62,8 +60,8 @@ canonical**, added in v8.5.0 PV-05):
 ## 2. Active runtime flags
 
 These flags are read by production code paths. Tests in
-`tests/test_shell_proxy*.py`, `tests/test_memory_router.py`, and
-`tests/test_task_adaptive_selector.py` codify the parsing contract
+`tests/test_memory_router.py` and `tests/test_task_adaptive_selector.py`
+codify the parsing contract
 (strict `"1"` matching; rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`).
 
 ## 1.1 `GHOST_FULL` — test-only historical audit opt-in
@@ -124,32 +122,7 @@ count.
 | **R5 strict?** | NO — historical loose-parsing matches Cursor SwitchMode contract; tests in `tests/test_task_adaptive_selector.py::TestPlanModeDetect` codify the loose semantics (e.g. `"garbage"` → false, `"1"` / `"true"` / `"yes"` / `"on"` → true) |
 | **Reference** | `references/plan-mode-enforcement.md` §1 (When to Load) + §2 (Detection table) |
 
-### 2.2 `DEVOLAFLOW_RTK_PROXY` — RTK rewrite + command-mapping activation
-
-| Field | Value |
-|---|---|
-| **Owner** | `src/devolaflow/shell_proxy/proxy.py::_ENV_FLAG` (also consumed by `src/devolaflow/shell_proxy/commands.py::is_command_mapping_active`) |
-| **Introduced** | v8.3.2 PV-02; REUSED by v8.3.4 PV-04 (NO new flag added) |
-| **Default** | unset (= disabled) |
-| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`) AND `rtk` binary on PATH AND `rtk gain` probe succeeds (collision-warning per RTK INSTALL.md) |
-| **Effect (Tier 1)** | `pre_shell_call` rewrites `pytest`, `ruff check`, `git diff`, `git log`, `git status` via `rtk rewrite <cmd>`; per RTK README ~80% token reduction on captured stdout |
-| **Effect (PV-04 layer)** | `apply_local_recipe` consults `.local/memory/commands/<repo>/<cmd>.yaml` BEFORE returning the proxied output; precedence: local recipe → RTK rewrite → passthrough |
-| **R5 strict?** | YES — `is_proxy_enabled()` is a pure env-var read with NO `shutil.which` lookup, NO subprocess spawn, NO Path.read_text when unset. Codified in `tests/test_shell_proxy_disabled_is_noop.py` + `tests/test_shell_proxy_commands.py::TestLoadR5StrictOff` (`monkeypatch.setattr(Path, "read_text", watcher)` proves zero IO when off). |
-| **Reference** | `references/shell-proxy.md` §3.1 (env-flag table) + §4 (R5 strict zero-overhead breakdown) |
-
-### 2.3 `DEVOLAFLOW_RTK_PROXY_TIER2` — Tier 2 commands opt-in
-
-| Field | Value |
-|---|---|
-| **Owner** | `src/devolaflow/shell_proxy/proxy.py::_TIER2_ENV_FLAG` |
-| **Introduced** | v8.3.2 PV-02 |
-| **Default** | unset (= Tier 1 only) |
-| **Activation** | env value EXACTLY `"1"` AND #2.2 also active |
-| **Effect** | Adds `git add`, `git commit`, `git show`, `cargo test`, `npm test`, `make` to the proxy whitelist (per `shell_proxy/registry.py::WHITELIST` Tier 2 block) |
-| **R5 strict?** | YES — has no effect unless #2.2 is set; the Tier 2 enablement is captured in `ShellProxyConfig` snapshot at activation time |
-| **Why secondary?** | Tier 1 commands are read-only / safe; Tier 2 commands have side-effects (git mutations, build invocations). Operators opt in to Tier 2 when they have separate audit logging in place. |
-
-### 2.4 `DEVOLAFLOW_MEMORY_ROUTER` — planning fast-path
+### 2.2 `DEVOLAFLOW_MEMORY_ROUTER` — planning fast-path
 
 | Field | Value |
 |---|---|
@@ -160,7 +133,7 @@ count.
 | **Effect** | `lookup_case(intent, env)` consults the cases index before L0/L1 re-derives seed selection and checklist decomposition; a cache hit short-circuits ~3K tokens of planning context per matched route (~93% reduction in the historical v8.3.3 measurement) |
 | **Cache-miss path** | Returns `None` in O(1); caller falls through to the existing planner per cycle plan §6 R3 "cache-miss is the safe path" |
 | **R5 strict?** | YES — codified in `tests/test_memory_router.py::TestLookupCaseR5StrictOff` with `monkeypatch.setattr(Path, "read_text", watcher)` proving zero IO when off. The built-in harness validates its active fixture corpus in `tests/harness/test_fixtures.py` and records aggregate telemetry through `src/devolaflow/harness/telemetry.py`; it has no active memory-router-specific composite assertion. |
-| **Reference** | `references/shell-proxy.md` §5 (memory-router fast-path) + §7 (R5 strict zero-overhead breakdown) |
+| **Reference** | `references/memory-router.md` §3–§8 |
 
 ### 2.5 `DEVOLAFLOW_AUTO_INSTALL` — RETIRED (never wired; removed v15.2.0 B-6)
 
@@ -267,35 +240,19 @@ count.
 
 | Field | Value |
 |---|---|
-| **Owner** | `src/devolaflow/lifecycle/pre_plugin_invocation.py::ENV_FLAG` (alias helper: `is_auto_install_active`); the v10.8.0 D-C-3 split handlers `pre_plugin_invocation_install` (event slot #11) + `pre_plugin_invocation_upgrade` (event slot #12) REUSE the same env flag during the 1-cycle alias window |
-| **Introduced** | v9.4.0 PV-02 (closes D-P-1 + D-P-3 from `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1); **SPLIT in v10.8.0 D-C-3** (closes D-C-3 from `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md`) — 2 new events appended at `DEFAULT_EVENTS` positions 11 + 12 (A-2.2 append-only); alias at position 9 preserved BYTE-IDENTICALLY for 1 cycle |
+| **Owner** | `src/devolaflow/lifecycle/pre_plugin_invocation.py::ENV_FLAG` (alias helper: `is_auto_install_active`); the v10.8.0 D-C-3 split handlers `pre_plugin_invocation_install` (event slot #10) + `pre_plugin_invocation_upgrade` (event slot #11) REUSE the same env flag during the 1-cycle alias window |
+| **Introduced** | v9.4.0 PV-02 (closes D-P-1 + D-P-3 from `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1); **SPLIT in v10.8.0 D-C-3** (closes D-C-3 from `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md`) — 2 new events appended at `DEFAULT_EVENTS` positions 10 + 11 after retired-event removal; alias at position 8 remains immediately before the split |
 | **Default** | unset (= disabled — dispatcher does NOT pre-flight install OR upgrade plugins) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
-| **Effect when active (v10.8.0+)** | Three lifecycle events fire on every dispatch with populated `plugin_ids` / `plugin_id` / `workflow` payload: (1) `pre_plugin_invocation` (event slot #9) — the v10.8.0 ALIAS, body delegates to the two new handlers in sequence; emits PPI001 + PPI003. (2) `pre_plugin_invocation_install` (event slot #11) — install-only; emits PPI001 for `ensure_plugin` failures. (3) `pre_plugin_invocation_upgrade` (event slot #12) — upgrade-only; emits PPI003 for `upgrade_plugin` failures on stale plugins. The alias path fires AFTER the v9.1.3 PV-03 `pre_handoff` slot in `feedback.py::_emit_dispatch`. The v10.2.1 PV-02 D-P-2 daily-upgrade integration now lives in the dedicated upgrade handler. |
+| **Effect when active (v10.8.0+)** | Three lifecycle events fire on every dispatch with populated `plugin_ids` / `plugin_id` / `workflow` payload: (1) `pre_plugin_invocation` (event slot #8) — the v10.8.0 ALIAS, body delegates to the two new handlers in sequence; emits PPI001 + PPI003. (2) `pre_plugin_invocation_install` (event slot #10) — install-only; emits PPI001 for `ensure_plugin` failures. (3) `pre_plugin_invocation_upgrade` (event slot #11) — upgrade-only; emits PPI003 for `upgrade_plugin` failures on stale plugins. The alias path fires AFTER the v9.1.3 PV-03 `pre_handoff` slot in `feedback.py::_emit_dispatch`. The v10.2.1 PV-02 D-P-2 daily-upgrade integration now lives in the dedicated upgrade handler. |
 | **Effect when opted out** | All 3 hooks are zero-IO no-ops (lazy-import the installer module ONLY when active); dispatch behaviour is byte-identical to v9.3.x AND to v10.7.x for every input (the AC-6 byte-stable invariant from `v9.4.0_gap_analysis.md` §6 + the v10.8.0 D-C-3 §2 G-7 backward-compat contract) |
 | **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: AUTO_INSTALL_PLUGINS activates a different runtime surface (the dispatcher's pre-flight plugin install hook) than every existing flag. the historical `DEVOLAFLOW_AUTO_INSTALL` name (§2.5 — RETIRED at v15.2.0 B-6; it was never an env read) named the install primitive's WHEN-called behaviour, a different surface (it controlled `ensure_plugin`'s behaviour WHEN called, not WHETHER it gets called); that surface is now the `runtime-plugins.yaml#defaults.auto_install` YAML knob (`false` since v15.2.0) with the hooks passing `auto_install=True` explicitly — the flag=1 install semantics are call-site-pinned, no longer registry-coupled. `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — an operator may want plugin pre-flight without workspace activation. No existing flag could be REUSED without conflating two distinct activation surfaces. **v10.8.0 D-C-3 SPLIT**: the install + upgrade handlers REUSE this flag during the 1-cycle alias window per W-20 reuse-first (same activation surface). A future `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` flag is TELEGRAPHED for v12.0.0+ SI-1 re-evaluation (per D-C-3 §2 step 4 + §9 R3 mitigation) when the split has 1+ cycle of operator-feedback and the orthogonality argument matures. |
 | **R5 strict?** | YES — `is_auto_install_active` (alias + install handler) and `is_auto_upgrade_active` (upgrade handler) are pure ``os.environ.get`` comparisons with no IO + no subprocess. Every hook body lazy-imports `devolaflow.plugins.installer` ONLY when active; codified by `tests/test_pre_plugin_invocation.py::TestDisabledIsNoopByteIdentical::test_disabled_is_noop_byte_identical` + `tests/test_pre_plugin_invocation_split.py::TestAliasByteIdentical::test_alias_byte_identical_when_disabled`. |
 | **Lifecycle telegraph** | The v9.4.0 cycle shipped the flag as opt-in with default-OFF; v10.8.0 D-C-3 preserved default-OFF across the split. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. **Alias deprecation telegraph (v10.8.0 → v12.0.0+)**: the `pre_plugin_invocation` event at position 9 remains as a BYTE-IDENTICAL alias through v11.x; operators registering extra handlers on this event should migrate to `pre_plugin_invocation_install` / `pre_plugin_invocation_upgrade` before v12.0.0 SI-1 re-evaluation. The 1-cycle alias cadence mirrors the W-21 Soul-set governance telegraph pattern. |
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to preserve v9.4.x dispatch behaviour byte-identically |
-| **Reference** | `tests/test_pre_plugin_invocation.py` (alias path coverage); `tests/test_pre_plugin_invocation_split.py` (v10.8.0 D-C-3 split contract: install-only / upgrade-only / alias-byte-identical / disjoint-violations / deprecation-telegraph); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (alias entry point); `src/devolaflow/lifecycle/pre_plugin_invocation_install.py::pre_plugin_invocation_install` (install handler at event slot #11); `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py::pre_plugin_invocation_upgrade` (upgrade handler at event slot #12); `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1 D-P-3 + `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md` |
+| **Reference** | `tests/test_pre_plugin_invocation.py` (alias path coverage); `tests/test_pre_plugin_invocation_split.py` (v10.8.0 D-C-3 split contract: install-only / upgrade-only / alias-byte-identical / disjoint-violations / deprecation-telegraph); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (alias entry point); `src/devolaflow/lifecycle/pre_plugin_invocation_install.py::pre_plugin_invocation_install` (install handler at event slot #10); `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py::pre_plugin_invocation_upgrade` (upgrade handler at event slot #11); `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1 D-P-3 + `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md` |
 
-### 2.13 `DEVOLAFLOW_SI_CHIP_DEEP` — v9.5.0 PV-04 Si-Chip DEEP integration (post-skill-edit dogfood gate)
-
-| Field | Value |
-|---|---|
-| **Owner** | `src/devolaflow/lifecycle/post_skill_edit.py::ENV_FLAG` (helper: `is_deep_integration_active`) |
-| **Introduced** | v9.5.0 PV-04 (closes D-S-4 + D-S-5 from `docs/cycle-archive/v10.0.0/v9.5.0_gap_analysis.md` §3.1; user Q2=B DEEP integration signoff) |
-| **Default** | unset (= disabled — `post_skill_edit` hook is a zero-IO no-op) |
-| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
-| **Effect when active** | `post_skill_edit` lifecycle hook (event slot #10 in `DEFAULT_EVENTS`, A-2.2 append-only at position 10) auto-runs the Si-Chip iteration_delta gate (`devolaflow.si_chip_bridge.run_dogfood_cycle`) after any commit touching `workflow-system/agent/**`. APPLY verdict → no-op (continue). DEFER verdict → write a deferred-changes feedback doc to `.local/feedbacks/sichip_deferred_<timestamp>.md` per the v9.5.0 user requirement ("if not, summarise into a feedback document"). The hook fires AFTER the v9.4.0 PV-02 `pre_plugin_invocation` slot at DEFAULT_EVENTS position 10. |
-| **Effect when opted out** | The `post_skill_edit` hook is a zero-IO no-op (lazy-imports the `si_chip_bridge` package ONLY when active); dispatch behaviour is byte-identical to v9.4.x for every input (the AC-7 byte-stable invariant from `v9.5.0_gap_analysis.md` §6) |
-| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SI_CHIP_DEEP activates a different runtime surface (the post-skill-edit dogfood gate) than every existing flag. (1) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (§2.12, opt-IN) controls dispatcher PRE-flight plugin install — different surface (PRE vs POST). (2) the retired `DEVOLAFLOW_AUTO_INSTALL` name (§2.5 tombstone; now the `runtime-plugins.yaml#defaults.auto_install` YAML knob) governed the install primitive's WHEN-called behaviour — different surface (install primitive vs hook). (3) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — workspace folder management has nothing to do with skill self-evaluation cadence. The flags compose meaningfully: `SI_CHIP_DEEP=1 + AUTO_INSTALL_PLUGINS=1` = full pipeline (auto-install Si-Chip on dispatch + auto-evaluate skills on commit); `SI_CHIP_DEEP=1` alone = auto-evaluate only (operators who pre-install Si-Chip manually). No existing flag could be REUSED without conflating distinct activation surfaces. |
-| **R5 strict?** | YES — `is_deep_integration_active` is a pure ``os.environ.get`` comparison with no IO + no subprocess. The hook body lazy-imports `devolaflow.si_chip_bridge` ONLY when active; codified by `tests/test_post_skill_edit_hook.py::TestDisabledIsNoop::test_disabled_is_noop_byte_identical`. |
-| **Lifecycle telegraph** | The v9.5.0 cycle ships the flag as opt-in with default-OFF. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. NOT yet committed — the v9.5.0 retrospective will assess the operator-feedback signal. |
-| **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SI_CHIP_DEEP=0` to preserve v9.5.x dispatch behaviour byte-identically |
-| **Reference** | `tests/test_post_skill_edit_hook.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/post_skill_edit.py::post_skill_edit` (the public entry point); `docs/cycle-archive/v10.0.0/v9.5.0_gap_analysis.md` §3.1 D-S-4 + §3.2 D-S-5; canonical Si-Chip URL: `https://github.com/YoRHa-Agents/Si-Chip` |
-
-### 2.14 `DEVOLAFLOW_WARMUP` — v9.7.0 PV-04 selector LRU cache pre-warmup (opt-in)
+### 2.13 `DEVOLAFLOW_WARMUP` — v9.7.0 PV-04 selector LRU cache pre-warmup (opt-in)
 
 | Field | Value |
 |---|---|
@@ -305,21 +262,21 @@ count.
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `" 1 "`, `""`); pure env-var read against the literal `WARMUP_TRUTHY_VALUE` constant |
 | **Effect when active** | A session-start call to `warmup_selector_cache()` pre-populates the v9.3.0 PV-03 LRU caches (`_load_profiles_cached` / `_load_skill_md_cached`) by iterating the cartesian product of `WARMUP_TASK_TYPES` (top-5: `implement`, `research`, `design`, `hotfix`, `review`) × `WARMUP_ROUND_NUMS` ((1, 2, 3)) — 15 cache entries total. Pre-warmup, the first session dispatch pays ~80 ms cold-cache miss for `load_profiles`; post-warmup, every dispatch hits the cache in O(1). Net: an N-dispatch session amortises the warmup over N calls; for N ≥ 4, warmup is a strict win (saves ~80 ms × (N-1) ≈ ~240 ms on a 4-dispatch session, costs ~80-300 ms upfront on the first run, ~5 ms on subsequent invocations within the same process). |
 | **Effect when opted out** | `warmup_selector_cache()` returns `0` immediately without spending IO or CPU; dispatch behaviour is byte-identical to v9.6.x (the AC byte-stable invariant from `v9.7.0_gap_analysis.md` §4.5) |
-| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: WARMUP activates a different runtime surface (selector LRU cache pre-population on session start) than every existing flag. (1) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace folder lifecycle) is conceptually orthogonal — workspace activation has nothing to do with selector cache state. (2) `DEVOLAFLOW_RTK_PROXY` (shell proxy + command mapping) is a totally different subsystem. (3) `DEVOLAFLOW_SI_CHIP_DEEP` (post-skill-edit dogfood gate) fires AFTER commits, not at session start. (4) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (dispatcher pre-flight plugin install) is conceptually similar (both opt-in dispatcher session lifecycle hooks) BUT activates plugin-install code paths, not selector cache state — REUSING that flag would conflate the two surfaces. The two flags compose meaningfully: `AUTO_INSTALL_PLUGINS=1 + WARMUP=1` = full session-start prep (auto-install plugins + warm selector cache); `WARMUP=1` alone = cache pre-warm only (operators who pre-install plugins manually). No existing flag could be REUSED without conflating distinct activation surfaces. |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: WARMUP activates a different runtime surface (selector LRU cache pre-population on session start) than every existing flag. (1) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace folder lifecycle) is conceptually orthogonal — workspace activation has nothing to do with selector cache state. (2) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (dispatcher pre-flight plugin install) is conceptually similar (both opt-in dispatcher session lifecycle hooks) BUT activates plugin-install code paths, not selector cache state — REUSING that flag would conflate the two surfaces. The two flags compose meaningfully: `AUTO_INSTALL_PLUGINS=1 + WARMUP=1` = full session-start prep (auto-install plugins + warm selector cache); `WARMUP=1` alone = cache pre-warm only. No existing flag could be REUSED without conflating distinct activation surfaces. |
 | **R5 strict?** | YES — `warmup_selector_cache` reads `os.environ.get(WARMUP_ENV_FLAG)` EXACTLY against the literal `WARMUP_TRUTHY_VALUE = "1"`. No IO, no subprocess, no Path.read_text when unset (codified by `tests/test_selector_warmup.py::test_warmup_skips_env_flag_at_module_import`). |
 | **Idempotency** | Calling `warmup_selector_cache()` a second time is cheap (LRU cache absorbs repeats in O(1) per pair). Calling without the env flag is a strict no-op. Calling with the env flag in a stale Python process where the cache is already populated also a strict no-op (same hit path). |
 | **S-5 graceful** | A single warmup call that raises (e.g. transient profiles.yaml read error) is logged at WARNING level and the helper continues with the next pair. The warmup is best-effort by contract — partial warmup is strictly better than a cold cache. |
 | **Reference** | `tests/test_selector_warmup.py` (7 NEW tests pin the activation matrix + idempotency + R5 strict + time budget + import-time invariant); `src/devolaflow/task_adaptive_selector.py::warmup_selector_cache` (the public entry point); `docs/cycle-archive/v10.0.0/v9.7.0_gap_analysis.md` §1.3 D-N-2 + `docs/cycle-archive/v10.0.0/other/v9.7.0_perf_research.md` §4 |
 
 > **v14.2.2 G-024/G-023 inventory closure note**: the three rows below
-> (§2.15..§2.17) were ALREADY-LIVE surfaces that pre-dated this
+> (§2.14..§2.16) were ALREADY-LIVE surfaces that pre-dated this
 > reference's row coverage — no new flag is introduced here (W-20
-> preserved). §2.15 + §2.17 pull the G-023 table-row slice forward;
+> preserved). §2.14 + §2.15 pull the G-023 table-row slice forward;
 > §2.16 was surfaced by the G-024 AST audit. Rows are APPENDED so the
 > §2.12/§2.13 anchors cited by `references/degraded-mode.md` stay
 > stable.
 
-### 2.15 `DEVOLAFLOW_AGENT_WORKSPACE` — workspace-engagement auto-activation (A-6)
+### 2.14 `DEVOLAFLOW_AGENT_WORKSPACE` — workspace-engagement auto-activation (A-6)
 
 | Field | Value |
 |---|---|
@@ -332,19 +289,7 @@ count.
 | **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py` + `tests/test_hook_runtime_wiring.py`) |
 | **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" + §"Lifecycle Hooks" (strict-since-v15.0.0 status) |
 
-### 2.16 `DEVOLAFLOW_SI_CHIP_FALLBACK_DIR` — Si-Chip install-discovery escape hatch
-
-| Field | Value |
-|---|---|
-| **Owner** | `src/devolaflow/si_chip_bridge/install_resolver.py::ENV_FALLBACK` (read inside `find_si_chip_install`) |
-| **Introduced** | v9.5.0 PV-02 (si_chip_bridge wrapper) |
-| **Default** | unset (= probe only the standard install locations) |
-| **Activation** | PATH-VALUED — not a `"1"` toggle. When set to a directory containing `SKILL.md`, that directory is consulted as probe location #6 in the `find_si_chip_install` resolution order |
-| **Effect** | Operator-controlled escape hatch for non-standard Si-Chip installs (e.g. CI that pre-clones the repo). Honours S-7: the path is supplied by the operator at runtime; nothing is hardcoded in any agent-facing file |
-| **R5 strict?** | N/A — path-valued config knob, not a feature toggle; when unset the resolver simply skips probe #6 (zero extra IO) |
-| **Reference** | `src/devolaflow/si_chip_bridge/install_resolver.py` module docstring (resolution order); `tests/test_si_chip_bridge.py` |
-
-### 2.17 `DEVOLAFLOW_MEMORY_CONSULT` — memory-case dispatch hints (prompt-side)
+### 2.15 `DEVOLAFLOW_MEMORY_CONSULT` — memory-case dispatch hints (prompt-side)
 
 | Field | Value |
 |---|---|
@@ -356,7 +301,7 @@ count.
 | **R5 strict?** | N/A (no Python read site to hold to the zero-IO contract) |
 | **Reference** | SKILL.md §"Workspace Engagement (Read at Session Start)"; `src/devolaflow/memory_router/cache.py` W-20 reuse note |
 
-### 2.18 `DEVOLAFLOW_HOST_ENFORCE` — v17.0.0 R2 host-bridge boundary enforcement
+### 2.16 `DEVOLAFLOW_HOST_ENFORCE` — v17.0.0 R2 host-bridge boundary enforcement
 
 | Field | Value |
 |---|---|
@@ -364,9 +309,9 @@ count.
 | **Introduced** | v17.0.0 R2 (G17-B1 closure per the v17 R2 design §D-R2-2) |
 | **Default** | unset (= disabled — the host bridge allows everything with ZERO filesystem IO) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO, no subprocess, no `shutil.which` lookup |
-| **Effect when active** | `python -m devolaflow.hostbridge --host {cursor,claude,codex,kimi,dsh}` enforces the S-8 owned-files boundary on HOST tool events: `file_write` events are checked against the union of active-change `.local/.agent/active/*/owned_files.txt` manifests (+ S-8 §2/§3 exemptions) via `run_hooks("file_write", ...)` — a `CFO006` blocker denies in the host's own block protocol; `shell` events are advisory-only (allowed; `pre_shell_call` rewrite metadata is ledgered). Every enforced decision appends a JSONL line to `.local/telemetry/hostbridge.jsonl`. The committed `.cursor/hooks.json` / `.claude/settings.json` / `.codex/hooks.json` bash wrappers fast-path to allow in pure bash (no Python startup) when the flag is not `"1"` |
+| **Effect when active** | `python -m devolaflow.hostbridge --host {cursor,claude,codex,kimi,dsh}` enforces the S-8 owned-files boundary on HOST tool events: `file_write` events are checked against the union of active-change `.local/.agent/active/*/owned_files.txt` manifests (+ S-8 §2/§3 exemptions) via `run_hooks("file_write", ...)` — a `CFO006` blocker denies in the host's own block protocol; `shell` events are always allowed and recorded as ordinary allow decisions. Every enforced decision appends a JSONL line to `.local/telemetry/hostbridge.jsonl`. The committed `.cursor/hooks.json` / `.claude/settings.json` / `.codex/hooks.json` bash wrappers fast-path to allow in pure bash (no Python startup) when the flag is not `"1"` |
 | **Effect when opted out** | Byte-identical to a host with no bridge installed: the wrappers allow without starting Python; `decide()` allows with zero filesystem IO and writes NO audit ledger |
-| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: HOST_ENFORCE activates a different runtime surface (interception of HOST-agent tool events — Cursor/Claude/Codex/Kimi/DSH pre-tool-use hooks) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` (§2.15) activates workspace scaffolding + the framework-internal `fire_file_write` / `fire_task_stop` write adapters — framework code paths, not host tool events. The two compose meaningfully on BOTH diagonals: `HOST_ENFORCE=1` alone = enforce host boundaries without workspace auto-scaffolding; `AGENT_WORKSPACE=1` alone = scaffold + framework adapters with hosts unbridged (the pre-v17 behaviour). REUSING `AGENT_WORKSPACE` would have conflated the two surfaces and made host enforcement inseparable from scaffolding. No other flag is remotely adjacent (RTK_PROXY is shell-rewrite compression; the plugin flags gate installer hooks) |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: HOST_ENFORCE activates a different runtime surface (interception of HOST-agent tool events — Cursor/Claude/Codex/Kimi/DSH pre-tool-use hooks) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` (§2.14) activates workspace scaffolding + the framework-internal `fire_file_write` / `fire_task_stop` write adapters — framework code paths, not host tool events. The two compose meaningfully on BOTH diagonals: `HOST_ENFORCE=1` alone = enforce host boundaries without workspace auto-scaffolding; `AGENT_WORKSPACE=1` alone = scaffold + framework adapters with hosts unbridged (the pre-v17 behaviour). REUSING `AGENT_WORKSPACE` would have conflated the two surfaces and made host enforcement inseparable from scaffolding. No other flag is remotely adjacent; the plugin flags gate installer hooks. |
 | **R5 strict?** | YES — `is_host_enforce_active` is a pure `os.environ.get` comparison; the OFF path performs zero filesystem IO and zero `run_hooks` dispatch, codified by `tests/test_hostbridge_disabled_is_noop.py` (Path watcher + nonexistent-repo-root probes) |
 | **Fail-open contract** | Internal bridge errors NEVER block the host tool call: verdict `error_allow` + an audit-ledger line (S-5 — logged, not silent). Host configs set no fail-closed option |
 | **Reference** | `references/host-bridges.md` (six-host matrix, install guide, ledger schema); `tests/test_hostbridge.py`; §7 checklist walk below |
@@ -443,13 +388,12 @@ BG-001..BG-004 spec.
 
 ## 6. R5 strict pattern — the conjunction contract
 
-For the R5 strict flags (#2.2 `DEVOLAFLOW_RTK_PROXY`, #2.3
-`DEVOLAFLOW_RTK_PROXY_TIER2`, #2.4 `DEVOLAFLOW_MEMORY_ROUTER`, and the
+For the R5 strict flags (#2.2 `DEVOLAFLOW_MEMORY_ROUTER` and the
 5 v8.5.1 PV-06 promotions §2.6..§2.10) the "feature is active"
 predicate is the **conjunction** of:
 
 1. env-var read returns EXACTLY `"1"` (rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`)
-2. The companion runtime probe succeeds (e.g. `shutil.which("rtk")` for #2.2, `Path.exists` for #2.4's index file)
+2. The companion runtime probe succeeds (e.g. `Path.exists` for #2.2's index file)
 
 When EITHER side is missing, the feature is a **zero-IO no-op**:
 
@@ -464,9 +408,7 @@ unset. The contract is verified at FOUR layers:
 
 | Layer | Test file | Mechanism |
 |-------|-----------|-----------|
-| Unit  | `tests/test_shell_proxy_disabled_is_noop.py` | `monkeypatch.setattr(subprocess, 'run', ...)` watcher |
 | Unit  | `tests/test_memory_router.py::TestLookupCaseR5StrictOff` | `monkeypatch.setattr(Path, 'read_text', ...)` watcher |
-| Unit  | `tests/test_shell_proxy_commands.py::TestLoadR5StrictOff` | same Path.read_text watcher |
 | Harness | `tests/harness/test_fixtures.py`; `src/devolaflow/harness/telemetry.py` | validates the active fixture corpus and records aggregate telemetry; no active per-flag composite claim |
 
 ## 6.A Activation-pattern taxonomy (G-023, v14.4.0)
@@ -478,13 +420,9 @@ row), not from the row prose:
 
 | # | Pattern | Parsing contract | §2 flags |
 |---|---------|------------------|----------|
-| 1 | **R5-strict literal-`"1"`** | ONLY the literal string `"1"` activates; any other value (incl. `"true"`, `"yes"`, `"on"`, `"01"`, `""`) is OFF; zero-IO no-op when unset (§6 conjunction contract) | §2.2 `RTK_PROXY`, §2.3 `RTK_PROXY_TIER2`, §2.4 `MEMORY_ROUTER`, §2.12 `AUTO_INSTALL_PLUGINS`, §2.13 `SI_CHIP_DEEP`, §2.14 `WARMUP`, §2.15 `AGENT_WORKSPACE`; the prompt-side §2.17 `MEMORY_CONSULT` row pins the same literal-`"1"` contract in SKILL.md prose |
+| 1 | **R5-strict literal-`"1"`** | ONLY the literal string `"1"` activates; any other value (incl. `"true"`, `"yes"`, `"on"`, `"01"`, `""`) is OFF; zero-IO no-op when unset (§6 conjunction contract) | §2.2 `MEMORY_ROUTER`, §2.12 `AUTO_INSTALL_PLUGINS`, §2.13 `WARMUP`, §2.14 `AGENT_WORKSPACE`; the prompt-side §2.15 `MEMORY_CONSULT` row pins the same literal-`"1"` contract in SKILL.md prose |
 | 2 | **Legacy truthy (loose match)** | env value in `{"1", "true", "yes", "on"}` activates (plus a filesystem-marker OR-branch); historical contract pre-dating R5 | §2.1 `PLAN_MODE` ONLY (`task_adaptive_selector.py::_detect_plan_mode` — loose semantics pinned by `TestPlanModeDetect`; matches the Cursor SwitchMode contract) |
 | 3 | **Config-file-driven** | The config/profile default is the canonical control; the env var (when read at all) is ONLY a literal-`"1"` force-ON / literal-`"0"` force-OFF override that falls through to the config value on any other input | §2.6..§2.10 (5 gate primitives → `GateProfile.*_enabled` fallback), §2.11 `AGENTS_MD_SLICE` (→ `context_profiles.yaml#meta.agents_md_slice.enabled` fallback), §2.5 `AUTO_INSTALL` (RETIRED v15.2.0 B-6 tombstone: NO env read ever existed — `runtime-plugins.yaml#defaults.auto_install`, `false` since v15.2.0, IS the control) |
-
-§2.16 `SI_CHIP_FALLBACK_DIR` sits OUTSIDE the taxonomy: it is a
-path-valued parameter, not an activation toggle (no on/off semantics
-to classify).
 
 **Normative guidance — new flags MUST be pattern 1 (R5 strict).**
 Pattern 2 is grandfathered for `DEVOLAFLOW_PLAN_MODE` only and MUST NOT
@@ -505,9 +443,7 @@ walk the W-20 checklist:
 2. **Behavioural orthogonality test** — would the new flag activate
    independently of every existing flag? If NO (e.g. it always
    piggybacks on an existing flag), REUSE the existing flag with a
-   sub-condition (the v8.3.4 PV-04 command-mapping layer is the
-   canonical example: it REUSES `DEVOLAFLOW_RTK_PROXY` rather than
-   adding `DEVOLAFLOW_COMMAND_MAPPING`).
+   sub-condition).
 3. **R5 strict design** — if the new flag is a runtime activation flag
    (not a config tuning knob), the companion code path MUST be
    zero-IO when the flag is unset. Authors MUST author a watcher test
@@ -522,37 +458,21 @@ A NEW env-flag PR that fails any of the 5 checks is a **W-20
 violation** — block at code review and either remove the flag (REUSE)
 or document the orthogonality argument explicitly.
 
-> **v12.5.0 PV-05 reuse-first reference case — codegraph.** The
-> v12.5.0 codegraph plugin integration deliberately introduces NO new
-> env flag. Codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (§2.12)
-> for opt-in runtime installation through `pre_plugin_invocation`. The
-> W-20 orthogonality test passed because codegraph shares the runtime-
-> installer activation surface with `ui-pro` + `rtk` + `si-chip`.
-> Authoring a NEW
-> `DEVOLAFLOW_CODEGRAPH` flag would have conflated two activation
-> patterns that are already correctly distinguished by the
-> `runtime-plugins.yaml::plugins[id=codegraph].invoked_by_workflows`
-> declaration. Result: env-flag count stays at 7 (no growth at
-> v12.5.0). This is the canonical W-20 reuse-first reference case
-> alongside the v8.3.4 PV-04 command-mapping precedent cited in test
-> 2 above.
-
 > **v17.0.0 R2 new-flag reference case — host-bridge enforcement.** The
 > v17.0.0 R2 host bridge walked this checklist and authored
-> `DEVOLAFLOW_HOST_ENFORCE` (§2.18) as a justified NEW flag: step 1
+> `DEVOLAFLOW_HOST_ENFORCE` (§2.16) as a justified NEW flag: step 1
 > found no existing flag covering host tool-event interception; step 2
 > established behavioural orthogonality vs `DEVOLAFLOW_AGENT_WORKSPACE`
 > (host hooks vs framework write adapters + scaffolding — both
 > compose independently); step 3 shipped the zero-IO watcher test
 > `tests/test_hostbridge_disabled_is_noop.py` in the same PR; step 4
-> is the §2.18 row itself; step 5 is cited in the v17.0.0 CHANGELOG
-> entry. Contrast with the v12.5.0 codegraph REUSE case above — the
-> checklist admits both outcomes when the evidence supports them.
+> is the §2.16 row itself; step 5 is cited in the v17.0.0 CHANGELOG
+> entry. The checklist admits both outcomes when the evidence supports them.
 
 ## 7.A Lifecycle event taxonomy (v11.0.0 PV-02 D-Q-3 PURE-ALIAS rename)
 
-> **Cross-cuts §2.12 + §2.13**: the `pre_plugin_invocation` /
-> `post_skill_edit` env-flag rows reference event slots in
+> **Cross-cuts §2.12**: the `pre_plugin_invocation` env-flag row references
+> event slots in
 > `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS`. v11.0.0 PV-02
 > D-Q-3 introduces 4 NEW canonical event names per a 3-prefix taxonomy
 > (`pre_*` / `post_*` / `check_*`) with PURE-ALIAS preservation of the
@@ -562,19 +482,19 @@ Per `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-Q-3.md` §2 the rename mapping
 
 | OLD event name (PURE-ALIAS, v11.x) | NEW canonical name | Position in DEFAULT_EVENTS | Handler module |
 |---|---|:---:|---|
-| `file_write` | `check_file_write` | 3 (OLD) / 13 (NEW) | `lifecycle/check_file_ownership.py` (S-8 owned-files manifest enforcement) |
-| `task_stop` | `post_task_complete` | 4 (OLD) / 14 (NEW) | `lifecycle/test_on_complete.py` (verifies tests-pass at task end) |
-| `format_on_edit` | `post_file_edit` | 5 (OLD) / 15 (NEW) | `lifecycle/format_on_edit.py` (auto-format after edit) |
-| `envelope_write` | `check_envelope_write` | 7 (OLD) / 16 (NEW) | `lifecycle/check_envelope_append_only.py` (S-9 append-only enforcement) |
+| `file_write` | `check_file_write` | 3 (OLD) / 11 (NEW) | `lifecycle/check_file_ownership.py` (S-8 owned-files manifest enforcement) |
+| `task_stop` | `post_task_complete` | 4 (OLD) / 12 (NEW) | `lifecycle/test_on_complete.py` (verifies tests-pass at task end) |
+| `format_on_edit` | `post_file_edit` | 5 (OLD) / 13 (NEW) | `lifecycle/format_on_edit.py` (auto-format after edit) |
+| `envelope_write` | `check_envelope_write` | 6 (OLD) / 14 (NEW) | `lifecycle/check_envelope_append_only.py` (S-9 append-only enforcement) |
 
 **Resulting taxonomy** (after rename, before deprecation; 3-prefix
 partition for 100% conformance):
 
 | Prefix group | Events | Count |
 |---|---|:---:|
-| `pre_*` | `pre_dispatch`, `pre_shell_call`, `pre_handoff`, `pre_plugin_invocation`, `pre_plugin_invocation_install`, `pre_plugin_invocation_upgrade` | 6 |
-| `post_*` | `post_dispatch`, `post_task_complete`, `post_file_edit`, `post_skill_edit` | 4 |
-| `check_*` | `check_file_write`, `check_envelope_write`, `check_human_input_write` (wired at `DEFAULT_EVENTS` position 17 since v15.0.0 — G-038 flip; born canonical, no OLD alias) | 3 |
+| `pre_*` | `pre_dispatch`, `pre_handoff`, `pre_plugin_invocation`, `pre_plugin_invocation_install`, `pre_plugin_invocation_upgrade` | 5 |
+| `post_*` | `post_dispatch`, `post_task_complete`, `post_file_edit` | 3 |
+| `check_*` | `check_file_write`, `check_envelope_write`, `check_human_input_write` (wired at `DEFAULT_EVENTS` position 15 after retired-event removal; born canonical, no OLD alias) | 3 |
 
 **Alias schedule**: OLD names are PURE-ALIAS for v11.0.0..v11.x. Both
 names accept `register_hook(event, handler)` and dispatch via
@@ -604,12 +524,12 @@ NEW canonical names.
 * `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-Q-3.md` — full PDS authoring this rename.
 * `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_*` — the 5 PURE-ALIAS regression tests.
 * `src/devolaflow/lifecycle/dispatcher.py::_EVENT_ALIASES` — the alias map.
-* `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS` — the 16-entry tuple after the v11.0.0 PV-02 D-Q-3 append.
+* `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS` — the current 15-entry tuple after retired-event removal.
 
 ## 8. Cross-references
 
 * SKILL.md §"Reference Navigation Guide" Tier-2 row — discovery surface
-* `references/shell-proxy.md` §3.1 — RTK + memory-router env-flag table (cross-link from §2.2..§2.4)
+* `references/memory-router.md` §2 — memory-router env-flag details
 * `references/decomposition-gate.md` §11 — gate primitive table (cross-link from §4)
 * `references/plan-mode-enforcement.md` §2 — plan-mode detection table (cross-link from §2.1)
 * `references/behavioral-guidelines.md` — BG-001..BG-004 spec (cross-link from §5)

@@ -12,7 +12,7 @@
 #   - what project-specific `context` to inject into all artifacts
 #   - what per-artifact `rules` (token budget, format hints) to apply
 #   - what `mode` (lite | full) controls pre-commit gate strictness
-#   - whether current plugins (codegraph, si-chip, ui-pro) are only suggested
+#   - whether current plugins (ui-pro, impeccable) are only suggested
 #     or explicitly auto-installed on demand (`plugin_runtime`)
 #
 # Format: pure YAML. No frontmatter. No prose body.
@@ -99,9 +99,9 @@ fields:
     description: |
       Pre-commit gate strictness selector.
       lite — single-author, low-risk. Pre-commit runs steps 1–3 only (tests / lint / format).
-      full — multi-author or high-risk. Pre-commit runs all 7 steps per W-9 SI-10
+      full — multi-author or high-risk. Pre-commit runs all 6 steps per W-9 SI-10
       (core tests / lint / format / version / harness / cursor-skill /
-      iteration-delta gate).
+      repository checks).
 
   plugin_runtime:
     type: object
@@ -122,7 +122,7 @@ invariants:
   - "MUST be re-read at every L0 boot — agents MUST NOT cache config across sessions."
   - "Editing this file MUST be done as an explicit change (i.e. through /devola:propose) to keep the rules-coverage report accurate."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
-  - "External plugin URLs (e.g. Codegraph, Si-Chip, ui-pro) MUST be canonical GitHub URLs (S-7 / SF-6)."
+  - "External plugin URLs (e.g. ui-pro, impeccable) MUST be canonical GitHub URLs (S-7 / SF-6)."
 
 example: |
   schema_version: 1

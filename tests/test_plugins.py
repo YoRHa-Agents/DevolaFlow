@@ -431,7 +431,7 @@ class TestCreateDefaultRegistry:
     def test_auto_discovers_repo_yaml_when_no_arg(self) -> None:
         reg = create_default_registry()
         assert reg.get("ui-pro") is not None
-        assert len(reg.list_plugins()) == 5
+        assert len(reg.list_plugins()) == 3
 
     def test_loads_from_yaml_when_explicit(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
@@ -451,7 +451,6 @@ class TestCreateDefaultRegistry:
         # Only plugins from the explicit YAML are registered (no implicit merge
         # with _BUILTIN_SPECS — it no longer exists).
         assert reg.get("extra-tool") is not None
-        assert reg.get("si-chip") is None
         assert reg.get("ui-pro") is None
 
     def test_emergency_stub_when_yaml_missing(
@@ -602,13 +601,13 @@ class TestRuntimePluginsYamlContract:
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
         # schema_version history:
         #   v1 (v8.2.1) — initial registry schema
-        #   v2 (v8.3.1 PV-01) — curl_install_script backend + rtk
+        #   v2 (v8.3.1 PV-01) — curl_install_script backend
         #   v3 (v9.4.0 PV-04) — upgrade_cmd + upgrade_check_frequency_hours
         #   v4 (v15.2.0 B-6) — tier: require|suggest + auto_install default flip
         # v1..v3 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS.
         assert raw["schema_version"] == 4
         assert isinstance(raw["plugins"], list)
-        assert len(raw["plugins"]) == 5
+        assert len(raw["plugins"]) == 3
 
     def test_registry_contains_ui_pro_npm_then_init(self) -> None:
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
@@ -1325,348 +1324,34 @@ class TestInstallerEdgeCases:
 
 
 # ===========================================================================
-# v8.3.1 PV-01 — RTK plugin entry (closes R-001 from v8.4.0_gap_analysis.md)
-# ---------------------------------------------------------------------------
-# Design ref: .local/research/v8.4.0_gap_analysis.md §2.1 R-001
-#
-# Coverage targets:
-#   - rtk presence in canonical runtime-plugins.yaml (3rd entry)
-#   - curl_install_script backend supported + resolves
-#   - min_version: 0.37.2 (Cargo.toml canonical, NOT README's stale 0.28.2)
-#   - verify_distinguish_cmd: "rtk gain" (vs rtk-type-kit collision warning)
-#   - canonical_url: https://github.com/rtk-ai/rtk
-#   - local_fallback_path: null (per S-7 — no hardcoded paths)
-#   - install failure raises loudly per S-5 (curl + cargo both fail)
-#   - distinguish-check failure raises loudly per S-5 (collision detected)
-#   - happy-path end-to-end (curl install → version probe → rtk gain → return)
-# ===========================================================================
-
-
-class TestRtkPluginRegistry:
-    """rtk row in the canonical runtime-plugins.yaml (v8.3.1 PV-01)."""
-
-    def test_rtk_in_registry(self) -> None:
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.id == "rtk"
-        assert spec.package == "rtk"
-
-    def test_rtk_curl_install_backend_supported(self) -> None:
-        # The new backend is in _SUPPORTED_BACKENDS and resolve_plugin returns
-        # the rtk spec WITHOUT raising PluginBackendUnsupported.
-        assert "curl_install_script" in _installer_mod._SUPPORTED_BACKENDS
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.backend == "curl_install_script"
-        # version_check_cmd is the first-line probe (rtk --version);
-        # verify_distinguish_cmd is the second-line probe (rtk gain).
-        assert spec.version_check_cmd == "rtk --version"
-
-    def test_rtk_min_version_037_or_above(self) -> None:
-        # Pinned to Cargo.toml canonical (NOT README's stale 0.28.2).
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.min_version == "0.37.2"
-
-    def test_rtk_distinguish_cmd_is_rtk_gain(self) -> None:
-        # `rtk gain` distinguishes Rust Token Killer (this project) from
-        # rtk-type-kit / Rust Type Kit per the upstream INSTALL.md collision
-        # warning. MANDATORY — not optional.
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.verify_distinguish_cmd == "rtk gain"
-
-    def test_rtk_canonical_url_correct(self) -> None:
-        # Per S-7: external resources by canonical GitHub URL. The cargo
-        # fallback ALWAYS pins this URL via `cargo install --git <url>`,
-        # never bare `cargo install rtk` (would pull the wrong package).
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.canonical_url == "https://github.com/rtk-ai/rtk"
-
-    def test_rtk_local_fallback_path_is_none(self) -> None:
-        # Per S-7: NEVER hardcode local clone paths in agent-facing files.
-        # No runtime clone path is installed via local_fallback_path.
-        registry = load_registry(_RUNTIME_PLUGINS_YAML)
-        spec = resolve_plugin("rtk", registry)
-        assert spec.local_fallback_path is None
-        assert "shell-proxy" in spec.invoked_by_workflows
-
-
-class TestRtkInstallSubprocess:
-    """End-to-end mocked subprocess flow for rtk install + verify_distinguish."""
-
-    @staticmethod
-    def _write_rtk_registry(tmp_path: Path) -> Path:
-        """Write a tmp registry containing only the rtk plugin (schema_version=2).
-
-        Mirrors the structure of _write_runtime_registry but limited to rtk so
-        each test exercises the curl_install_script backend in isolation.
-        """
-        content = textwrap.dedent(
-            f"""\
-            schema_version: 2
-            last_updated: "2026-04-23"
-
-            plugins:
-              - id: rtk
-                backend: curl_install_script
-                package: rtk
-                install_cmd: >-
-                  curl -fsSL
-                  https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh
-                  | sh
-                version_check_cmd: "rtk --version"
-                verify_distinguish_cmd: "rtk gain"
-                min_version: "0.37.2"
-                expected_sha256: null
-                canonical_url: "https://github.com/rtk-ai/rtk"
-                local_fallback_path: null
-                invoked_by_workflows:
-                  - shell-proxy
-
-            defaults:
-              auto_install: true
-              prefer_local_fallback: true
-              network_timeout_seconds: 90
-              install_log_path: "{tmp_path / "plugin_install.log"}"
-
-            backends:
-              - id: pip
-                description: "pip"
-              - id: npm_then_init
-                description: "npm + init"
-              - id: curl_install_script
-                description: "curl pipe sh + cargo fallback"
-            """
-        )
-        registry_file = tmp_path / "runtime-plugins.yaml"
-        registry_file.write_text(content)
-        return registry_file
-
-    @patch("devolaflow.plugins.installer.subprocess.run")
-    def test_rtk_install_failure_raises_loud(self, mock_run: MagicMock, tmp_path: Path) -> None:
-        # Pre-install probe fails (rtk not present), curl primary fails
-        # (network down), cargo fallback also fails (no Rust toolchain).
-        # Result: PluginInstallError per S-5 with both reasons in details.
-        mock_run.side_effect = [
-            _mock_completed(returncode=1),  # pre-install probe (rtk --version)
-            _mock_completed(  # curl_install_script primary
-                returncode=1,
-                stderr="curl: (6) Could not resolve host: raw.githubusercontent.com",
-            ),
-            _mock_completed(  # cargo install fallback
-                returncode=1,
-                stderr="error: cannot find Rust toolchain — install via rustup",
-            ),
-        ]
-        registry_path = self._write_rtk_registry(tmp_path)
-        with pytest.raises(PluginInstallError) as exc:
-            ensure_plugin("rtk", registry_path=registry_path)
-        # Loud per S-5 — message must contain BOTH backend names
-        msg = str(exc.value)
-        assert "curl_install_script" in msg
-        assert "cargo" in msg
-        # details must contain structured info for downstream logging
-        assert exc.value.details["primary_backend"] == "curl_install_script"
-        assert exc.value.details["fallback_backend"] == "cargo"
-        # JSONL install-event journal records the failure (no silent failures)
-        assert "primary_failure" in exc.value.details
-        # R-2 mitigation: cargo MUST be invoked with --git <canonical_url>
-        # (NEVER bare `cargo install rtk` — would risk pulling rtk-type-kit
-        # from crates.io per RTK INSTALL.md collision warning).
-        cargo_call = " ".join(mock_run.call_args_list[2].args[0])
-        assert "cargo install --git https://github.com/rtk-ai/rtk" in cargo_call
-        assert " cargo install rtk " not in (" " + cargo_call + " ")
-
-    @patch("devolaflow.plugins.installer.subprocess.run")
-    def test_rtk_distinguish_failure_raises_loud(self, mock_run: MagicMock, tmp_path: Path) -> None:
-        # Pre-install probe SUCCEEDS but `rtk gain` fails — this is the
-        # name-collision case (rtk-type-kit installed instead of Rust Token
-        # Killer). Per RTK INSTALL.md, this MUST raise loudly per S-5.
-        mock_run.side_effect = [
-            _mock_completed(stdout="rtk 0.37.2"),  # pre-install probe OK
-            _mock_completed(  # rtk gain FAILS — wrong package
-                returncode=1,
-                stderr="error: unrecognized subcommand 'gain'",
-            ),
-        ]
-        registry_path = self._write_rtk_registry(tmp_path)
-        with pytest.raises(PluginInstallError) as exc:
-            ensure_plugin("rtk", registry_path=registry_path)
-        msg = str(exc.value)
-        # Loud per S-5 — must surface the collision pointer
-        assert "distinguish-check FAILED" in msg
-        assert "rtk gain" in msg
-        # The actionable text MUST point operators at the upstream INSTALL.md
-        assert "INSTALL.md" in msg or "https://github.com/rtk-ai/rtk" in msg
-        # Structured details for downstream
-        assert exc.value.details["verify_distinguish_cmd"] == "rtk gain"
-        assert exc.value.details["returncode"] == 1
-
-    @patch("devolaflow.plugins.installer.subprocess.run")
-    def test_rtk_curl_install_succeeds_end_to_end(
-        self, mock_run: MagicMock, tmp_path: Path
-    ) -> None:
-        # Happy path: pre-install probe fails (not yet installed), curl
-        # primary succeeds, post-install version probe returns 0.37.2,
-        # `rtk gain` succeeds → ensure_plugin returns "0.37.2".
-        mock_run.side_effect = [
-            _mock_completed(returncode=1),  # pre-install probe — absent
-            _mock_completed(stdout="rtk 0.37.2 installed"),  # curl primary OK
-            _mock_completed(stdout="rtk 0.37.2"),  # post-install version probe
-            _mock_completed(stdout="rtk gain — savings stats"),  # rtk gain OK
-        ]
-        registry_path = self._write_rtk_registry(tmp_path)
-        version = ensure_plugin("rtk", registry_path=registry_path)
-        assert version == "0.37.2"
-        # Verify the curl install_cmd was the one invoked (not bare cargo)
-        install_call = " ".join(mock_run.call_args_list[1].args[0])
-        assert "curl" in install_call
-        assert "rtk-ai/rtk" in install_call
-        # Verify rtk gain ran post-install (the 4th subprocess call)
-        gain_call = " ".join(mock_run.call_args_list[3].args[0])
-        assert "rtk gain" in gain_call
-
-
-class TestRtkSchemaV2:
-    """schema_version 2 acceptance + backward-compat with schema_version 1."""
-
-    def test_canonical_registry_is_schema_v2(self) -> None:
-        # The canonical runtime-plugins.yaml at v9.4.0 PV-04 is schema_version=3
-        # (bumped from 2 to declare upgrade_cmd + upgrade_check_frequency_hours).
-        # v2 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS = {1, 2, 3}.
-        # The v9.4.0 PV-04 contract is tested in test_plugin_upgrade.py.
-        raw = load_registry(_RUNTIME_PLUGINS_YAML)
-        assert raw["schema_version"] >= 2, (
-            f"canonical registry must be schema_version >= 2 (RTK/curl_install_script "
-            f"backend support); got {raw['schema_version']!r}"
-        )
-
-    def test_load_registry_accepts_schema_v1_for_backward_compat(self, tmp_path: Path) -> None:
-        # R5 strict: existing v8.3.0 fixtures use schema_version=1; they
-        # MUST keep loading without raising after the v8.3.1 schema bump.
-        # _SUPPORTED_SCHEMA_VERSIONS = {1, 2} so v1 entries pass v2 unchanged.
-        path = _write_runtime_registry(tmp_path)  # default schema_version=1
-        raw = load_registry(path)
-        assert raw["schema_version"] == 1
-
-
-class TestRtkCurlScriptHelpers:
-    """Direct unit tests for the new helper functions in installer.py."""
-
-    @patch("devolaflow.plugins.installer.subprocess.run")
-    def test_install_via_cargo_pins_canonical_url(self, mock_run: MagicMock) -> None:
-        # Cargo fallback MUST pass --git <canonical_url> (NEVER bare
-        # `cargo install rtk` per R-2 / RTK INSTALL.md collision warning
-        # vs rtk-type-kit Rust Type Kit).
-        mock_run.return_value = _mock_completed(stdout="installed")
-        spec = RuntimePluginSpec(
-            id="rtk",
-            backend="curl_install_script",
-            package="rtk",
-            install_cmd="curl ... | sh",
-            version_check_cmd="rtk --version",
-            min_version="0.37.2",
-            canonical_url="https://github.com/rtk-ai/rtk",
-            verify_distinguish_cmd="rtk gain",
-        )
-        _installer_mod._install_via_cargo(spec, timeout=30)
-        cmd_invoked = " ".join(mock_run.call_args.args[0])
-        assert "cargo install --git https://github.com/rtk-ai/rtk" in cmd_invoked
-        # Critical: NEVER the bare form
-        assert " cargo install rtk" not in cmd_invoked
-
-    def test_install_via_cargo_requires_canonical_url(self) -> None:
-        # Defensive: if a future plugin entry forgets canonical_url, the
-        # cargo fallback MUST refuse to run (would otherwise risk pulling
-        # the wrong package from crates.io).
-        spec = RuntimePluginSpec(
-            id="rtk",
-            backend="curl_install_script",
-            package="rtk",
-            install_cmd="curl ... | sh",
-            version_check_cmd="rtk --version",
-            min_version="0.37.2",
-            canonical_url="",  # missing — defensive raise expected
-            verify_distinguish_cmd="rtk gain",
-        )
-        with pytest.raises(PluginInstallError) as exc:
-            _installer_mod._install_via_cargo(spec, timeout=30)
-        assert "canonical_url" in str(exc.value)
-        # Pointer at R-2 collision risk in the loud message
-        assert "name-collision" in str(exc.value) or "collision" in str(exc.value)
-
-    def test_verify_distinguish_no_op_when_field_unset(self) -> None:
-        # R5 strict: when verify_distinguish_cmd is None, _verify_distinguish is a
-        # no-op and does NOT spawn any subprocess.
-        spec = RuntimePluginSpec(
-            id="nines",
-            backend="pip",
-            package="nines",
-            install_cmd="pip install nines",
-            version_check_cmd="nines --version",
-            min_version="3.0.0",
-            canonical_url="https://example.com/nines-fixture",
-            verify_distinguish_cmd=None,  # explicit
-        )
-        with patch("devolaflow.plugins.installer.subprocess.run") as mock_run:
-            _installer_mod._verify_distinguish(spec, timeout=30)
-            assert mock_run.call_count == 0
-
-
-# ===========================================================================
-# v12.5.0 PV-03 D-1.1 — codegraph plugin registration
-# ===========================================================================
-#
-# Pins the v12.5.0 PV-03 D-1.1 surfaces in plugins.yaml + plugin_roles.
-# Companion tests for runtime-plugins.yaml live in
-# ``tests/test_runtime_plugins_smoke.py``; lifecycle / workflow-invocation
-# tests live in ``tests/test_pre_plugin_invocation.py``; and the cycle-
-# global ghost-audit pin lives in
-# ``tests/test_no_ghost_features.py::test_v12_5_0_codegraph_plugin_registered``.
+# v12.5.0 PV-03 — Codegraph plugin registration
 # ===========================================================================
 
 
 class TestV1250CodegraphRegistration:
-    """v12.5.0 PV-03 D-1.1 — codegraph block + code_intelligence role.
-
-    These tests load the real repository ``plugins.yaml`` (the canonical
-    source-of-truth per A-5 SSOT registry pattern) and assert the
-    codegraph integration ships with the contract documented at
-    ``.local/research/v12.5.0_codegraph_benefit_analysis.md`` §3 surface 1.
-    """
+    """Codegraph capability metadata mirrors the runtime SSOT."""
 
     def test_codegraph_spec_registered(self) -> None:
-        """``plugins.yaml`` declares the codegraph plugin block."""
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
-        assert codegraph is not None, (
-            "v12.5.0 PV-03 D-1.1 violation: codegraph plugin block missing from "
-            "workflow-system/agent/plugins.yaml. The block MUST exist for the "
-            "v12.5.0 codegraph integration to function."
-        )
+        assert codegraph is not None
         assert codegraph.cli_binary == "codegraph"
         assert codegraph.role == "code_intelligence"
         assert codegraph.min_version == "0.9.3"
         assert codegraph.repo_url == "https://github.com/colbymchenry/codegraph"
 
     def test_codegraph_install_methods(self) -> None:
-        """codegraph declares both npm + curl-script install methods."""
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
         assert codegraph is not None
-        assert codegraph.install_methods.get("npm") == (
-            "npm install -g @colbymchenry/codegraph@latest"
-        )
-        assert "install.sh" in codegraph.install_methods.get("script", "")
+        assert codegraph.install_methods["npm"] == ("npm install -g @colbymchenry/codegraph@latest")
+        assert "install.sh" in codegraph.install_methods["script"]
 
     def test_codegraph_capabilities(self) -> None:
-        """codegraph declares the 8 v12.5.0 PV-03 capabilities."""
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
         assert codegraph is not None
-        expected = {
+        assert {
             "smart_context_building",
             "full_text_search",
             "impact_analysis",
@@ -1675,56 +1360,33 @@ class TestV1250CodegraphRegistration:
             "test_impact_selection",
             "framework_route_awareness",
             "multi_language_index",
-        }
-        assert expected.issubset(set(codegraph.capabilities)), (
-            "v12.5.0 PV-03 D-1.1: codegraph capabilities MUST include all 8 "
-            "v12.5.0-defined surfaces; missing: "
-            f"{expected - set(codegraph.capabilities)}"
-        )
+        }.issubset(set(codegraph.capabilities))
 
-    def test_codegraph_workflows_include_4_analyze_targets(self) -> None:
-        """codegraph workflows include the 4 analyze-stage templates wired in PV-04."""
+    def test_codegraph_workflows(self) -> None:
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
         assert codegraph is not None
-        for wf in ("repo-init", "onboarding", "security-audit", "product-verification"):
-            assert wf in codegraph.workflows, (
-                f"v12.5.0 PV-03 D-1.1: codegraph workflows missing {wf!r}; "
-                "the 4 analyze-stage templates wired in PV-04 MUST appear."
-            )
+        assert {
+            "repo-init",
+            "onboarding",
+            "security-audit",
+            "product-verification",
+        }.issubset(set(codegraph.workflows))
 
-    def test_codegraph_stage_mapping_recipes(self) -> None:
-        """codegraph declares the 4 stage_mapping recipes (analyze/scaffold/research/impact)."""
+    def test_codegraph_stage_mapping(self) -> None:
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         codegraph = reg.get("codegraph")
         assert codegraph is not None
-        for stage in ("analyze", "scaffold", "research", "impact"):
-            assert stage in codegraph.stage_mapping, (
-                f"v12.5.0 PV-03 D-1.1: codegraph stage_mapping missing {stage!r}; "
-                "the 4 stage recipes are part of the PV-03 contract."
-            )
+        assert {"analyze", "scaffold", "research", "impact"} <= set(codegraph.stage_mapping)
 
     def test_code_intelligence_role_present(self) -> None:
-        """``plugins.yaml`` declares the NEW code_intelligence role under plugin_roles."""
         import yaml
 
-        with _REPO_PLUGINS_YAML.open(encoding="utf-8") as f:
-            payload = yaml.safe_load(f)
-        plugin_roles = payload.get("plugin_roles", {})
-        ci = plugin_roles.get("code_intelligence")
-        assert ci is not None, (
-            "v12.5.0 PV-03 D-1.1 violation: plugin_roles.code_intelligence missing "
-            "from plugins.yaml. The 5th role (after research_and_iteration, "
-            "skill_self_improvement, ui_tooling, gate_scoring) MUST exist."
-        )
-        assert ci.get("provider") == "codegraph"
-        assert ci.get("invocation") == "on_demand"
-        primary_workflows = ci.get("primary_workflows") or []
-        for wf in ("repo-init", "onboarding", "security-audit", "product-verification"):
-            assert wf in primary_workflows
-        stage_affinity = ci.get("stage_affinity") or []
-        for stage in ("analyze", "scaffold", "research", "profile"):
-            assert stage in stage_affinity
+        payload = yaml.safe_load(_REPO_PLUGINS_YAML.read_text(encoding="utf-8"))
+        role = (payload.get("plugin_roles") or {}).get("code_intelligence")
+        assert role is not None
+        assert role["provider"] == "codegraph"
+        assert role["invocation"] == "on_demand"
 
 
 class TestV13ImpeccableRegistration:

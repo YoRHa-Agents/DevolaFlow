@@ -63,7 +63,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl `all` installs all supported host targets plus the local scaffold; it
 excludes `standalone`. Some hosts are project-only even when `--global` is
 requested. Global installation also attempts the default-bundled runtime
-plugins; optional plugins RTK, ui-pro, and Si-Chip remain explicit-only. Add
+plugins codegraph and impeccable; optional plugin ui-pro remains explicit-only. Add
 `--no-plugins` to copy only skill files. curl supports `update` and
 `uninstall`, but has no doctor target.
 
@@ -111,8 +111,8 @@ devola-init all
 
 Python `all` means Cursor, Claude, Copilot, Codex, KimiCode, and DSH; it
 excludes the local scaffold. With `--global`, default-bundled plugin
-installation is attempted unless `--no-plugins` is passed. Optional plugins
-RTK, ui-pro, and Si-Chip remain explicit-only.
+installation is attempted unless `--no-plugins` is passed. Codegraph and
+impeccable are bundled; optional plugin ui-pro remains explicit-only.
 
 ### Manual fallback
 
@@ -302,7 +302,7 @@ The source plus those sync locations make eight files. The README badge reads
 entry at load time.
 
 ```bash
-devola-version  # prints "DevolaFlow v21.3.0"
+devola-version  # prints "DevolaFlow v22.0.0"
 python scripts/bump_version.py X.Y.Z --dry-run
 python -m pytest tests/test_version.py -v
 ```

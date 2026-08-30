@@ -250,11 +250,10 @@ _SCAFFOLD_ENTRIES_HEADER: str = "# DevolaFlow scaffold entries (tool-local cache
 def ensure_gitignore_entries(cwd: str | Path, entries: tuple[str, ...] | list[str]) -> list[str]:
     """Idempotently append missing ignore ``entries`` to ``cwd/.gitignore``.
 
-    Deterministic replacement for the prompt-side ``add_to_gitignore``
-    template semantic (R5 F1-H1/H3): existing user content and comments are
-    preserved verbatim; entries already present as exact rules are skipped;
-    missing entries are appended under a single header comment. Safe to
-    re-run any number of times — a no-op run leaves the file byte-identical.
+    Existing user content and comments are preserved verbatim; entries
+    already present as exact rules are skipped; missing entries are appended
+    under a single header comment. Safe to re-run any number of times — a
+    no-op run leaves the file byte-identical.
 
     Read/write failures log an explicit WARNING (S-5) and return ``[]``;
     the caller's verification step (:func:`verify_scaffold_gitignore` via
@@ -418,7 +417,7 @@ def verify_scaffold_gitignore(cwd: str | Path) -> list[str]:
     """Return the scaffold-required gitignore rules missing from ``cwd``.
 
     The required set is the v12.2.0 ``.local/`` whitelist detection key
-    (:data:`_LOCAL_WHITELIST_REQUIRED_RULES`) plus the deterministic
+    (:data:`_LOCAL_WHITELIST_REQUIRED_RULES`) plus any registered
     scaffold entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`). Empty list means
     the ``.gitignore`` is in the expected post-scaffold state. Pure check —
     never writes; unreadable files report every required rule as missing.
@@ -456,15 +455,10 @@ def scaffold_local(
       ``TRACKER.md`` / ``MEMORY.md`` on the next run. Both helpers no-op
       when the target file already exists.
 
-    full_review_and_improve Track C-1 adds two gitignore guarantees:
-
-    - Deterministic entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`, e.g.
-      ``.codegraph/``) are written via :func:`ensure_gitignore_entries`
-      BEFORE any plugin/CLI runs — decoupled from `codegraph init` outcome.
-    - A post-scaffold self-check (:func:`verify_scaffold_gitignore`) raises
-      :class:`ScaffoldVerificationError` when required rules are missing
-      (S-5: no silent success). Pass ``verify=False`` to restore the old
-      advisory-only behaviour.
+    A post-scaffold self-check (:func:`verify_scaffold_gitignore`) raises
+    :class:`ScaffoldVerificationError` when required rules are missing
+    (S-5: no silent success). Pass ``verify=False`` to restore the old
+    advisory-only behaviour.
 
     Args:
         cwd: Working directory (repo root).

@@ -114,12 +114,9 @@ def test_cursor_references_golden(cursor_build):
     token budgets — pairs with the change-driven workflow template v8.2.6
     and the ``devolaflow.agent_workspace`` Python API v8.2.5+).
 
-    v8.4.0 rollup grew this set 10 → 11 by appending ``shell-proxy.md``
-    (the RTK + memory-router stack reference covering the runtime-plugins.yaml
-    RTK row, the shell_proxy/ package, the pre_shell_call lifecycle hook,
-    the memory_router/ planning fast-path, and the
-    ``.local/memory/{cases,commands}/`` recipe layers — pairs with the
-    v8.3.1..v8.3.4 PV-01..PV-04 surface area closing R-001+R-002+M-001+M-002).
+    v8.4.0 rollup grew this set 10 → 11 by appending ``memory-router.md``
+    (the memory_router/ planning fast-path and ``.local/memory/cases/``
+    recipe layer).
 
     v9.0.0 PV-01 (v8.4.1) grew this set 11 → 12 by appending
     ``plan-mode-enforcement.md`` (the plan-mode L0 operating contract
@@ -136,8 +133,8 @@ def test_cursor_references_golden(cursor_build):
 
     v9.0.0 PV-06 (v8.5.1) grew this set 13 → 14 by appending
     ``compression-pipeline.md`` (the CompressionStage protocol
-    + CompressionPipeline orchestrator + 6-transform unification
-    + multi-pass filter chain T3 #5 reference). Pairs with
+    + CompressionPipeline orchestrator + 5-transform unification reference).
+    Pairs with
     ``src/devolaflow/compression_pipeline.py`` and
     ``schemas/compression-pipeline.yaml``.
 
@@ -151,14 +148,14 @@ def test_cursor_references_golden(cursor_build):
     v10.7.0 D-O-1 grew this set 15 → 16 by appending
     ``evaluator-rosetta.md`` (the 6 × 9 cross-walk between SI-3
     dimensions + NineS hygiene axes / capability sub-bundles +
-    Si-Chip iteration_delta scalar with per-cell verbatim source
+    quality scalar with per-cell verbatim source
     citations). Pairs with `scripts/auto_collect_si3_metrics.py`
     (D-O-2) and `scripts/generate_evaluator_rosetta.py` (D-O-1
     companion CSV emitter).
 
     v10.8.0 D-C-1 grew this set 16 → 17 by appending
     ``degraded-mode.md`` (the per-plugin upstream-unreachable fallback
-    contract for NineS / Si-Chip / RTK / ui-pro — opens with the
+    contract for NineS / ui-pro — opens with the
     "Degraded ≠ Full" warning per D-C-1 §9 R1 mitigation). Pairs with
     `tests/test_degraded_mode.py` regression suite.
 
@@ -180,13 +177,7 @@ def test_cursor_references_golden(cursor_build):
     v12.0.0 NEST schema roadmap pre-staging). Pairs with Workflow rule
     W-24 (Subagent Pattern Selection).
 
-    v12.5.0 PV-05 grew this set 21 → 22 by appending one NEW Tier-2
-    reference: ``codegraph.md`` (the operating contract for the
-    `colbymchenry/codegraph` integration — 9 MCP tools, CLI surface,
-    workflow integration map, degraded-mode fallback, cache management;
-    primary deliverable of the v12.5.0 EXPANSION MINOR cycle). Pairs
-    with the new `code_intelligence` plugin role (5th of 5) and the
-    Python wrapper at `src/devolaflow/codegraph/`."""
+    The current reference set is derived from the live reference directory."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"

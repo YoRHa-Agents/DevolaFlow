@@ -140,10 +140,8 @@ def is_auto_install_active() -> bool:
     file IO, no subprocess, no ``shutil.which`` lookup. Codified by
     :func:`tests.test_pre_plugin_invocation.test_disabled_is_noop_byte_identical`.
 
-    The strict literal-only matching mirrors the v8.3.2 PV-02 RTK
-    proxy contract (``DEVOLAFLOW_RTK_PROXY``), the v8.3.3 PV-03 memory
-    router contract (``DEVOLAFLOW_MEMORY_ROUTER``), and the v9.3.0
-    PV-06 simple-shortcut contract (``DEVOLAFLOW_SIMPLE_SHORTCUT``).
+    The strict literal-only matching is shared by the memory-router and
+    plugin-install activation contracts.
     """
     return os.environ.get(ENV_FLAG, "") == ENV_FLAG_TRUTHY
 

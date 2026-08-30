@@ -1997,7 +1997,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
               "primitive": "implement"
             },
             {
-              "id": "si_chip_dogfood",
+              "id": "validate",
               "primitive": "validate"
             },
             {
@@ -2008,11 +2008,11 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "candidate-improves",
-              "statement": "The candidate clears the 0.10 iteration delta, has no regressions, and retains eighty percent coverage",
+              "statement": "The candidate passes quality checks, has no regressions, and retains eighty percent coverage",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "metric",
-                "template": "iteration_delta >= 0.10 and regression_count == 0 and coverage_pct >= 80"
+                "template": "test_failures == 0 and lint_errors == 0 and regression_count == 0 and coverage_pct >= 80"
               }
             }
           ]
@@ -2098,7 +2098,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
               "primitive": "implement"
             },
             {
-              "id": "si_chip_gate",
+              "id": "validate",
               "primitive": "validate"
             },
             {
@@ -2109,7 +2109,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
           "assertions": [
             {
               "key": "integration-green",
-              "statement": "Approved changes pass tests, lint, coverage, and applicable iteration-delta checks",
+              "statement": "Approved changes pass tests, lint, and coverage checks",
               "suggested_priority": "P0",
               "verify": {
                 "mode": "metric",

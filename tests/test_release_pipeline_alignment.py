@@ -184,8 +184,8 @@ def test_current_demo_release_window_has_no_upcoming_release_residue(project_roo
 
     assert "Upcoming release" not in demo
     assert "即将发布" not in demo
-    assert demo.count("New in v21.3.0 · Release-Cut Reliability and Evidence") == 2
-    assert "v21.3.0 新变化 · Release-Cut Reliability and Evidence" in demo
+    assert demo.count("New in v22.0.0 · Optional Tool Retirement") == 2
+    assert "v22.0.0 新变化 · Optional Tool Retirement" in demo
 
 
 def test_demo_promotion_allows_already_promoted_pages() -> None:
@@ -294,7 +294,6 @@ def test_release_preflight_checks_catalog_then_builds_site() -> None:
         "test-version",
         "test-harness",
         "check-cursor-skill",
-        "iteration-delta-gate",
     ]
     release_only = [
         "validate-templates",
@@ -357,7 +356,6 @@ def test_release_preflight_runs_full_ghosts_and_dry_run_uses_same_contract() -> 
             "check-module-size",
         )
     )
-    assert dependencies.index("iteration-delta-gate") < dependencies.index("check-repo-hygiene")
 
     ghost_recipe = _target_recipe(makefile, "ghost-full")
     assert ghost_recipe == [

@@ -340,13 +340,13 @@ def test_gate_telemetry_check_requires_pass_for_each_si10_gate(tmp_path: Path) -
     for gate in SI10_GATE_NAMES[:-1]:
         append_gate_telemetry(ledger, "PV-0", gate, "PASS", timestamp="2026-08-28T00:00:00+00:00")
 
-    with pytest.raises(TelemetryGateError, match="iteration-delta-gate"):
+    with pytest.raises(TelemetryGateError, match="check-cursor-skill"):
         check_gate_telemetry(ledger, "PV-0")
 
     append_gate_telemetry(
         ledger,
         "PV-0",
-        SI10_GATE_NAMES[-2],
+        SI10_GATE_NAMES[-1],
         "FAIL",
         timestamp="2026-08-28T00:00:01+00:00",
     )

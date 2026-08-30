@@ -60,12 +60,12 @@ _V9_7_0_BASELINE_PATHS: tuple[Path, ...] = (
 )
 
 
-# v9.7.0 PV-04 env-flag W-20 §7 documentation contract. The §2.14 anchor
-# was §2.15 at v9.7.0 close; renumbered to §2.14 at v12.0.0 PV-03 D-2
+# v9.7.0 PV-04 env-flag W-20 §7 documentation contract. The §2.13 anchor
+# was §2.14 at v9.7.0 close; renumbered after retired plugin flags were removed
 # alongside the SHORTCUT_SIMPLE retirement that emptied the former §2.12
 # slot per `.local/research/v12.0.0_gap_analysis.md` §4.
 _V9_7_0_ENV_FLAG_DOC_LITERALS: tuple[str, ...] = (
-    "### 2.14 `DEVOLAFLOW_WARMUP`",
+    "### 2.13 `DEVOLAFLOW_WARMUP`",
     "DEVOLAFLOW_WARMUP",
     "warmup_selector_cache",
     "WARMUP_TASK_TYPES",

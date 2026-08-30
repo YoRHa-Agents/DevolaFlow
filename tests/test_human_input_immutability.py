@@ -19,9 +19,9 @@ Test strategy mirrors
 * Payload-shape errors emit CHI010 / CHI011 / CHI012 (error severity).
 
 Since v15.0.0 (G-038 flip 4) the hook IS wired into ``DEFAULT_EVENTS`` as the
-``check_human_input_write`` default handler (position 17, appended per A-2.2;
-the two former ``len == 16`` pins were re-pinned in the same MAJOR); the guard
-test below pins the new 17-entry shape + the default-handler binding.
+``check_human_input_write`` default handler. v22 removes the retired
+skill-evaluation event and re-numbers this final event to position 15; the
+guard test below pins the 15-entry shape and default-handler binding.
 """
 
 from __future__ import annotations
@@ -212,21 +212,17 @@ def test_payload_shape_errors() -> None:
 def test_hook_registered_as_default_event() -> None:
     """v15.0.0 G-038 flip 4: the hook IS wired into DEFAULT_EVENTS.
 
-    The v14.0.0 Wave-3 deferral (two CI tests pinned
-    ``len(DEFAULT_EVENTS) == 16`` exactly; growth was
-    cache-layout-sensitive per the v14.1.0 retro §3) graduates in this
-    MAJOR: ``check_human_input_write`` is APPENDED at position 17 per
-    A-2.2 (positions 1-16 stay byte-stable) and the default handler is
+    The v14.0.0 Wave-3 deferral graduates in this MAJOR:
+    ``check_human_input_write`` remains the final event after the retired
+    shell and skill-evaluation events are removed, and the default handler is
     the hook itself. The hook's own permissive ``strict=False`` default
     is unchanged — callers opt into the raise per call site.
     """
     from devolaflow.lifecycle import list_handlers
 
     assert EVENT in DEFAULT_EVENTS
-    assert len(DEFAULT_EVENTS) == 17
-    assert DEFAULT_EVENTS[16] == EVENT, (
-        "A-2.2 append-only: check_human_input_write must sit at position 17"
-    )
+    assert len(DEFAULT_EVENTS) == 15
+    assert DEFAULT_EVENTS[14] == EVENT, "check_human_input_write must remain the final event"
     assert list_handlers(EVENT) == (check_human_input_append_only,)
 
 

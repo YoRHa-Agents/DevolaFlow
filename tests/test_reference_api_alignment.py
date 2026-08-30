@@ -9,12 +9,9 @@ on copy-paste and breaks operator trust.
 This test parses code blocks from designated reference files and asserts
 their declared field names match the canonical source-of-truth:
 
-* ``references/shell-proxy.md`` §5.3 ``MemoryCase`` dataclass listing →
+* ``references/memory-router.md`` §4 ``MemoryCase`` dataclass listing →
   matches ``src/devolaflow/memory_router/cache.py`` ``MemoryCase`` field
   set verbatim (closes F-05).
-* ``references/shell-proxy.md`` §6.3 recipe YAML example → uses ONLY
-  field names declared in ``schemas/command-mapping.yaml`` recipe_fields
-  (closes F-06).
 * ``references/message-schemas.md`` §7 cross-reference to
   ``layout_invariant.canonical_order`` length 16 → matches the live schema.
 
@@ -134,7 +131,7 @@ def _python_dataclass_field_names(body: str) -> list[str]:
 
 
 class TestMemoryCaseDocAlignment:
-    """``references/shell-proxy.md`` §5.3 dataclass listing MUST match
+    """``references/memory-router.md`` §4 dataclass listing MUST match
     ``src/devolaflow/memory_router/cache.py::MemoryCase`` exactly.
 
     F-05 (BLOCKER): the doc previously listed fabricated fields
@@ -143,20 +140,20 @@ class TestMemoryCaseDocAlignment:
     regression.
     """
 
-    SHELL_PROXY_PATH = REFERENCES_DIR / "shell-proxy.md"
+    MEMORY_ROUTER_PATH = REFERENCES_DIR / "memory-router.md"
 
-    def test_shell_proxy_md_exists(self) -> None:
-        assert self.SHELL_PROXY_PATH.exists(), (
-            f"missing shell-proxy.md at {self.SHELL_PROXY_PATH} — "
-            "this reference is the canonical SF-4 entry for memory-router APIs"
+    def test_memory_router_md_exists(self) -> None:
+        assert self.MEMORY_ROUTER_PATH.exists(), (
+            f"missing memory-router.md at {self.MEMORY_ROUTER_PATH} — "
+            "this reference is the canonical entry for memory-router APIs"
         )
 
     def test_memory_case_field_set_matches_source(self) -> None:
         """The §5.3 dataclass listing field names MUST equal the
         :class:`MemoryCase` field set verbatim (no fabrications, no
         omissions). Closes F-05."""
-        markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
-        section = _section_text(markdown, "5.3 `MemoryCase` value type (cache.py)")
+        markdown = self.MEMORY_ROUTER_PATH.read_text(encoding="utf-8")
+        section = _section_text(markdown, "4. `MemoryCase` Value Type")
         py_blocks = _fenced_blocks(section, "python")
         assert py_blocks, (
             "no python code block in §5.3 — F-05 fix omitted the MemoryCase dataclass listing"
@@ -166,7 +163,7 @@ class TestMemoryCaseDocAlignment:
         source_field_names = {f.name for f in fields(MemoryCase)}
         fabricated = doc_field_names - source_field_names
         assert not fabricated, (
-            f"shell-proxy.md §5.3 lists fabricated MemoryCase fields {sorted(fabricated)} "
+            f"memory-router.md §4 lists fabricated MemoryCase fields {sorted(fabricated)} "
             f"that don't exist in src/devolaflow/memory_router/cache.py — F-05 regressed"
         )
         from dataclasses import MISSING
@@ -178,19 +175,19 @@ class TestMemoryCaseDocAlignment:
         }
         missing_in_doc = canonical_required - doc_field_names
         assert not missing_in_doc, (
-            f"shell-proxy.md §5.3 omits required MemoryCase fields {sorted(missing_in_doc)} — "
+            f"memory-router.md §4 omits required MemoryCase fields {sorted(missing_in_doc)} — "
             f"F-05 regressed; required fields are: {sorted(canonical_required)}"
         )
 
     def test_memory_case_summary_field_documented(self) -> None:
         """Specific F-05 regression guard: ``summary`` field MUST appear
         in the §5.3 dataclass listing (the original F-05 omission)."""
-        markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
-        section = _section_text(markdown, "5.3 `MemoryCase` value type (cache.py)")
+        markdown = self.MEMORY_ROUTER_PATH.read_text(encoding="utf-8")
+        section = _section_text(markdown, "4. `MemoryCase` Value Type")
         py_blocks = _fenced_blocks(section, "python")
         doc_fields = set(_python_dataclass_field_names(py_blocks[0]))
         assert "summary" in doc_fields, (
-            "shell-proxy.md §5.3 omits the canonical `summary` field — "
+            "memory-router.md §4 omits the canonical `summary` field — "
             "F-05 has regressed. Re-add per src/devolaflow/memory_router/cache.py:91-136."
         )
 
@@ -198,120 +195,18 @@ class TestMemoryCaseDocAlignment:
         """Specific F-05 regression guard: ``dispatch_template`` field
         was fabricated in the original F-05 violation. It MUST NOT
         reappear in §5.3."""
-        markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
-        section = _section_text(markdown, "5.3 `MemoryCase` value type (cache.py)")
+        markdown = self.MEMORY_ROUTER_PATH.read_text(encoding="utf-8")
+        section = _section_text(markdown, "4. `MemoryCase` Value Type")
         py_blocks = _fenced_blocks(section, "python")
         doc_fields = set(_python_dataclass_field_names(py_blocks[0]))
         assert "dispatch_template" not in doc_fields, (
-            "shell-proxy.md §5.3 contains the fabricated `dispatch_template` field — "
+            "memory-router.md §4 contains the fabricated `dispatch_template` field — "
             "F-05 has regressed. This field does NOT exist in MemoryCase."
         )
         assert "expected_savings_pp" not in doc_fields, (
-            "shell-proxy.md §5.3 contains the fabricated `expected_savings_pp` field — "
+            "memory-router.md §4 contains the fabricated `expected_savings_pp` field — "
             "F-05 has regressed. This field does NOT exist in MemoryCase."
         )
-
-
-# ---------------------------------------------------------------------------
-# F-06 closure long-term — recipe YAML field alignment
-# ---------------------------------------------------------------------------
-
-
-class TestRecipeYamlAlignment:
-    """``references/shell-proxy.md`` §6.3 recipe example YAML MUST use
-    ONLY field names declared in ``schemas/command-mapping.yaml``
-    recipe_fields. F-06 (BLOCKER): the doc previously used `note:`
-    instead of canonical `replacement:`. PV-01 fixed the body; this
-    test prevents regression.
-    """
-
-    SHELL_PROXY_PATH = REFERENCES_DIR / "shell-proxy.md"
-    COMMAND_MAPPING_SCHEMA = SCHEMAS_DIR / "command-mapping.yaml"
-
-    def _canonical_top_level_fields(self) -> set[str]:
-        """Load the canonical recipe top-level field names from the schema."""
-        schema = yaml.safe_load(self.COMMAND_MAPPING_SCHEMA.read_text(encoding="utf-8"))
-        required = set(schema.get("recipe_top_level_required", []))
-        optional = set(schema.get("recipe_top_level_optional", []))
-        return required | optional
-
-    def _canonical_filter_item_fields(self) -> set[str]:
-        """Load the canonical pre_filters / post_filters item field names."""
-        schema = yaml.safe_load(self.COMMAND_MAPPING_SCHEMA.read_text(encoding="utf-8"))
-        recipe_fields = schema.get("recipe_fields", {})
-        pre = set(recipe_fields.get("pre_filters", {}).get("item_fields", {}).keys())
-        post = set(recipe_fields.get("post_filters", {}).get("item_fields", {}).keys())
-        return pre | post
-
-    def test_command_mapping_schema_exists(self) -> None:
-        assert self.COMMAND_MAPPING_SCHEMA.exists(), (
-            f"missing command-mapping.yaml at {self.COMMAND_MAPPING_SCHEMA}"
-        )
-
-    def test_recipe_example_top_level_fields_canonical(self) -> None:
-        """All top-level fields in the §6.3 YAML example MUST be declared
-        in the schema's recipe_top_level_required + recipe_top_level_optional
-        sets."""
-        markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
-        section = _section_text(markdown, "6.3 Recipe YAML format (mirrors RTK `[filters.<name>]`)")
-        yaml_blocks = _fenced_blocks(section, "yaml")
-        assert yaml_blocks, "no yaml code block in §6.3"
-        recipe_yaml = yaml_blocks[0]
-        # Strip the comment first line if present.
-        recipe_yaml_clean = "\n".join(
-            line for line in recipe_yaml.splitlines() if not line.strip().startswith("#")
-        )
-        # Parse the example payload as YAML and inspect top-level keys.
-        parsed = yaml.safe_load(recipe_yaml_clean)
-        assert isinstance(parsed, dict), "§6.3 example does not parse as a YAML mapping"
-        canonical = self._canonical_top_level_fields()
-        unknown = set(parsed.keys()) - canonical
-        assert not unknown, (
-            "shell-proxy.md §6.3 recipe example uses fabricated top-level fields "
-            f"{sorted(unknown)} not declared in schemas/command-mapping.yaml; "
-            f"canonical set: {sorted(canonical)} — F-06 has regressed"
-        )
-
-    def test_recipe_filter_items_use_canonical_fields(self) -> None:
-        """All pre_filters / post_filters items in the §6.3 YAML MUST
-        carry only canonical keys (per schema). F-06 regression guard:
-        the original violation used `note:` instead of `replacement:`.
-
-        v8.5.1 PV-06 (T3 #5) bumped schema_version 1 → 2 and added
-        optional `compose: list[str]` for the multi-pass filter chain.
-        The canonical set is therefore {pattern, replacement, compose}.
-        """
-        markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
-        section = _section_text(markdown, "6.3 Recipe YAML format (mirrors RTK `[filters.<name>]`)")
-        yaml_blocks = _fenced_blocks(section, "yaml")
-        recipe_yaml = yaml_blocks[0]
-        recipe_yaml_clean = "\n".join(
-            line for line in recipe_yaml.splitlines() if not line.strip().startswith("#")
-        )
-        parsed = yaml.safe_load(recipe_yaml_clean)
-        canonical_filter_fields = self._canonical_filter_item_fields()
-        assert canonical_filter_fields == {"pattern", "replacement", "compose"}, (
-            f"schema declares filter item fields {sorted(canonical_filter_fields)}; "
-            "test expectation needs update"
-        )
-        for filter_section_name in ("pre_filters", "post_filters"):
-            filter_items = parsed.get(filter_section_name, []) or []
-            for idx, item in enumerate(filter_items):
-                assert isinstance(item, dict), (
-                    f"§6.3 {filter_section_name}[{idx}] is not a dict: {item!r}"
-                )
-                unknown = set(item.keys()) - canonical_filter_fields
-                assert not unknown, (
-                    f"shell-proxy.md §6.3 {filter_section_name}[{idx}] uses fabricated "
-                    f"keys {sorted(unknown)}; canonical filter item fields are "
-                    f"{sorted(canonical_filter_fields)}. F-06 has regressed (was: `note:` "
-                    "fabricated; canonical is `replacement:`)."
-                )
-                assert "note" not in item, (
-                    f"shell-proxy.md §6.3 {filter_section_name}[{idx}] contains the "
-                    "fabricated `note:` key — F-06 has regressed. Use `replacement:` "
-                    "per schemas/command-mapping.yaml:170-198."
-                )
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +296,7 @@ class TestMessageSchemasLeanFormat:
 def test_all_canonical_references_load() -> None:
     """Every reference file referenced by the alignment tests above MUST exist."""
     for path in [
-        REFERENCES_DIR / "shell-proxy.md",
+        REFERENCES_DIR / "memory-router.md",
         REFERENCES_DIR / "context-isolation.md",
         REFERENCES_DIR / "message-schemas.md",
     ]:
@@ -412,7 +307,6 @@ def test_all_canonical_references_load() -> None:
     "schema_path",
     [
         SCHEMAS_DIR / "lean-dispatch.yaml",
-        SCHEMAS_DIR / "command-mapping.yaml",
     ],
     ids=lambda p: p.name,
 )

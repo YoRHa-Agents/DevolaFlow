@@ -69,46 +69,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `count_agents_md_rules` is a pure read-only helper that walks the
         # compiled AGENTS.md file.
         "devolaflow.agents_md_slice:count_agents_md_rules",
-        # v10.2.0 PV-01 (D-P-3 closure) — read_installed_si_chip_version is
-        # invoked by the si-chip entry's `version_check_cmd` in
-        # `workflow-system/agent/knowledge/runtime-plugins.yaml`, which
-        # `devolaflow.plugins.installer._probe_version` executes as a
-        # `python -c "..."` subprocess. The dead-API detector only sees
-        # Python AST callers; the yaml-embedded subprocess invocation
-        # does NOT register as a caller. Allowlisted with this comment
-        # so the D-P-3 closure (read frontmatter `version:` instead of
-        # echoing hardcoded `0.4.0`) stays pinned. NOT a domain-SSOT
-        # registry symbol per A-5.2 — pure read-only YAML-frontmatter
-        # parser.
-        "devolaflow.si_chip_bridge.install_resolver:read_installed_si_chip_version",
-        # Track C-3 D-11 (full_review_and_improve) — the tri-state marker
-        # protocol for the backgrounded `codegraph init`. The writers +
-        # reader are invoked at WORKFLOW RUNTIME: the repo-init scaffold
-        # step (`repo-init.yaml::codegraph_init`, `execution: background`)
-        # and downstream analyze consumers call them via agent-side
-        # `python -c "..."` subprocesses, which the AST walk cannot see —
-        # same shape as `read_installed_si_chip_version` above. Behaviour
-        # pinned by tests/test_codegraph_markers.py; the
-        # W-18 stanza is
-        # tests/ghost/test_features_v15_0.py::test_v15_0_x_codegraph_backgrounding_registered.
-        # NOT domain-SSOT registry symbols per A-5.2 — pure marker-file
-        # IO helpers with no registration data.
-        "devolaflow.codegraph.markers:mark_indexing",
-        "devolaflow.codegraph.markers:mark_ready",
-        "devolaflow.codegraph.markers:mark_failed",
-        "devolaflow.codegraph.markers:read_marker_state",
-        # v10.2.1 PV-02 (D-S-2 closure) — dispatch_dogfood_cycle is the
-        # public L0/L1 wrapper that exposes the persistent BasicAbility
-        # optimisation factory at the workflow-stage surface. v10.2.1
-        # ships the integration surface; the actual workflow-template
-        # wiring (`skill-optimization` / `self-update` / `nines-assisted`
-        # templates calling the wrapper from a stage handler) lands in
-        # PV-04 / PV-05 self-iteration rounds. Dogfood pass #1 in PV-02
-        # is the first non-mocked invocation evidence. NOT a domain-SSOT
-        # registry symbol per A-5.2 — pure delegation wrapper around
-        # `devolaflow.si_chip_bridge.runner.run_dogfood_cycle` with no
-        # registration data of its own.
-        "devolaflow.dispatch:dispatch_dogfood_cycle",
         # Loop v3 (B4-DISP-003 closure) — ``async_dispatch_wave_tasks`` is
         # the awaitable companion to ``dispatch_wave_tasks`` for callers
         # that already run inside an active event loop (where the sync
@@ -157,35 +117,19 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ``tests/test_handoff_strip_metadata.py``. NOT a domain-SSOT
         # registry symbol per A-5.2 — pure transformation helper.
         "devolaflow.agent_workspace.handoff:strip_l0_only_metadata",
-        # v12.5.0 PV-03 D-1.1 closure — codegraph researcher Python
-        # wrapper. The 5 helpers are the L2-task-agent surface for
-        # invoking codegraph CLI (the 9 MCP tools wrapped as Python
-        # subprocess calls). Each wraps a distinct codegraph CLI
-        # subcommand: ``build_context`` → ``codegraph context``,
-        # ``search_symbols`` → ``codegraph search``, ``get_impact`` →
-        # ``codegraph impact``, ``get_callers`` → ``codegraph callers``,
-        # ``get_affected_tests`` → ``codegraph affected``. The Python
-        # wrapper IS the canonical entry surface for L2 agents per the
-        # A-5 SSOT registry pattern; the in-repo "production caller" is
-        # the L2 task agent invocation contract documented in
-        # ``workflow-system/agent/references/codegraph.md``.
-        # NOT domain-SSOT registry symbols per A-5.2 — pure subprocess
-        # wrappers with no registration data.
+        # Codegraph's marker and researcher helpers are public integration
+        # entry points invoked by agent-side CLI workflows, which the AST
+        # scan cannot observe. Their contracts are covered by the live
+        # Codegraph tests and reference documentation.
+        "devolaflow.codegraph.markers:mark_indexing",
+        "devolaflow.codegraph.markers:mark_ready",
+        "devolaflow.codegraph.markers:mark_failed",
+        "devolaflow.codegraph.markers:read_marker_state",
         "devolaflow.codegraph.researcher:build_context",
         "devolaflow.codegraph.researcher:search_symbols",
         "devolaflow.codegraph.researcher:get_impact",
         "devolaflow.codegraph.researcher:get_callers",
         "devolaflow.codegraph.researcher:get_affected_tests",
-        # v8.3.2 PV-02 — shell_proxy module-level convenience wrapper.
-        # ``proxy_command(cmd, env)`` is the flat-call equivalent of
-        # ``ShellProxy(env).wrap_command(cmd)``; advertised in
-        # ``src/devolaflow/shell_proxy/__init__.py::__all__`` for external
-        # callers (the lifecycle hook ``pre_shell_call`` constructs a
-        # ``ShellProxy`` instance directly because it needs the resolved
-        # ``ShellProxyConfig`` snapshot for hook metadata, so it does not
-        # use ``proxy_command``). External orchestrators that just need
-        # a single rewrite call without retaining the config can use this.
-        "devolaflow.shell_proxy.proxy:proxy_command",
         # v8.0.0 P-05 verification ladder — opt-in entry point exposed via
         # devolaflow.gate.__all__ for external L0/L1/L2 dispatchers that
         # want to short-circuit the 6-rung R1..R6 ladder. Activated when
@@ -393,18 +337,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- Progressive merge (v7.7 — diff-suggest for existing files) ----
         "devolaflow.local.merge:apply_merge",
         "devolaflow.local.merge:format_diff_for_review",
-        # ---- v9.0.0 PV-06 (v8.5.1) — CompressionPipeline stage factories ----
-        # The two surviving stage-factory entry points wrap the shell-proxy
-        # command-mapping and llm_client transforms for the unified
-        # CompressionPipeline; external L0/L1 dispatchers compose them via
-        # ``CompressionPipeline.run`` per
-        # docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
-        # §"Migration" — no in-repo production call site. Tests exercise
-        # both entry points (tests/test_compression_pipeline.py). The
-        # siblings ``compression_pipeline_stages`` / ``BYPASS_ALWAYS``
-        # gained in-repo production callers and were purged in the
-        # v17.0.0 R1 audit.
-        "devolaflow.shell_proxy.commands:compression_pipeline_stage",
+        # ---- v9.0.0 PV-06 (v8.5.1) — CompressionPipeline stage factory ----
+        # The LLM stage factory remains an external composition entry point.
         "devolaflow.llm_client:compression_pipeline_stage",
         # ---- v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on
         # flip helper functions ----
@@ -550,28 +484,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `workflow-system/agent/references/agent-workspace.md` companion
         # docs once the v9.3.0 doctor surface lands).
         "devolaflow.local.workspace:last_gitignore_audit",
-        # ---- v9.5.0 PV-02 — Si-Chip bridge subprocess wrapper ----
-        # `count_tokens(skill_md, ...)` runs `count_tokens.py --file <skill_md>
-        # --both` and returns `(metadata_tokens, body_tokens)` — the cheap
-        # budget pre-check exposed for external Si-Chip tooling and
-        # operator opt-in flows; no in-repo Python production call site.
-        # Verified by `tests/test_si_chip_bridge.py` and by
-        # `tests/test_no_ghost_features.py::test_v9_5_0_new_symbols_have_coverage`
-        # (W-18 ghost-audit refresh). The sibling `run_dogfood_cycle`
-        # gained an in-repo production caller
-        # (`devolaflow.dispatch.dispatch_dogfood_cycle`) and was purged in
-        # the v17.0.0 R1 audit.
-        "devolaflow.si_chip_bridge.runner:count_tokens",
-        # ---- v9.5.0 PV-04 — post_skill_edit operator-facing convenience ----
-        # `metadata_to_json(result)` serialises the HookResult.metadata
-        # to a deterministic single-line JSON string. Used by operators
-        # tailing the lifecycle log AND by the v9.5.0 PV-05 dogfood
-        # pass when capturing the run-log to .local/research/. Not
-        # consumed by any in-repo Python production caller — it is
-        # exposed for external observers (mirrors the v8.4.4 PV-04
-        # post_dispatch convenience pattern). Tests cover it indirectly
-        # via the W-18 ghost-audit refresh in PV-06 cycle close.
-        "devolaflow.lifecycle.post_skill_edit:metadata_to_json",
         # ---- v10.1.0 PV-02 — writing_style region helper ----
         # `prose_only(text)` returns the text with all protected regions
         # (fenced code, inline code, markdown links, version strings,
@@ -659,17 +571,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
 # A-5 — Single-Source-of-Truth Registry Pattern (.rules/architecture.mdc).
 # These qualified names denote the Python-backed domain-SSOT registries that
 # currently ship in DevolaFlow (v8.4.3 baseline). Each one HAS in-repo
-# production callers in the owner module's siblings (e.g. ``WHITELIST`` is
-# consumed by ``shell_proxy.proxy`` + ``lifecycle.pre_shell_call``), so they
-# are NOT eligible for ``DEFAULT_ALLOWLIST``. The two YAML-backed registries
+# production callers in the owner module's siblings, so they are NOT eligible
+# for ``DEFAULT_ALLOWLIST``. The two YAML-backed registries
 # (``plugins.yaml`` + ``runtime-plugins.yaml``) have no Python symbol to
 # guard at this layer; they are guarded by file-path uniqueness in
 # ``tests/test_no_ghost_features.py::test_registry_single_owner``.
 SSOT_REGISTRY_QUALIFIED_NAMES: frozenset[str] = frozenset(
     {
-        "devolaflow.shell_proxy.registry:WHITELIST",
         "devolaflow.memory_router.cache:MemoryCase",
-        "devolaflow.shell_proxy.commands:CommandMapping",
     }
 )
 

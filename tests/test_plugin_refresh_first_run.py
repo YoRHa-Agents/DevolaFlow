@@ -68,7 +68,7 @@ def test_is_plugin_stale_returns_true_when_log_is_empty(
     empty_log.write_text("")
     assert (
         is_plugin_stale(
-            "si-chip",
+            "impeccable",
             threshold_hours=24,
             log_path=empty_log,
         )
@@ -91,7 +91,7 @@ def test_is_plugin_stale_returns_true_when_log_has_other_plugins_only(
 
     mixed_log = tmp_path / "plugin_install.log"
     ts = datetime.now(UTC).isoformat()
-    # ui-pro event exists, but this test asks about si-chip.
+    # ui-pro event exists, but this test asks about impeccable.
     mixed_log.write_text(
         json.dumps(
             {
@@ -105,7 +105,7 @@ def test_is_plugin_stale_returns_true_when_log_has_other_plugins_only(
     )
     assert (
         is_plugin_stale(
-            "si-chip",
+            "impeccable",
             threshold_hours=24,
             log_path=mixed_log,
         )
@@ -141,7 +141,7 @@ def test_refresh_all_triggers_upgrade_attempt_for_every_plugin_on_fresh_log(
 
     outcomes = refresh_all(force=False, log_path=fresh_log)
 
-    registered_ids = {"ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+    registered_ids = {"ui-pro", "codegraph", "impeccable"}
     attempted_ids = set(attempt_record)
     missed = registered_ids - attempted_ids
     assert not missed, (

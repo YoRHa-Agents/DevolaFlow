@@ -2,8 +2,8 @@
 
 Closes D-C-3 from `.local/research/v11.0.0_patches/D-C-3.md` (v10.8.0
 cycle). Extracts the UPGRADE responsibility from the existing
-``pre_plugin_invocation`` hook (position 9) into a dedicated handler at
-DEFAULT_EVENTS position 12 (A-2.2 append-only).
+``pre_plugin_invocation`` hook (position 8) into a dedicated handler at
+DEFAULT_EVENTS position 10 after v22 re-numbering.
 
 Responsibility (exactly one): for each plugin candidate, check
 :func:`devolaflow.plugins.installer.is_plugin_stale`; when stale, fire
@@ -13,8 +13,8 @@ Surface domain exceptions as :class:`HookViolation` ``PPI003`` (severity
 contract declared upgrade failures MUST NOT block dispatch.
 
 This handler DOES NOT fire ``ensure_plugin`` — that responsibility lives
-in :mod:`pre_plugin_invocation_install` at DEFAULT_EVENTS position 11.
-The alias handler at position 9 sequences install → upgrade to preserve
+in :mod:`pre_plugin_invocation_install` at DEFAULT_EVENTS position 9.
+The alias handler at position 8 sequences install → upgrade to preserve
 v10.3.0 byte-identical behaviour for operators.
 
 Activation gate: REUSES ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` per

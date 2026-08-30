@@ -44,15 +44,13 @@ _V9_4_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
 )
 
 
-# v9.4.0 PV-02 + PV-03 + PV-04 frozen DEFAULT_EVENTS shape. PV-02 bumped
-# 8 → 9 with `pre_plugin_invocation` APPENDED at position 9 per A-2.2
-# append-only invariant. The v9.4.0 W-18 lint pins the new tail (the
-# v9.1.3 lint relaxed its length check to "≥ 8" with pre_handoff frozen
-# at position 8 — see _V9_1_3_DEFAULT_EVENTS_MIN above).
-_V9_4_0_DEFAULT_EVENTS_LEN: int = 9
+# v9.4.0 PV-02 + PV-03 + PV-04 frozen DEFAULT_EVENTS shape. The live
+# post-v22 tuple keeps `pre_plugin_invocation` at position 8 after the
+# retired `pre_shell_call` and `post_skill_edit` events are removed.
+_V9_4_0_DEFAULT_EVENTS_LEN: int = 8
 
 
-_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION: int = 9  # 1-indexed; tuple index 8
+_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION: int = 8  # 1-indexed; tuple index 7
 
 
 # v9.4.0 PV-02 env-flag W-20 §3 documentation contract. The PV-02
@@ -91,10 +89,9 @@ def test_v9_4_0_new_symbols_have_coverage(project_root: Path) -> None:
        v6.0.3-style "feature mentioned in CHANGELOG but never wired"
        anti-pattern. 18 symbols enumerated in
        ``_V9_4_0_NEW_SYMBOL_SURFACES``.
-    2. **DEFAULT_EVENTS A-2.2 append-only at position 9** — the new
-       `pre_plugin_invocation` event must be at 1-indexed position 9
-       (tuple index 8); the v9.1.3 frozen position 8 (`pre_handoff`)
-       must remain.
+    2. **DEFAULT_EVENTS ordering** — `pre_plugin_invocation` must be at
+       live position 8 after v22 removes the retired events, while
+       `pre_handoff` remains immediately before it.
     3. **W-20 §3 env-flag doc contract** — the new
        `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` flag MUST appear in
        `references/env-flags.md` §2.13 with the canonical
@@ -147,16 +144,16 @@ def test_v9_4_0_new_symbols_have_coverage(project_root: Path) -> None:
     assert len(DEFAULT_EVENTS) >= _V9_4_0_DEFAULT_EVENTS_LEN, (
         f"W-18 v9.4.0 violation: DEFAULT_EVENTS length is "
         f"{len(DEFAULT_EVENTS)}, expected >= {_V9_4_0_DEFAULT_EVENTS_LEN} "
-        f"(v9.4.0 PV-02 bumped 8 → 9 with pre_plugin_invocation APPENDED "
-        f"at position {_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION} per A-2.2; "
-        f"future PVs may extend further). Current events: {DEFAULT_EVENTS!r}"
+        f"(post-v22 lifecycle re-numbering keeps pre_plugin_invocation at "
+        f"position {_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION}; future PVs may "
+        f"extend further). Current events: {DEFAULT_EVENTS!r}"
     )
     plugin_idx = _V9_4_0_PRE_PLUGIN_INVOCATION_POSITION - 1
     assert DEFAULT_EVENTS[plugin_idx] == PRE_PLUGIN_INVOCATION_EVENT, (
         f"W-18 v9.4.0 violation: DEFAULT_EVENTS[{plugin_idx}] is "
         f"{DEFAULT_EVENTS[plugin_idx]!r}, expected {PRE_PLUGIN_INVOCATION_EVENT!r}; "
-        f"pre_plugin_invocation MUST stay at 1-indexed position "
-        f"{_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION} per A-2.2 cache-prefix invariant"
+        f"pre_plugin_invocation MUST stay at live 1-indexed position "
+        f"{_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION}"
     )
 
     # §3 — Env-flag W-20 §3 documentation contract.

@@ -1,8 +1,8 @@
 """Init-chain dependency tiering + unified capability probe (Track C-4).
 
 R5 F4 root cause (full_review_and_improve): the init/scaffold chain
-implicitly depended on external tools (node/npm for codegraph and curl for
-remote install) and surfaced their absence DEEP in the flow with
+implicitly depended on external tools (node/npm for optional plugins and
+curl for remote install) and surfaced their absence DEEP in the flow with
 low-signal errors — the user-visible symptom was "固定脚本无法生成".
 
 This module is the SINGLE OWNER (A-5 discipline) of the init-chain
@@ -17,9 +17,9 @@ dependency tier table and the unified pre-flight probe:
   for the remote ``install.sh`` path); absence is informational.
 
 Per-plugin RICH probes stay in their owner modules
-(:func:`devolaflow.codegraph.is_codegraph_available`) — this module performs a uniform
-``$PATH`` presence scan for the init capability table only; it never
-invokes any binary (zero subprocess, hot-path safe).
+(:func:`devolaflow.codegraph.is_codegraph_available`) — this module performs
+a uniform ``$PATH`` presence scan for the init capability table only; it
+never invokes any binary (zero subprocess, hot-path safe).
 
 Stdlib-only by design (Track C-4 dependency-minimisation principle —
 the deterministic init chain must not add third-party imports).

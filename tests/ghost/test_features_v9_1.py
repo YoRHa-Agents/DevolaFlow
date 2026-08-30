@@ -23,10 +23,8 @@ from tests.ghost._helpers import _load_yaml, _read
 #     the `envelope_write` lifecycle event.
 #   * lifecycle/ENVELOPE_WRITE_EVENT — new exported event constant
 #     (canonical name `"envelope_write"`).
-#   * lifecycle/DEFAULT_EVENTS length 6 → 7 (envelope_write APPENDED at
-#     position 7 to preserve the A-2.4 cache-prefix invariant — existing
-#     event positions 1-6 stay byte-stable per the lifecycle/__init__.py
-#     v9.1.0 W1-02 changelog comment).
+#   * lifecycle/DEFAULT_EVENTS keeps envelope_write at position 6 in the
+#     post-v22 live tuple after the retired pre_shell_call event is removed.
 #   * tests/test_handoff_envelope_immutable.py — new test file pinning
 #     the S-9 invariant against the envelope writer.
 #   * tests/test_lifecycle_envelope_append_only.py — new test file
@@ -55,14 +53,14 @@ _V9_1_0_FILE_MIN_BYTES: int = 50
 
 
 # Expected DEFAULT_EVENTS tuple length floor after the v9.1.0 W1-02 bump.
-# Before W1-02: 6 (pre_dispatch, post_dispatch, file_write, task_stop,
-# format_on_edit, pre_shell_call). After W1-02: 7 (above + envelope_write
-# APPENDED at position 7 per A-2.4 cache-prefix invariant). Future PVs
+# Before W1-02: 5 (pre_dispatch, post_dispatch, file_write, task_stop,
+# format_on_edit). The post-v22 live tuple keeps envelope_write at
+# position 6 after removing pre_shell_call. Future PVs
 # may append additional events at the tail (e.g. v9.1.3 PV-03 appended
 # `pre_handoff` at position 8); the v9.1.0 invariant is that
 # envelope_write STAYS at position 7 — this lint asserts the floor +
 # the position pin, NOT exact equality on length.
-_V9_1_0_DEFAULT_EVENTS_COUNT: int = 7
+_V9_1_0_DEFAULT_EVENTS_COUNT: int = 6
 
 
 def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
@@ -84,10 +82,10 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
        :mod:`devolaflow.lifecycle` and the event constant equals
        ``"envelope_write"`` (the canonical name re-exported from
        :mod:`devolaflow.lifecycle.check_envelope_append_only`).
-    3. **DEFAULT_EVENTS** tuple length is exactly
-       ``_V9_1_0_DEFAULT_EVENTS_COUNT`` (7 — the v9.1.0 W1-02 bump from
-       6 → 7 with ``envelope_write`` APPENDED at position 7 per the
-       A-2.4 cache-prefix invariant) and contains
+    3. **DEFAULT_EVENTS** tuple length is at least
+       ``_V9_1_0_DEFAULT_EVENTS_COUNT`` (6 — the live post-v22 tuple
+       keeps ``envelope_write`` at position 6 after removing
+       ``pre_shell_call``) and contains
        ``ENVELOPE_WRITE_EVENT``.
 
     Failure modes:
@@ -97,9 +95,9 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         back.
       * "< 50 byte minimum" → the file regressed to an empty stub;
         re-author the contents.
-      * "DEFAULT_EVENTS length != 7" → the lifecycle event tuple was
-        edited in violation of the A-2.4 append-only contract; verify
-        ``envelope_write`` is still appended at position 7.
+      * "DEFAULT_EVENTS lost envelope_write" → the lifecycle event tuple
+        was edited in violation of the post-v22 ordering; verify
+        ``envelope_write`` remains at position 6.
     """
     for relpath in _V9_1_0_NEW_FILES:
         full = project_root / relpath
@@ -142,13 +140,11 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the W1-02 append step "
         f"was incomplete"
     )
-    # A-2.4 position pin: envelope_write MUST stay at position 7 (the
-    # v9.1.0 W1-02 contract). Future appends extend the tuple to
-    # position 8+ but never disturb earlier positions.
-    assert DEFAULT_EVENTS[6] == ENVELOPE_WRITE_EVENT, (
-        f"A-2.4 violation: envelope_write must STAY at position 7 of "
-        f"DEFAULT_EVENTS (the v9.1.0 W1-02 invariant). Got "
-        f"DEFAULT_EVENTS[6]={DEFAULT_EVENTS[6]!r}; full tuple: {DEFAULT_EVENTS!r}"
+    # Current live position after v22 removed pre_shell_call.
+    assert DEFAULT_EVENTS[5] == ENVELOPE_WRITE_EVENT, (
+        f"Lifecycle re-numbering violation: envelope_write must be at "
+        f"position 6 after v22 removed pre_shell_call. Got "
+        f"DEFAULT_EVENTS[5]={DEFAULT_EVENTS[5]!r}; full tuple: {DEFAULT_EVENTS!r}"
     )
 
 
@@ -507,8 +503,8 @@ def test_v9_1_2_new_symbols_have_coverage(project_root: Path) -> None:
 #   * lifecycle/PRE_HANDOFF_EVENT — new exported event constant
 #     (canonical name `"pre_handoff"`).
 #   * lifecycle/DEFAULT_EVENTS length 7 → 8 (pre_handoff APPENDED at
-#     position 8 to preserve the A-2.4 cache-prefix invariant — existing
-#     event positions 1-7 stay byte-stable per the lifecycle/__init__.py
+#     position 7 in the post-v22 live tuple — existing
+#     event positions 1-6 stay ordered per the lifecycle/__init__.py
 #     v9.1.3 PV-03 changelog comment).
 #   * tests/test_handoff_auto_write.py — new test file pinning the
 #     auto-write hook contract (env-flag OFF noop, AWH001/AWH002 codes,
@@ -526,20 +522,20 @@ _V9_1_3_FILE_MIN_BYTES: int = 50
 
 
 # Expected DEFAULT_EVENTS tuple length after the v9.1.3 PV-03 bump.
-# Before PV-03: 7 (pre_dispatch, post_dispatch, file_write, task_stop,
-# format_on_edit, pre_shell_call, envelope_write). After PV-03: 8 (above
-# + pre_handoff APPENDED at position 8 per A-2.4 cache-prefix invariant).
+# Before PV-03: 6 (pre_dispatch, post_dispatch, file_write, task_stop,
+# format_on_edit, envelope_write). After PV-03: 7 (above
+# + pre_handoff at position 7 in the post-v22 live tuple).
 # Per A-2.2 append-only governance, future cycles MAY bump this number
 # higher (v9.4.0 PV-02 bumped 8 → 9 with pre_plugin_invocation appended
-# at position 9; v9.4.0 W-18 lint pins the new tail). The v9.1.3 lint
+# at position 8; v9.4.0 W-18 lint pins the new tail). The v9.1.3 lint
 # below uses ``>= _V9_1_3_DEFAULT_EVENTS_MIN`` so future appends do not
 # break this historic ghost-audit — the v9.1.3 contract is "pre_handoff
 # must be in the tuple at position 8 OR LATER (depending on subsequent
 # appends)", not "the tuple is exactly 8 long forever".
-_V9_1_3_DEFAULT_EVENTS_MIN: int = 8
+_V9_1_3_DEFAULT_EVENTS_MIN: int = 7
 
 
-_V9_1_3_PRE_HANDOFF_POSITION: int = 8  # 1-indexed; tuple index 7 (zero-based)
+_V9_1_3_PRE_HANDOFF_POSITION: int = 7  # 1-indexed; tuple index 6 (zero-based)
 
 
 def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
@@ -563,12 +559,12 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
        equals ``"pre_handoff"`` (the canonical name re-exported from
        :mod:`devolaflow.lifecycle.auto_write_handoff`).
     3. **DEFAULT_EVENTS** tuple length is at least
-       ``_V9_1_3_DEFAULT_EVENTS_MIN`` (8 — the v9.1.3 PV-03 bump from
-       7 → 8 with ``pre_handoff`` APPENDED at position 8 per the
-       A-2.4 cache-prefix invariant) AND ``PRE_HANDOFF_EVENT`` is at
-       the v9.1.3-frozen position 8 (1-indexed; tuple index 7).
+       ``_V9_1_3_DEFAULT_EVENTS_MIN`` (7 — the live post-v22 tuple
+       keeps ``pre_handoff`` at position 7 after removing
+       ``pre_shell_call``) AND ``PRE_HANDOFF_EVENT`` is at
+       the post-v22 position 7 (1-indexed; tuple index 6).
        Subsequent A-2.2 append-only bumps (v9.4.0 PV-02 added
-       ``pre_plugin_invocation`` at position 9) do NOT invalidate this
+       ``pre_plugin_invocation`` at position 8) do NOT invalidate this
        lint — the v9.1.3 contract is the historic position freeze for
        ``pre_handoff``, not the tuple length.
     4. **W-20 reuse-first** — the auto-write module's ``ENV_FLAG``
@@ -583,9 +579,9 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         back.
       * "< 50 byte minimum" → the file regressed to an empty stub;
         re-author the contents.
-      * "DEFAULT_EVENTS length < 8" → the lifecycle event tuple was
-        edited in violation of the A-2.4 append-only contract; verify
-        ``pre_handoff`` is still present at position 8 (1-indexed).
+      * "DEFAULT_EVENTS lost pre_handoff" → the lifecycle event tuple
+        was edited in violation of the post-v22 ordering; verify
+        ``pre_handoff`` is still present at position 7 (1-indexed).
         Append-only growth (length > 8) is permitted per A-2.2 — see
         the v9.4.0 PV-02 ``pre_plugin_invocation`` precedent.
       * "ENV_FLAG mismatch" → a NEW env flag was authored, violating
@@ -628,8 +624,8 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
     assert len(DEFAULT_EVENTS) >= _V9_1_3_DEFAULT_EVENTS_MIN, (
         f"W-18 v9.1.3 violation: lifecycle.DEFAULT_EVENTS length is "
         f"{len(DEFAULT_EVENTS)}, expected >= {_V9_1_3_DEFAULT_EVENTS_MIN} "
-        f"(v9.1.3 PV-03 bumped 7 → 8 with pre_handoff APPENDED at "
-        f"position 8 per A-2.4 cache-prefix invariant; A-2.2 permits "
+        f"(post-v22 lifecycle tuple keeps pre_handoff at position 7 after "
+        f"removing pre_shell_call; A-2.2 permits "
         f"future append-only growth). Current events: {DEFAULT_EVENTS!r}"
     )
     assert PRE_HANDOFF_EVENT in DEFAULT_EVENTS, (
@@ -637,16 +633,15 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the PV-03 append step "
         f"was incomplete"
     )
-    # v9.1.3 historic position freeze: pre_handoff at 1-indexed position 8
-    # (tuple index 7). v9.4.0 PV-02 appended pre_plugin_invocation at
-    # position 9 without disturbing this freeze.
+    # Current live position: pre_handoff at 1-indexed position 7
+    # (tuple index 6), with v22 removing pre_shell_call.
     handoff_idx = _V9_1_3_PRE_HANDOFF_POSITION - 1
     assert DEFAULT_EVENTS[handoff_idx] == PRE_HANDOFF_EVENT, (
         f"W-18 v9.1.3 violation: DEFAULT_EVENTS[{handoff_idx}] is "
         f"{DEFAULT_EVENTS[handoff_idx]!r}, expected {PRE_HANDOFF_EVENT!r}; "
         f"pre_handoff MUST stay frozen at 1-indexed position "
         f"{_V9_1_3_PRE_HANDOFF_POSITION} per the v9.1.3 PV-03 + A-2.4 "
-        f"cache-prefix invariant (positions 1-7 + position 8 byte-stable)"
+        f"lifecycle re-numbering invariant (positions 1-7 stay ordered)"
     )
 
     # W-20 reuse-first lint: same activation surface as v9.1.1 PV-01 +
