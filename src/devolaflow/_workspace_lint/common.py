@@ -29,10 +29,9 @@ CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     # yields zero findings and zero budget violations.
     "harness_preflight.md": (800, 1600),
     # Agent onboarding entry point (.local/research/v17.2.0_change_entrance_design.md
-    # §4): scaffolded for every new change. Absence in a pre-v17.2 folder is a
-    # WARN (ENTRANCE_MISSING) until the next canonical store write
-    # (`Change.to_active_folder`) backfills it — see _check_entrance for the
-    # semantic checks.
+    # §4): scaffolded for every new change. Absence is a FAIL
+    # (ENTRANCE_MISSING); the canonical store write (`Change.to_active_folder`)
+    # may backfill older folders, but lint remains failing until it is present.
     "entrance.md": (400, 800),
     # Optional read-only look-ahead artifact per the Pathfinder role contract.
     "pathfinder_report.md": (800, 1600),

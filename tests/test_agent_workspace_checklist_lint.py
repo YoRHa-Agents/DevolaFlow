@@ -285,22 +285,22 @@ def test_valid_v16_checklist_layout_passes(tmp_path: Path, archived: bool) -> No
     assert f"evidence/{CHECKED_ITEM}.txt" in report.checked_files
 
 
-def test_entrance_missing_warns_without_failing(tmp_path: Path) -> None:
-    """Absent entrance.md is a WARN (pre-v17.2 backfill window), never a FAIL."""
+def test_entrance_missing_fails_hard(tmp_path: Path) -> None:
+    """Absent entrance.md is an ENTRANCE_MISSING hard failure."""
     folder = _scaffold_checklist(tmp_path)
     (folder / "entrance.md").unlink()
 
     report = lint_change(CHANGE_ID, repo_root=tmp_path)
 
-    assert report.exit_code == 0
-    assert report.hard_failures == []
-    warned = [
+    assert report.exit_code == 1
+    failed = [
         violation
-        for violation in report.soft_warnings
+        for violation in report.hard_failures
         if isinstance(violation, SemanticViolation) and violation.kind == "ENTRANCE_MISSING"
     ]
-    assert len(warned) == 1
-    assert "backfill" in warned[0].message
+    assert len(failed) == 1
+    assert failed[0].severity == "FAIL"
+    assert "materialize" in failed[0].message
 
 
 @pytest.mark.parametrize(
