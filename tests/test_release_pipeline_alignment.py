@@ -184,8 +184,8 @@ def test_current_demo_release_window_has_no_upcoming_release_residue(project_roo
 
     assert "Upcoming release" not in demo
     assert "即将发布" not in demo
-    assert demo.count("New in v21.2.0 · Feedback Governance and Cloud Release") == 2
-    assert "v21.2.0 新变化 · Feedback Governance and Cloud Release" in demo
+    assert demo.count("New in v21.3.0 · Release-Cut Reliability and Evidence") == 2
+    assert "v21.3.0 新变化 · Release-Cut Reliability and Evidence" in demo
 
 
 def test_demo_promotion_allows_already_promoted_pages() -> None:
