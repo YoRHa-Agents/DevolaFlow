@@ -230,7 +230,7 @@ def _entry_ttl_valid(entry: dict, now: datetime) -> bool:
     try:
         ts = _parse_timestamp(ts_str)
     except (ValueError, TypeError):
-        logger.warning("Invalid timestamp in learning: %s", ts_str)
+        logger.warning("Invalid timestamp in learning: %s", ts_str, exc_info=True)
         return False
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=UTC)
@@ -247,7 +247,7 @@ def _entry_to_learning(entry: dict) -> Learning | None:
     try:
         return Learning(**fields)
     except (TypeError, KeyError):
-        logger.warning("Skipping learning with missing required fields")
+        logger.warning("Skipping learning with missing required fields", exc_info=True)
         return None
 
 
@@ -551,7 +551,10 @@ def capture_session_reflection(
         try:
             existing_learnings.append(Learning(**fields))
         except (TypeError, KeyError):
-            logger.warning("Skipping malformed entry at session-reflection dedup time")
+            logger.warning(
+                "Skipping malformed entry at session-reflection dedup time",
+                exc_info=True,
+            )
             continue
 
     combined = existing_learnings + [new_learning]
@@ -596,8 +599,13 @@ def prune_learnings(jsonl_path: Path) -> int:
                     ts = ts.replace(tzinfo=UTC)
                 if ts + timedelta(days=ttl) <= now:
                     expired = True
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    "Keeping learning with malformed timestamp during prune: %s (%s)",
+                    ts_str,
+                    exc,
+                    exc_info=True,
+                )
         if expired:
             removed += 1
         else:
@@ -736,6 +744,11 @@ def _resolve_last_accessed(entry: dict) -> datetime | None:
     try:
         dt = _parse_timestamp(last_accessed_str)
     except (ValueError, TypeError):
+        logger.warning(
+            "Skipping learning with malformed last_accessed timestamp: %s",
+            last_accessed_str,
+            exc_info=True,
+        )
         return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
@@ -900,8 +913,13 @@ def get_learnings_stats(jsonl_path: Path) -> dict:
                     ts = ts.replace(tzinfo=UTC)
                 if ts + timedelta(days=ttl) <= now:
                     expired_count += 1
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    "Ignoring malformed learning timestamp in statistics: %s (%s)",
+                    ts_str,
+                    exc,
+                    exc_info=True,
+                )
 
     avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 

@@ -197,6 +197,8 @@ def _replace_latest(folder: Path, target: Path) -> None:
             try:
                 os.symlink(target.name, candidate)
             except FileExistsError:
+                # Expected bounded retry: a random temporary-name collision
+                # is not a checkpoint failure.
                 continue
             temporary = candidate
             break

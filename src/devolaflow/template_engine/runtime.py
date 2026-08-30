@@ -122,10 +122,13 @@ def _coerce_bare_rhs(bare: str, context: dict[str, Any]) -> Any:
     try:
         return int(bare)
     except ValueError:
+        # Expected parse probe: a non-integer RHS continues to float/string
+        # coercion; this is sentinel control flow, not an error fallback.
         pass
     try:
         return float(bare)
     except ValueError:
+        # Expected parse probe: a non-float RHS is a valid bare string literal.
         pass
     return bare
 

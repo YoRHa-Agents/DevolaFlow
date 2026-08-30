@@ -549,11 +549,23 @@ def estimate_tokens(text: str) -> int:
     """
     try:
         import tiktoken  # noqa: F401  (probe import only — actual use is in the cached helper)
-    except (ImportError, Exception):
+    except ImportError:
+        # Expected optional-dependency path: the deterministic estimator is
+        # the documented result when tiktoken is unavailable.
+        return _estimate_tokens_fallback_cached(text)
+    except Exception:
+        logger.warning(
+            "tiktoken availability probe failed; using deterministic token fallback",
+            exc_info=True,
+        )
         return _estimate_tokens_fallback_cached(text)
     try:
         return _estimate_tokens_tiktoken_cached(text)
     except Exception:
+        logger.warning(
+            "tiktoken estimator failed; using deterministic token fallback",
+            exc_info=True,
+        )
         return _estimate_tokens_fallback_cached(text)
 
 
@@ -781,7 +793,7 @@ def _integrate_learnings(
             return ""
         return format_learnings_section(relevant, max_tokens=learnings_reserve)
     except Exception:
-        logger.debug("Learnings integration skipped due to error", exc_info=True)
+        logger.warning("Learnings integration skipped due to error", exc_info=True)
         return ""
 
 
@@ -1576,6 +1588,7 @@ def warmup_selector_cache(
                     task_type,
                     round_num,
                     exc,
+                    exc_info=True,
                 )
     return completed
 
