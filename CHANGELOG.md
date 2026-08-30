@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [21.3.0] - 2026-08-30 — MINOR — Release-Cut Reliability and Evidence
+
+### Changed
+
+- **v21.2.0 governance settlement and archives**: retained the settled
+  harness baseline, cycle archive, and explicit evidence boundaries.
+- **Change entrance enforcement**: `entrance.md` is required in the first
+  artifact batch, and missing routers now report `ENTRANCE_MISSING` at `FAIL`
+  severity.
+- **Evaluator evidence persistence**: evaluator-owned measurements are
+  appended to the harness ledger with run metadata; multi-run ledgers retain
+  distinct metadata envelopes and preserve unavailable measurements explicitly.
+- **Observable recovery paths**: S-5 exception fallbacks now expose warning
+  or exception telemetry, with a ghost audit guarding against silent handlers.
+- **Release workflow recovery**: PR creation has a manual-command fallback,
+  demo release promotion handles already-promoted/i18n content, and npm
+  publication uses release-scoped concurrency.
+
+### Deferred / insufficient evidence
+
+- The quantifiable ratio target remains deferred because auditable evidence
+  remained `120/140 = 0.8571428571428571`; this cycle does not claim `>=0.9`.
+
 ## [21.2.0] - 2026-08-29 — MINOR — Feedback Governance and Cloud Release
 
 ### Added
