@@ -133,10 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             data = json.loads(sys.stdin.read())
         except json.JSONDecodeError:
-            logger.warning(
-                "hostbridge received malformed stdin; normalizing to unknown event",
-                exc_info=True,
-            )
+            logger.debug("hostbridge received malformed stdin; normalizing to unknown event")
             data = None  # normalize_event degrades this to kind="unknown"
         except Exception:
             logger.warning(
