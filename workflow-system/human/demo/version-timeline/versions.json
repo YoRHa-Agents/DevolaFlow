@@ -2437,5 +2437,22 @@
       "Cloud release — workflow dispatch prepares a mechanical release PR, then validated main version changes create annotated tags and invoke reusable release paths"
     ],
     "metrics": {}
+  },
+  {
+    "version": "21.3.0",
+    "date": "2026-08-30",
+    "era": "release-cut-reliability-evidence",
+    "headline": "MINOR — Release-Cut Reliability and Evidence: governance settlement, entrance FAIL, evaluator telemetry, observable fallbacks, and release pipeline repair",
+    "summary": "v21.3.0 closes the release cut with the settled v21.2.0 governance and archive evidence, explicit entrance FAIL behavior, evaluator-owned telemetry with multi-run metadata, observable S-5 recovery paths, and repaired release automation. The quantifiable ratio remains INSUFFICIENT at 120/140 = 0.8571428571428571; this cycle does not claim >=0.9.",
+    "highlights": [
+      "Governance settlement — v21.2.0 governance, archive, and evidence boundaries remain retained as settled release context",
+      "Entrance FAIL — missing entrance.md reports ENTRANCE_MISSING at FAIL severity at the lint boundary",
+      "Evaluator telemetry — evaluator-owned measurements append to the harness ledger with run metadata; multi-run records retain distinct metadata envelopes and unavailable measurements explicitly",
+      "Observable S-5 fallbacks — exception recovery paths expose warning or exception telemetry, with ghost coverage guarding against silent handlers",
+      "Release pipeline repair — PR creation has a manual-command fallback, demo promotion handles already-promoted/i18n content, and npm publication uses release-scoped concurrency"
+    ],
+    "metrics": {
+      "quantifiable_ratio": "INSUFFICIENT — 120/140 = 0.8571428571428571"
+    }
   }
 ]
