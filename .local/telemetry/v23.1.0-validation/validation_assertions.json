@@ -1,0 +1,804 @@
+{
+  "artifact_type": "v23.1.0_validation_rerun_assertions",
+  "by_host_arm": {
+    "claude/skill-off": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 2
+    },
+    "claude/skill-on": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 2
+    },
+    "codex/skill-off": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 2
+    },
+    "codex/skill-on": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 2
+    },
+    "kimicode/skill-off": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 0
+    },
+    "kimicode/skill-on": {
+      "cells": 2,
+      "fail": 0,
+      "insufficient": 0,
+      "pass": 2,
+      "skill_loaded_available": 0,
+      "usage_available": 0
+    }
+  },
+  "c1_estimated_fields": {
+    "asserted_fields": [
+      "tokens_injected_estimated",
+      "estimated_host_rule_tokens",
+      "estimated_agents_md_tokens",
+      "token_estimator"
+    ],
+    "observed": {
+      "estimated_agents_md_tokens": 7986,
+      "estimated_host_rule_tokens": 7986,
+      "token_estimator": {
+        "encoding": null,
+        "fallback_semantics": "when tiktoken is unavailable or fails, use max(1, len(text)//4)",
+        "model": null,
+        "provider_usage": false,
+        "source": "devolaflow.task_adaptive_selector.estimate_tokens",
+        "tokenizer": "character_heuristic"
+      },
+      "tokens_injected_estimated": 15
+    },
+    "status": "PASS"
+  },
+  "c3_paired_bootstrap_schema": {
+    "comparisons_checked": 6,
+    "failures": [],
+    "schema": "paired percentile bootstrap / matched replicate pair / fixed seed",
+    "status": "PASS"
+  },
+  "c4_ledger_append_dedup": {
+    "dedup_error": "TokenInjectionError: source/run_id/item_id collision with different measurement: cli_probe/probe-2265064ec31eeb70d5e803f52a528fd0a3c2e3d76a3217c7aab8e87ecac9a263/None",
+    "dedup_finding": "final artifact re-ingest changes artifact SHA after telemetry rewrite, then raises source/run_id/item_id collision instead of deduplicating",
+    "new_records": 12,
+    "records_after_dedup_reingest": 12,
+    "records_before_dedup_reingest": 12,
+    "schema_validation_errors": [],
+    "status": "FAIL",
+    "unique_event_ids": 12
+  },
+  "c5_host_routing_canary": {
+    "canary_summary": {
+      "available": 0,
+      "finding": "all skill-on canary echoes missing/unverified; skill_loaded remains null/INSUFFICIENT",
+      "insufficient": 6,
+      "skill_on_cells": 6
+    },
+    "mapping_failures": [],
+    "routing_assertions": {
+      "claude": {
+        "channel_mode": "subprocess",
+        "evidence_status": "AVAILABLE",
+        "expected_host": "claude",
+        "observed_host": "claude",
+        "status": "slice-embedded"
+      },
+      "codex": {
+        "channel_mode": "subprocess",
+        "evidence_status": "AVAILABLE",
+        "expected_host": "codex",
+        "observed_host": "codex",
+        "status": "slice-embedded"
+      },
+      "kimi": {
+        "channel_mode": "subprocess",
+        "evidence_status": "AVAILABLE",
+        "expected_host": "kimicode",
+        "observed_host": "kimicode",
+        "status": "slice-embedded"
+      }
+    },
+    "status": "PASS"
+  },
+  "generated_at": "2026-08-31T19:27:49.644821+00:00",
+  "historical_v23": {
+    "artifact": ".local/research/v23.0.0_benefits_report.md",
+    "artifact_exists": true,
+    "comparison_status": "AVAILABLE_WITH_SCOPE_LIMITATION",
+    "completed": 73,
+    "insufficient": 47,
+    "note": "Historical v23.0.0 120-cell figures exist; current rerun is 12 cells and is not matched.",
+    "planned": 120
+  },
+  "roi": {
+    "reason": "one replicate, missing Kimi usage, missing all skill-loaded observations, and no causal quality outcome",
+    "status": "INSUFFICIENT"
+  },
+  "run_id": "calibration-63648620722f1d2c43851cd0233ff79a0ff144e9ec6e856a4b8ea65ec29066f6",
+  "secret_sanitization": {
+    "policy": "runner stores sanitized summaries only; no token/key/bearer values retained",
+    "status": "PASS",
+    "unsanitized_artifacts": []
+  },
+  "token_usage": {
+    "available_subset_note": "Kimi cells excluded because usage missing; no zero substitution.",
+    "cells": [
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-2265064ec31eeb70d5e803f52a528fd0a3c2e3d76a3217c7aab8e87ecac9a263.json",
+        "cell": "codex/skill-off/tool-heavy",
+        "channel": "codex",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 168.12495954200858
+        },
+        "host": "codex",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": "usage.cached_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 174528
+          },
+          "cache_write": {
+            "source_path": "usage.cache_write_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 183223,
+          "output_tokens": 3331,
+          "total_tokens": 186554,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d.json",
+        "cell": "kimi/skill-on/tool-heavy",
+        "channel": "kimi",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 30.620333583035972
+        },
+        "host": "kimicode",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "INSUFFICIENT",
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "$"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c.json",
+        "cell": "codex/skill-off/read-only",
+        "channel": "codex",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 69.18247324996628
+        },
+        "host": "codex",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": "usage.cached_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 47528
+          },
+          "cache_write": {
+            "source_path": "usage.cache_write_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 64356,
+          "output_tokens": 1081,
+          "total_tokens": 65437,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec.json",
+        "cell": "kimi/skill-off/tool-heavy",
+        "channel": "kimi",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 23.215368500037584
+        },
+        "host": "kimicode",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "INSUFFICIENT",
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "$"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d.json",
+        "cell": "claude/skill-on/read-only",
+        "channel": "claude",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 65.87031479197321
+        },
+        "host": "claude",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": "usage.cache_creation_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "cache_read": {
+            "source_path": "usage.cache_read_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 75525
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 5467,
+          "output_tokens": 2699,
+          "total_tokens": 8166,
+          "uncached_input": {
+            "source_path": "usage.input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 5467
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-7192f17e763a2442c46ece79d2aee4b01dcec6bc7076063dbe63a36bbbf32b7b.json",
+        "cell": "kimi/skill-off/read-only",
+        "channel": "kimi",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 15.792409292014781
+        },
+        "host": "kimicode",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "INSUFFICIENT",
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "$"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-94554649aa5d98ba121fd7a94d3118530e470df88addcf74e8e7b28b86657813.json",
+        "cell": "codex/skill-on/tool-heavy",
+        "channel": "codex",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 108.75790791597683
+        },
+        "host": "codex",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": "usage.cached_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 82144
+          },
+          "cache_write": {
+            "source_path": "usage.cache_write_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 88208,
+          "output_tokens": 1835,
+          "total_tokens": 90043,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd.json",
+        "cell": "claude/skill-off/tool-heavy",
+        "channel": "claude",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 80.25189424998825
+        },
+        "host": "claude",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": "usage.cache_creation_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "cache_read": {
+            "source_path": "usage.cache_read_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 103709
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 5608,
+          "output_tokens": 2748,
+          "total_tokens": 8356,
+          "uncached_input": {
+            "source_path": "usage.input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 5608
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa.json",
+        "cell": "claude/skill-on/tool-heavy",
+        "channel": "claude",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 132.25765541603323
+        },
+        "host": "claude",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "tool-heavy",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": "usage.cache_creation_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "cache_read": {
+            "source_path": "usage.cache_read_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 107307
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 56839,
+          "output_tokens": 4530,
+          "total_tokens": 61369,
+          "uncached_input": {
+            "source_path": "usage.input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 56839
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-a3eca9cd41dae7bf12e22fe09d25ac5ffc820b8eb36acf1cf5b5765f50da2dd8.json",
+        "cell": "kimi/skill-on/read-only",
+        "channel": "kimi",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 25.767308875045273
+        },
+        "host": "kimicode",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "INSUFFICIENT",
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "$"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712.json",
+        "cell": "codex/skill-on/read-only",
+        "channel": "codex",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 130.1115367920138
+        },
+        "host": "codex",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "missing_canary_echo",
+          "source_path": "$",
+          "status": "INSUFFICIENT"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "cache_read": {
+            "source_path": "usage.cached_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 82144
+          },
+          "cache_write": {
+            "source_path": "usage.cache_write_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 87705,
+          "output_tokens": 1439,
+          "total_tokens": 89144,
+          "uncached_input": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "usage_source_path": "usage"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31.json",
+        "cell": "claude/skill-off/read-only",
+        "channel": "claude",
+        "execution": {
+          "exit_code": 0,
+          "reason": "completed",
+          "termination_reason": "process_exit",
+          "timeout_phase": null,
+          "wall_time_seconds": 61.577830417023506
+        },
+        "host": "claude",
+        "replicate": 1,
+        "skill_canary": {
+          "reason": "skill canary is only requested for skill-on probes",
+          "source_path": null,
+          "status": "NOT_APPLICABLE"
+        },
+        "skill_loaded": {
+          "reason": null,
+          "status": "INSUFFICIENT",
+          "value": null
+        },
+        "status": "PASS",
+        "task_class": "read-only",
+        "token_usage": {
+          "cache_creation": {
+            "source_path": "usage.cache_creation_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 0
+          },
+          "cache_read": {
+            "source_path": "usage.cache_read_input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 77378
+          },
+          "cache_write": {
+            "source_path": null,
+            "status": "INSUFFICIENT",
+            "tokens": null
+          },
+          "input_status": "AVAILABLE",
+          "input_tokens": 8474,
+          "output_tokens": 2295,
+          "total_tokens": 10769,
+          "uncached_input": {
+            "source_path": "usage.input_tokens",
+            "status": "AVAILABLE",
+            "tokens": 8474
+          },
+          "usage_source_path": "usage"
+        }
+      }
+    ],
+    "cells_total": 12,
+    "cells_with_provider_usage": 8,
+    "cells_without_provider_usage": 4,
+    "measurement_scope": "provider-reported token usage only; no billed-equivalent or USD",
+    "provider_input_tokens_total_available_subset": 499880,
+    "provider_output_tokens_total_available_subset": 19958,
+    "provider_total_tokens_total_available_subset": 519838
+  }
+}

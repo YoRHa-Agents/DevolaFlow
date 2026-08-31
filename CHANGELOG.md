@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [23.1.0] - 2026-09-01 — MINOR — Evidence-Preserving Harness Closeout
+
+### Added
+
+- **Provider usage accounting**: token-injection records now retain provider
+  input/output/total usage, cache component paths, explicit provenance, and
+  `INSUFFICIENT` states when a provider omits usage.
+- **Dispatch routing evidence**: dispatch context preparation records whether
+  selected context is embedded for a subprocess or remains host-injected and
+  unobservable.
+- **Kimi diagnostics**: the missing-usage stream-JSON fixture and schema keep
+  JSONL shape evidence separate from unavailable usage and skill telemetry.
+
+### Fixed
+
+- **Measurement deduplication**: equivalent token measurements now deduplicate
+  across rewritten transport artifacts while changed measurements still raise
+  an explicit collision.
+
+### Evidence limits
+
+- The c6 matrix completed `12/12` execution cells with `PASS`; provider usage
+  was available for `8/12` cells. Kimi usage and `skill_loaded` evidence remain
+  `INSUFFICIENT`, and ROI remains `INSUFFICIENT`.
+
 ## [23.0.0] - 2026-08-31 — MAJOR — Runtime Gates and Token Evidence
 
 ### Added

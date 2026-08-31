@@ -1,0 +1,113 @@
+{
+  "arm": "skill-on",
+  "channel": "codex",
+  "command": {
+    "argv": [
+      "codex",
+      "exec",
+      "--json",
+      "Perform a bounded read-only repository inspection. Do not edit, create, delete, or execute mutating commands. Return a concise result. Calibration arm: follow the installed DevolaFlow skill if it is available.\n\nHarness verification only: if the DevolaFlow skill is loaded, echo the exact marker `DF-SKILL-CANARY-22dd84d597233ebdbe25` in the structured response field `skill_canary_echo`. Do not change the requested task or perform any additional action."
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:10:15.629811+00:00",
+    "partial_output_summary": {
+      "stderr": "Reading additional input from stdin...\n2026-08-31T19:08:06.091390Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: failed to decode models response: missing field `models` at line 1 column 55795; body: {\"data\":[{\"created\":1714982195,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-128k-240428\",\"name\":\"doubao-lite-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1714991851,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-128k-240515\",\"name\":\"doubao-pro-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715137903,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-240328\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240328\"},{\"created\":1715141913,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-32k-240428\",\"name\":\"doubao-lite-32k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1715170090,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715269330,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-character-240515\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715588483,\"domain\":\"Embedding\",\"features\":{},\"id\":\"doubao-embedding-text-240515\",\"modalities\":{\"input_modalities\":[\"text\"]},\"name\":\"doubao-embedding\",\"object\":\"model\",\"status\":\"Retiring\",\"task_type\":[\"TextEmbedding\"],\"token_limits\":{},\"version\":\"text-240515\"},{\"created\":1715666514,\"domain\":\"\",\"features\":{},\"id\":\"mistral-7b-instruct-v0.2\",\"name\":\"mistral-7b\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"instruct-v0.2\"},{\"created\":1715676753,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-character-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715676960,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-functioncall-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"…",
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a05938-be63-7eb3-982e-eaaabbd57f14\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"failed to parse hooks config <absolute-path> unknown field `version`, expected `description` or `hooks` at line 2 column 11\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"error\",\"message\":\"Model metadata for `ark-code-latest` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"error\",\"message\":\"Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"reasoning\",\"text\":\"The user wants a bounded read-only repository inspection. \\n\\nThe DevolaFlow skill has been confirmed to support explicit invocation only. I will first read its corresponding skill documentation to align with the user's requirement of following the installed skill, then proceed with the bounded read-only repository inspection without any edit or mutation operations. I've confirmed the skill's canary echo rule, and will read the corresponding skill documentation next.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I'll start by checking the installed DevolaFlow skill, since the calibration arm asks me to follow it if available.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la <absolute-path> 2>/dev/null && echo \\\"---\\\" && head -100 <absolute-path> 2>/dev/null'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la <absolute-path> 2>/dev/null && echo \\\"---\\\" && head -100 <absolute-path> 2>/dev/null'\",\"aggregated_output\":\"t…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:08:05.520429+00:00",
+    "stderr_summary": "Reading additional input from stdin...\n2026-08-31T19:08:06.091390Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: failed to decode models response: missing field `models` at line 1 column 55795; body: {\"data\":[{\"created\":1714982195,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-128k-240428\",\"name\":\"doubao-lite-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1714991851,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-128k-240515\",\"name\":\"doubao-pro-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715137903,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-240328\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240328\"},{\"created\":1715141913,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-32k-240428\",\"name\":\"doubao-lite-32k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1715170090,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715269330,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-character-240515\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715588483,\"domain\":\"Embedding\",\"features\":{},\"id\":\"doubao-embedding-text-240515\",\"modalities\":{\"input_modalities\":[\"text\"]},\"name\":\"doubao-embedding\",\"object\":\"model\",\"status\":\"Retiring\",\"task_type\":[\"TextEmbedding\"],\"token_limits\":{},\"version\":\"text-240515\"},{\"created\":1715666514,\"domain\":\"\",\"features\":{},\"id\":\"mistral-7b-instruct-v0.2\",\"name\":\"mistral-7b\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"instruct-v0.2\"},{\"created\":1715676753,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-character-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715676960,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-functioncall-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"…",
+    "stdout_summary": "{\"type\":\"thread.started\",\"thread_id\":\"01a05938-be63-7eb3-982e-eaaabbd57f14\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"failed to parse hooks config <absolute-path> unknown field `version`, expected `description` or `hooks` at line 2 column 11\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"error\",\"message\":\"Model metadata for `ark-code-latest` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"error\",\"message\":\"Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"reasoning\",\"text\":\"The user wants a bounded read-only repository inspection. \\n\\nThe DevolaFlow skill has been confirmed to support explicit invocation only. I will first read its corresponding skill documentation to align with the user's requirement of following the installed skill, then proceed with the bounded read-only repository inspection without any edit or mutation operations. I've confirmed the skill's canary echo rule, and will read the corresponding skill documentation next.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I'll start by checking the installed DevolaFlow skill, since the calibration arm asks me to follow it if available.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la <absolute-path> 2>/dev/null && echo \\\"---\\\" && head -100 <absolute-path> 2>/dev/null'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la <absolute-path> 2>/dev/null && echo \\\"---\\\" && head -100 <absolute-path> 2>/dev/null'\",\"aggregated_output\":\"t…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 130.1115367920138
+  },
+  "measurement": {
+    "channel": "codex",
+    "host": "codex"
+  },
+  "metadata": {
+    "arm": "skill-on",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712.json",
+    "channel": "codex",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712.json",
+    "replicate": 1,
+    "run_id": "probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "read-only"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": "DF-SKILL-CANARY-22dd84d597233ebdbe25",
+    "reason": "missing_canary_echo",
+    "source_path": "$",
+    "status": "INSUFFICIENT"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "codex",
+    "hsc_validation": {
+      "reason": "missing_canary_echo",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 130.1115367920138
+    }
+  },
+  "status": "PASS",
+  "task_class": "read-only",
+  "telemetry": {
+    "event_id": "token_injection_measurement:9c21344880927ead267e7ecd961cd0c9d40437f06e17b28170ff8452a7f0e674",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_read": {
+        "source_path": "usage.cached_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 82144
+      },
+      "cache_write": {
+        "source_path": "usage.cache_write_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "uncached_input": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      }
+    },
+    "input_tokens": 87705,
+    "output_tokens": 1439,
+    "status": "AVAILABLE",
+    "total_tokens": 89144,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

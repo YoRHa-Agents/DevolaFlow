@@ -1,0 +1,114 @@
+{
+  "arm": "skill-off",
+  "channel": "kimi",
+  "command": {
+    "argv": [
+      "kimi",
+      "--prompt",
+      "Perform a bounded tool-heavy diagnostic using read-only commands only. Do not edit, create, delete, install, or network-write anything. Return a concise result. Calibration arm: do not rely on the DevolaFlow skill; use only the task request.",
+      "--output-format",
+      "stream-json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:19:30.376835+00:00",
+    "partial_output_summary": {
+      "stderr": " M schemas/<redacted>.yaml\n M src/devolaflow/harness/__init__.py\n M src/devolaflow/harness/aggregator.py\n M src/devolaflow/harness/calibration.py\n M src/devolaflow/harness/calibration_aggregation.py\n M src/devolaflow/harness/calibration_matrix.py\n M src/devolaflow/harness/calibration_report.py\n M src/devolaflow/harness/cli_probe.py\n M src/devolaflow/harness/context_tokens.py\n M src/devolaflow/harness/dispatch_context.py\n M src/devolaflow/harness/evaluator.py\n M src/devolaflow/harness/telemetry.py\n M src/devolaflow/harness/token_injection.py\n M tests/fixtures/harness/<redacted>.jsonl\n M tests/ghost/test_features_v17_0.py\n M tests/ghost/test_features_v21_3.py\n M tests/harness/test_aggregator.py\n M tests/harness/test_calibration.py\n M tests/harness/test_capacity.py\n M tests/harness/test_cli_probe.py\n M tests/harness/test_evaluator.py\n M tests/harness/test_gap.py\n M tests/harness/test_token_injection.py\n M tests/test_context_token_accounting.py\n M tests/test_harness_telemetry.py\n?? schemas/kimi-stream-json-diagnostic.yaml\n?? tests/fixtures/harness/kimi_stream_json_missing_usage.json\n?? tests/ghost/test_features_v23_1.py\n?? tests/test_dispatch_context.py\n---\n05a8729 release: publish v23.0.0 feedback improvements (#231)\n9ab464e Merge pull request #230 from YoRHa-Agents/release/v22.1.1-runtime-probe\ne794ed0 release: publish v22.1.1 runtime probe fix\na01e928 Merge pull request #229 from YoRHa-Agents/fix/v22.1-runtime-probe\n9d1a78d fix: prefer active home runtime binaries\nPython 3.13.12\n---\ntests/functional/test_delivery.py::test_wheel_exposes_curated_api_without_checkout\ntests/functional/test_delivery.py::test_wheel_only_devola_init_local_scaffolds_consumer_repo\ntests/functional/test_delivery.py::test_npm_pack_and_packed_bin_contract\ntests/functional/test_domain_adapters.py::test_full_matrix_writes_deterministic_result_artifact\ntests/functional/test_domain_adapters.py::test_runner_denies_network_for_in_process_adapters\ntests/functional/test_entrypoints.py::test_console_scri…",
+      "stdout": "{\"role\":\"meta\",\"type\":\"system.version\",\"version\":\"0.39.1\"}\n{\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"tool_ep2MmLcTCKwKGT47bNmkWBQx\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"git status --short && echo '---' && git log --oneline -5\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":30}\"}},{\"type\":\"function\",\"id\":\"tool_DbdO1uA7rMtXOcxNBlA8sT4A\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -V && echo '---' && python -m pytest --collect-only -q -p no:cacheprovider\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}},{\"type\":\"function\",\"id\":\"tool_qAcTguQpdDKNWgZ6cnJdmT8F\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -m ruff check src/ tests/\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}},{\"type\":\"function\",\"id\":\"tool_18XCsCiY9dTUYMVx8eEWDrMd\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -m ruff format --check src/ tests/\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_ep2MmLcTCKwKGT47bNmkWBQx\",\"content\":\" M schemas/<redacted>.yaml\\n M src/devolaflow/harness/__init__.py\\n M src/devolaflow/harness/aggregator.py\\n M src/devolaflow/harness/calibration.py\\n M src/devolaflow/harness/calibration_aggregation.py\\n M src/devolaflow/harness/calibration_matrix.py\\n M src/devolaflow/harness/calibration_report.py\\n M src/devolaflow/harness/cli_probe.py\\n M src/devolaflow/harness/context_tokens.py\\n M src/devolaflow/harness/dispatch_context.py\\n M src/devolaflow/harness/evaluator.py\\n M src/devolaflow/harness/telemetry.py\\n M src/devolaflow/harness/token_injection.py\\n M tests/fixtures/harness/<redacted>.jsonl\\n M tests/ghost/test_features_v17_0.py\\n M tests/ghost/test_features_v21_3.py\\n M tests/harness/test_aggregator.py\\n M tests/harness/test_calibration.py\\n M tests/harness/test_capacity.py\\n M tests/harness/test_cli_probe.py\\n M tests/harness/test_evaluator.py\\n M tests/harness/test_gap.py\\n M tests/harness/test_token_injection.py\\n M tests/test_context_token_accounting.py\\n M t…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:19:07.162062+00:00",
+    "stderr_summary": " M schemas/<redacted>.yaml\n M src/devolaflow/harness/__init__.py\n M src/devolaflow/harness/aggregator.py\n M src/devolaflow/harness/calibration.py\n M src/devolaflow/harness/calibration_aggregation.py\n M src/devolaflow/harness/calibration_matrix.py\n M src/devolaflow/harness/calibration_report.py\n M src/devolaflow/harness/cli_probe.py\n M src/devolaflow/harness/context_tokens.py\n M src/devolaflow/harness/dispatch_context.py\n M src/devolaflow/harness/evaluator.py\n M src/devolaflow/harness/telemetry.py\n M src/devolaflow/harness/token_injection.py\n M tests/fixtures/harness/<redacted>.jsonl\n M tests/ghost/test_features_v17_0.py\n M tests/ghost/test_features_v21_3.py\n M tests/harness/test_aggregator.py\n M tests/harness/test_calibration.py\n M tests/harness/test_capacity.py\n M tests/harness/test_cli_probe.py\n M tests/harness/test_evaluator.py\n M tests/harness/test_gap.py\n M tests/harness/test_token_injection.py\n M tests/test_context_token_accounting.py\n M tests/test_harness_telemetry.py\n?? schemas/kimi-stream-json-diagnostic.yaml\n?? tests/fixtures/harness/kimi_stream_json_missing_usage.json\n?? tests/ghost/test_features_v23_1.py\n?? tests/test_dispatch_context.py\n---\n05a8729 release: publish v23.0.0 feedback improvements (#231)\n9ab464e Merge pull request #230 from YoRHa-Agents/release/v22.1.1-runtime-probe\ne794ed0 release: publish v22.1.1 runtime probe fix\na01e928 Merge pull request #229 from YoRHa-Agents/fix/v22.1-runtime-probe\n9d1a78d fix: prefer active home runtime binaries\nPython 3.13.12\n---\ntests/functional/test_delivery.py::test_wheel_exposes_curated_api_without_checkout\ntests/functional/test_delivery.py::test_wheel_only_devola_init_local_scaffolds_consumer_repo\ntests/functional/test_delivery.py::test_npm_pack_and_packed_bin_contract\ntests/functional/test_domain_adapters.py::test_full_matrix_writes_deterministic_result_artifact\ntests/functional/test_domain_adapters.py::test_runner_denies_network_for_in_process_adapters\ntests/functional/test_entrypoints.py::test_console_scri…",
+    "stdout_summary": "{\"role\":\"meta\",\"type\":\"system.version\",\"version\":\"0.39.1\"}\n{\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"tool_ep2MmLcTCKwKGT47bNmkWBQx\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"git status --short && echo '---' && git log --oneline -5\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":30}\"}},{\"type\":\"function\",\"id\":\"tool_DbdO1uA7rMtXOcxNBlA8sT4A\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -V && echo '---' && python -m pytest --collect-only -q -p no:cacheprovider\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}},{\"type\":\"function\",\"id\":\"tool_qAcTguQpdDKNWgZ6cnJdmT8F\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -m ruff check src/ tests/\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}},{\"type\":\"function\",\"id\":\"tool_18XCsCiY9dTUYMVx8eEWDrMd\",\"function\":{\"name\":\"Bash\",\"arguments\":\"{\\\"command\\\":\\\"python -m ruff format --check src/ tests/\\\",\\\"cwd\\\":\\\"<absolute-path>\",\\\"timeout\\\":120}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_ep2MmLcTCKwKGT47bNmkWBQx\",\"content\":\" M schemas/<redacted>.yaml\\n M src/devolaflow/harness/__init__.py\\n M src/devolaflow/harness/aggregator.py\\n M src/devolaflow/harness/calibration.py\\n M src/devolaflow/harness/calibration_aggregation.py\\n M src/devolaflow/harness/calibration_matrix.py\\n M src/devolaflow/harness/calibration_report.py\\n M src/devolaflow/harness/cli_probe.py\\n M src/devolaflow/harness/context_tokens.py\\n M src/devolaflow/harness/dispatch_context.py\\n M src/devolaflow/harness/evaluator.py\\n M src/devolaflow/harness/telemetry.py\\n M src/devolaflow/harness/token_injection.py\\n M tests/fixtures/harness/<redacted>.jsonl\\n M tests/ghost/test_features_v17_0.py\\n M tests/ghost/test_features_v21_3.py\\n M tests/harness/test_aggregator.py\\n M tests/harness/test_calibration.py\\n M tests/harness/test_capacity.py\\n M tests/harness/test_cli_probe.py\\n M tests/harness/test_evaluator.py\\n M tests/harness/test_gap.py\\n M tests/harness/test_token_injection.py\\n M tests/test_context_token_accounting.py\\n M t…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 23.215368500037584
+  },
+  "measurement": {
+    "channel": "kimi",
+    "host": "kimicode"
+  },
+  "metadata": {
+    "arm": "skill-off",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec.json",
+    "channel": "kimi",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec.json",
+    "replicate": 1,
+    "run_id": "probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "tool-heavy"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": null,
+    "reason": "skill canary is only requested for skill-on probes",
+    "source_path": null,
+    "status": "NOT_APPLICABLE"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "kimicode",
+    "hsc_validation": {
+      "reason": "skill_loaded was absent from the CLI JSON output; runtime skill state is not observable for this invocation",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 23.215368500037584
+    }
+  },
+  "status": "PASS",
+  "task_class": "tool-heavy",
+  "telemetry": {
+    "event_id": "token_injection_measurement:4ca79469a0cc8c83b9d97424623627f2e9684e34798f23e52da133efbcaa5c86",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_read": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      }
+    },
+    "input_tokens": null,
+    "output_tokens": null,
+    "status": "INSUFFICIENT",
+    "total_tokens": null,
+    "usage_observation": {
+      "reason": "missing_usage",
+      "source_path": "$",
+      "status": "INSUFFICIENT"
+    }
+  }
+}

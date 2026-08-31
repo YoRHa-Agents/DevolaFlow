@@ -35,6 +35,8 @@ from devolaflow.harness.metadata import (
     validate_run_metadata,
 )
 from devolaflow.harness.telemetry import (
+    AGENTS_MD_TOKEN_FIELD,
+    LEGACY_AGENTS_MD_TOKEN_FIELD,
     MetricObservationError,
     TelemetryGateError,
     append_consolidation_metrics,
@@ -43,7 +45,7 @@ from devolaflow.harness.telemetry import (
 from devolaflow.task_adaptive_selector import estimate_tokens
 
 MEASUREMENT_KEYS: Final[tuple[str, ...]] = (
-    "agents_md_tokens",
+    AGENTS_MD_TOKEN_FIELD,
     "suite_wall_seconds",
     "cjk_violations",
     "ghost_loc",
@@ -81,6 +83,9 @@ _AGENT_TEXT_PATHS: Final[tuple[Path, ...]] = (
     Path("AGENTS.md"),
     Path("workflow-system/agent/SKILL.md"),
 )
+_LEGACY_SIGNAL_ALIASES: Final[dict[str, str]] = {
+    LEGACY_AGENTS_MD_TOKEN_FIELD: AGENTS_MD_TOKEN_FIELD,
+}
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -177,7 +182,7 @@ def _docstring_coverage(repo_root: Path) -> SignalResult:
     return SignalResult(available=True, value=value)
 
 
-def _agents_md_tokens(repo_root: Path) -> SignalResult:
+def _estimated_agents_md_tokens(repo_root: Path) -> SignalResult:
     path = repo_root / "AGENTS.md"
     try:
         return SignalResult(available=True, value=estimate_tokens(path.read_text(encoding="utf-8")))
@@ -323,7 +328,7 @@ def collect_signals(
     else:
         w17 = SignalResult(available=True, value=len(_ADDED_TEST_RE.findall(w17_run.stdout or "")))
     measurements: dict[str, SignalResult] = {
-        "agents_md_tokens": _agents_md_tokens(root),
+        AGENTS_MD_TOKEN_FIELD: _estimated_agents_md_tokens(root),
         "suite_wall_seconds": (
             SignalResult(available=True, value=suite_elapsed)
             if coverage_run is not None
@@ -370,12 +375,16 @@ def normalize_signals(signals: Mapping[str, object]) -> dict[str, SignalResult]:
 
     if not isinstance(signals, Mapping):
         raise EvaluationError("signals must be a JSON object")
+    normalized_input = dict(signals)
+    for legacy, canonical in _LEGACY_SIGNAL_ALIASES.items():
+        if canonical not in normalized_input and legacy in normalized_input:
+            normalized_input[canonical] = normalized_input[legacy]
     normalized: dict[str, SignalResult] = {}
     for key in SIGNAL_KEYS:
-        if key not in signals:
+        if key not in normalized_input:
             normalized[key] = _unavailable(f"missing injected signal: {key}")
             continue
-        raw = signals[key]
+        raw = normalized_input[key]
         provenance: Mapping[str, Any] | None = None
         if isinstance(raw, Mapping):
             if "observation" in raw:
@@ -383,6 +392,11 @@ def normalize_signals(signals: Mapping[str, object]) -> dict[str, SignalResult]:
                     observation = validate_metric_observation(raw["observation"])
                 except MetricObservationError as exc:
                     raise EvaluationError(f"signal {key} observation is invalid: {exc}") from exc
+                if (
+                    observation["metric"] == LEGACY_AGENTS_MD_TOKEN_FIELD
+                    and key == AGENTS_MD_TOKEN_FIELD
+                ):
+                    observation = {**observation, "metric": key}
                 if observation["metric"] != key:
                     raise EvaluationError(f"signal {key} observation metric must equal {key!r}")
                 provenance = observation
@@ -529,6 +543,11 @@ def _resolve_measurements(
     collected: Mapping[str, SignalResult] | None,
 ) -> tuple[dict[str, SignalResult], dict[str, str]]:
     telemetry = _telemetry_measurements(summary)
+    normalized_injected = dict(injected) if injected is not None else None
+    if normalized_injected is not None:
+        for legacy, canonical in _LEGACY_SIGNAL_ALIASES.items():
+            if canonical not in normalized_injected and legacy in normalized_injected:
+                normalized_injected[canonical] = normalized_injected[legacy]
     resolved: dict[str, SignalResult] = {}
     sources: dict[str, str] = {}
     for key in MEASUREMENT_KEYS:
@@ -536,8 +555,8 @@ def _resolve_measurements(
             resolved[key] = telemetry[key]
             sources[key] = "telemetry"
             continue
-        if injected is not None and key in injected:
-            raw = injected[key]
+        if normalized_injected is not None and key in normalized_injected:
+            raw = normalized_injected[key]
             if isinstance(raw, SignalResult):
                 resolved[key] = raw
                 sources[key] = "injected"
@@ -550,6 +569,11 @@ def _resolve_measurements(
                         raise EvaluationError(
                             f"measurement {key} observation is invalid: {exc}"
                         ) from exc
+                    if (
+                        observation["metric"] == LEGACY_AGENTS_MD_TOKEN_FIELD
+                        and key == AGENTS_MD_TOKEN_FIELD
+                    ):
+                        observation = {**observation, "metric": key}
                     if observation["metric"] != key:
                         raise EvaluationError(
                             f"measurement {key} observation metric must equal {key!r}"
@@ -716,15 +740,24 @@ def evaluate_harness(
     if signals is None:
         collected_signals = collect_signals(repo_root, base_ref=base_ref, runner=runner)
         resolved_signals = {key: collected_signals[key] for key in SIGNAL_KEYS}
-    elif all(isinstance(value, SignalResult) for value in signals.values()):
+    else:
+        normalized_signal_input = dict(signals)
+        for legacy, canonical in _LEGACY_SIGNAL_ALIASES.items():
+            if canonical not in normalized_signal_input and legacy in normalized_signal_input:
+                normalized_signal_input[canonical] = normalized_signal_input[legacy]
+    if signals is not None and all(
+        isinstance(value, SignalResult) for value in normalized_signal_input.values()
+    ):
         resolved_signals = {
             key: (
-                signals[key] if key in signals else _unavailable(f"missing injected signal: {key}")
+                normalized_signal_input[key]
+                if key in normalized_signal_input
+                else _unavailable(f"missing injected signal: {key}")
             )
             for key in SIGNAL_KEYS
         }
-    else:
-        resolved_signals = normalize_signals(signals)
+    elif signals is not None:
+        resolved_signals = normalize_signals(normalized_signal_input)
     if collected_signals is not None:
         _persist_collected_measurements(ledger, collected_signals, metadata=metadata)
         records = load_ledger_records(aggregation_source)

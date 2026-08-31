@@ -1,0 +1,114 @@
+{
+  "arm": "skill-on",
+  "channel": "claude",
+  "command": {
+    "argv": [
+      "claude",
+      "-p",
+      "Perform a bounded tool-heavy diagnostic using read-only commands only. Do not edit, create, delete, install, or network-write anything. Return a concise result. Calibration arm: follow the installed DevolaFlow skill if it is available.\n\nHarness verification only: if the DevolaFlow skill is loaded, echo the exact marker `DF-SKILL-CANARY-f2762290d087b74435e6` in the structured response field `skill_canary_echo`. Do not change the requested task or perform any additional action.",
+      "--output-format",
+      "json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:14:30.003992+00:00",
+    "partial_output_summary": {
+      "stderr": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+      "stdout": "{\"is_error\":false,\"duration_api_ms\":130970,\"num_turns\":7,\"stop_reason\":\"end_turn\",\"session_id\":\"a6773225-c1c5-4ccd-ba19-51a193710cbb\",\"total_cost_usd\":0.45109849999999996,\"usage\":{\"input_tokens\":56839,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":107307,\"output_tokens\":4530,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":56839,\"outputTokens\":4530,\"cacheReadInputTokens\":107307,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.45109849999999996,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Here is the concise read-only diagnostic result.\\n\\n## Diagnostic Report\\n\\n**Run status:** Live calibration in progress — 7 of 12 cells completed (cells 1–7), 5 remaining. The `CalibrationRunner` script running in background (PID 57524, started 2026-09-01 03:02) is the driver that spawned this session.\\n\\n**Ledger state** (first 7 rows in `harness.jsonl`): 3 × claude, 2 × codex, 2 × kimi. All have `arm: null` and `task_class: null` in ledger top-level fields — arm metadata is likely recorded in `labels` or `probe_metadata` sub-objects rather than exploded into ledger columns.\\n\\n**Skill availability:** `devola-flow` SKILL.md exists on disk at `…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:12:17.749742+00:00",
+    "stderr_summary": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+    "stdout_summary": "{\"is_error\":false,\"duration_api_ms\":130970,\"num_turns\":7,\"stop_reason\":\"end_turn\",\"session_id\":\"a6773225-c1c5-4ccd-ba19-51a193710cbb\",\"total_cost_usd\":0.45109849999999996,\"usage\":{\"input_tokens\":56839,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":107307,\"output_tokens\":4530,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":56839,\"outputTokens\":4530,\"cacheReadInputTokens\":107307,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.45109849999999996,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Here is the concise read-only diagnostic result.\\n\\n## Diagnostic Report\\n\\n**Run status:** Live calibration in progress — 7 of 12 cells completed (cells 1–7), 5 remaining. The `CalibrationRunner` script running in background (PID 57524, started 2026-09-01 03:02) is the driver that spawned this session.\\n\\n**Ledger state** (first 7 rows in `harness.jsonl`): 3 × claude, 2 × codex, 2 × kimi. All have `arm: null` and `task_class: null` in ledger top-level fields — arm metadata is likely recorded in `labels` or `probe_metadata` sub-objects rather than exploded into ledger columns.\\n\\n**Skill availability:** `devola-flow` SKILL.md exists on disk at `…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 132.25765541603323
+  },
+  "measurement": {
+    "channel": "claude",
+    "host": "claude"
+  },
+  "metadata": {
+    "arm": "skill-on",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa.json",
+    "channel": "claude",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa.json",
+    "replicate": 1,
+    "run_id": "probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "tool-heavy"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": "DF-SKILL-CANARY-f2762290d087b74435e6",
+    "reason": "missing_canary_echo",
+    "source_path": "$",
+    "status": "INSUFFICIENT"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "claude",
+    "hsc_validation": {
+      "reason": "missing_canary_echo",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 132.25765541603323
+    }
+  },
+  "status": "PASS",
+  "task_class": "tool-heavy",
+  "telemetry": {
+    "event_id": "token_injection_measurement:c94d01cfbe546dc2ef1c2e242677208a95235a82eb244431e7009bf34f50cdd0",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": "usage.cache_creation_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "cache_read": {
+        "source_path": "usage.cache_read_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 107307
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": "usage.input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 56839
+      }
+    },
+    "input_tokens": 56839,
+    "output_tokens": 4530,
+    "status": "AVAILABLE",
+    "total_tokens": 61369,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

@@ -35,6 +35,7 @@ def test_component_measurement_distinguishes_missing_and_empty(monkeypatch) -> N
         "rule_tokens": 0,
         "report_tokens": 0,
     }
+    assert "not observe provider usage" in context_tokens.estimate_text_tokens.__doc__
 
 
 def test_report_mapping_measurement_is_stable_and_reproducible(monkeypatch) -> None:

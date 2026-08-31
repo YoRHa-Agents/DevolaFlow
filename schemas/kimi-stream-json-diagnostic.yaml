@@ -1,0 +1,21 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/kimi-stream-json-diagnostic.yaml
+title: Kimi stream-json diagnostic replay
+type: object
+additionalProperties: false
+required: [schema_version, fixture_provenance, channel, cli_version, events]
+properties:
+  schema_version:
+    const: 1
+  fixture_provenance:
+    enum: [captured, vendor-doc, synthetic, replay]
+  channel:
+    const: kimi
+  cli_version:
+    const: "0.39.1"
+  events:
+    type: array
+    minItems: 5
+    items:
+      type: object
+      additionalProperties: true

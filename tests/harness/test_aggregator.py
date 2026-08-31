@@ -249,11 +249,11 @@ def test_optional_slice_metrics_are_none_when_absent_and_partial_mean_otherwise(
     _write_jsonl(tmp_path / "harness.jsonl", [legacy])
 
     legacy_summary = aggregate_ledger(tmp_path)
-    assert "host_rule_tokens_mean" in legacy_summary["tokens"]
-    assert "agents_md_tokens_mean" in legacy_summary["tokens"]
+    assert "estimated_host_rule_tokens_mean" in legacy_summary["tokens"]
+    assert "estimated_agents_md_tokens_mean" in legacy_summary["tokens"]
     assert "slice_savings_pct_mean" in legacy_summary["tokens"]
-    assert legacy_summary["tokens"]["host_rule_tokens_mean"] is None
-    assert legacy_summary["tokens"]["agents_md_tokens_mean"] is None
+    assert legacy_summary["tokens"]["estimated_host_rule_tokens_mean"] is None
+    assert legacy_summary["tokens"]["estimated_agents_md_tokens_mean"] is None
     assert legacy_summary["tokens"]["slice_savings_pct_mean"] is None
 
     carrying_a = _record("carrying-a")
@@ -268,8 +268,8 @@ def test_optional_slice_metrics_are_none_when_absent_and_partial_mean_otherwise(
 
     mixed_summary = aggregate_ledger(tmp_path)
     assert mixed_summary["records"] == 3
-    assert mixed_summary["tokens"]["host_rule_tokens_mean"] == pytest.approx(11_000)
-    assert mixed_summary["tokens"]["agents_md_tokens_mean"] == pytest.approx(11_000)
+    assert mixed_summary["tokens"]["estimated_host_rule_tokens_mean"] == pytest.approx(11_000)
+    assert mixed_summary["tokens"]["estimated_agents_md_tokens_mean"] == pytest.approx(11_000)
     assert mixed_summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(75.0)
 
     invalid = _record("invalid-savings")
@@ -299,7 +299,11 @@ def test_consolidation_metrics_are_aggregated_with_explicit_missing_values(
 
     assert list(summary["measurements"]) == list(CONSOLIDATION_METRIC_NAMES)
     assert summary["measurements"] == {
-        "agents_md_tokens": {"mean": 10_000, "observed_records": 1, "status": "AVAILABLE"},
+        "estimated_agents_md_tokens": {
+            "mean": 10_000,
+            "observed_records": 1,
+            "status": "AVAILABLE",
+        },
         "suite_wall_seconds": {"mean": 12.5, "observed_records": 1, "status": "AVAILABLE"},
         "cjk_violations": {"mean": 2.0, "observed_records": 1, "status": "AVAILABLE"},
         "ghost_loc": {"mean": 40.0, "observed_records": 1, "status": "AVAILABLE"},
@@ -367,7 +371,7 @@ def test_multi_run_metadata_is_retained_without_merging_or_losing_provenance(
     assert summary["metadata_records"] == [metadata_a, metadata_b]
     assert summary["metadata_records"][1]["ledger_path"] is None
     assert summary["metadata_records"][1]["ledger_status"] == "INSUFFICIENT"
-    assert summary["measurements"]["agents_md_tokens"]["provenance"] == [
+    assert summary["measurements"]["estimated_agents_md_tokens"]["provenance"] == [
         {"source": "telemetry", "metadata": metadata_a},
         {"source": "telemetry", "metadata": metadata_b},
     ]
@@ -439,10 +443,10 @@ def test_metric_observation_is_strict_and_aggregate_surfaces_provenance(
     summary = aggregate_ledger(tmp_path)
 
     assert summary["metric_observations"] == [record]
-    assert summary["measurements"]["agents_md_tokens"]["status"] == "AVAILABLE"
-    assert summary["measurements"]["agents_md_tokens"]["provenance"][0]["source_revision"] == (
-        "revision-b"
-    )
+    assert summary["measurements"]["estimated_agents_md_tokens"]["status"] == "AVAILABLE"
+    assert summary["measurements"]["estimated_agents_md_tokens"]["provenance"][0][
+        "source_revision"
+    ] == ("revision-b")
     comparison = aggregate_metric_observations([baseline], [record])
     assert comparison["status"] == "AVAILABLE"
     assert comparison["comparisons"][0]["relative_improvement_pct"] == 25.0

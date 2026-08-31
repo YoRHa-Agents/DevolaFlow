@@ -566,6 +566,12 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.harness.telemetry:build_context_token_accounting",
         "devolaflow.harness.telemetry:build_report_telemetry_record",
         "devolaflow.harness.telemetry:append_context_token_record",
+        # v23.1.0 Phase C — dispatch preparation is an external integration
+        # boundary. It returns a copied dispatch plus an auditable routing
+        # sidecar for callers that own dispatch construction; the legacy
+        # lifecycle path intentionally remains observational and does not
+        # mutate caller payloads. Covered by tests/test_dispatch_context.py.
+        "devolaflow.harness.dispatch_context:prepare_dispatch_context",
         # NOTE (v15.0.0 R1): `devolaflow.gate.artifact_score:score_artifact_evidence`
         # was allowlisted here during the v15-ADR-007 phase-2 standalone
         # landing; the entry was REMOVED when the R1 gate wiring gave it a

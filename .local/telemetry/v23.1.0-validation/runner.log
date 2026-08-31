@@ -1,0 +1,13 @@
+CELL_COMPLETED 1/12
+CELL_COMPLETED 2/12
+CELL_COMPLETED 3/12
+CELL_COMPLETED 4/12
+CELL_COMPLETED 5/12
+CELL_COMPLETED 6/12
+CELL_COMPLETED 7/12
+CELL_COMPLETED 8/12
+CELL_COMPLETED 9/12
+CELL_COMPLETED 10/12
+CELL_COMPLETED 11/12
+CELL_COMPLETED 12/12
+{"status": "COMPLETE", "counts": {"planned": 12, "observed": 12, "completed": 12, "pass": 12, "fail": 0, "insufficient": 0, "unrecorded": 0}, "ledger": {"status": "AVAILABLE", "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl", "attempted_records": 12, "appended_records": 12}}

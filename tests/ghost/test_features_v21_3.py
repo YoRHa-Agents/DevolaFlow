@@ -92,7 +92,7 @@ def test_evaluator_persists_collected_measurements_with_metadata(tmp_path: Path)
     records = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
     event = next(record for record in records if record.get("event") == "consolidation_metrics")
     assert event["metadata"]["run_id"] == metadata["run_id"]
-    assert event["agents_md_tokens"] == 1
+    assert event["estimated_agents_md_tokens"] == 1
 
 
 def test_aggregator_retains_distinct_multi_run_metadata() -> None:

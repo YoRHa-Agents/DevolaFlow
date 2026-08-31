@@ -1,0 +1,1296 @@
+{
+  "artifacts": {
+    "raw_probe_dir": ".local/telemetry/v23.1.0-validation/raw",
+    "report_dir": ".local/telemetry/v23.1.0-validation"
+  },
+  "execution": {
+    "finished_at": "2026-08-31T19:20:01.196542+00:00",
+    "started_at": "2026-08-31T19:04:48.634143+00:00",
+    "termination_reason": "completed",
+    "timeout_phase": null
+  },
+  "matrix": {
+    "arms": [
+      "skill-off",
+      "skill-on"
+    ],
+    "channels": [
+      "claude",
+      "codex",
+      "kimi"
+    ],
+    "order": [
+      "task_class",
+      "channel",
+      "arm",
+      "replicate"
+    ],
+    "planned_specs": 12,
+    "replicates": 1,
+    "task_classes": [
+      "read-only",
+      "tool-heavy"
+    ],
+    "timeout_seconds": 180.0,
+    "total_timeout_seconds": 2400.0
+  },
+  "metadata": {
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "repo_root": ".",
+    "salt": "c6-20260901-0302",
+    "seed": "v23.1.0-c6-rerun-20260901"
+  },
+  "preflight": [
+    {
+      "auth_evidence": "AVAILABLE",
+      "auth_status": "AUTHENTICATED",
+      "channel": "claude",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "finished_at": "2026-08-31T19:04:47.801079+00:00",
+        "partial_output_summary": {
+          "stderr": "",
+          "stdout": ""
+        },
+        "started_at": "2026-08-31T19:04:47.779155+00:00",
+        "status": "AVAILABLE",
+        "termination_reason": "process_exit",
+        "timeout_phase": null,
+        "wall_time_seconds": 0.021911042043939233
+      }
+    },
+    {
+      "auth_evidence": "AVAILABLE",
+      "auth_status": "AUTHENTICATED",
+      "channel": "codex",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "finished_at": "2026-08-31T19:04:47.930499+00:00",
+        "partial_output_summary": {
+          "stderr": "",
+          "stdout": ""
+        },
+        "started_at": "2026-08-31T19:04:47.801134+00:00",
+        "status": "AVAILABLE",
+        "termination_reason": "process_exit",
+        "timeout_phase": null,
+        "wall_time_seconds": 0.1293612080044113
+      }
+    },
+    {
+      "auth_evidence": "AVAILABLE",
+      "auth_status": "AUTHENTICATED",
+      "channel": "kimi",
+      "executable_available": true,
+      "version_check": {
+        "exit_code": 0,
+        "finished_at": "2026-08-31T19:04:48.634086+00:00",
+        "partial_output_summary": {
+          "stderr": "",
+          "stdout": ""
+        },
+        "started_at": "2026-08-31T19:04:47.930543+00:00",
+        "status": "AVAILABLE",
+        "termination_reason": "process_exit",
+        "timeout_phase": null,
+        "wall_time_seconds": 0.7035545420367271
+      }
+    }
+  ],
+  "report_type": "cli_calibration_roi",
+  "run_id": "calibration-63648620722f1d2c43851cd0233ff79a0ff144e9ec6e856a4b8ea65ec29066f6",
+  "schema_version": 1,
+  "summary": {
+    "cells": [
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": 10769.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": 8166.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": 65437.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": 89144.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-7192f17e763a2442c46ece79d2aee4b01dcec6bc7076063dbe63a36bbbf32b7b.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 1,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-a3eca9cd41dae7bf12e22fe09d25ac5ffc820b8eb36acf1cf5b5765f50da2dd8.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "read-only",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 1,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": 8356.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa.json"
+        ],
+        "channel": "claude",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": 61369.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-2265064ec31eeb70d5e803f52a528fd0a3c2e3d76a3217c7aab8e87ecac9a263.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": 186554.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-94554649aa5d98ba121fd7a94d3118530e470df88addcf74e8e7b28b86657813.json"
+        ],
+        "channel": "codex",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": 90043.0,
+          "missing_n": 0,
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "AVAILABLE"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-off",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 1,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      },
+      {
+        "arm": "skill-on",
+        "artifact_paths": [
+          ".local/telemetry/v23.1.0-validation/raw/probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d.json"
+        ],
+        "channel": "kimi",
+        "completeness_status": "AVAILABLE",
+        "counts": {
+          "fail": 0,
+          "insufficient": 0,
+          "n": 1,
+          "pass": 1
+        },
+        "expected_n": 1,
+        "pass_rate": {
+          "ci95": [
+            0.20654931437723745,
+            1.0
+          ],
+          "ci95_interpretation": "descriptive success-rate interval only; not causal",
+          "ci95_method": "Wilson score",
+          "status": "AVAILABLE",
+          "value": 1.0
+        },
+        "skill_loaded": {
+          "false": 0,
+          "missing_n": 1,
+          "observed_n": 0,
+          "status": "INSUFFICIENT",
+          "true": 0
+        },
+        "task_class": "tool-heavy",
+        "token_cost": {
+          "mean": null,
+          "missing_n": 1,
+          "observed_n": 0,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        },
+        "wall_time_seconds": {
+          "observed_n": 1,
+          "p50": null,
+          "p95": null,
+          "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+          "status": "INSUFFICIENT"
+        }
+      }
+    ],
+    "comparisons": [
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "read-only/claude cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "read-only/claude cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31",
+                "skill_on_run_id": "probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "AVAILABLE",
+          "token_cost": {
+            "ci95": [
+              -2603.0,
+              -2603.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": -2603.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              4.292484374949709,
+              4.292484374949709
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 4.292484374949709,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": -2603.0,
+          "status": "AVAILABLE",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "read-only/codex cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "read-only/codex cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c",
+                "skill_on_run_id": "probe-bc51d91df99d90de0c98943cd65173b9dfde3597d612573bbbf6a557a758d712"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "AVAILABLE",
+          "token_cost": {
+            "ci95": [
+              23707.0,
+              23707.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 23707.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              60.929063542047516,
+              60.929063542047516
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 60.929063542047516,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": 23707.0,
+          "status": "AVAILABLE",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "read-only/kimi cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "read-only/kimi cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-7192f17e763a2442c46ece79d2aee4b01dcec6bc7076063dbe63a36bbbf32b7b",
+                "skill_on_run_id": "probe-a3eca9cd41dae7bf12e22fe09d25ac5ffc820b8eb36acf1cf5b5765f50da2dd8"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "INSUFFICIENT",
+          "token_cost": {
+            "ci95": null,
+            "expected_n": 1,
+            "observed_n": 0,
+            "replicate_ids": [],
+            "skill_on_minus_skill_off": null,
+            "status": "INSUFFICIENT",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              9.974899583030492,
+              9.974899583030492
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 9.974899583030492,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "read-only",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "claude",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "tool-heavy/claude cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "tool-heavy/claude cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd",
+                "skill_on_run_id": "probe-9d63ae4e655d0605595c55ff6054192af5c1b0c4cc0fbcc3fccc5d26465be6aa"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "AVAILABLE",
+          "token_cost": {
+            "ci95": [
+              53013.0,
+              53013.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 53013.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              52.00576116604498,
+              52.00576116604498
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 52.00576116604498,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": 53013.0,
+          "status": "AVAILABLE",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "codex",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "tool-heavy/codex cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "tool-heavy/codex cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-2265064ec31eeb70d5e803f52a528fd0a3c2e3d76a3217c7aab8e87ecac9a263",
+                "skill_on_run_id": "probe-94554649aa5d98ba121fd7a94d3118530e470df88addcf74e8e7b28b86657813"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "AVAILABLE",
+          "token_cost": {
+            "ci95": [
+              -96511.0,
+              -96511.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": -96511.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              -59.36705162603175,
+              -59.36705162603175
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": -59.36705162603175,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": -96511.0,
+          "status": "AVAILABLE",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      },
+      {
+        "arms": [
+          "skill-on",
+          "skill-off"
+        ],
+        "channel": "kimi",
+        "paired_differences": {
+          "bootstrap": {
+            "cluster": "tool-heavy/kimi cell",
+            "interval": "percentile 95%",
+            "method": "paired percentile bootstrap",
+            "replicates": 2000,
+            "resample_unit": "matched replicate pair",
+            "seed": 20260901
+          },
+          "causal_interpretation": "Associational paired differences only; causal effect not established.",
+          "pairing": {
+            "cluster": "tool-heavy/kimi cell",
+            "expected_pairs": 1,
+            "key": "task_class/channel/replicate",
+            "observed_pairs": 1,
+            "replicate_ids": [
+              1
+            ],
+            "replicate_metadata": [
+              {
+                "replicate": 1,
+                "skill_off_run_id": "probe-6cc3cb2fb817b15fe8ebfa144acd6aff660786bec09707cae3f82c57170f59ec",
+                "skill_on_run_id": "probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d"
+              }
+            ],
+            "unit": "matched skill-on/skill-off replicate pair"
+          },
+          "pass_rate": {
+            "ci95": [
+              0.0,
+              0.0
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 0.0,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "status": "INSUFFICIENT",
+          "token_cost": {
+            "ci95": null,
+            "expected_n": 1,
+            "observed_n": 0,
+            "replicate_ids": [],
+            "skill_on_minus_skill_off": null,
+            "status": "INSUFFICIENT",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          },
+          "wall_time_seconds": {
+            "ci95": [
+              7.4049650829983875,
+              7.4049650829983875
+            ],
+            "expected_n": 1,
+            "observed_n": 1,
+            "replicate_ids": [
+              1
+            ],
+            "skill_on_minus_skill_off": 7.4049650829983875,
+            "status": "AVAILABLE",
+            "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal"
+          }
+        },
+        "pass_rate_difference": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "skill_on_minus_skill_off": 0.0,
+          "status": "AVAILABLE"
+        },
+        "task_class": "tool-heavy",
+        "token_cost_difference": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "observed usage only; no estimate for missing tokens"
+        },
+        "wall_time_p50_difference_seconds": {
+          "skill_on_minus_skill_off": null,
+          "status": "INSUFFICIENT",
+          "uncertainty": "p50 only; no CI computed"
+        }
+      }
+    ],
+    "counts": {
+      "completed": 12,
+      "fail": 0,
+      "insufficient": 0,
+      "observed": 12,
+      "pass": 12,
+      "planned": 12,
+      "unrecorded": 0
+    },
+    "roi": {
+      "conclusion": "INSUFFICIENT: incomplete cells or missing token/skill telemetry prevent a reproducible ROI claim. No causal quality improvement is established.",
+      "quality_causality": "NOT_ESTABLISHED",
+      "skill_loaded": "INSUFFICIENT",
+      "status": "INSUFFICIENT",
+      "token_cost": "INSUFFICIENT",
+      "uncertainty": "95% Wilson intervals for complete pass-rate cells; normal-approximation difference intervals retained for compatibility; paired differences use a fixed-seed percentile bootstrap and remain descriptive."
+    },
+    "run_id": "calibration-63648620722f1d2c43851cd0233ff79a0ff144e9ec6e856a4b8ea65ec29066f6",
+    "schema_version": 1
+  },
+  "telemetry": {
+    "appended_records": 12,
+    "attempted_records": 12,
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  }
+}

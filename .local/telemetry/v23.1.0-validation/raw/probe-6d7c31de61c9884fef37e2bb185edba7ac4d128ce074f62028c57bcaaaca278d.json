@@ -1,0 +1,114 @@
+{
+  "arm": "skill-on",
+  "channel": "claude",
+  "command": {
+    "argv": [
+      "claude",
+      "-p",
+      "Perform a bounded read-only repository inspection. Do not edit, create, delete, or execute mutating commands. Return a concise result. Calibration arm: follow the installed DevolaFlow skill if it is available.\n\nHarness verification only: if the DevolaFlow skill is loaded, echo the exact marker `DF-SKILL-CANARY-32afcc0e281af33c1ba7` in the structured response field `skill_canary_echo`. Do not change the requested task or perform any additional action.",
+      "--output-format",
+      "json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:06:56.181668+00:00",
+    "partial_output_summary": {
+      "stderr": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+      "stdout": "{\"is_error\":false,\"duration_api_ms\":65072,\"num_turns\":5,\"stop_reason\":\"end_turn\",\"session_id\":\"2fbdb4ec-ed2a-4cfd-908b-ec0f8ea304fb\",\"total_cost_usd\":0.13257249999999998,\"usage\":{\"input_tokens\":5467,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":75525,\"output_tokens\":2699,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":5467,\"outputTokens\":2699,\"cacheReadInputTokens\":75525,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.13257249999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Read-only inspection result\\n\\n```json\\n{\\n  \\\"status\\\": \\\"COMPLETE\\\",\\n  \\\"mode\\\": \\\"read-only\\\",\\n  \\\"skill_canary_echo\\\": null,\\n  \\\"skill_loaded\\\": false\\n}\\n```\\n\\n**`skill_canary_echo` is deliberately empty.** The DevolaFlow skill is *installed on disk* (`~/.claude/skills/devola-flow/`, frontmatter `version: 22.1.1`) but is **not loaded into this session** — no skill body is in my context, and this project's `CLAUDE.md` forbids auto-activation absent an explicit `/devola-flow` invocation, which this prompt does not contain. Echoing the marker would report a skill-on state that isn't true, which would corrupt the very measurement the arm is t…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:05:50.312881+00:00",
+    "stderr_summary": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+    "stdout_summary": "{\"is_error\":false,\"duration_api_ms\":65072,\"num_turns\":5,\"stop_reason\":\"end_turn\",\"session_id\":\"2fbdb4ec-ed2a-4cfd-908b-ec0f8ea304fb\",\"total_cost_usd\":0.13257249999999998,\"usage\":{\"input_tokens\":5467,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":75525,\"output_tokens\":2699,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":5467,\"outputTokens\":2699,\"cacheReadInputTokens\":75525,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.13257249999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Read-only inspection result\\n\\n```json\\n{\\n  \\\"status\\\": \\\"COMPLETE\\\",\\n  \\\"mode\\\": \\\"read-only\\\",\\n  \\\"skill_canary_echo\\\": null,\\n  \\\"skill_loaded\\\": false\\n}\\n```\\n\\n**`skill_canary_echo` is deliberately empty.** The DevolaFlow skill is *installed on disk* (`~/.claude/skills/devola-flow/`, frontmatter `version: 22.1.1`) but is **not loaded into this session** — no skill body is in my context, and this project's `CLAUDE.md` forbids auto-activation absent an explicit `/devola-flow` invocation, which this prompt does not contain. Echoing the marker would report a skill-on state that isn't true, which would corrupt the very measurement the arm is t…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 65.87031479197321
+  },
+  "measurement": {
+    "channel": "claude",
+    "host": "claude"
+  },
+  "metadata": {
+    "arm": "skill-on",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d.json",
+    "channel": "claude",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d.json",
+    "replicate": 1,
+    "run_id": "probe-6d7c31de61c9884fef37e2bb185edba7ac4d128ce074f62028c57bcaaaca278d",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "read-only"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": "DF-SKILL-CANARY-32afcc0e281af33c1ba7",
+    "reason": "missing_canary_echo",
+    "source_path": "$",
+    "status": "INSUFFICIENT"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "claude",
+    "hsc_validation": {
+      "reason": "missing_canary_echo",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 65.87031479197321
+    }
+  },
+  "status": "PASS",
+  "task_class": "read-only",
+  "telemetry": {
+    "event_id": "token_injection_measurement:a1228474fcb90ce554153589f421c73fd3c4dd58073a9e8006d50e320059a199",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": "usage.cache_creation_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "cache_read": {
+        "source_path": "usage.cache_read_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 75525
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": "usage.input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 5467
+      }
+    },
+    "input_tokens": 5467,
+    "output_tokens": 2699,
+    "status": "AVAILABLE",
+    "total_tokens": 8166,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

@@ -52,9 +52,17 @@ def test_v19_release_review_contracts_are_present(
         ).read_text(encoding="utf-8")
     )
     assert set(MEASUREMENT_KEYS) == set(CONSOLIDATION_METRIC_NAMES)
-    assert set(evaluation["measurements"]) == set(MEASUREMENT_KEYS)
+    historical_measurements = {
+        "estimated_agents_md_tokens" if name == "agents_md_tokens" else name
+        for name in evaluation["measurements"]
+    }
+    assert historical_measurements == set(MEASUREMENT_KEYS)
     assert all(
-        evaluation["measurements"][name]["status"] == "AVAILABLE" for name in MEASUREMENT_KEYS
+        evaluation["measurements"][
+            "agents_md_tokens" if name == "estimated_agents_md_tokens" else name
+        ]["status"]
+        == "AVAILABLE"
+        for name in MEASUREMENT_KEYS
     )
     assert evaluation["verdict"] == "READY"
     assert evaluation["composite"] == 9.17

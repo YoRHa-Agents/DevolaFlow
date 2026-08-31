@@ -1,0 +1,114 @@
+{
+  "arm": "skill-off",
+  "channel": "claude",
+  "command": {
+    "argv": [
+      "claude",
+      "-p",
+      "Perform a bounded read-only repository inspection. Do not edit, create, delete, or execute mutating commands. Return a concise result. Calibration arm: do not rely on the DevolaFlow skill; use only the task request.",
+      "--output-format",
+      "json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:05:50.243718+00:00",
+    "partial_output_summary": {
+      "stderr": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+      "stdout": "{\"is_error\":false,\"duration_api_ms\":60735,\"num_turns\":6,\"stop_reason\":\"end_turn\",\"session_id\":\"c636bf55-6b1e-46c3-ba8b-c8446ed3402c\",\"total_cost_usd\":0.138434,\"usage\":{\"input_tokens\":8474,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":77378,\"output_tokens\":2295,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":8474,\"outputTokens\":2295,\"cacheReadInputTokens\":77378,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.138434,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Read-only inspection result\\n\\n**Did not run the pasted script.** It is a mutating operation and outside the stated task: `CalibrationRunner.run(...)` writes into `.local/telemetry/v23.1.0-validation/` (report, `raw/`, `harness.jsonl`), the script adds a `calibration_report.json` write, and `cli_probe` spawns real `claude`/`codex`/`kimi` subprocesses — 12 cells (3 channels × 2 arms × 2 task classes × 1 replicate) with a 2400 s total budget. If you want that run, say so explicitly and I'll execute it.\\n\\n### Repo state\\n- Version: `23.0.0` (`src/devolaflow/__init__.py`); CHANGELOG `[Unreleased]` has an empty `### Added` — v23.0.0 dated 2026-08-31 is the last released en…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:04:48.667303+00:00",
+    "stderr_summary": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+    "stdout_summary": "{\"is_error\":false,\"duration_api_ms\":60735,\"num_turns\":6,\"stop_reason\":\"end_turn\",\"session_id\":\"c636bf55-6b1e-46c3-ba8b-c8446ed3402c\",\"total_cost_usd\":0.138434,\"usage\":{\"input_tokens\":8474,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":77378,\"output_tokens\":2295,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":8474,\"outputTokens\":2295,\"cacheReadInputTokens\":77378,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.138434,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Read-only inspection result\\n\\n**Did not run the pasted script.** It is a mutating operation and outside the stated task: `CalibrationRunner.run(...)` writes into `.local/telemetry/v23.1.0-validation/` (report, `raw/`, `harness.jsonl`), the script adds a `calibration_report.json` write, and `cli_probe` spawns real `claude`/`codex`/`kimi` subprocesses — 12 cells (3 channels × 2 arms × 2 task classes × 1 replicate) with a 2400 s total budget. If you want that run, say so explicitly and I'll execute it.\\n\\n### Repo state\\n- Version: `23.0.0` (`src/devolaflow/__init__.py`); CHANGELOG `[Unreleased]` has an empty `### Added` — v23.0.0 dated 2026-08-31 is the last released en…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 61.577830417023506
+  },
+  "measurement": {
+    "channel": "claude",
+    "host": "claude"
+  },
+  "metadata": {
+    "arm": "skill-off",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31.json",
+    "channel": "claude",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31.json",
+    "replicate": 1,
+    "run_id": "probe-f8b84e355ac5ecdb79277b7bc622f32ddb5c56ca79870e847e56de650fbccd31",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "read-only"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": null,
+    "reason": "skill canary is only requested for skill-on probes",
+    "source_path": null,
+    "status": "NOT_APPLICABLE"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "claude",
+    "hsc_validation": {
+      "reason": "skill_loaded was absent from the CLI JSON output; runtime skill state is not observable for this invocation",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 61.577830417023506
+    }
+  },
+  "status": "PASS",
+  "task_class": "read-only",
+  "telemetry": {
+    "event_id": "token_injection_measurement:e3e9ed3f0f7054648b2eefb66bead78b35802af987f9a2b0393a4d91a6c8b5fd",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": "usage.cache_creation_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "cache_read": {
+        "source_path": "usage.cache_read_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 77378
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": "usage.input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 8474
+      }
+    },
+    "input_tokens": 8474,
+    "output_tokens": 2295,
+    "status": "AVAILABLE",
+    "total_tokens": 10769,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

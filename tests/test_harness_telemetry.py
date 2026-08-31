@@ -42,7 +42,7 @@ EXPECTED_RECORD_KEYS = [
     "round",
     "layer",
     "dispatch_id",
-    "tokens_injected_measured",
+    "tokens_injected_estimated",
     "tokens_budget",
     "constraint_count",
     "quantifiable_ratio",
@@ -50,13 +50,14 @@ EXPECTED_RECORD_KEYS = [
     "advisory_folded",
     "model_hint",
     # v17.0.0 R3 (G17-B3 / D-R3-2) — host-injection accounting fields.
-    "host_rule_tokens",
+    "estimated_host_rule_tokens",
     "slice_savings_pct",
     # v17.0.0 R5 (G17-B6 / D-R5-1) — resolved capacity profile with
     # aggregate provenance, appended AFTER slice_savings_pct.
     "capacity_profile",
     # v18.0.0 — explicit full AGENTS.md token metric.
-    "agents_md_tokens",
+    "estimated_agents_md_tokens",
+    "token_estimator",
 ]
 
 # The dark-config capacity view (the shipped context_profiles.yaml declares
@@ -131,7 +132,7 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
         "round": 3,
         "layer": "L2",
         "dispatch_id": "dispatch-telemetry-001",
-        "tokens_injected_measured": 321,
+        "tokens_injected_estimated": 321,
         "tokens_budget": 8_000,
         "constraint_count": 2,
         "quantifiable_ratio": 1.0,
@@ -139,12 +140,22 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
         "advisory_folded": False,
         "model_hint": "quality",
         # No task.type in the payload → unresolvable task type: savings 0.0
-        # with host_rule_tokens still the full AGENTS.md estimate (D-R3-2).
-        "host_rule_tokens": FULL_AGENTS_MD_TOKENS,
+        # with estimated_host_rule_tokens still the full AGENTS.md estimate (D-R3-2).
+        "estimated_host_rule_tokens": FULL_AGENTS_MD_TOKENS,
         "slice_savings_pct": 0.0,
         # Dark meta.capacity → hardcoded defaults with source "default" (D-R5-1).
         "capacity_profile": DEFAULT_CAPACITY_PROFILE,
-        "agents_md_tokens": FULL_AGENTS_MD_TOKENS,
+        "estimated_agents_md_tokens": FULL_AGENTS_MD_TOKENS,
+        "token_estimator": {
+            "source": "devolaflow.task_adaptive_selector.estimate_tokens",
+            "tokenizer": "character_heuristic",
+            "model": None,
+            "encoding": None,
+            "fallback_semantics": (
+                "when tiktoken is unavailable or fails, use max(1, len(text)//4)"
+            ),
+            "provider_usage": False,
+        },
     }
     assert rendered == [
         yaml.safe_dump(
@@ -156,6 +167,24 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
     ]
     assert HARNESS_SEGMENT_MAX_BYTES == 64 * 1024
     assert LAYER_TOKEN_BUDGETS == {"L0": 5_000, "L1": 5_000, "L2": 8_000}
+
+
+def test_legacy_dispatch_token_names_are_read_without_rewriting_history(tmp_path: Path) -> None:
+    current = build_dispatch_record(_payload(change_id="legacy-read"), change_id="legacy-read")
+    legacy = dict(current)
+    legacy["tokens_injected_measured"] = legacy.pop("tokens_injected_estimated")
+    legacy["host_rule_tokens"] = legacy.pop("estimated_host_rule_tokens")
+    legacy["agents_md_tokens"] = legacy.pop("estimated_agents_md_tokens")
+    legacy.pop("token_estimator")
+    ledger = tmp_path / "harness.jsonl"
+    original = (json.dumps(legacy, separators=(",", ":")) + "\n").encode()
+    ledger.write_bytes(original)
+
+    loaded = load_ledger_records(ledger)
+
+    assert loaded == [legacy]
+    assert aggregate_ledger(ledger)["tokens"]["total"] == current["tokens_injected_estimated"]
+    assert ledger.read_bytes() == original
 
 
 @pytest.mark.parametrize("bad_items", [[], [{}] * 6, "not-a-list"])
@@ -323,7 +352,11 @@ def test_consolidation_metrics_append_preserves_legacy_record_bytes(tmp_path: Pa
 
     append_consolidation_metrics(
         ledger,
-        {"agents_md_tokens": 100, "suite_wall_seconds": None, "cjk_violations": 0},
+        {
+            "estimated_agents_md_tokens": 100,
+            "suite_wall_seconds": None,
+            "cjk_violations": 0,
+        },
         timestamp="2026-08-28T00:00:00+00:00",
     )
 
@@ -331,7 +364,7 @@ def test_consolidation_metrics_append_preserves_legacy_record_bytes(tmp_path: Pa
     appended = json.loads(raw.splitlines()[-1])
     assert raw.startswith(original)
     assert appended["event"] == CONSOLIDATION_METRICS_EVENT
-    assert appended["agents_md_tokens"] == 100
+    assert appended["estimated_agents_md_tokens"] == 100
     assert appended["suite_wall_seconds"] is None
     assert appended["ghost_loc"] is None
 
@@ -515,7 +548,7 @@ def test_attribution_and_io_failures_warn_without_blocking(
 
 def test_slice_accounting_e2e_real_ledger_carries_positive_savings(tmp_path: Path) -> None:
     """R3 gate e2e: a real ledger record for a sliceable task type carries
-    ``host_rule_tokens > 0`` AND ``slice_savings_pct > 0``, and the
+    ``estimated_host_rule_tokens > 0`` AND ``slice_savings_pct > 0``, and the
     aggregator surfaces both means from the written JSONL."""
     folder = _active_folder(tmp_path, "slice-e2e")
     payload = _payload(change_id="slice-e2e")
@@ -527,13 +560,17 @@ def test_slice_accounting_e2e_real_ledger_carries_positive_savings(tmp_path: Pat
     records = [json.loads(line) for line in (folder / "harness.jsonl").read_text().splitlines()]
     assert len(records) == 1
     record = records[0]
-    assert record["host_rule_tokens"] > 0
-    assert record["agents_md_tokens"] == record["host_rule_tokens"]
+    assert record["estimated_host_rule_tokens"] > 0
+    assert record["estimated_agents_md_tokens"] == record["estimated_host_rule_tokens"]
     assert record["slice_savings_pct"] > 0
 
     summary = aggregate_ledger(folder)
-    assert summary["tokens"]["host_rule_tokens_mean"] == record["host_rule_tokens"]
-    assert summary["tokens"]["agents_md_tokens_mean"] == record["agents_md_tokens"]
+    assert (
+        summary["tokens"]["estimated_host_rule_tokens_mean"] == record["estimated_host_rule_tokens"]
+    )
+    assert (
+        summary["tokens"]["estimated_agents_md_tokens_mean"] == record["estimated_agents_md_tokens"]
+    )
     assert summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(record["slice_savings_pct"])
 
 
@@ -560,7 +597,9 @@ def test_slice_task_type_resolution_order(
 
     record = build_dispatch_record(payload, change_id="slice-resolution")
 
-    assert record["host_rule_tokens"] == expected["full_tokens"] == FULL_AGENTS_MD_TOKENS > 0
+    assert (
+        record["estimated_host_rule_tokens"] == expected["full_tokens"] == FULL_AGENTS_MD_TOKENS > 0
+    )
     assert record["slice_savings_pct"] == pytest.approx(expected["slice_savings_pct"])
     if resolved_task_type:
         assert record["slice_savings_pct"] > 0
@@ -584,7 +623,7 @@ def test_slice_accounting_failure_zeroes_fields_and_warns(
     with caplog.at_level("WARNING", logger="devolaflow.harness.telemetry"):
         record = build_dispatch_record(payload, change_id="slice-failure")
 
-    assert record["host_rule_tokens"] == 0
+    assert record["estimated_host_rule_tokens"] == 0
     assert record["slice_savings_pct"] == 0.0
     assert list(record) == EXPECTED_RECORD_KEYS
     assert "slice accounting failed" in caplog.text
