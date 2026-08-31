@@ -1,0 +1,113 @@
+{
+  "arm": "skill-off",
+  "channel": "codex",
+  "command": {
+    "argv": [
+      "codex",
+      "exec",
+      "--json",
+      "Perform a bounded read-only repository inspection. Do not edit, create, delete, or execute mutating commands. Return a concise result. Calibration arm: do not rely on the DevolaFlow skill; use only the task request."
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:08:05.432142+00:00",
+    "partial_output_summary": {
+      "stderr": "Reading additional input from stdin...\n2026-08-31T19:06:57.252877Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: failed to decode models response: missing field `models` at line 1 column 55795; body: {\"data\":[{\"created\":1714982195,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-128k-240428\",\"name\":\"doubao-lite-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1714991851,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-128k-240515\",\"name\":\"doubao-pro-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715137903,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-240328\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240328\"},{\"created\":1715141913,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-32k-240428\",\"name\":\"doubao-lite-32k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1715170090,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715269330,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-character-240515\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715588483,\"domain\":\"Embedding\",\"features\":{},\"id\":\"doubao-embedding-text-240515\",\"modalities\":{\"input_modalities\":[\"text\"]},\"name\":\"doubao-embedding\",\"object\":\"model\",\"status\":\"Retiring\",\"task_type\":[\"TextEmbedding\"],\"token_limits\":{},\"version\":\"text-240515\"},{\"created\":1715666514,\"domain\":\"\",\"features\":{},\"id\":\"mistral-7b-instruct-v0.2\",\"name\":\"mistral-7b\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"instruct-v0.2\"},{\"created\":1715676753,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-character-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715676960,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-functioncall-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"…",
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a05937-b168-7021-97fe-fed465f311df\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"failed to parse hooks config <absolute-path> unknown field `version`, expected `description` or `hooks` at line 2 column 11\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"error\",\"message\":\"Model metadata for `ark-code-latest` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"error\",\"message\":\"Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"reasoning\",\"text\":\"The user wants a bounded read-only repository inspection, which only requires read-only operations, no mutation will be performed. I will first run several read-only commands to check the repository structure, key files and other basic information.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I’ll do a quick read-only pass over the repo structure and key metadata files.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find . -maxdepth 2 -type d -not -path './.git*' | sort | head -40\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find . -maxdepth 2 -type d -not -path './.git*' | sort | head -40\\\"\",\"aggregated_output\":\".\\n./.benchmarks\\n./.claude\\n./.claude/hooks\\n./.codex\\n./.codex/hooks\\n./.cursor\\n./.cursor/hooks\\n./.cursor/rules\\n./.cursor/skills\\n./.local\\n./.local/.agent\\n./.local/feedbacks\\n./.local/human\\n./.local/memory\\n./.local/research\\n./.local/tasks\\n./.local/telemetry\\n./.pytest_cache\\n./.pytest_cache/v\\n./.…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:06:56.251205+00:00",
+    "stderr_summary": "Reading additional input from stdin...\n2026-08-31T19:06:57.252877Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: failed to decode models response: missing field `models` at line 1 column 55795; body: {\"data\":[{\"created\":1714982195,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-128k-240428\",\"name\":\"doubao-lite-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1714991851,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-128k-240515\",\"name\":\"doubao-pro-128k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715137903,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-240328\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240328\"},{\"created\":1715141913,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-32k-240428\",\"name\":\"doubao-lite-32k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240428\"},{\"created\":1715170090,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"240515\"},{\"created\":1715269330,\"domain\":\"\",\"features\":{},\"id\":\"doubao-lite-4k-character-240515\",\"name\":\"doubao-lite-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715588483,\"domain\":\"Embedding\",\"features\":{},\"id\":\"doubao-embedding-text-240515\",\"modalities\":{\"input_modalities\":[\"text\"]},\"name\":\"doubao-embedding\",\"object\":\"model\",\"status\":\"Retiring\",\"task_type\":[\"TextEmbedding\"],\"token_limits\":{},\"version\":\"text-240515\"},{\"created\":1715666514,\"domain\":\"\",\"features\":{},\"id\":\"mistral-7b-instruct-v0.2\",\"name\":\"mistral-7b\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"instruct-v0.2\"},{\"created\":1715676753,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-character-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"Shutdown\",\"version\":\"character-240515\"},{\"created\":1715676960,\"domain\":\"\",\"features\":{},\"id\":\"doubao-pro-4k-functioncall-240515\",\"name\":\"doubao-pro-4k\",\"object\":\"model\",\"status\":\"…",
+    "stdout_summary": "{\"type\":\"thread.started\",\"thread_id\":\"01a05937-b168-7021-97fe-fed465f311df\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"failed to parse hooks config <absolute-path> unknown field `version`, expected `description` or `hooks` at line 2 column 11\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"error\",\"message\":\"Model metadata for `ark-code-latest` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"error\",\"message\":\"Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"reasoning\",\"text\":\"The user wants a bounded read-only repository inspection, which only requires read-only operations, no mutation will be performed. I will first run several read-only commands to check the repository structure, key files and other basic information.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I’ll do a quick read-only pass over the repo structure and key metadata files.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find . -maxdepth 2 -type d -not -path './.git*' | sort | head -40\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find . -maxdepth 2 -type d -not -path './.git*' | sort | head -40\\\"\",\"aggregated_output\":\".\\n./.benchmarks\\n./.claude\\n./.claude/hooks\\n./.codex\\n./.codex/hooks\\n./.cursor\\n./.cursor/hooks\\n./.cursor/rules\\n./.cursor/skills\\n./.local\\n./.local/.agent\\n./.local/feedbacks\\n./.local/human\\n./.local/memory\\n./.local/research\\n./.local/tasks\\n./.local/telemetry\\n./.pytest_cache\\n./.pytest_cache/v\\n./.…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 69.18247324996628
+  },
+  "measurement": {
+    "channel": "codex",
+    "host": "codex"
+  },
+  "metadata": {
+    "arm": "skill-off",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c.json",
+    "channel": "codex",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c.json",
+    "replicate": 1,
+    "run_id": "probe-37df3dc725764f57707825246913a460603f73b08e36d18cf16d552567442c8c",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "read-only"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": null,
+    "reason": "skill canary is only requested for skill-on probes",
+    "source_path": null,
+    "status": "NOT_APPLICABLE"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "codex",
+    "hsc_validation": {
+      "reason": "skill_loaded was absent from the CLI JSON output; runtime skill state is not observable for this invocation",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 69.18247324996628
+    }
+  },
+  "status": "PASS",
+  "task_class": "read-only",
+  "telemetry": {
+    "event_id": "token_injection_measurement:bb48008b095a690aa5f9a93ebd34a09ec69779ca77caa856130e62da2b3812ca",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_read": {
+        "source_path": "usage.cached_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 47528
+      },
+      "cache_write": {
+        "source_path": "usage.cache_write_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "uncached_input": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      }
+    },
+    "input_tokens": 64356,
+    "output_tokens": 1081,
+    "status": "AVAILABLE",
+    "total_tokens": 65437,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

@@ -30,6 +30,29 @@ required:
   - report_status
   - context_tokens
   - context_status
+  - cache_read_tokens
+  - cache_read_status
+  - cache_read_source_path
+  - cache_creation_tokens
+  - cache_creation_status
+  - cache_creation_source_path
+  - cache_write_tokens
+  - cache_write_status
+  - cache_write_source_path
+  - uncached_input_tokens
+  - uncached_input_status
+  - uncached_input_source_path
+  - provider_input_tokens
+  - provider_input_status
+  - provider_input_source_path
+  - provider_output_tokens
+  - provider_output_status
+  - provider_output_source_path
+  - provider_total_tokens
+  - provider_total_status
+  - provider_total_source_path
+  - provider_usage_status
+  - provider_usage_source_path
   - uncertainty
   - status
 properties:
@@ -88,6 +111,11 @@ properties:
       artifact_sha256:
         type: string
         pattern: "^[0-9a-f]{64}$"
+      fixture_type:
+        enum: [captured, vendor-doc, synthetic, replay]
+      item_id:
+        type: string
+        minLength: 1
   skill_tokens:
     $ref: "#/$defs/tokens"
   skill_status:
@@ -104,6 +132,52 @@ properties:
     $ref: "#/$defs/tokens"
   context_status:
     $ref: "#/$defs/status"
+  cache_read_tokens:
+    $ref: "#/$defs/tokens"
+  cache_read_status:
+    $ref: "#/$defs/status"
+  cache_read_source_path:
+    $ref: "#/$defs/source_path"
+  cache_creation_tokens:
+    $ref: "#/$defs/tokens"
+  cache_creation_status:
+    $ref: "#/$defs/status"
+  cache_creation_source_path:
+    $ref: "#/$defs/source_path"
+  cache_write_tokens:
+    $ref: "#/$defs/tokens"
+  cache_write_status:
+    $ref: "#/$defs/status"
+  cache_write_source_path:
+    $ref: "#/$defs/source_path"
+  uncached_input_tokens:
+    $ref: "#/$defs/tokens"
+  uncached_input_status:
+    $ref: "#/$defs/status"
+  uncached_input_source_path:
+    $ref: "#/$defs/source_path"
+  provider_input_tokens:
+    $ref: "#/$defs/tokens"
+  provider_input_status:
+    $ref: "#/$defs/status"
+  provider_input_source_path:
+    $ref: "#/$defs/source_path"
+  provider_output_tokens:
+    $ref: "#/$defs/tokens"
+  provider_output_status:
+    $ref: "#/$defs/status"
+  provider_output_source_path:
+    $ref: "#/$defs/source_path"
+  provider_total_tokens:
+    $ref: "#/$defs/tokens"
+  provider_total_status:
+    $ref: "#/$defs/status"
+  provider_total_source_path:
+    $ref: "#/$defs/source_path"
+  provider_usage_status:
+    $ref: "#/$defs/status"
+  provider_usage_source_path:
+    $ref: "#/$defs/source_path"
   uncertainty:
     type: object
     additionalProperties: false
@@ -132,3 +206,6 @@ $defs:
   tokens:
     type: [integer, "null"]
     minimum: 0
+  source_path:
+    type: [string, "null"]
+    minLength: 1

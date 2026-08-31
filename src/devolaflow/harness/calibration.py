@@ -29,6 +29,7 @@ from devolaflow.harness.calibration_matrix import (
 )
 from devolaflow.harness.calibration_report import render_calibration_report
 from devolaflow.harness.cli_probe import (
+    DEFAULT_TELEMETRY_LEDGER,
     DEFAULT_TIMEOUT_SECONDS,
     SUPPORTED_CHANNELS,
     TASK_CLASSES,
@@ -61,6 +62,22 @@ def _auth_failure(result: Mapping[str, Any]) -> bool:
         return False
     diagnostic = str(execution.get("stderr_summary", "")).lower()
     return any(marker in diagnostic for marker in AUTH_FAILURE_MARKERS)
+
+
+def _ledger_record_count(path: Path) -> int:
+    """Count existing JSONL lines without revalidating unrelated history."""
+
+    if not path.exists():
+        return 0
+    paths = [path] if path.is_file() else sorted(path.glob("harness*.jsonl"))
+    total = 0
+    for segment in paths:
+        try:
+            lines = segment.read_text(encoding="utf-8").splitlines()
+            total += sum(bool(line.strip()) for line in lines)
+        except (OSError, UnicodeError):
+            continue
+    return total
 
 
 class CalibrationRunner:
@@ -153,6 +170,7 @@ class CalibrationRunner:
         generated_at: str | None = None,
         output_dir: str | Path = DEFAULT_OUTPUT_DIR,
         raw_output_dir: str | Path = DEFAULT_RAW_OUTPUT_DIR,
+        telemetry_ledger: str | Path | None = DEFAULT_TELEMETRY_LEDGER,
         progress: Callable[[int, int], None] | None = None,
     ) -> dict[str, Any]:
         if (
@@ -181,6 +199,7 @@ class CalibrationRunner:
             repo_root=self.repo_root,
             commands=self.commands,
             runner=self.runner,
+            telemetry_ledger=telemetry_ledger,
         )
         preflight = [
             _preflight_channel(
@@ -197,6 +216,14 @@ class CalibrationRunner:
         auth_failed_channels: set[str] = set()
         results: list[dict[str, Any]] = []
         started = time.monotonic()
+        started_at = _timestamp(None)
+        ledger_path = None
+        ledger_count_before = 0
+        if telemetry_ledger is not None:
+            ledger_path = Path(telemetry_ledger)
+            if not ledger_path.is_absolute():
+                ledger_path = self.repo_root / ledger_path
+            ledger_count_before = _ledger_record_count(ledger_path)
         for index, spec in enumerate(specs, start=1):
             if time.monotonic() - started >= total_timeout_seconds:
                 result = cli_runner.record_insufficient(spec, reason="outer_timeout")
@@ -225,6 +252,13 @@ class CalibrationRunner:
                 item["auth_status"] = "INSUFFICIENT"
                 item["auth_evidence"] = "INSUFFICIENT"
         summary = aggregate_calibration_results(results, planned_specs=specs, run_id=run_id)
+        finished_at = _timestamp(None)
+        outer_timed_out = any(
+            result["execution"].get("reason") == "outer_timeout" for result in results
+        )
+        ledger_count_after = ledger_count_before
+        if ledger_path is not None:
+            ledger_count_after = _ledger_record_count(ledger_path)
         output_relative = _relative_path(output_dir, self.repo_root, label="output_dir")
         report = {
             "schema_version": CALIBRATION_SCHEMA_VERSION,
@@ -247,7 +281,26 @@ class CalibrationRunner:
                 "order": ["task_class", "channel", "arm", "replicate"],
             },
             "preflight": preflight,
+            "execution": {
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "timeout_phase": "calibration" if outer_timed_out else None,
+                "termination_reason": "outer_timeout" if outer_timed_out else "completed",
+            },
             "summary": summary,
+            "telemetry": {
+                "status": "AVAILABLE" if telemetry_ledger is not None else "DISABLED",
+                "ledger_path": (
+                    _relative_path(ledger_path, self.repo_root, label="telemetry_ledger")
+                    if ledger_path is not None
+                    else None
+                ),
+                "attempted_records": sum(
+                    result.get("telemetry", {}).get("status") in {"AVAILABLE", "INSUFFICIENT"}
+                    for result in results
+                ),
+                "appended_records": max(0, ledger_count_after - ledger_count_before),
+            },
             "artifacts": {
                 "raw_probe_dir": _relative_path(
                     raw_output_dir,

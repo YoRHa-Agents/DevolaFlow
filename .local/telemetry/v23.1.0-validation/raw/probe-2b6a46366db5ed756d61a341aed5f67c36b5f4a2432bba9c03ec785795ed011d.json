@@ -1,0 +1,114 @@
+{
+  "arm": "skill-on",
+  "channel": "kimi",
+  "command": {
+    "argv": [
+      "kimi",
+      "--prompt",
+      "Perform a bounded tool-heavy diagnostic using read-only commands only. Do not edit, create, delete, install, or network-write anything. Return a concise result. Calibration arm: follow the installed DevolaFlow skill if it is available.\n\nHarness verification only: if the DevolaFlow skill is loaded, echo the exact marker `DF-SKILL-CANARY-322c56c921d8c98b3cc0` in the structured response field `skill_canary_echo`. Do not change the requested task or perform any additional action.",
+      "--output-format",
+      "stream-json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:20:01.141047+00:00",
+    "partial_output_summary": {
+      "stderr": " M schemas/<redacted>.yaml\n M src/devolaflow/harness/__init__.py\n M src/devolaflow/harness/aggregator.py\n M src/devolaflow/harness/calibration.py\n M src/devolaflow/harness/calibration_aggregation.py\n M src/devolaflow/harness/calibration_matrix.py\n M src/devolaflow/harness/calibration_report.py\n M src/devolaflow/harness/cli_probe.py\n M src/devolaflow/harness/context_tokens.py\n M src/devolaflow/harness/dispatch_context.py\n M src/devolaflow/harness/evaluator.py\n M src/devolaflow/harness/telemetry.py\n M src/devolaflow/harness/token_injection.py\n M tests/fixtures/harness/<redacted>.jsonl\n M tests/ghost/test_features_v17_0.py\n M tests/ghost/test_features_v21_3.py\n M tests/harness/test_aggregator.py\n M tests/harness/test_calibration.py\n M tests/harness/test_capacity.py\n M tests/harness/test_cli_probe.py\n M tests/harness/test_evaluator.py\n M tests/harness/test_gap.py\n M tests/harness/test_token_injection.py\n M tests/test_context_token_accounting.py\n M tests/test_harness_telemetry.py\n?? schemas/kimi-stream-json-diagnostic.yaml\n?? tests/fixtures/harness/kimi_stream_json_missing_usage.json\n?? tests/ghost/test_features_v23_1.py\n?? tests/test_dispatch_context.py\n schemas/<redacted>.yaml           |  77 ++++\n src/devolaflow/harness/__init__.py                 |  10 +\n src/devolaflow/harness/aggregator.py               | 180 +++++++--\n src/devolaflow/harness/calibration.py              |  53 +++\n src/devolaflow/harness/calibration_aggregation.py  | 262 ++++++++++++-\n src/devolaflow/harness/calibration_matrix.py       |  17 +\n src/devolaflow/harness/calibration_report.py       |  72 +++-\n src/devolaflow/harness/cli_probe.py                | 408 ++++++++++++++++++++-\n src/devolaflow/harness/context_tokens.py           |  22 +-\n src/devolaflow/harness/dispatch_context.py         | 264 ++++++++++++-\n src/devolaflow/harness/evaluator.py                |  55 ++-\n src/devolaflow/harness/telemetry.py                | 109 +++++-\n src/devolaflow/harness/token_injection.py          | 310 +++…",
+      "stdout": "{\"role\":\"meta\",\"type\":\"system.version\",\"version\":\"0.39.1\"}\n{\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"tool_xA8ubyVMHU2TLsQ03BbRsHT0\",\"function\":{\"name\":\"Read\",\"arguments\":\"{\\\"path\\\":\\\"<absolute-path>\"}\"}},{\"type\":\"function\",\"id\":\"tool_jeaYvd0Wta3q3X5u5hjTDeSm\",\"function\":{\"name\":\"GetGoal\",\"arguments\":\"{}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_jeaYvd0Wta3q3X5u5hjTDeSm\",\"content\":\"{\\n  \\\"goal\\\": null\\n}\"}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_xA8ubyVMHU2TLsQ03BbRsHT0\",\"content\":\"1\\t---\\n2\\tid: \\\"agent/SKILL\\\"\\n3\\tversion: \\\"22.1.1\\\"\\n4\\tpurpose: >\\n5\\t  Entry point for DevolaFlow checklist-round orchestration using a three-layer\\n6\\t  Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,\\n7\\t  and context-isolated task delegation.\\n8\\ttriggers:\\n9\\t  - \\\"/devola-flow\\\"\\n10\\t  - \\\"devola-flow\\\"\\n11\\t  - \\\"devolaflow\\\"\\n12\\t  - \\\"use devola\\\"\\n13\\t  - \\\"update devola\\\"\\n14\\t  - \\\"update_devola\\\"\\n15\\t  - \\\"/update-devola\\\"\\n16\\ttier: 1\\n17\\ttoken_estimate: 6000\\n18\\tlast_updated: \\\"2026-08-26\\\"\\n19\\tname: devola-flow\\n20\\tdescription: >\\n21\\t  Explicit invocation ONLY. Use when the user explicitly types /devola-flow\\n22\\t  or names devola-flow/DevolaFlow and asks for its workflow orchestration.\\n23\\t  Do NOT auto-activate for generic multi-file or multi-step work that does\\n24\\t  not name this skill.\\n25\\t---\\n26\\t\\n27\\t> **Now Using DevolaFlow v22.1.1**\\n28\\t\\n29\\t# DevolaFlow\\n30\\t\\n31\\t## Version & Update\\n32\\t**Current version:** 22.1.1 — Check only on explicit update request:\\n33\\t`curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.\\n34\\t\\n35\\tUse the channel that created the installation:\\n36\\t\\n37\\t- npm/npx copied skills: `npm install -g @yorha-agents/devola-flow@<version> && devola-flow install all`\\n38\\t  copies skills and provisions the matching Python runtime through uv; `npx @yorha-agents/devola-flow update <cursor|claude|all>` repeats both steps;\\n…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:19:30.521461+00:00",
+    "stderr_summary": " M schemas/<redacted>.yaml\n M src/devolaflow/harness/__init__.py\n M src/devolaflow/harness/aggregator.py\n M src/devolaflow/harness/calibration.py\n M src/devolaflow/harness/calibration_aggregation.py\n M src/devolaflow/harness/calibration_matrix.py\n M src/devolaflow/harness/calibration_report.py\n M src/devolaflow/harness/cli_probe.py\n M src/devolaflow/harness/context_tokens.py\n M src/devolaflow/harness/dispatch_context.py\n M src/devolaflow/harness/evaluator.py\n M src/devolaflow/harness/telemetry.py\n M src/devolaflow/harness/token_injection.py\n M tests/fixtures/harness/<redacted>.jsonl\n M tests/ghost/test_features_v17_0.py\n M tests/ghost/test_features_v21_3.py\n M tests/harness/test_aggregator.py\n M tests/harness/test_calibration.py\n M tests/harness/test_capacity.py\n M tests/harness/test_cli_probe.py\n M tests/harness/test_evaluator.py\n M tests/harness/test_gap.py\n M tests/harness/test_token_injection.py\n M tests/test_context_token_accounting.py\n M tests/test_harness_telemetry.py\n?? schemas/kimi-stream-json-diagnostic.yaml\n?? tests/fixtures/harness/kimi_stream_json_missing_usage.json\n?? tests/ghost/test_features_v23_1.py\n?? tests/test_dispatch_context.py\n schemas/<redacted>.yaml           |  77 ++++\n src/devolaflow/harness/__init__.py                 |  10 +\n src/devolaflow/harness/aggregator.py               | 180 +++++++--\n src/devolaflow/harness/calibration.py              |  53 +++\n src/devolaflow/harness/calibration_aggregation.py  | 262 ++++++++++++-\n src/devolaflow/harness/calibration_matrix.py       |  17 +\n src/devolaflow/harness/calibration_report.py       |  72 +++-\n src/devolaflow/harness/cli_probe.py                | 408 ++++++++++++++++++++-\n src/devolaflow/harness/context_tokens.py           |  22 +-\n src/devolaflow/harness/dispatch_context.py         | 264 ++++++++++++-\n src/devolaflow/harness/evaluator.py                |  55 ++-\n src/devolaflow/harness/telemetry.py                | 109 +++++-\n src/devolaflow/harness/token_injection.py          | 310 +++…",
+    "stdout_summary": "{\"role\":\"meta\",\"type\":\"system.version\",\"version\":\"0.39.1\"}\n{\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"tool_xA8ubyVMHU2TLsQ03BbRsHT0\",\"function\":{\"name\":\"Read\",\"arguments\":\"{\\\"path\\\":\\\"<absolute-path>\"}\"}},{\"type\":\"function\",\"id\":\"tool_jeaYvd0Wta3q3X5u5hjTDeSm\",\"function\":{\"name\":\"GetGoal\",\"arguments\":\"{}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_jeaYvd0Wta3q3X5u5hjTDeSm\",\"content\":\"{\\n  \\\"goal\\\": null\\n}\"}\n{\"role\":\"tool\",\"tool_call_id\":\"tool_xA8ubyVMHU2TLsQ03BbRsHT0\",\"content\":\"1\\t---\\n2\\tid: \\\"agent/SKILL\\\"\\n3\\tversion: \\\"22.1.1\\\"\\n4\\tpurpose: >\\n5\\t  Entry point for DevolaFlow checklist-round orchestration using a three-layer\\n6\\t  Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,\\n7\\t  and context-isolated task delegation.\\n8\\ttriggers:\\n9\\t  - \\\"/devola-flow\\\"\\n10\\t  - \\\"devola-flow\\\"\\n11\\t  - \\\"devolaflow\\\"\\n12\\t  - \\\"use devola\\\"\\n13\\t  - \\\"update devola\\\"\\n14\\t  - \\\"update_devola\\\"\\n15\\t  - \\\"/update-devola\\\"\\n16\\ttier: 1\\n17\\ttoken_estimate: 6000\\n18\\tlast_updated: \\\"2026-08-26\\\"\\n19\\tname: devola-flow\\n20\\tdescription: >\\n21\\t  Explicit invocation ONLY. Use when the user explicitly types /devola-flow\\n22\\t  or names devola-flow/DevolaFlow and asks for its workflow orchestration.\\n23\\t  Do NOT auto-activate for generic multi-file or multi-step work that does\\n24\\t  not name this skill.\\n25\\t---\\n26\\t\\n27\\t> **Now Using DevolaFlow v22.1.1**\\n28\\t\\n29\\t# DevolaFlow\\n30\\t\\n31\\t## Version & Update\\n32\\t**Current version:** 22.1.1 — Check only on explicit update request:\\n33\\t`curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.\\n34\\t\\n35\\tUse the channel that created the installation:\\n36\\t\\n37\\t- npm/npx copied skills: `npm install -g @yorha-agents/devola-flow@<version> && devola-flow install all`\\n38\\t  copies skills and provisions the matching Python runtime through uv; `npx @yorha-agents/devola-flow update <cursor|claude|all>` repeats both steps;\\n…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 30.620333583035972
+  },
+  "measurement": {
+    "channel": "kimi",
+    "host": "kimicode"
+  },
+  "metadata": {
+    "arm": "skill-on",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d.json",
+    "channel": "kimi",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d.json",
+    "replicate": 1,
+    "run_id": "probe-2b6a46366db5ed756d61a341aed5f67c36b5f4a2432bba9c03ec785795ed011d",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "tool-heavy"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": "DF-SKILL-CANARY-322c56c921d8c98b3cc0",
+    "reason": "missing_canary_echo",
+    "source_path": "$",
+    "status": "INSUFFICIENT"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "kimicode",
+    "hsc_validation": {
+      "reason": "missing_canary_echo",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 30.620333583035972
+    }
+  },
+  "status": "PASS",
+  "task_class": "tool-heavy",
+  "telemetry": {
+    "event_id": "token_injection_measurement:160cac4c8b545614f6495a321b9cfef2110360b925f5c2b22ae744bceb85cc37",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_read": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      }
+    },
+    "input_tokens": null,
+    "output_tokens": null,
+    "status": "INSUFFICIENT",
+    "total_tokens": null,
+    "usage_observation": {
+      "reason": "missing_usage",
+      "source_path": "$",
+      "status": "INSUFFICIENT"
+    }
+  }
+}

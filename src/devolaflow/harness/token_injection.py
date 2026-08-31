@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -20,6 +21,7 @@ from typing import Any, Final
 import yaml
 from jsonschema import Draft202012Validator
 
+from devolaflow.harness.cli_probe import CACHE_USAGE_COMPONENTS
 from devolaflow.harness.telemetry_storage import append_harness_record
 
 TOKEN_INJECTION_EVENT: Final[str] = "token_injection_measurement"
@@ -51,11 +53,52 @@ TOKEN_INJECTION_FIELDS: Final[tuple[str, ...]] = (
     "report_status",
     "context_tokens",
     "context_status",
+    "cache_read_tokens",
+    "cache_read_status",
+    "cache_read_source_path",
+    "cache_creation_tokens",
+    "cache_creation_status",
+    "cache_creation_source_path",
+    "cache_write_tokens",
+    "cache_write_status",
+    "cache_write_source_path",
+    "uncached_input_tokens",
+    "uncached_input_status",
+    "uncached_input_source_path",
+    "provider_input_tokens",
+    "provider_input_status",
+    "provider_input_source_path",
+    "provider_output_tokens",
+    "provider_output_status",
+    "provider_output_source_path",
+    "provider_total_tokens",
+    "provider_total_status",
+    "provider_total_source_path",
+    "provider_usage_status",
+    "provider_usage_source_path",
     "uncertainty",
     "status",
 )
 TOKEN_COMPONENTS: Final[tuple[str, ...]] = ("skill", "rule", "report", "context")
+TOKEN_CACHE_COMPONENTS: Final[tuple[str, ...]] = CACHE_USAGE_COMPONENTS
+PROVIDER_USAGE_FIELDS: Final[tuple[str, ...]] = (
+    "provider_input_tokens",
+    "provider_input_status",
+    "provider_input_source_path",
+    "provider_output_tokens",
+    "provider_output_status",
+    "provider_output_source_path",
+    "provider_total_tokens",
+    "provider_total_status",
+    "provider_total_source_path",
+    "provider_usage_status",
+    "provider_usage_source_path",
+)
+_LEGACY_PROVIDER_FIELDS = frozenset(PROVIDER_USAGE_FIELDS)
 TOKEN_INJECTION_SOURCES: Final[frozenset[str]] = frozenset({"cli_probe", "captured", "replay"})
+FIXTURE_PROVENANCE_TYPES: Final[frozenset[str]] = frozenset(
+    {"captured", "vendor-doc", "synthetic", "replay"}
+)
 TOKEN_STATUSES: Final[frozenset[str]] = frozenset({"AVAILABLE", "INSUFFICIENT"})
 _LAYERS: Final[dict[str, str]] = {
     "L0": "L0",
@@ -68,6 +111,7 @@ _LAYERS: Final[dict[str, str]] = {
 _BASE_LEDGER_NAME = "harness.jsonl"
 _SHA256 = set("0123456789abcdef")
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schemas" / "token-injection-measurement.yaml"
+logger = logging.getLogger(__name__)
 
 
 class TokenInjectionError(ValueError):
@@ -177,6 +221,32 @@ def _observation(value: object, field: str) -> tuple[int | None, str]:
     return tokens, "AVAILABLE"
 
 
+def _cache_observation(value: object, field: str) -> tuple[int | None, str, str | None]:
+    """Normalize a cache component while retaining its provider JSON path."""
+
+    raw_value = value
+    supplied_status: object | None = None
+    source_path: object | None = None
+    if isinstance(value, Mapping):
+        raw_value = value.get("tokens", value.get("value"))
+        supplied_status = value.get("status")
+        source_path = value.get("source_path")
+        unknown = set(value) - {"tokens", "value", "status", "source_path"}
+        if unknown:
+            raise TokenInjectionError(f"{field} has unsupported keys: {sorted(unknown)}")
+    if source_path is not None and (not isinstance(source_path, str) or not source_path.strip()):
+        raise TokenInjectionError(f"{field}.source_path must be a non-empty string or null")
+    normalized_path = source_path.strip() if isinstance(source_path, str) else None
+    if raw_value is None:
+        if supplied_status is not None and supplied_status != "INSUFFICIENT":
+            raise TokenInjectionError(f"{field} null value requires INSUFFICIENT status")
+        return None, "INSUFFICIENT", normalized_path
+    tokens = _non_negative_int(raw_value, f"{field}.tokens")
+    if supplied_status is not None and supplied_status != "AVAILABLE":
+        raise TokenInjectionError(f"{field} observed value requires AVAILABLE status")
+    return tokens, "AVAILABLE", normalized_path
+
+
 def _uncertainty(value: object) -> dict[str, Any]:
     if value is None:
         return {
@@ -242,26 +312,103 @@ def _component_value(source: Mapping[str, Any], component: str) -> object:
     return None
 
 
+def _cache_component_value(source: Mapping[str, Any], component: str) -> object:
+    for container_name in ("cache_usage", "cache_tokens"):
+        container = source.get(container_name)
+        if isinstance(container, Mapping) and component in container:
+            return container[component]
+    direct_value = f"{component}_tokens"
+    if direct_value in source:
+        return {
+            "tokens": source[direct_value],
+            "status": source.get(f"{component}_status"),
+            "source_path": source.get(f"{component}_source_path"),
+        }
+    token_usage = source.get("token_usage")
+    if isinstance(token_usage, Mapping):
+        for container_name in ("cache_usage", "cache_tokens"):
+            container = token_usage.get(container_name)
+            if isinstance(container, Mapping) and component in container:
+                return container[component]
+        if direct_value in token_usage:
+            return {
+                "tokens": token_usage[direct_value],
+                "status": token_usage.get(f"{component}_status"),
+                "source_path": token_usage.get(f"{component}_source_path"),
+            }
+    return None
+
+
+def _provider_usage(source: Mapping[str, Any]) -> dict[str, Any]:
+    """Read provider-reported totals without substituting local estimates."""
+
+    usage = source.get("token_usage")
+    if not isinstance(usage, Mapping):
+        return {
+            field: None if field.endswith(("_tokens", "_source_path")) else "INSUFFICIENT"
+            for field in PROVIDER_USAGE_FIELDS
+        }
+    observation = usage.get("usage_observation")
+    source_path = observation.get("source_path") if isinstance(observation, Mapping) else None
+    status = usage.get("status") if usage.get("status") in TOKEN_STATUSES else "INSUFFICIENT"
+    result: dict[str, Any] = {}
+    for component in ("input", "output", "total"):
+        value = usage.get(f"{component}_tokens")
+        if type(value) is int and value >= 0:
+            result[f"provider_{component}_tokens"] = value
+            result[f"provider_{component}_status"] = "AVAILABLE"
+        else:
+            result[f"provider_{component}_tokens"] = None
+            result[f"provider_{component}_status"] = "INSUFFICIENT"
+        result[f"provider_{component}_source_path"] = (
+            f"{source_path}.{component}_tokens"
+            if source_path and value is not None and component != "total"
+            else source_path
+            if source_path and value is not None
+            else None
+        )
+    result["provider_usage_status"] = status
+    result["provider_usage_source_path"] = source_path
+    return result
+
+
 def _provenance(
     source: str,
     *,
     artifact_path: str | None,
     artifact_sha256: str,
     value: Mapping[str, Any] | None,
+    item_id: object,
 ) -> dict[str, Any]:
     kind = {
         "cli_probe": "cli-probe-artifact",
         "captured": "cursor-ide-captured",
         "replay": "fixture-replay",
     }[source]
+    fixture_type = {
+        "cli_probe": "captured",
+        "captured": "captured",
+        "replay": "replay",
+    }[source]
     if value is not None:
         supplied_kind = value.get("kind")
         if supplied_kind is not None:
             kind = _string(supplied_kind, "provenance.kind") or kind
+        supplied_type = value.get("fixture_type")
+        if supplied_type is not None:
+            if supplied_type not in FIXTURE_PROVENANCE_TYPES:
+                raise TokenInjectionError(
+                    "provenance.fixture_type must be captured, vendor-doc, synthetic, or replay"
+                )
+            fixture_type = supplied_type
+    if source == "replay" and fixture_type in {"captured", "vendor-doc"}:
+        raise TokenInjectionError("replay evidence cannot be labeled captured or vendor-doc")
     return {
         "kind": kind,
         "artifact_path": artifact_path,
         "artifact_sha256": artifact_sha256,
+        "fixture_type": fixture_type,
+        **({"item_id": item_id} if isinstance(item_id, str) and item_id.strip() else {}),
     }
 
 
@@ -341,6 +488,14 @@ def build_token_injection_measurement(
         component: _observation(_component_value(item, component), f"{component}_tokens")
         for component in TOKEN_COMPONENTS
     }
+    cache_observations: dict[str, tuple[int | None, str, str | None]] = {
+        component: _cache_observation(
+            _cache_component_value(item, component),
+            f"{component}_tokens",
+        )
+        for component in TOKEN_CACHE_COMPONENTS
+    }
+    provider_usage = _provider_usage(item)
     uncertainty = _uncertainty(item.get("uncertainty"))
     status = (
         "AVAILABLE"
@@ -368,7 +523,6 @@ def build_token_injection_measurement(
         or datetime.now(UTC).isoformat()
     )
     identity = {
-        "artifact_sha256": artifact_digest,
         "source": source,
         "host": resolved_host,
         "channel": resolved_channel,
@@ -402,6 +556,7 @@ def build_token_injection_measurement(
             artifact_path=relative_artifact,
             artifact_sha256=artifact_digest,
             value=item.get("provenance") if isinstance(item.get("provenance"), Mapping) else None,
+            item_id=item.get("item_id"),
         ),
         "skill_tokens": observations["skill"][0],
         "skill_status": observations["skill"][1],
@@ -411,6 +566,19 @@ def build_token_injection_measurement(
         "report_status": observations["report"][1],
         "context_tokens": observations["context"][0],
         "context_status": observations["context"][1],
+        **{
+            f"{component}_tokens": cache_observations[component][0]
+            for component in TOKEN_CACHE_COMPONENTS
+        },
+        **{
+            f"{component}_status": cache_observations[component][1]
+            for component in TOKEN_CACHE_COMPONENTS
+        },
+        **{
+            f"{component}_source_path": cache_observations[component][2]
+            for component in TOKEN_CACHE_COMPONENTS
+        },
+        **provider_usage,
         "uncertainty": uncertainty,
         "status": status,
     }
@@ -421,10 +589,11 @@ def validate_token_injection_measurement(record: Mapping[str, Any]) -> dict[str,
     """Validate and copy a token injection event without fabricating facts."""
 
     fields = set(TOKEN_INJECTION_FIELDS)
+    legacy_fields = fields - _LEGACY_PROVIDER_FIELDS
     if not isinstance(record, Mapping):
         raise TokenInjectionError("token injection record must be a mapping")
-    if set(record) != fields:
-        missing = sorted(fields - set(record))
+    if set(record) not in (fields, legacy_fields):
+        missing = sorted(legacy_fields - set(record))
         extra = sorted(set(record) - fields)
         raise TokenInjectionError(
             f"token injection keys mismatch; missing={missing}, extra={extra}"
@@ -432,6 +601,8 @@ def validate_token_injection_measurement(record: Mapping[str, Any]) -> dict[str,
     if record["schema_version"] != TOKEN_INJECTION_SCHEMA_VERSION:
         raise TokenInjectionError("token injection schema_version must equal 1")
     normalized = dict(record)
+    if set(record) == legacy_fields:
+        normalized.update(_provider_usage({}))
     _timestamp(record["ts"])
     for field in ("host", "channel", "profile", "event_id"):
         _string(record[field], field)
@@ -461,15 +632,32 @@ def validate_token_injection_measurement(record: Mapping[str, Any]) -> dict[str,
         raise TokenInjectionError("salt must be a non-empty scalar or null")
     _safe_repo_sha(record["repo_sha"], "repo_sha")
     provenance = record["provenance"]
-    if not isinstance(provenance, Mapping) or set(provenance) != {
-        "kind",
-        "artifact_path",
-        "artifact_sha256",
-    }:
-        raise TokenInjectionError("provenance must contain kind, artifact_path, artifact_sha256")
+    valid_provenance_keys = (
+        {"kind", "artifact_path", "artifact_sha256"},
+        {"kind", "artifact_path", "artifact_sha256", "fixture_type"},
+        {"kind", "artifact_path", "artifact_sha256", "item_id"},
+        {"kind", "artifact_path", "artifact_sha256", "fixture_type", "item_id"},
+    )
+    if not isinstance(provenance, Mapping) or set(provenance) not in valid_provenance_keys:
+        raise TokenInjectionError(
+            "provenance must contain kind, artifact_path, artifact_sha256, "
+            "and optional fixture_type"
+        )
     _string(provenance["kind"], "provenance.kind")
     _safe_relative(provenance["artifact_path"], "provenance.artifact_path", nullable=True)
     _safe_sha(provenance["artifact_sha256"], "provenance.artifact_sha256")
+    if "fixture_type" in provenance:
+        if provenance["fixture_type"] not in FIXTURE_PROVENANCE_TYPES:
+            raise TokenInjectionError("provenance.fixture_type is unsupported")
+        if record["source"] == "replay" and provenance["fixture_type"] in {
+            "captured",
+            "vendor-doc",
+        }:
+            raise TokenInjectionError("replay evidence cannot be labeled captured or vendor-doc")
+    if "item_id" in provenance and (
+        not isinstance(provenance["item_id"], str) or not provenance["item_id"].strip()
+    ):
+        raise TokenInjectionError("provenance.item_id must be a non-empty string when present")
     for component in TOKEN_COMPONENTS:
         value = record[f"{component}_tokens"]
         status = _status(record[f"{component}_status"], f"{component}_status")
@@ -477,6 +665,44 @@ def validate_token_injection_measurement(record: Mapping[str, Any]) -> dict[str,
             _non_negative_int(value, f"{component}_tokens")
         if (value is None) != (status == "INSUFFICIENT"):
             raise TokenInjectionError(f"{component}_tokens and {component}_status disagree")
+    for component in TOKEN_CACHE_COMPONENTS:
+        value = record[f"{component}_tokens"]
+        status = _status(record[f"{component}_status"], f"{component}_status")
+        source_path = record[f"{component}_source_path"]
+        if source_path is not None and (
+            not isinstance(source_path, str) or not source_path.strip()
+        ):
+            raise TokenInjectionError(f"{component}_source_path must be a non-empty string or null")
+        if value is not None:
+            _non_negative_int(value, f"{component}_tokens")
+        if (value is None) != (status == "INSUFFICIENT"):
+            raise TokenInjectionError(f"{component}_tokens and {component}_status disagree")
+    for component in ("input", "output", "total"):
+        value = normalized[f"provider_{component}_tokens"]
+        status = _status(
+            normalized[f"provider_{component}_status"],
+            f"provider_{component}_status",
+        )
+        source_path = normalized[f"provider_{component}_source_path"]
+        if source_path is not None and (
+            not isinstance(source_path, str) or not source_path.strip()
+        ):
+            raise TokenInjectionError(
+                f"provider_{component}_source_path must be a non-empty string or null"
+            )
+        if value is not None:
+            _non_negative_int(value, f"provider_{component}_tokens")
+        if (value is None) != (status == "INSUFFICIENT"):
+            raise TokenInjectionError(
+                f"provider_{component}_tokens and provider_{component}_status disagree"
+            )
+    for field in ("provider_usage_status",):
+        _status(normalized[field], field)
+    if normalized["provider_usage_source_path"] is not None and (
+        not isinstance(normalized["provider_usage_source_path"], str)
+        or not normalized["provider_usage_source_path"].strip()
+    ):
+        raise TokenInjectionError("provider_usage_source_path must be a non-empty string or null")
     normalized["uncertainty"] = _uncertainty(record["uncertainty"])
     _status(record["status"], "status")
     _validate_schema(normalized)
@@ -484,20 +710,97 @@ def validate_token_injection_measurement(record: Mapping[str, Any]) -> dict[str,
 
 
 def _existing_event(ledger: Path, event_id: str) -> dict[str, Any] | None:
-    if not ledger.exists():
-        return None
-    if ledger.is_file() and ledger.stat().st_size == 0:
-        return None
-    from devolaflow.harness.aggregator import load_ledger_records
-
-    source = ledger.parent if ledger.name == _BASE_LEDGER_NAME else ledger
-    if source.is_dir():
-        base = source / _BASE_LEDGER_NAME
-        if base.is_file() and base.stat().st_size == 0:
-            return None
-    for record in load_ledger_records(source):
+    for record in _existing_json_records(ledger):
         if record.get("event_id") == event_id:
             return record
+    return None
+
+
+_TRANSPORT_PROVENANCE_FIELDS: Final[frozenset[str]] = frozenset(
+    {"artifact_path", "artifact_sha256"}
+)
+
+
+def _measurement_content(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Return content used to compare measurements across artifact transports.
+
+    ``event_id`` historically included the artifact digest, and both artifact
+    provenance fields describe the transport rather than the observed token
+    measurement.  Excluding those fields lets a rewritten artifact identify
+    the same measurement without permitting changed observations through.
+    """
+
+    content = dict(record)
+    content.pop("event_id", None)
+    provenance = content.get("provenance")
+    if isinstance(provenance, Mapping):
+        content["provenance"] = {
+            key: value
+            for key, value in provenance.items()
+            if key not in _TRANSPORT_PROVENANCE_FIELDS
+        }
+    return content
+
+
+def _measurement_difference(
+    existing: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+) -> list[str]:
+    existing_content = _measurement_content(existing)
+    candidate_content = _measurement_content(candidate)
+    fields = sorted(set(existing_content) | set(candidate_content))
+    return [
+        field for field in fields if existing_content.get(field) != candidate_content.get(field)
+    ]
+
+
+def _artifact_sha(record: Mapping[str, Any]) -> object:
+    provenance = record.get("provenance")
+    return provenance.get("artifact_sha256") if isinstance(provenance, Mapping) else None
+
+
+def _existing_json_records(ledger: Path) -> list[dict[str, Any]]:
+    """Read only JSON objects needed for dedupe, tolerating unrelated old events."""
+
+    if not ledger.exists():
+        return []
+    paths = [ledger] if ledger.is_file() else sorted(ledger.glob("harness*.jsonl"))
+    records: list[dict[str, Any]] = []
+    for path in paths:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError) as exc:
+            logger.warning("token injection dedupe could not read %s: %s", path, exc)
+            continue
+        for line_number, line in enumerate(lines, start=1):
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError as exc:
+                logger.warning("token injection dedupe skipped %s:%d: %s", path, line_number, exc)
+                continue
+            if isinstance(parsed, dict):
+                records.append(parsed)
+    return records
+
+
+def _existing_measurement_identity(
+    ledger: Path,
+    record: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Find a prior event for the same source/run/item identity."""
+
+    for existing in _existing_json_records(ledger):
+        existing_provenance = existing.get("provenance")
+        provenance = record.get("provenance")
+        if (
+            existing.get("event") == TOKEN_INJECTION_EVENT
+            and existing.get("source") == record["source"]
+            and existing.get("run_id") == record["run_id"]
+            and isinstance(existing_provenance, Mapping)
+            and isinstance(provenance, Mapping)
+            and existing_provenance.get("item_id") == provenance.get("item_id")
+        ):
+            return existing
     return None
 
 
@@ -505,16 +808,42 @@ def append_token_injection_measurement(
     ledger: str | Path,
     record: Mapping[str, Any],
 ) -> Path:
-    """Append one event, idempotently accepting an identical prior event."""
+    """Append one event, deduplicating equivalent measurements across transports."""
 
     path = Path(ledger)
     normalized = validate_token_injection_measurement(record)
     existing = _existing_event(path, normalized["event_id"])
     if existing is not None:
-        if existing != normalized:
+        differences = _measurement_difference(existing, normalized)
+        if differences:
             raise TokenInjectionError(
-                f"event_id collision with different measurement: {normalized['event_id']}"
+                "event_id collision with different measurement: "
+                f"{normalized['event_id']}; changed fields: {', '.join(differences)}"
             )
+        logger.info(
+            "token injection deduplicated: reason=measurement_content_match "
+            "transport_artifact_sha_changed=%s event_id=%s",
+            _artifact_sha(existing) != _artifact_sha(normalized),
+            normalized["event_id"],
+        )
+        return path if path.name != _BASE_LEDGER_NAME else path
+    existing_identity = _existing_measurement_identity(path, normalized)
+    if existing_identity is not None:
+        differences = _measurement_difference(existing_identity, normalized)
+        if differences:
+            raise TokenInjectionError(
+                "source/run_id/item_id collision with different measurement: "
+                f"{normalized['source']}/{normalized['run_id']}/"
+                f"{normalized.get('item_id')}; changed fields: {', '.join(differences)}"
+            )
+        logger.info(
+            "token injection deduplicated: reason=measurement_content_match "
+            "transport_artifact_sha_changed=%s identity=%s/%s/%s",
+            _artifact_sha(existing_identity) != _artifact_sha(normalized),
+            normalized["source"],
+            normalized["run_id"],
+            normalized.get("item_id"),
+        )
         return path if path.name != _BASE_LEDGER_NAME else path
     if path.name == _BASE_LEDGER_NAME:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -645,6 +974,7 @@ __all__ = [
     "TOKEN_INJECTION_FIELDS",
     "TOKEN_INJECTION_SCHEMA_VERSION",
     "TOKEN_INJECTION_SOURCES",
+    "FIXTURE_PROVENANCE_TYPES",
     "TokenInjectionError",
     "append_token_injection_measurement",
     "build_token_injection_measurement",

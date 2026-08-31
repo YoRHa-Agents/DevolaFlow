@@ -1,0 +1,52 @@
+{
+  "artifact_type": "v23.1.0_validation_rerun_metadata",
+  "run_id": "calibration-63648620722f1d2c43851cd0233ff79a0ff144e9ec6e856a4b8ea65ec29066f6",
+  "caller_salt": "c6-20260901-0302",
+  "seed": "v23.1.0-c6-rerun-20260901",
+  "repo_sha": "05a87295ac2d5b7ff5f7c0d9028ac6fa73c936dc",
+  "observed_package_version": "23.0.0",
+  "matrix": {
+    "hosts": [
+      "claude",
+      "codex",
+      "kimi"
+    ],
+    "channels": [
+      "claude",
+      "codex",
+      "kimi"
+    ],
+    "arms": [
+      "skill-off",
+      "skill-on"
+    ],
+    "task_classes": [
+      "read-only",
+      "tool-heavy"
+    ],
+    "replicates": 1,
+    "planned_cells": 12,
+    "mapping": "current calibration dimensions: channel -> PROBE_HOSTS host; task_class -> current TASK_CLASSES; arm -> skill-on/skill-off"
+  },
+  "timeout_seconds": 180.0,
+  "total_timeout_seconds": 2400.0,
+  "cli_versions": {
+    "claude": {
+      "executable": "claude",
+      "exit_code": 0,
+      "version": "2.1.251 (Claude Code)"
+    },
+    "codex": {
+      "executable": "codex",
+      "exit_code": 0,
+      "version": "codex-cli 0.151.0"
+    },
+    "kimi": {
+      "executable": "kimi",
+      "exit_code": 0,
+      "version": "0.39.1"
+    }
+  },
+  "generated_at": "2026-08-31T19:03:30.584620+00:00",
+  "raw_output_policy": "runner summaries only; no token/key/bearer/raw secret output retained"
+}

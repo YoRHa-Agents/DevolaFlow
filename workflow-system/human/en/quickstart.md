@@ -4,8 +4,8 @@ description: "Install DevolaFlow, verify the correct channel, and run a first ch
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T15:15:03Z"
-source_version: "23.0.0"
+last_synced: "2026-08-31T19:51:12Z"
+source_version: "23.1.0"
 ---
 
 # Quick Start Guide

@@ -2508,5 +2508,18 @@
       "Token evidence — six-channel capture/replay and 120-run operator matrix preserve provenance without converting unavailable observations to PASS"
     ],
     "metrics": {}
+  },
+  {
+    "version": "23.1.0",
+    "date": "2026-09-01",
+    "era": "evidence-preserving-harness-closeout",
+    "headline": "MINOR — Evidence-Preserving Harness Closeout",
+    "summary": "Provider usage and cache provenance are retained separately from local estimates, token measurement deduplication is repaired, and missing observations remain explicitly INSUFFICIENT.",
+    "highlights": [
+      "Provider accounting — input/output/total and cache component provenance remain distinct from local estimates",
+      "Deduplication repair — rewritten transport artifacts no longer create false measurement collisions",
+      "Evidence boundary — 12/12 execution cells pass, provider usage is available for 8/12, and ROI remains INSUFFICIENT"
+    ],
+    "metrics": {}
   }
 ]

@@ -184,8 +184,8 @@ def test_current_demo_release_window_has_no_upcoming_release_residue(project_roo
 
     assert "Upcoming release" not in demo
     assert "即将发布" not in demo
-    assert demo.count("New in v23.0.0 · Runtime Gates and Token Evidence") == 2
-    assert "v23.0.0 新变化 · Runtime Gates and Token Evidence" in demo
+    assert demo.count("New in v23.1.0 · Evidence-Preserving Harness Closeout") == 2
+    assert "v23.1.0 新变化 · Evidence-Preserving Harness Closeout" in demo
 
 
 def test_demo_promotion_allows_already_promoted_pages() -> None:

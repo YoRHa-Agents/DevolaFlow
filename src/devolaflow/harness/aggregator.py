@@ -12,14 +12,21 @@ from typing import Any, Final
 
 from devolaflow.harness.metadata import MetadataError, validate_run_metadata
 from devolaflow.harness.telemetry import (
+    AGENTS_MD_TOKEN_FIELD,
     CONSOLIDATION_METRIC_NAMES,
     CONSOLIDATION_METRICS_EVENT,
     CONTEXT_TOKEN_EVENT,
     CONTEXT_TOKEN_FIELDS,
+    DISPATCH_TOKEN_FIELD,
+    HOST_RULE_TOKEN_FIELD,
+    LEGACY_AGENTS_MD_TOKEN_FIELD,
+    LEGACY_DISPATCH_TOKEN_FIELD,
+    LEGACY_HOST_RULE_TOKEN_FIELD,
     METRIC_OBSERVATION_EVENT,
     METRIC_OBSERVATION_FIELDS,
     SI10_GATE_EVENT,
     SI10_GATE_NAMES,
+    TOKEN_ESTIMATOR_FIELD,
     compare_metric_observation_sets,
     validate_metric_observation,
 )
@@ -40,7 +47,7 @@ _REQUIRED_FIELDS: Final[tuple[str, ...]] = (
     "round",
     "layer",
     "dispatch_id",
-    "tokens_injected_measured",
+    DISPATCH_TOKEN_FIELD,
     "tokens_budget",
     "constraint_count",
     "quantifiable_ratio",
@@ -102,6 +109,41 @@ _METRIC_OBSERVATION_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
 
 class AggregationError(ValueError):
     """A ledger path, segment, line, or telemetry record is invalid."""
+
+
+def _compat_value(record: Mapping[str, Any], canonical: str, legacy: str) -> Any:
+    """Read a canonical field while accepting one historical spelling."""
+
+    return record[canonical] if canonical in record else record.get(legacy)
+
+
+def _validate_token_estimator(
+    value: object,
+    *,
+    path: Path,
+    line: int,
+) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "source",
+        "tokenizer",
+        "model",
+        "encoding",
+        "fallback_semantics",
+        "provider_usage",
+    }:
+        raise _error(
+            path,
+            line,
+            "token_estimator must contain source, tokenizer, model, encoding, "
+            "fallback_semantics, provider_usage",
+        )
+    for field in ("source", "tokenizer", "fallback_semantics"):
+        _non_empty_string(value[field], path=path, line=line, field=f"token_estimator.{field}")
+    for field in ("model", "encoding"):
+        if value[field] is not None:
+            _non_empty_string(value[field], path=path, line=line, field=f"token_estimator.{field}")
+    if value["provider_usage"] is not False:
+        raise _error(path, line, "token_estimator.provider_usage must be false")
 
 
 def _error(path: Path, line_number: int | None, message: str) -> AggregationError:
@@ -242,8 +284,14 @@ def _validate_consolidation_metrics_event(
     path: Path,
     line: int,
 ) -> dict[str, Any]:
+    compatibility_record = record
+    if LEGACY_AGENTS_MD_TOKEN_FIELD in record and AGENTS_MD_TOKEN_FIELD not in record:
+        compatibility_record = {
+            **{key: value for key, value in record.items() if key != LEGACY_AGENTS_MD_TOKEN_FIELD},
+            AGENTS_MD_TOKEN_FIELD: record[LEGACY_AGENTS_MD_TOKEN_FIELD],
+        }
     _check_event_fields(
-        record,
+        {key: value for key, value in compatibility_record.items() if key != TOKEN_ESTIMATOR_FIELD},
         _CONSOLIDATION_EVENT_FIELDS,
         path=path,
         line=line,
@@ -254,10 +302,10 @@ def _validate_consolidation_metrics_event(
     _validate_timestamp(record["ts"], path=path, line=line)
     _non_empty_string(record["event_id"], path=path, line=line, field="event_id")
     for field in CONSOLIDATION_METRIC_NAMES:
-        value = record[field]
+        value = compatibility_record[field]
         if value is None:
             continue
-        if field in {"agents_md_tokens", "cjk_violations", "ghost_loc"}:
+        if field in {AGENTS_MD_TOKEN_FIELD, "cjk_violations", "ghost_loc"}:
             _integer(value, path=path, line=line, field=field, minimum=0)
         elif (
             isinstance(value, bool)
@@ -266,6 +314,8 @@ def _validate_consolidation_metrics_event(
             or float(value) < 0.0
         ):
             raise _error(path, line, f"{field} must be a finite non-negative number or null")
+    if TOKEN_ESTIMATOR_FIELD in record:
+        _validate_token_estimator(record[TOKEN_ESTIMATOR_FIELD], path=path, line=line)
     return record
 
 
@@ -381,7 +431,12 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
             if not re.fullmatch(r"[0-9a-f]{64}", digest):
                 raise _error(path, line, f"{field} must be a lowercase SHA-256 value")
         return record
-    missing = [field for field in _REQUIRED_FIELDS if field not in record]
+    missing = [
+        field
+        for field in _REQUIRED_FIELDS
+        if field not in record
+        and not (field == DISPATCH_TOKEN_FIELD and LEGACY_DISPATCH_TOKEN_FIELD in record)
+    ]
     if missing:
         raise _error(path, line, f"missing required field(s): {', '.join(missing)}")
 
@@ -393,10 +448,10 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
         raise _error(path, line, f"layer must be one of {', '.join(_LAYER_ORDER)}")
     _non_empty_string(record["dispatch_id"], path=path, line=line, field="dispatch_id")
     _integer(
-        record["tokens_injected_measured"],
+        _compat_value(record, DISPATCH_TOKEN_FIELD, LEGACY_DISPATCH_TOKEN_FIELD),
         path=path,
         line=line,
-        field="tokens_injected_measured",
+        field=DISPATCH_TOKEN_FIELD,
         minimum=0,
     )
     _integer(
@@ -454,22 +509,24 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
     # fields. Deliberately NOT in _REQUIRED_FIELDS: pre-v17 ledgers keep
     # aggregating. When present they are validated strictly like every
     # other telemetry value.
-    if "host_rule_tokens" in record:
+    if HOST_RULE_TOKEN_FIELD in record or LEGACY_HOST_RULE_TOKEN_FIELD in record:
         _integer(
-            record["host_rule_tokens"],
+            _compat_value(record, HOST_RULE_TOKEN_FIELD, LEGACY_HOST_RULE_TOKEN_FIELD),
             path=path,
             line=line,
-            field="host_rule_tokens",
+            field=HOST_RULE_TOKEN_FIELD,
             minimum=0,
         )
-    if "agents_md_tokens" in record:
+    if AGENTS_MD_TOKEN_FIELD in record or LEGACY_AGENTS_MD_TOKEN_FIELD in record:
         _integer(
-            record["agents_md_tokens"],
+            _compat_value(record, AGENTS_MD_TOKEN_FIELD, LEGACY_AGENTS_MD_TOKEN_FIELD),
             path=path,
             line=line,
-            field="agents_md_tokens",
+            field=AGENTS_MD_TOKEN_FIELD,
             minimum=0,
         )
+    if TOKEN_ESTIMATOR_FIELD in record:
+        _validate_token_estimator(record[TOKEN_ESTIMATOR_FIELD], path=path, line=line)
     for field in ("suite_wall_seconds", "cjk_violations", "ghost_loc"):
         if field not in record:
             continue
@@ -536,13 +593,28 @@ def nearest_rank(values: list[float | int], percentile: float) -> float | int:
 def _optional_mean(records: list[dict[str, Any]], field: str) -> float | None:
     """Mean of ``field`` over the records that carry it; ``None`` when none do.
 
-    v17.0.0 R3 (D-R3-2): ``host_rule_tokens`` / ``slice_savings_pct`` are
-    optional record fields, so their means are computed only over carrying
-    records. The ``None``-when-absent convention mirrors the existing
-    ``rounds.min`` / ``rounds.max`` absent-metric style.
+    v17.0.0 R3 (D-R3-2): ``estimated_host_rule_tokens`` /
+    ``slice_savings_pct`` are optional record fields, so their means are
+    computed only over carrying records. The ``None``-when-absent convention
+    mirrors the existing ``rounds.min`` / ``rounds.max`` absent-metric style.
     """
 
     values = [record[field] for record in records if field in record]
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def _optional_compat_mean(
+    records: list[dict[str, Any]],
+    canonical: str,
+    legacy: str,
+) -> float | None:
+    values = [
+        _compat_value(record, canonical, legacy)
+        for record in records
+        if canonical in record or legacy in record
+    ]
     if not values:
         return None
     return sum(values) / len(values)
@@ -634,11 +706,22 @@ def _token_injection_group(records: list[dict[str, Any]]) -> dict[str, Any]:
             "status": "AVAILABLE" if values else "INSUFFICIENT",
         }
     complete = sum(record["status"] == "AVAILABLE" for record in records)
+    provider_usage: dict[str, dict[str, Any]] = {}
+    for component in ("input", "output", "total"):
+        field = f"provider_{component}_tokens"
+        values = [record[field] for record in records if record.get(field) is not None]
+        provider_usage[component] = {
+            "mean": sum(values) / len(values) if values else None,
+            "observed_records": len(values),
+            "coverage": _coverage(len(values), total),
+            "status": "AVAILABLE" if values else "INSUFFICIENT",
+        }
     return {
         "records": total,
         "complete_records": complete,
         "coverage": _coverage(complete, total),
         "components": components,
+        "provider_usage": provider_usage,
         "status": "AVAILABLE" if total and complete == total else "INSUFFICIENT",
     }
 
@@ -683,8 +766,9 @@ def _measurement_summary(
     """Summarize optional measurements without filling historical gaps.
 
     Dedicated measurement events take precedence over dispatch fields. This
-    prevents ``agents_md_tokens`` from being counted twice when a current run
-    emits both legacy-compatible dispatch records and one measurement event.
+    prevents ``estimated_agents_md_tokens`` from being counted twice when a
+    current run emits both legacy-compatible dispatch records and one
+    measurement event.
     """
 
     events = _measurement_records(records)
@@ -692,7 +776,13 @@ def _measurement_summary(
     summary: dict[str, dict[str, Any]] = {}
     for field in CONSOLIDATION_METRIC_NAMES:
         if observations:
-            matching = [record for record in observations if record["metric"] == field]
+            matching = [
+                record
+                for record in observations
+                if record["metric"]
+                == (LEGACY_AGENTS_MD_TOKEN_FIELD if field == AGENTS_MD_TOKEN_FIELD else field)
+                or record["metric"] == field
+            ]
             values = [record["value"] for record in matching]
             entry = {
                 "mean": sum(values) / len(values) if values else None,
@@ -705,9 +795,18 @@ def _measurement_summary(
             summary[field] = entry
             continue
         values = (
-            [event[field] for event in events if event[field] is not None]
+            [
+                _compat_value(event, field, LEGACY_AGENTS_MD_TOKEN_FIELD)
+                for event in events
+                if (field in event or LEGACY_AGENTS_MD_TOKEN_FIELD in event)
+                and _compat_value(event, field, LEGACY_AGENTS_MD_TOKEN_FIELD) is not None
+            ]
             if events
-            else [record[field] for record in dispatch_records if field in record]
+            else [
+                _compat_value(record, field, LEGACY_AGENTS_MD_TOKEN_FIELD)
+                for record in dispatch_records
+                if (field in record or LEGACY_AGENTS_MD_TOKEN_FIELD in record)
+            ]
         )
         entry = {
             "mean": sum(values) / len(values) if values else None,
@@ -740,18 +839,25 @@ def aggregate_metric_observations(
 
 
 def _token_metrics(records: list[dict[str, Any]]) -> dict[str, float | int]:
-    measured = [record["tokens_injected_measured"] for record in records]
+    estimated = [
+        _compat_value(record, DISPATCH_TOKEN_FIELD, LEGACY_DISPATCH_TOKEN_FIELD)
+        for record in records
+    ]
     utilizations = [
-        record["tokens_injected_measured"] / record["tokens_budget"] for record in records
+        _compat_value(record, DISPATCH_TOKEN_FIELD, LEGACY_DISPATCH_TOKEN_FIELD)
+        / record["tokens_budget"]
+        for record in records
     ]
     compliant = sum(
-        record["tokens_injected_measured"] <= record["tokens_budget"] for record in records
+        _compat_value(record, DISPATCH_TOKEN_FIELD, LEGACY_DISPATCH_TOKEN_FIELD)
+        <= record["tokens_budget"]
+        for record in records
     )
     return {
-        "total": sum(measured),
-        "mean": sum(measured) / len(measured),
-        "p50": nearest_rank(measured, 0.50),
-        "p95": nearest_rank(measured, 0.95),
+        "total": sum(estimated),
+        "mean": sum(estimated) / len(estimated),
+        "p50": nearest_rank(estimated, 0.50),
+        "p95": nearest_rank(estimated, 0.95),
         "budget_compliance_ratio": compliant / len(records),
         "p95_budget_utilization": nearest_rank(utilizations, 0.95),
     }
@@ -770,11 +876,15 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     rounds = [record["round"] for record in dispatch_records]
     if dispatch_records:
         token_metrics = _token_metrics(dispatch_records)
-        token_metrics["host_rule_tokens_mean"] = _optional_mean(
-            dispatch_records, "host_rule_tokens"
+        token_metrics[f"{HOST_RULE_TOKEN_FIELD}_mean"] = _optional_compat_mean(
+            dispatch_records,
+            HOST_RULE_TOKEN_FIELD,
+            LEGACY_HOST_RULE_TOKEN_FIELD,
         )
-        token_metrics["agents_md_tokens_mean"] = _optional_mean(
-            dispatch_records, "agents_md_tokens"
+        token_metrics[f"{AGENTS_MD_TOKEN_FIELD}_mean"] = _optional_compat_mean(
+            dispatch_records,
+            AGENTS_MD_TOKEN_FIELD,
+            LEGACY_AGENTS_MD_TOKEN_FIELD,
         )
         token_metrics["slice_savings_pct_mean"] = _optional_mean(
             dispatch_records, "slice_savings_pct"
@@ -798,8 +908,8 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "p95": 0,
             "budget_compliance_ratio": 0.0,
             "p95_budget_utilization": 0.0,
-            "host_rule_tokens_mean": None,
-            "agents_md_tokens_mean": None,
+            f"{HOST_RULE_TOKEN_FIELD}_mean": None,
+            f"{AGENTS_MD_TOKEN_FIELD}_mean": None,
             "slice_savings_pct_mean": None,
             "context_tokens": _context_token_summary(records),
             "by_layer": {},

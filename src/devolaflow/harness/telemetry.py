@@ -47,6 +47,10 @@ from devolaflow.harness.dispatch_context import (
     dispatch_context,
 )
 from devolaflow.harness.metadata import attach_run_metadata
+from devolaflow.harness.telemetry_comparison import (
+    compare_metric_observation_sets,
+    compare_metric_observations,
+)
 from devolaflow.harness.telemetry_storage import (
     HARNESS_SEGMENT_MAX_BYTES,
     MAX_HARNESS_SEGMENT_BYTES,
@@ -75,10 +79,24 @@ if TYPE_CHECKING:
 EVENT: Final[str] = "post_dispatch"
 CONSOLIDATION_METRICS_EVENT: Final[str] = "consolidation_metrics"
 CONSOLIDATION_METRIC_NAMES: Final[tuple[str, ...]] = (
-    "agents_md_tokens",
+    "estimated_agents_md_tokens",
     "suite_wall_seconds",
     "cjk_violations",
     "ghost_loc",
+)
+LEGACY_DISPATCH_TOKEN_FIELD: Final[str] = "tokens_injected_measured"
+DISPATCH_TOKEN_FIELD: Final[str] = "tokens_injected_estimated"
+LEGACY_HOST_RULE_TOKEN_FIELD: Final[str] = "host_rule_tokens"
+HOST_RULE_TOKEN_FIELD: Final[str] = "estimated_host_rule_tokens"
+LEGACY_AGENTS_MD_TOKEN_FIELD: Final[str] = "agents_md_tokens"
+AGENTS_MD_TOKEN_FIELD: Final[str] = "estimated_agents_md_tokens"
+TOKEN_ESTIMATOR_FIELD: Final[str] = "token_estimator"
+_LEGACY_CONSOLIDATION_METRIC_ALIASES: Final[dict[str, str]] = {
+    LEGACY_AGENTS_MD_TOKEN_FIELD: AGENTS_MD_TOKEN_FIELD,
+}
+_TOKEN_ESTIMATOR_SOURCE: Final[str] = "devolaflow.task_adaptive_selector.estimate_tokens"
+_TOKEN_ESTIMATOR_FALLBACK: Final[str] = (
+    "when tiktoken is unavailable or fails, use max(1, len(text)//4)"
 )
 METRIC_OBSERVATION_EVENT: Final[str] = "metric_observation"
 METRIC_OBSERVATION_FIELDS: Final[tuple[str, ...]] = (
@@ -193,6 +211,47 @@ def _model_hint(payload: dict[str, Any]) -> str:
     return "inherit"
 
 
+def _token_estimator_provenance() -> dict[str, Any]:
+    """Describe the local estimator used by dispatch token accounting.
+
+    This metadata deliberately says that the value is not provider usage.
+    Import/encoding failures are expected estimator routing conditions; the
+    estimator itself logs failures and applies the same fallback semantics.
+    """
+
+    try:
+        import tiktoken
+    except ImportError:
+        return {
+            "source": _TOKEN_ESTIMATOR_SOURCE,
+            "tokenizer": "character_heuristic",
+            "model": None,
+            "encoding": None,
+            "fallback_semantics": _TOKEN_ESTIMATOR_FALLBACK,
+            "provider_usage": False,
+        }
+    try:
+        encoder = tiktoken.encoding_for_model("gpt-4o")
+    except Exception as exc:  # noqa: BLE001 - provenance must not block telemetry
+        logger.warning("token estimator provenance probe failed; recording fallback: %s", exc)
+        return {
+            "source": _TOKEN_ESTIMATOR_SOURCE,
+            "tokenizer": "character_heuristic",
+            "model": "gpt-4o",
+            "encoding": None,
+            "fallback_semantics": _TOKEN_ESTIMATOR_FALLBACK,
+            "provider_usage": False,
+        }
+    return {
+        "source": _TOKEN_ESTIMATOR_SOURCE,
+        "tokenizer": "tiktoken",
+        "model": "gpt-4o",
+        "encoding": getattr(encoder, "name", "o200k_base"),
+        "fallback_semantics": _TOKEN_ESTIMATOR_FALLBACK,
+        "provider_usage": False,
+    }
+
+
 def _dispatch_task_type(payload: dict[str, Any]) -> str:
     """Resolve the dispatch task type for AGENTS.md-slice accounting.
 
@@ -207,7 +266,7 @@ def _dispatch_task_type(payload: dict[str, Any]) -> str:
 
     Returns ``""`` when unresolvable — the slice module's ``fallback:
     full`` semantics then yield ``slice_savings_pct == 0.0`` with
-    ``host_rule_tokens`` still carrying the full AGENTS.md estimate.
+    ``estimated_host_rule_tokens`` still carrying the full AGENTS.md estimate.
     """
 
     task = _mapping(payload, "task")
@@ -226,11 +285,11 @@ def _dispatch_task_type(payload: dict[str, Any]) -> str:
 
 
 def _slice_injection_metrics(payload: dict[str, Any]) -> tuple[int, float]:
-    """Return ``(host_rule_tokens, slice_savings_pct)`` for one dispatch.
+    """Return ``(estimated_host_rule_tokens, slice_savings_pct)`` for one dispatch.
 
     v17.0.0 R3 (G17-B3 / D-R3-2) — host injection accounting:
 
-      * ``host_rule_tokens`` is the FULL AGENTS.md corpus estimate
+      * ``estimated_host_rule_tokens`` is the FULL AGENTS.md corpus estimate
         (``full_tokens``), because hosts inject the unsliced corpus today;
         the slice is configured but unwired on the host side.
       * ``slice_savings_pct`` is the YAML-CONFIGURED slice's available
@@ -254,7 +313,7 @@ def _slice_injection_metrics(payload: dict[str, Any]) -> tuple[int, float]:
     except Exception as exc:  # noqa: BLE001 - telemetry stays nonblocking
         logger.warning(
             "harness telemetry AGENTS.md slice accounting failed: %s; "
-            "host_rule_tokens/slice_savings_pct zeroed",
+            "estimated_host_rule_tokens/slice_savings_pct zeroed",
             exc,
         )
         return 0, 0.0
@@ -298,7 +357,7 @@ def build_dispatch_record(
     """Build one exact-schema harness record from a dispatch payload.
 
     v17.0.0 R3 (G17-B3 / D-R3-2) appended two host-injection accounting
-    fields: ``host_rule_tokens`` (full AGENTS.md corpus estimate — hosts
+    fields: ``estimated_host_rule_tokens`` (full AGENTS.md corpus estimate — hosts
     inject the unsliced corpus) and ``slice_savings_pct`` (the configured
     slice's available saving for this dispatch's task type, resolved per
     :func:`_dispatch_task_type` / :func:`_slice_injection_metrics`).
@@ -329,8 +388,9 @@ def build_dispatch_record(
     behavioral = _mapping(payload, "behavioral_guidelines")
     advisory_folded = behavioral is not None and behavioral.get("advisory_folded") is True
     model_hint = _model_hint(payload)
-    measured = estimate_tokens(stable_yaml(payload))
-    host_rule_tokens, slice_savings_pct = _slice_injection_metrics(payload)
+    estimated = estimate_tokens(stable_yaml(payload))
+    estimated_host_rule_tokens, slice_savings_pct = _slice_injection_metrics(payload)
+    estimator_provenance = _token_estimator_provenance()
     resolved_context_tokens = _resolve_context_tokens(
         payload,
         context_tokens,
@@ -348,29 +408,29 @@ def build_dispatch_record(
         "round": _round_number(payload),
         "layer": layer,
         "dispatch_id": _dispatch_id(payload),
-        "tokens_injected_measured": measured,
+        DISPATCH_TOKEN_FIELD: estimated,
         "tokens_budget": LAYER_TOKEN_BUDGETS[layer],
         "constraint_count": constraint_count,
         "quantifiable_ratio": quantifiable_ratio,
         "tier_breakdown": tier_breakdown,
         "advisory_folded": advisory_folded,
         "model_hint": model_hint,
-        "host_rule_tokens": host_rule_tokens,
+        HOST_RULE_TOKEN_FIELD: estimated_host_rule_tokens,
         "slice_savings_pct": slice_savings_pct,
         "capacity_profile": {
             "round_capacity": capacity_view.round_capacity,
             "max_concurrency": capacity_view.max_concurrency,
             "source": capacity_view.source,
         },
-        # v18.0.0 — explicit full AGENTS.md token metric for rule-slimming
-        # comparisons; retain host_rule_tokens for backward compatibility.
-        "agents_md_tokens": host_rule_tokens,
+        # v18.0.0 — explicit full AGENTS.md token metric for rule-slimming.
+        AGENTS_MD_TOKEN_FIELD: estimated_host_rule_tokens,
+        TOKEN_ESTIMATOR_FIELD: estimator_provenance,
     }
     if profile is not None:
         record["profile"] = profile
     if measurements:
         for name in CONSOLIDATION_METRIC_NAMES:
-            if name == "agents_md_tokens":
+            if name == AGENTS_MD_TOKEN_FIELD:
                 continue
             if name in measurements:
                 record[name] = _validate_measurement_value(name, measurements[name])
@@ -388,7 +448,7 @@ def build_dispatch_record(
 def _validate_measurement_value(name: str, value: object) -> int | float | None:
     if value is None:
         return None
-    if name in {"agents_md_tokens", "cjk_violations", "ghost_loc"}:
+    if name in {AGENTS_MD_TOKEN_FIELD, "cjk_violations", "ghost_loc"}:
         if type(value) is not int or value < 0:
             raise TelemetryGateError(f"{name} must be a non-negative integer or null")
         return value
@@ -659,130 +719,6 @@ def append_metric_observation(
     return path
 
 
-def _comparison_provenance(observation: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "source_revision": observation["source_revision"],
-        "command": observation["command"],
-        "environment": observation["environment"],
-        "measurement": observation["measurement"],
-    }
-
-
-def _observation_payload(candidate: Mapping[str, Any]) -> Mapping[str, Any]:
-    if candidate.get("event") == METRIC_OBSERVATION_EVENT:
-        return {
-            field: candidate[field] for field in METRIC_OBSERVATION_FIELDS if field in candidate
-        }
-    return candidate
-
-
-def compare_metric_observations(
-    baseline: Mapping[str, Any],
-    current: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Compare one matched item using the approved reduction formula."""
-
-    baseline_payload = _observation_payload(baseline) if isinstance(baseline, Mapping) else baseline
-    current_payload = _observation_payload(current) if isinstance(current, Mapping) else current
-    baseline_id = baseline_payload.get("item_id") if isinstance(baseline_payload, Mapping) else None
-    current_id = current_payload.get("item_id") if isinstance(current_payload, Mapping) else None
-    result: dict[str, Any] = {
-        "item_id": baseline_id if baseline_id == current_id else baseline_id or current_id,
-        "metric": baseline_payload.get("metric") if isinstance(baseline_payload, Mapping) else None,
-        "baseline": (
-            {"value": baseline_payload.get("value")}
-            if isinstance(baseline_payload, Mapping)
-            else None
-        ),
-        "current": (
-            {"value": current_payload.get("value")}
-            if isinstance(current_payload, Mapping)
-            else None
-        ),
-        "matched": False,
-        "status": "INSUFFICIENT",
-    }
-    try:
-        baseline_record = validate_metric_observation(baseline_payload)
-        current_record = validate_metric_observation(current_payload)
-    except (MetricObservationError, AttributeError, TypeError) as exc:
-        result["reason"] = f"invalid observation: {exc}"
-        return result
-
-    result["item_id"] = baseline_record["item_id"]
-    result["metric"] = baseline_record["metric"]
-    result["statistic"] = baseline_record["statistic"]
-    result["baseline"] = {
-        "value": baseline_record["value"],
-        "unit": baseline_record["unit"],
-        "provenance": _comparison_provenance(baseline_record),
-    }
-    result["current"] = {
-        "value": current_record["value"],
-        "unit": current_record["unit"],
-        "provenance": _comparison_provenance(current_record),
-    }
-    mismatches = [
-        field
-        for field in METRIC_OBSERVATION_MATCH_FIELDS
-        if baseline_record[field] != current_record[field]
-    ]
-    if mismatches:
-        result["reason"] = f"measurement identity mismatch: {', '.join(mismatches)}"
-        result["mismatched_fields"] = mismatches
-        return result
-    if baseline_record["value"] <= 0:
-        result["reason"] = "baseline value must be positive"
-        return result
-    result["matched"] = True
-    result["status"] = "AVAILABLE"
-    result["relative_improvement_pct"] = (
-        (baseline_record["value"] - current_record["value"]) / baseline_record["value"] * 100
-    )
-    return result
-
-
-def compare_metric_observation_sets(
-    baseline: list[Mapping[str, Any]],
-    current: list[Mapping[str, Any]],
-) -> list[dict[str, Any]]:
-    """Pair observations by item and metric, marking absent pairs insufficient."""
-
-    def keyed(records: list[Mapping[str, Any]]) -> dict[tuple[object, object], Mapping[str, Any]]:
-        result: dict[tuple[object, object], Mapping[str, Any]] = {}
-        for record in records:
-            payload = _observation_payload(record) if isinstance(record, Mapping) else record
-            key = (
-                payload.get("item_id") if isinstance(payload, Mapping) else None,
-                payload.get("metric") if isinstance(payload, Mapping) else None,
-            )
-            if key in result:
-                raise MetricObservationError(f"duplicate metric observation pair: {key!r}")
-            result[key] = record
-        return result
-
-    baseline_by_key = keyed(baseline)
-    current_by_key = keyed(current)
-    comparisons: list[dict[str, Any]] = []
-    for key in sorted(set(baseline_by_key) | set(current_by_key), key=str):
-        if key not in baseline_by_key or key not in current_by_key:
-            present = baseline_by_key.get(key) or current_by_key.get(key)
-            comparisons.append(
-                {
-                    "item_id": key[0],
-                    "metric": key[1],
-                    "matched": False,
-                    "status": "INSUFFICIENT",
-                    "reason": "baseline or current observation is absent",
-                    "baseline": ({"value": present["value"]} if key in baseline_by_key else None),
-                    "current": {"value": present["value"]} if key in current_by_key else None,
-                }
-            )
-            continue
-        comparisons.append(compare_metric_observations(baseline_by_key[key], current_by_key[key]))
-    return comparisons
-
-
 def build_consolidation_metrics_record(
     measurements: Mapping[str, object],
     *,
@@ -797,7 +733,18 @@ def build_consolidation_metrics_record(
 
     if not isinstance(measurements, Mapping):
         raise TelemetryGateError("measurements must be a mapping")
-    unknown = sorted(set(measurements) - set(CONSOLIDATION_METRIC_NAMES))
+    normalized_measurements: dict[str, object] = {}
+    unknown: list[str] = []
+    for name, value in measurements.items():
+        canonical_name = _LEGACY_CONSOLIDATION_METRIC_ALIASES.get(name, name)
+        if canonical_name not in CONSOLIDATION_METRIC_NAMES:
+            unknown.append(str(name))
+            continue
+        if canonical_name in normalized_measurements:
+            raise TelemetryGateError(
+                f"duplicate consolidation metric aliases for {canonical_name}: {name}"
+            )
+        normalized_measurements[canonical_name] = value
     if unknown:
         raise TelemetryGateError(f"unsupported consolidation metric(s): {', '.join(unknown)}")
     record = {
@@ -806,9 +753,10 @@ def build_consolidation_metrics_record(
         "event_id": f"{CONSOLIDATION_METRICS_EVENT}:{timestamp or 'generated'}",
         "ts": timestamp or datetime.now(UTC).isoformat(),
         **{
-            name: _validate_measurement_value(name, measurements.get(name))
+            name: _validate_measurement_value(name, normalized_measurements.get(name))
             for name in CONSOLIDATION_METRIC_NAMES
         },
+        TOKEN_ESTIMATOR_FIELD: _token_estimator_provenance(),
     }
     return attach_run_metadata(record, metadata)
 
@@ -1082,11 +1030,13 @@ def record_dispatch_telemetry(
 
 
 __all__ = [
+    "AGENTS_MD_TOKEN_FIELD",
     "HARNESS_SEGMENT_MAX_BYTES",
     "LAYER_TOKEN_BUDGETS",
     "MAX_HARNESS_SEGMENT_BYTES",
     "CONSOLIDATION_METRIC_NAMES",
     "CONSOLIDATION_METRICS_EVENT",
+    "DISPATCH_TOKEN_FIELD",
     "CONTEXT_TOKEN_EVENT",
     "CONTEXT_TOKEN_FIELDS",
     "current_dispatch_context",
@@ -1099,6 +1049,11 @@ __all__ = [
     "TOKEN_INJECTION_FIELDS",
     "TOKEN_INJECTION_SCHEMA_VERSION",
     "TOKEN_INJECTION_SOURCES",
+    "TOKEN_ESTIMATOR_FIELD",
+    "HOST_RULE_TOKEN_FIELD",
+    "LEGACY_AGENTS_MD_TOKEN_FIELD",
+    "LEGACY_DISPATCH_TOKEN_FIELD",
+    "LEGACY_HOST_RULE_TOKEN_FIELD",
     "SI10_GATE_EVENT",
     "SI10_GATE_NAMES",
     "SI10_GATE_STATUSES",

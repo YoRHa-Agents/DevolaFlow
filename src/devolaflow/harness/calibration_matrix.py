@@ -130,6 +130,7 @@ def _preflight_channel(
     """Check executable presence without retaining command output or paths."""
 
     started = time.perf_counter()
+    started_at = _timestamp(None)
     executable_available = shutil.which(config.executable) is not None
     record: dict[str, Any] = {
         "channel": config.channel,
@@ -137,6 +138,11 @@ def _preflight_channel(
         "version_check": {
             "status": "INSUFFICIENT",
             "exit_code": None,
+            "started_at": started_at,
+            "finished_at": None,
+            "timeout_phase": None,
+            "termination_reason": None,
+            "partial_output_summary": {"stdout": "", "stderr": ""},
             "wall_time_seconds": 0.0,
         },
         "auth_status": "INSUFFICIENT",
@@ -145,6 +151,8 @@ def _preflight_channel(
     if not executable_available:
         record["auth_status"] = "UNAVAILABLE"
         record["auth_evidence"] = "INSUFFICIENT"
+        record["version_check"]["finished_at"] = _timestamp(None)
+        record["version_check"]["termination_reason"] = "executable_unavailable"
         return record
     try:
         completed = _invoke_runner(
@@ -161,18 +169,27 @@ def _preflight_channel(
         record["executable_available"] = False
         record["auth_status"] = "UNAVAILABLE"
         record["version_check"]["wall_time_seconds"] = time.perf_counter() - started
+        record["version_check"]["finished_at"] = _timestamp(None)
+        record["version_check"]["termination_reason"] = "executable_unavailable"
         return record
     except subprocess.TimeoutExpired:
         record["version_check"]["wall_time_seconds"] = time.perf_counter() - started
+        record["version_check"]["finished_at"] = _timestamp(None)
+        record["version_check"]["timeout_phase"] = "calibration.preflight"
+        record["version_check"]["termination_reason"] = "timeout_expired"
         return record
     except (OSError, subprocess.SubprocessError):
         record["version_check"]["wall_time_seconds"] = time.perf_counter() - started
+        record["version_check"]["finished_at"] = _timestamp(None)
+        record["version_check"]["termination_reason"] = "runner_error"
         return record
     record["version_check"].update(
         {
             "status": "AVAILABLE" if completed.returncode == 0 else "INSUFFICIENT",
             "exit_code": completed.returncode,
             "wall_time_seconds": time.perf_counter() - started,
+            "finished_at": _timestamp(None),
+            "termination_reason": "process_exit",
         }
     )
     # Version output is not an authentication proof. Actual probe outcomes

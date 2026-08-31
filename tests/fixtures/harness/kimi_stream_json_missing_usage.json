@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "fixture_provenance": "replay",
+  "channel": "kimi",
+  "cli_version": "0.39.1",
+  "events": [
+    {"role": "meta", "type": "system.version", "version": "0.39.1"},
+    {"role": "assistant", "tool_calls": [{"type": "function", "name": "ls"}]},
+    {"role": "tool", "content": "directory listing omitted"},
+    {"role": "assistant", "content": "diagnostic complete"},
+    {"role": "meta", "type": "session.resume_hint", "session_id": "redacted"}
+  ]
+}

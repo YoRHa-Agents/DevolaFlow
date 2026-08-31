@@ -90,7 +90,7 @@ def _signals(**overrides: object) -> dict[str, object]:
         "compatibility_suite": False,
         "w17_new_tests": 31,
         "docstring_coverage_pct": 50,
-        "agents_md_tokens": 1200,
+        "estimated_agents_md_tokens": 1200,
         "suite_wall_seconds": 18.25,
         "cjk_violations": 0,
         "ghost_loc": 900,
@@ -105,7 +105,7 @@ def _metric_observation(value: int, source_revision: str) -> dict:
         "cycle": "v19.0.0",
         "pv": "PV-2",
         "item_id": "O-3",
-        "metric": "agents_md_tokens",
+        "metric": "estimated_agents_md_tokens",
         "statistic": "full_tokens",
         "value": value,
         "unit": "tokens",
@@ -270,7 +270,7 @@ def test_evaluator_surfaces_telemetry_measurements_and_historical_nulls(tmp_path
     _write_ledger(ledger)
     event = build_consolidation_metrics_record(
         {
-            "agents_md_tokens": 1200,
+            "estimated_agents_md_tokens": 1200,
             "suite_wall_seconds": 18.25,
             "cjk_violations": 0,
             "ghost_loc": 900,
@@ -283,7 +283,7 @@ def test_evaluator_surfaces_telemetry_measurements_and_historical_nulls(tmp_path
     result = evaluate_harness(ledger, signals=_signals())
 
     assert result["measurements"] == {
-        "agents_md_tokens": {
+        "estimated_agents_md_tokens": {
             "available": True,
             "value": 1200,
             "status": "AVAILABLE",
@@ -337,7 +337,7 @@ def test_evaluator_surfaces_structured_provenance_and_metric_comparison(tmp_path
         baseline=[_metric_observation(100, "revision-a")],
     )
 
-    measurement = result["measurements"]["agents_md_tokens"]
+    measurement = result["measurements"]["estimated_agents_md_tokens"]
     assert measurement["status"] == "AVAILABLE"
     assert measurement["provenance"]["observations"][0]["source_revision"] == "revision-b"
     assert result["metric_comparison"]["status"] == "AVAILABLE"
@@ -351,13 +351,13 @@ def test_evaluator_accepts_a_valid_injected_metric_observation(tmp_path: Path) -
 
     result = evaluate_harness(
         ledger,
-        signals=_signals(agents_md_tokens={"observation": observation}),
+        signals=_signals(estimated_agents_md_tokens={"observation": observation}),
     )
 
-    assert result["measurements"]["agents_md_tokens"]["value"] == 75
-    assert result["measurements"]["agents_md_tokens"]["provenance"]["source_revision"] == (
-        "revision-b"
-    )
+    assert result["measurements"]["estimated_agents_md_tokens"]["value"] == 75
+    assert result["measurements"]["estimated_agents_md_tokens"]["provenance"][
+        "source_revision"
+    ] == ("revision-b")
 
 
 def test_collect_signals_measures_available_consolidation_surfaces(tmp_path: Path) -> None:
@@ -377,8 +377,8 @@ def test_collect_signals_measures_available_consolidation_surfaces(tmp_path: Pat
 
     collected = collect_signals(tmp_path, base_ref="HEAD~1", runner=runner)
 
-    assert collected["agents_md_tokens"].available is True
-    assert collected["agents_md_tokens"].value > 0
+    assert collected["estimated_agents_md_tokens"].available is True
+    assert collected["estimated_agents_md_tokens"].value > 0
     assert collected["suite_wall_seconds"].available is True
     assert collected["suite_wall_seconds"].value >= 0
     assert collected["cjk_violations"].value == 0
@@ -418,14 +418,22 @@ def test_evaluator_persists_collected_measurements_with_caller_metadata(
     assert result["metadata"]["run_id"] == "run-t2-regression"
     assert result["metadata"]["salt"] == "t2-test-salt"
     assert result["harness_summary"]["metadata"] == result["metadata"]
-    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["status"] == "AVAILABLE"
-    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["observed_records"] == 1
-    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["provenance"][0] == {
+    assert (
+        result["harness_summary"]["measurements"]["estimated_agents_md_tokens"]["status"]
+        == "AVAILABLE"
+    )
+    assert (
+        result["harness_summary"]["measurements"]["estimated_agents_md_tokens"]["observed_records"]
+        == 1
+    )
+    assert result["harness_summary"]["measurements"]["estimated_agents_md_tokens"]["provenance"][
+        0
+    ] == {
         "source": "telemetry",
         "metadata": result["metadata"],
     }
-    assert result["measurements"]["agents_md_tokens"]["source"] == "telemetry"
-    assert result["measurements"]["agents_md_tokens"]["value"] == 1200
+    assert result["measurements"]["estimated_agents_md_tokens"]["source"] == "telemetry"
+    assert result["measurements"]["estimated_agents_md_tokens"]["value"] == 1200
 
 
 def test_evaluator_keeps_prior_run_metadata_when_current_collection_appends(
@@ -451,7 +459,7 @@ def test_evaluator_keeps_prior_run_metadata_when_current_collection_appends(
     }
     prior_event = build_consolidation_metrics_record(
         {
-            "agents_md_tokens": None,
+            "estimated_agents_md_tokens": None,
             "suite_wall_seconds": None,
             "cjk_violations": None,
             "ghost_loc": None,
@@ -493,7 +501,9 @@ def test_evaluator_keeps_prior_run_metadata_when_current_collection_appends(
         prior_metadata,
         result["metadata"],
     ]
-    assert result["harness_summary"]["measurements"]["agents_md_tokens"]["provenance"] == [
+    assert result["harness_summary"]["measurements"]["estimated_agents_md_tokens"][
+        "provenance"
+    ] == [
         {"source": "telemetry", "metadata": prior_metadata},
         {"source": "telemetry", "metadata": result["metadata"]},
     ]

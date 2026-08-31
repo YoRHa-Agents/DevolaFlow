@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import random
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -11,6 +12,8 @@ from devolaflow.harness.calibration_matrix import CALIBRATION_SCHEMA_VERSION
 from devolaflow.harness.cli_probe import SUPPORTED_CHANNELS, TASK_CLASSES, ProbeSpec
 
 PERCENTILE_MINIMUM_N = 2
+PAIRED_BOOTSTRAP_SEED = 20260901
+PAIRED_BOOTSTRAP_REPLICATES = 2_000
 
 
 def _values_for_latency(results: Sequence[Mapping[str, Any]]) -> list[float]:
@@ -42,6 +45,24 @@ def _percentiles(values: Sequence[float]) -> dict[str, Any]:
         "p50": ordered[math.ceil(0.50 * len(ordered)) - 1],
         "p95": ordered[math.ceil(0.95 * len(ordered)) - 1],
     }
+
+
+def _partial_numeric_summary(
+    values: Sequence[float],
+    summary: Mapping[str, Any],
+    *,
+    include_mean: bool,
+) -> dict[str, Any]:
+    partial: dict[str, Any] = {
+        "status": "PARTIAL",
+        "observed_n": len(values),
+        "p50": summary["p50"],
+        "p95": summary["p95"],
+        "label": "observed partial summary; not a complete cell metric",
+    }
+    if include_mean:
+        partial["mean"] = sum(values) / len(values) if values else None
+    return partial
 
 
 def _wilson_interval(successes: int, total: int) -> list[float] | None:
@@ -78,6 +99,8 @@ def _cell_summary(
         "status": "AVAILABLE" if complete else "INSUFFICIENT",
         "value": counts["pass"] / completed_n if complete and completed_n else None,
         "ci95": _wilson_interval(counts["pass"], completed_n) if complete else None,
+        "ci95_method": "Wilson score",
+        "ci95_interpretation": "descriptive success-rate interval only; not causal",
     }
     token_values = [
         usage["total_tokens"]
@@ -86,18 +109,24 @@ def _cell_summary(
         and usage.get("status") == "AVAILABLE"
         and type(usage.get("total_tokens")) is int
     ]
+    token_percentiles = _percentiles([float(value) for value in token_values])
     token_cost = {
         "status": "AVAILABLE" if complete and len(token_values) == expected_n else "INSUFFICIENT",
         "observed_n": len(token_values),
         "missing_n": expected_n - len(token_values),
-        "mean": sum(token_values) / len(token_values) if token_values else None,
-        "p50": _percentiles([float(value) for value in token_values])["p50"]
-        if len(token_values) >= PERCENTILE_MINIMUM_N
+        "mean": sum(token_values) / len(token_values)
+        if complete and len(token_values) == expected_n and token_values
         else None,
-        "p95": _percentiles([float(value) for value in token_values])["p95"]
-        if len(token_values) >= PERCENTILE_MINIMUM_N
-        else None,
+        "p50": token_percentiles["p50"] if complete and len(token_values) == expected_n else None,
+        "p95": token_percentiles["p95"] if complete and len(token_values) == expected_n else None,
+        "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
     }
+    if token_values and token_cost["status"] != "AVAILABLE":
+        token_cost["observed_partial"] = _partial_numeric_summary(
+            [float(value) for value in token_values],
+            token_percentiles,
+            include_mean=True,
+        )
     skill_values = [
         skill["value"]
         for result in results
@@ -112,6 +141,26 @@ def _cell_summary(
         "true": sum(skill_values),
         "false": len(skill_values) - sum(skill_values),
     }
+    latency_values = _values_for_latency(results)
+    latency_percentiles = _percentiles(latency_values)
+    wall_time = {
+        **latency_percentiles,
+        "p95_note": "descriptive order statistic; with n=5, p95 is the maximum observed value",
+    }
+    if not (complete and len(latency_values) == expected_n):
+        wall_time.update(
+            {
+                "status": "INSUFFICIENT",
+                "p50": None,
+                "p95": None,
+            }
+        )
+        if latency_values:
+            wall_time["observed_partial"] = _partial_numeric_summary(
+                latency_values,
+                latency_percentiles,
+                include_mean=True,
+            )
     return {
         "task_class": task_class,
         "channel": channel,
@@ -120,7 +169,7 @@ def _cell_summary(
         "counts": counts,
         "completeness_status": "AVAILABLE" if complete else "INSUFFICIENT",
         "pass_rate": pass_rate,
-        "wall_time_seconds": _percentiles(_values_for_latency(results)),
+        "wall_time_seconds": wall_time,
         "token_cost": token_cost,
         "skill_loaded": skill_loaded,
         "artifact_paths": [
@@ -129,6 +178,188 @@ def _cell_summary(
             if isinstance(result.get("metadata"), Mapping)
             and isinstance(result["metadata"].get("artifact_path"), str)
         ],
+    }
+
+
+def _replicate_id(result: Mapping[str, Any]) -> int | None:
+    metadata = result.get("metadata")
+    value = metadata.get("replicate") if isinstance(metadata, Mapping) else None
+    if value is None:
+        value = result.get("replicate")
+    return value if type(value) is int and value >= 1 else None
+
+
+def _unique_results_by_replicate(
+    results: Sequence[Mapping[str, Any]],
+) -> dict[int, Mapping[str, Any]]:
+    indexed: dict[int, Mapping[str, Any]] = {}
+    duplicates: set[int] = set()
+    for result in results:
+        replicate = _replicate_id(result)
+        if replicate is None:
+            continue
+        if replicate in indexed:
+            duplicates.add(replicate)
+        else:
+            indexed[replicate] = result
+    for replicate in duplicates:
+        indexed.pop(replicate, None)
+    return indexed
+
+
+def _matched_replicates(
+    on_results: Sequence[Mapping[str, Any]],
+    off_results: Sequence[Mapping[str, Any]],
+) -> list[tuple[int, Mapping[str, Any], Mapping[str, Any]]]:
+    on_by_replicate = _unique_results_by_replicate(on_results)
+    off_by_replicate = _unique_results_by_replicate(off_results)
+    return [
+        (replicate, on_by_replicate[replicate], off_by_replicate[replicate])
+        for replicate in sorted(on_by_replicate.keys() & off_by_replicate.keys())
+    ]
+
+
+def _pass_value(result: Mapping[str, Any]) -> float | None:
+    status = result.get("status")
+    if status == "PASS":
+        return 1.0
+    if status == "FAIL":
+        return 0.0
+    return None
+
+
+def _latency_value(result: Mapping[str, Any]) -> float | None:
+    execution = result.get("execution")
+    if not isinstance(execution, Mapping):
+        return None
+    if execution.get("reason") not in {"completed", "nonzero_exit", "timeout"}:
+        return None
+    value = execution.get("wall_time_seconds")
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+        return float(value)
+    return None
+
+
+def _token_value(result: Mapping[str, Any]) -> float | None:
+    usage = result.get("token_usage")
+    if not isinstance(usage, Mapping) or usage.get("status") != "AVAILABLE":
+        return None
+    value = usage.get("total_tokens")
+    if type(value) is int:
+        return float(value)
+    return None
+
+
+def _bootstrap_ci(values: Sequence[float], *, seed: int) -> list[float] | None:
+    if not values:
+        return None
+    generator = random.Random(seed)
+    samples: list[float] = []
+    for _ in range(PAIRED_BOOTSTRAP_REPLICATES):
+        samples.append(
+            sum(values[generator.randrange(len(values))] for _ in range(len(values))) / len(values)
+        )
+    ordered = sorted(samples)
+    return [
+        ordered[math.ceil(0.025 * len(ordered)) - 1],
+        ordered[math.ceil(0.975 * len(ordered)) - 1],
+    ]
+
+
+def _paired_metric(
+    pairs: Sequence[tuple[int, Mapping[str, Any], Mapping[str, Any]]],
+    value_for: Any,
+    *,
+    expected_n: int,
+) -> dict[str, Any]:
+    observed: list[tuple[int, float]] = []
+    for replicate, on_result, off_result in pairs:
+        on_value = value_for(on_result)
+        off_value = value_for(off_result)
+        if on_value is not None and off_value is not None:
+            observed.append((replicate, on_value - off_value))
+    values = [value for _, value in observed]
+    interval = _bootstrap_ci(values, seed=PAIRED_BOOTSTRAP_SEED)
+    available = bool(values) and len(values) == expected_n
+    metric: dict[str, Any] = {
+        "status": "AVAILABLE" if available else "INSUFFICIENT",
+        "observed_n": len(values),
+        "expected_n": expected_n,
+        "skill_on_minus_skill_off": sum(values) / len(values) if available else None,
+        "ci95": interval if available else None,
+        "uncertainty": "paired percentile bootstrap 95% CI; descriptive, not causal",
+        "replicate_ids": [replicate for replicate, _ in observed],
+    }
+    if values and not available:
+        metric["observed_partial"] = {
+            "status": "PARTIAL",
+            "observed_n": len(values),
+            "skill_on_minus_skill_off": sum(values) / len(values),
+            "ci95": interval,
+            "label": "observed partial paired summary; not a complete cell metric",
+        }
+    return metric
+
+
+def _paired_differences(
+    on_results: Sequence[Mapping[str, Any]],
+    off_results: Sequence[Mapping[str, Any]],
+    *,
+    task_class: str,
+    channel: str,
+    expected_n: int,
+) -> dict[str, Any]:
+    pairs = _matched_replicates(on_results, off_results)
+    replicate_metadata = []
+    for replicate, on_result, off_result in pairs:
+        on_metadata = on_result.get("metadata")
+        off_metadata = off_result.get("metadata")
+        on_run_id = on_metadata.get("run_id") if isinstance(on_metadata, Mapping) else None
+        off_run_id = off_metadata.get("run_id") if isinstance(off_metadata, Mapping) else None
+        replicate_metadata.append(
+            {
+                "replicate": replicate,
+                "skill_on_run_id": on_run_id,
+                "skill_off_run_id": off_run_id,
+            }
+        )
+    cell_complete = (
+        len(on_results) == expected_n
+        and len(off_results) == expected_n
+        and all(result.get("status") != "INSUFFICIENT" for result in (*on_results, *off_results))
+    )
+    metrics = {
+        "pass_rate": _paired_metric(pairs, _pass_value, expected_n=expected_n),
+        "wall_time_seconds": _paired_metric(pairs, _latency_value, expected_n=expected_n),
+        "token_cost": _paired_metric(pairs, _token_value, expected_n=expected_n),
+    }
+    return {
+        "status": (
+            "AVAILABLE"
+            if cell_complete and all(metric["status"] == "AVAILABLE" for metric in metrics.values())
+            else "INSUFFICIENT"
+        ),
+        "pairing": {
+            "key": "task_class/channel/replicate",
+            "unit": "matched skill-on/skill-off replicate pair",
+            "cluster": f"{task_class}/{channel} cell",
+            "observed_pairs": len(pairs),
+            "expected_pairs": expected_n,
+            "replicate_ids": [replicate for replicate, _, _ in pairs],
+            "replicate_metadata": replicate_metadata,
+        },
+        "bootstrap": {
+            "method": "paired percentile bootstrap",
+            "seed": PAIRED_BOOTSTRAP_SEED,
+            "replicates": PAIRED_BOOTSTRAP_REPLICATES,
+            "resample_unit": "matched replicate pair",
+            "cluster": f"{task_class}/{channel} cell",
+            "interval": "percentile 95%",
+        },
+        **metrics,
+        "causal_interpretation": (
+            "Associational paired differences only; causal effect not established."
+        ),
     }
 
 
@@ -152,6 +383,9 @@ def _arm_comparison(
     channel: str,
     on: Mapping[str, Any],
     off: Mapping[str, Any],
+    on_results: Sequence[Mapping[str, Any]],
+    off_results: Sequence[Mapping[str, Any]],
+    expected_n: int,
 ) -> dict[str, Any]:
     on_counts = on["counts"]
     off_counts = off["counts"]
@@ -180,6 +414,13 @@ def _arm_comparison(
     on_tokens = on["token_cost"]
     off_tokens = off["token_cost"]
     token_available = on_tokens["status"] == "AVAILABLE" and off_tokens["status"] == "AVAILABLE"
+    paired = _paired_differences(
+        on_results,
+        off_results,
+        task_class=task_class,
+        channel=channel,
+        expected_n=expected_n,
+    )
     return {
         "task_class": task_class,
         "channel": channel,
@@ -199,6 +440,7 @@ def _arm_comparison(
             ),
             "uncertainty": "observed usage only; no estimate for missing tokens",
         },
+        "paired_differences": paired,
     }
 
 
@@ -242,6 +484,9 @@ def aggregate_calibration_results(
             channel,
             by_key[(task_class, channel, "skill-on")],
             by_key[(task_class, channel, "skill-off")],
+            result_by_cell[(task_class, channel, "skill-on")],
+            result_by_cell[(task_class, channel, "skill-off")],
+            expected_by_cell[(task_class, channel, "skill-on")],
         )
         for task_class in TASK_CLASSES
         for channel in SUPPORTED_CHANNELS
@@ -279,7 +524,8 @@ def aggregate_calibration_results(
         "quality_causality": "NOT_ESTABLISHED",
         "uncertainty": (
             "95% Wilson intervals for complete pass-rate cells; normal-approximation "
-            "difference intervals; latency and token differences retain explicit limitations."
+            "difference intervals retained for compatibility; paired differences use a "
+            "fixed-seed percentile bootstrap and remain descriptive."
         ),
         "token_cost": "AVAILABLE" if token_observable else "INSUFFICIENT",
         "skill_loaded": "AVAILABLE" if skill_observable else "INSUFFICIENT",

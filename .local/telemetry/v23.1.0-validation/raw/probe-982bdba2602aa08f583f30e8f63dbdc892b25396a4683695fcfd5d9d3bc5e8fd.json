@@ -1,0 +1,114 @@
+{
+  "arm": "skill-off",
+  "channel": "claude",
+  "command": {
+    "argv": [
+      "claude",
+      "-p",
+      "Perform a bounded tool-heavy diagnostic using read-only commands only. Do not edit, create, delete, install, or network-write anything. Return a concise result. Calibration arm: do not rely on the DevolaFlow skill; use only the task request.",
+      "--output-format",
+      "json"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 180.0
+  },
+  "event": "cli_probe",
+  "execution": {
+    "exit_code": 0,
+    "finished_at": "2026-08-31T19:12:17.680426+00:00",
+    "partial_output_summary": {
+      "stderr": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+      "stdout": "{\"is_error\":false,\"duration_api_ms\":69790,\"num_turns\":8,\"stop_reason\":\"end_turn\",\"session_id\":\"6171541c-c283-4152-8a6b-42d2218fae46\",\"total_cost_usd\":0.14859450000000002,\"usage\":{\"input_tokens\":5608,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":103709,\"output_tokens\":2748,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":5608,\"outputTokens\":2748,\"cacheReadInputTokens\":103709,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.14859450000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Diagnostic result — clean\\n\\n| Check | Result |\\n|---|---|\\n| `ruff check src/ tests/` | All checks passed |\\n| `ruff format --check` | 528 files already formatted |\\n| Test collection | 5609 tests collected (no collection errors) |\\n| Version + ghost-feature guards | 36 passed |\\n| Harness subset (206 tests: `tests/harness`, dispatch_context, telemetry, token accounting) | 206 passed |\\n| Package version / runtime | `devolaflow 23.0.0`, Python 3.13.12 |\\n\\n**Working tree:** 25 modified files (+2385/−213), all in the harness telemetry/calibration cluster, plus 4 untracked additions — `schemas/kimi-stream-json-diagnostic.yaml` (21 L), `tests/fixt…"
+    },
+    "reason": "completed",
+    "started_at": "2026-08-31T19:10:57.434106+00:00",
+    "stderr_summary": "[claude-code:unrecognized_model] {\"model\":\"ark-code-latest\",\"query_source\":\"sdk\"}\n",
+    "stdout_summary": "{\"is_error\":false,\"duration_api_ms\":69790,\"num_turns\":8,\"stop_reason\":\"end_turn\",\"session_id\":\"6171541c-c283-4152-8a6b-42d2218fae46\",\"total_cost_usd\":0.14859450000000002,\"usage\":{\"input_tokens\":5608,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":103709,\"output_tokens\":2748,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"ark-code-latest\":{\"inputTokens\":5608,\"outputTokens\":2748,\"cacheReadInputTokens\":103709,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.14859450000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"canonicalModel\":\"ark-code-latest\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"## Diagnostic result — clean\\n\\n| Check | Result |\\n|---|---|\\n| `ruff check src/ tests/` | All checks passed |\\n| `ruff format --check` | 528 files already formatted |\\n| Test collection | 5609 tests collected (no collection errors) |\\n| Version + ghost-feature guards | 36 passed |\\n| Harness subset (206 tests: `tests/harness`, dispatch_context, telemetry, token accounting) | 206 passed |\\n| Package version / runtime | `devolaflow 23.0.0`, Python 3.13.12 |\\n\\n**Working tree:** 25 modified files (+2385/−213), all in the harness telemetry/calibration cluster, plus 4 untracked additions — `schemas/kimi-stream-json-diagnostic.yaml` (21 L), `tests/fixt…",
+    "termination_reason": "process_exit",
+    "timeout_phase": null,
+    "wall_time_seconds": 80.25189424998825
+  },
+  "measurement": {
+    "channel": "claude",
+    "host": "claude"
+  },
+  "metadata": {
+    "arm": "skill-off",
+    "artifact_path": ".local/telemetry/v23.1.0-validation/raw/probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd.json",
+    "channel": "claude",
+    "generated_at": "2026-08-31T19:04:47.778013+00:00",
+    "output_path": ".local/telemetry/v23.1.0-validation/raw/probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd.json",
+    "replicate": 1,
+    "run_id": "probe-982bdba2602aa08f583f30e8f63dbdc892b25396a4683695fcfd5d9d3bc5e8fd",
+    "salt": "c6-20260901-0302",
+    "schema_version": 1,
+    "seed": "v23.1.0-c6-rerun-20260901",
+    "task_class": "tool-heavy"
+  },
+  "schema_version": 1,
+  "skill_canary": {
+    "echo": null,
+    "expected": null,
+    "reason": "skill canary is only requested for skill-on probes",
+    "source_path": null,
+    "status": "NOT_APPLICABLE"
+  },
+  "skill_loaded": {
+    "contract_provenance": "TBD-audit",
+    "contract_status": "designed",
+    "host": "claude",
+    "hsc_validation": {
+      "reason": "skill_loaded was absent from the CLI JSON output; runtime skill state is not observable for this invocation",
+      "status": "INSUFFICIENT"
+    },
+    "observed": null,
+    "provenance": "probe-runtime",
+    "status": "INSUFFICIENT",
+    "value": null
+  },
+  "stages": {
+    "run": {
+      "wall_time_seconds": 80.25189424998825
+    }
+  },
+  "status": "PASS",
+  "task_class": "tool-heavy",
+  "telemetry": {
+    "event_id": "token_injection_measurement:0e180c0cf6ecca3edd24b70a95367460865932a214b84ae8c9ae07a66e2aa485",
+    "ledger_path": ".local/telemetry/v23.1.0-validation/harness.jsonl",
+    "status": "AVAILABLE"
+  },
+  "token_usage": {
+    "cache_usage": {
+      "cache_creation": {
+        "source_path": "usage.cache_creation_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 0
+      },
+      "cache_read": {
+        "source_path": "usage.cache_read_input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 103709
+      },
+      "cache_write": {
+        "source_path": null,
+        "status": "INSUFFICIENT",
+        "tokens": null
+      },
+      "uncached_input": {
+        "source_path": "usage.input_tokens",
+        "status": "AVAILABLE",
+        "tokens": 5608
+      }
+    },
+    "input_tokens": 5608,
+    "output_tokens": 2748,
+    "status": "AVAILABLE",
+    "total_tokens": 8356,
+    "usage_observation": {
+      "reason": "usage_observed",
+      "source_path": "usage",
+      "status": "AVAILABLE"
+    }
+  }
+}

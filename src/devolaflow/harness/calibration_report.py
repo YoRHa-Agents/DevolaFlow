@@ -15,13 +15,15 @@ def _render_cell_line(cell: Mapping[str, Any]) -> str:
         else "INSUFFICIENT"
     )
     latency = cell["wall_time_seconds"]
-    latency_text = (
-        f"p50={latency['p50']:.4f}, p95={latency['p95']:.4f}"
-        if latency["status"] == "AVAILABLE"
+    latency_text = "INSUFFICIENT"
+    if latency["status"] == "AVAILABLE":
+        latency_text = f"p50={latency['p50']:.4f}, p95={latency['p95']:.4f}"
+    tokens = cell["token_cost"]
+    token_text = (
+        f"mean={tokens['mean']:.1f}"
+        if tokens["status"] == "AVAILABLE" and tokens["mean"] is not None
         else "INSUFFICIENT"
     )
-    tokens = cell["token_cost"]
-    token_text = f"mean={tokens['mean']:.1f}" if tokens["mean"] is not None else "INSUFFICIENT"
     return (
         f"| {cell['task_class']} | {cell['channel']} | {cell['arm']} | "
         f"{counts['n']} | {counts['pass']} | {counts['fail']} | {counts['insufficient']} | "
@@ -35,6 +37,8 @@ def render_calibration_report(report: Mapping[str, Any]) -> str:
     metadata = report["metadata"]
     matrix = report["matrix"]
     counts = report["summary"]["counts"]
+    execution = report.get("execution", {})
+    telemetry = report.get("telemetry", {})
     lines = [
         "# v21.1.0 PV-02 CLI calibration ROI",
         "",
@@ -53,6 +57,15 @@ def render_calibration_report(report: Mapping[str, Any]) -> str:
         f"- Per-probe timeout: `{matrix['timeout_seconds']}` seconds",
         f"- Outer timeout: `{matrix['total_timeout_seconds']}` seconds",
         "- Order: `task class → channel → arm → replicate`, delegated to `plan_probe_matrix`.",
+        "",
+        "## Calibration lifecycle",
+        "",
+        f"- Started at: `{execution.get('started_at')}`",
+        f"- Finished at: `{execution.get('finished_at')}`",
+        f"- Timeout phase: `{execution.get('timeout_phase')}`",
+        f"- Termination reason: `{execution.get('termination_reason')}`",
+        f"- Telemetry ledger: `{telemetry.get('ledger_path')}`",
+        f"- New telemetry records: `{telemetry.get('appended_records', 0)}`",
         "",
         "## CLI preflight",
         "",
@@ -89,13 +102,39 @@ def render_calibration_report(report: Mapping[str, Any]) -> str:
     lines.extend(["", "## Skill-on/off differences", ""])
     for comparison in report["summary"]["comparisons"]:
         difference = comparison["pass_rate_difference"]
+        paired = comparison.get("paired_differences")
         lines.append(
             f"- `{comparison['task_class']}/{comparison['channel']}`: "
-            f"pass-rate skill-on minus skill-off = "
-            f"`{difference['skill_on_minus_skill_off']}`; CI95 = `{difference['ci95']}`; "
-            f"status = `{difference['status']}`. "
-            f"Wall uncertainty: `{comparison['wall_time_p50_difference_seconds']['uncertainty']}`; "
-            f"token uncertainty: `{comparison['token_cost_difference']['uncertainty']}`."
+            f"legacy pass-rate skill-on minus skill-off = "
+            f"`{difference['skill_on_minus_skill_off']}`; legacy CI95 = `{difference['ci95']}`; "
+            f"status = `{difference['status']}`."
+        )
+        if paired is None:
+            lines.append(
+                f"  Legacy report has no matched-replicate bootstrap data. "
+                f"Wall uncertainty: "
+                f"`{comparison['wall_time_p50_difference_seconds']['uncertainty']}`; "
+                f"token uncertainty: `{comparison['token_cost_difference']['uncertainty']}`."
+            )
+            continue
+        paired_pass = paired["pass_rate"]
+        paired_latency = paired["wall_time_seconds"]
+        paired_tokens = paired["token_cost"]
+        lines.append(
+            f"  Paired pass-rate on-minus-off = `{paired_pass['skill_on_minus_skill_off']}`; "
+            f"bootstrap CI95 = `{paired_pass['ci95']}`; pairs = "
+            f"`{paired['pairing']['observed_pairs']}/{paired['pairing']['expected_pairs']}`; "
+            f"status = `{paired_pass['status']}`. "
+            f"Paired wall mean delta = `{paired_latency['skill_on_minus_skill_off']}` "
+            f"({paired_latency['status']}); paired token mean delta = "
+            f"`{paired_tokens['skill_on_minus_skill_off']}` ({paired_tokens['status']})."
+        )
+        lines.append(
+            f"  Bootstrap: `{paired['bootstrap']['method']}`, seed "
+            f"`{paired['bootstrap']['seed']}`, replicates "
+            f"`{paired['bootstrap']['replicates']}`, unit "
+            f"`{paired['bootstrap']['resample_unit']}`; "
+            f"{paired['causal_interpretation']}"
         )
     lines.extend(
         [
@@ -113,6 +152,19 @@ def render_calibration_report(report: Mapping[str, Any]) -> str:
             "- Missing token usage is `null`/`INSUFFICIENT`; it is never treated as zero.",
             "- Missing `skill_loaded` observation is `null`/`INSUFFICIENT`; arm names are "
             "not proof of skill loading.",
+            "- Skill-on requires an exact structured `skill_canary_echo`; missing or mismatched "
+            "echoes remain `null`/`INSUFFICIENT`.",
+            "- Kimi usage reports distinguish missing usage from parser mismatch and retain "
+            "the inspected JSON source path.",
+            "- Wilson intervals are descriptive success-rate intervals only; with n=5 they "
+            "do not establish significance or causality.",
+            "- p95 from n=5 is the maximum observed value, not a stable tail estimate.",
+            "- MDE and statistical power are limited by the small, matched sample; no "
+            "pre-specified MDE or powered causal inference is claimed.",
+            "- Paired bootstrap resamples matched replicate pairs within each cell; it "
+            "quantifies observed association and does not establish a causal skill effect.",
+            "- Incomplete cells retain any observed partial summaries in machine-readable "
+            "`observed_partial` fields only; the default table shows them as `INSUFFICIENT`.",
             "- A complete matrix with unavailable telemetry remains insufficient for token "
             "ROI and causal quality claims.",
             "- Raw diagnostics are retained only in repository-relative probe artifacts; "

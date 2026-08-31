@@ -232,7 +232,7 @@ def test_v17_0_0_r3_host_injection_accounting_wired(project_root: Path) -> None:
         {"to_layer": "L2", "task": {"type": "hotfix"}, "dispatch_id": "ghost-r3"},
         change_id="ghost-r3",
     )
-    assert record["host_rule_tokens"] > 0
+    assert record["estimated_host_rule_tokens"] > 0
     assert record["slice_savings_pct"] > 0
 
     # Config-absent fold policy stays byte-identical to the v16 hardcoded set.

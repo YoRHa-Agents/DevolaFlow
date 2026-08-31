@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -24,6 +25,221 @@ class _AttributionError(ValueError):
     """Internal signal for a dispatch that cannot be attributed safely."""
 
 
+_AUTO_INJECTED_CHANNELS = frozenset({"cursor", "cursor-ide"})
+_CONTEXT_SELECTIONS = frozenset({"slice", "full"})
+
+
+def _probe_host(channel: str) -> str | None:
+    """Resolve a known subprocess channel through the existing probe registry."""
+
+    from devolaflow.harness.cli_probe import PROBE_HOSTS
+
+    return PROBE_HOSTS.get(channel)
+
+
+def _selection_inputs(
+    selection: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Return ``(source, selection, candidate_text)`` without guessing."""
+
+    if selection is None:
+        return None, None, None
+    if not isinstance(selection, Mapping):
+        raise TypeError("selection must be a mapping or None")
+
+    source = selection.get("source")
+    source_value = source.strip() if isinstance(source, str) and source.strip() else None
+    account = selection.get("agents_md_slice")
+    account = account if isinstance(account, Mapping) else {}
+
+    requested = selection.get("selection") or selection.get("mode")
+    if requested not in _CONTEXT_SELECTIONS:
+        enabled = account.get("slice_enabled", selection.get("slice_enabled"))
+        requested = "slice" if enabled is True else "full" if enabled is False else None
+    if requested not in _CONTEXT_SELECTIONS:
+        requested = None
+
+    if requested == "slice":
+        candidate_keys = ("slice_text", "sliced_text", "rule_text", "text")
+    elif requested == "full":
+        candidate_keys = ("full_text", "full_rule_text", "rule_text", "text")
+    else:
+        candidate_keys = ()
+    candidate = next(
+        (selection.get(key) for key in candidate_keys if isinstance(selection.get(key), str)),
+        None,
+    )
+    return source_value, requested, candidate
+
+
+def _route_identity(
+    *,
+    host: str | None,
+    channel: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Resolve an HSC host and existing channel into a delivery mode."""
+
+    from devolaflow.host_contract import load_host_contract, resolve_host
+
+    contract = load_host_contract()
+    canonical_host: str | None = None
+    if host is not None:
+        if not isinstance(host, str) or not host.strip():
+            return None, None, "unknown-host"
+        try:
+            canonical_host = resolve_host(host.strip(), contract)
+        except KeyError:
+            return host.strip(), None, "unknown-host"
+
+    if channel is None:
+        if canonical_host == "cursor":
+            return canonical_host, "host", None
+        return canonical_host, None, "INSUFFICIENT"
+    if not isinstance(channel, str) or not channel.strip():
+        return canonical_host, None, "unknown-channel"
+
+    channel_value = channel.strip()
+    mapped_host = _probe_host(channel_value)
+    if mapped_host is not None:
+        if canonical_host is not None and canonical_host != mapped_host:
+            return canonical_host, "subprocess", "host-channel-mismatch"
+        return canonical_host or mapped_host, "subprocess", None
+    if channel_value in _AUTO_INJECTED_CHANNELS:
+        if canonical_host is not None and canonical_host != "cursor":
+            return canonical_host, "host", "host-channel-mismatch"
+        return "cursor", "host", None
+    return canonical_host, None, "unknown-channel"
+
+
+def route_context_injection(
+    selection: Mapping[str, Any] | None = None,
+    *,
+    host: str | None = None,
+    channel: str | None = None,
+) -> dict[str, Any]:
+    """Route full/sliced context according to the existing HSC/channel split.
+
+    Declared subprocess channels may carry selected text in a dispatch.
+    Cursor IDE host injection must not carry the same text in the dispatch:
+    it returns ``host-injected-unsliceable`` with an ``INSUFFICIENT`` evidence
+    status because host-consumed context is not observable here. Unknown
+    hosts, channels, and mismatches are explicit insufficient states.
+    """
+
+    source, selected, candidate = _selection_inputs(selection)
+    resolved_host, mode, identity_status = _route_identity(host=host, channel=channel)
+    result: dict[str, Any] = {
+        "source": source,
+        "selection": selected,
+        "host": resolved_host,
+        "channel": channel,
+        "channel_mode": mode,
+        "status": "INSUFFICIENT",
+        "evidence_status": "INSUFFICIENT",
+        "embedded": False,
+        "embedded_text": None,
+        "candidate_text": candidate,
+        "reason": None,
+    }
+
+    if identity_status is not None:
+        result["status"] = identity_status
+        result["reason"] = {
+            "unknown-host": "host is absent from the HSC",
+            "unknown-channel": "channel is not a declared subprocess or host channel",
+            "host-channel-mismatch": "host and channel resolve to different HSC hosts",
+            "INSUFFICIENT": "a host/channel delivery boundary was not supplied",
+        }.get(identity_status, "host/channel delivery is not attributable")
+        return result
+
+    if selected is None:
+        result["reason"] = "full/slice selection is absent or contradictory"
+        return result
+    if candidate is None:
+        result["reason"] = f"{selected} context text was not supplied"
+        return result
+
+    if mode == "subprocess":
+        result["status"] = f"{selected}-embedded"
+        result["evidence_status"] = "AVAILABLE"
+        result["embedded"] = True
+        result["embedded_text"] = candidate
+        return result
+
+    if mode == "host":
+        result["status"] = "host-injected-unsliceable"
+        result["reason"] = (
+            "host injects context outside the dispatch; host-consumed slice "
+            "is not observable and must not be duplicated"
+        )
+        return result
+
+    result["reason"] = "delivery mode is not attributable"
+    return result
+
+
+def _with_rules(dispatch: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Copy a dispatch and return its mutable existing/new rules block."""
+
+    result = copy.deepcopy(dict(dispatch))
+    rules = result.get("rules")
+    if isinstance(rules, dict):
+        return result, copy.deepcopy(rules)
+    rules = {}
+    items = list(result.items())
+    result = {}
+    inserted = False
+    for key, value in items:
+        if not inserted and key == "shared":
+            result["rules"] = rules
+            inserted = True
+        result[key] = value
+    if not inserted:
+        result["rules"] = rules
+    return result, rules
+
+
+def prepare_dispatch_context(
+    dispatch: Mapping[str, Any],
+    selection: Mapping[str, Any] | None = None,
+    *,
+    host: str | None = None,
+    channel: str | None = None,
+) -> dict[str, Any]:
+    """Prepare a dispatch and return its auditable routing decision.
+
+    For an auto-injected host, an existing text block is removed only when it
+    is byte-identical to the selected candidate. Unrelated caller-owned rules
+    remain untouched.
+    """
+
+    if not isinstance(dispatch, Mapping):
+        raise TypeError("dispatch must be a mapping")
+    routing = route_context_injection(selection, host=host, channel=channel)
+    if routing["channel_mode"] not in {"subprocess", "host"} or (
+        routing["channel_mode"] == "subprocess" and not routing["embedded"]
+    ):
+        return {"dispatch": copy.deepcopy(dict(dispatch)), "routing": routing}
+    if routing["channel_mode"] == "host" and not isinstance(dispatch.get("rules"), dict):
+        routing["duplicate_prevented"] = False
+        return {"dispatch": copy.deepcopy(dict(dispatch)), "routing": routing}
+    result, rules = _with_rules(dispatch)
+
+    if routing["channel_mode"] == "subprocess" and routing["embedded"]:
+        rules["text"] = routing["embedded_text"]
+    elif routing["channel_mode"] == "host":
+        if (
+            isinstance(routing["candidate_text"], str)
+            and rules.get("text") == routing["candidate_text"]
+        ):
+            del rules["text"]
+            routing["duplicate_prevented"] = True
+        else:
+            routing["duplicate_prevented"] = False
+    result["rules"] = rules
+    return {"dispatch": result, "routing": routing}
+
+
 @contextmanager
 def dispatch_context(
     *,
@@ -34,8 +250,32 @@ def dispatch_context(
     profile: str | None = None,
     metadata: Mapping[str, Any] | None = None,
     accounting_requested: bool = False,
+    host: str | None = None,
+    channel: str | None = None,
+    context_selection: Mapping[str, Any] | None = None,
 ):
     """Expose emission-only context to observational lifecycle handlers."""
+    routing_host = host
+    routing_channel = channel
+    routing_selection = context_selection
+    if isinstance(metadata, Mapping):
+        if routing_host is None:
+            candidate_host = metadata.get("host")
+            routing_host = candidate_host if isinstance(candidate_host, str) else None
+        if routing_channel is None:
+            candidate_channel = metadata.get("channel")
+            routing_channel = candidate_channel if isinstance(candidate_channel, str) else None
+        if routing_selection is None:
+            candidate_selection = metadata.get("context_selection")
+            if isinstance(candidate_selection, Mapping):
+                routing_selection = candidate_selection
+    context_routing = None
+    if routing_host is not None or routing_channel is not None or routing_selection is not None:
+        context_routing = route_context_injection(
+            routing_selection,
+            host=routing_host,
+            channel=routing_channel,
+        )
     if (
         all(
             value is None
@@ -48,21 +288,23 @@ def dispatch_context(
                 metadata,
             )
         )
+        and context_routing is None
         and not accounting_requested
     ):
         yield
         return
-    token = _ACTIVE_DISPATCH_CONTEXT.set(
-        {
-            "context_tokens": context_tokens,
-            "skill_text": skill_text,
-            "rule_text": rule_text,
-            "report_envelope": report_envelope,
-            "profile": profile,
-            "metadata": metadata,
-            "requested": accounting_requested,
-        }
-    )
+    context: dict[str, Any] = {
+        "context_tokens": context_tokens,
+        "skill_text": skill_text,
+        "rule_text": rule_text,
+        "report_envelope": report_envelope,
+        "profile": profile,
+        "metadata": metadata,
+        "requested": accounting_requested,
+    }
+    if context_routing is not None:
+        context["context_routing"] = context_routing
+    token = _ACTIVE_DISPATCH_CONTEXT.set(context)
     try:
         yield
     finally:

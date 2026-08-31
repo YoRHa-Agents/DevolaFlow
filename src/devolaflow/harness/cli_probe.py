@@ -49,9 +49,44 @@ ARM_CHOICES: Final[frozenset[str]] = frozenset({"skill-on", "skill-off", "baseli
 DEFAULT_TIMEOUT_SECONDS: Final[float] = 120.0
 MAX_TIMEOUT_SECONDS: Final[float] = 3_600.0
 MAX_SUMMARY_CHARS: Final[int] = 2_000
+DEFAULT_TELEMETRY_LEDGER: Final[str] = ".local/telemetry/harness.jsonl"
+SKILL_CANARY_PREFIX: Final[str] = "DF-SKILL-CANARY-"
 PROBE_SCHEMA_VERSION: Final[int] = 1
 PROBE_EXIT_CODES: Final[dict[str, int]] = {"PASS": 0, "FAIL": 1, "INSUFFICIENT": 2}
 PROBE_STATUSES: Final[tuple[str, ...]] = ("PASS", "FAIL", "INSUFFICIENT")
+CACHE_USAGE_COMPONENTS: Final[tuple[str, ...]] = (
+    "cache_read",
+    "cache_creation",
+    "cache_write",
+    "uncached_input",
+)
+
+# These are provider response fields, not estimates.  Kimi intentionally has
+# no entries until a captured Kimi response establishes a cache field path.
+_CACHE_USAGE_ALIASES: Final[dict[str, dict[str, tuple[tuple[str, ...], ...]]]] = {
+    "claude": {
+        "cache_read": (("cache_read_input_tokens",),),
+        "cache_creation": (("cache_creation_input_tokens",),),
+        "cache_write": (("cache_write_input_tokens",),),
+        "uncached_input": (("input_tokens",),),
+    },
+    "codex": {
+        "cache_read": (
+            ("cached_input_tokens",),
+            ("input_tokens_details", "cached_tokens"),
+            ("prompt_tokens_details", "cached_tokens"),
+        ),
+        "cache_creation": (("cache_creation_input_tokens",),),
+        "cache_write": (("cache_write_input_tokens",),),
+        "uncached_input": (("uncached_input_tokens",),),
+    },
+    "kimi": {
+        "cache_read": (),
+        "cache_creation": (),
+        "cache_write": (),
+        "uncached_input": (),
+    },
+}
 
 # These are executable names and argument shapes, not filesystem paths or
 # credentials. Operators can replace every value through ChannelConfig or a
@@ -74,6 +109,9 @@ _SECRET_FLAG_RE = re.compile(
 )
 _BEARER_RE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _KEY_RE = re.compile(r"\b(?:sk|key|token)[-_][A-Za-z0-9_-]{12,}\b", re.IGNORECASE)
+_ABSOLUTE_PATH_RE = re.compile(
+    r"(?<![\w])/(?:Users|private|var|tmp|home|opt|etc|Applications|Library)(?:/[^\s\"']*)?"
+)
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -172,6 +210,25 @@ def _derive_run_id(
     return f"probe-{hashlib.sha256(encoded).hexdigest()}"
 
 
+def _derive_skill_canary(spec: ProbeSpec) -> str | None:
+    """Return a non-secret marker for skill-on response verification."""
+
+    if spec.arm != "skill-on":
+        return None
+    identity = {
+        "channel": spec.channel,
+        "task_class": spec.task_class,
+        "arm": spec.arm,
+        "seed": spec.seed,
+        "replicate": spec.replicate,
+        "salt": spec.salt,
+    }
+    encoded = json.dumps(identity, ensure_ascii=False, allow_nan=False, sort_keys=True).encode(
+        "utf-8"
+    )
+    return f"{SKILL_CANARY_PREFIX}{hashlib.sha256(encoded).hexdigest()[:20]}"
+
+
 @dataclass(frozen=True)
 class ChannelConfig:
     """One explicit executable and argv template for a supported channel."""
@@ -215,13 +272,14 @@ class ChannelConfig:
         """Render argv without shell interpolation or command concatenation."""
 
         values = {
-            "prompt": spec.prompt,
+            "prompt": _probe_prompt(spec),
             "channel": spec.channel,
             "task_class": spec.task_class,
             "arm": spec.arm,
             "seed": spec.seed,
             "replicate": str(spec.replicate),
             "run_id": spec.run_id,
+            "skill_canary": spec.skill_canary or "",
         }
         rendered: list[str] = []
         for template in (self.executable, *self.args):
@@ -304,7 +362,12 @@ class ProbeSpec:
             "timeout_seconds": self.timeout_seconds,
             "output_path": str(self.output_path) if self.output_path is not None else None,
             "run_id": self.run_id,
+            "skill_canary": self.skill_canary,
         }
+
+    @property
+    def skill_canary(self) -> str | None:
+        return _derive_skill_canary(self)
 
 
 def _validate_dimensions(channel: str, task_class: str, arm: str) -> None:
@@ -325,6 +388,20 @@ def _validate_timeout(timeout_seconds: object) -> float:
     ):
         raise ProbeError(f"timeout_seconds must be > 0 and <= {MAX_TIMEOUT_SECONDS:g}")
     return float(timeout_seconds)
+
+
+def _probe_prompt(spec: ProbeSpec) -> str:
+    """Add a non-semantic response marker only to skill-on probes."""
+
+    canary = spec.skill_canary
+    if canary is None:
+        return spec.prompt
+    return (
+        f"{spec.prompt}\n\n"
+        "Harness verification only: if the DevolaFlow skill is loaded, echo the exact "
+        f"marker `{canary}` in the structured response field `skill_canary_echo`. "
+        "Do not change the requested task or perform any additional action."
+    )
 
 
 def build_probe_spec(
@@ -436,6 +513,7 @@ def _safe_text(value: object) -> str:
     text = _SECRET_FLAG_RE.sub(r"\1<redacted>", text)
     text = _BEARER_RE.sub("Bearer <redacted>", text)
     text = _KEY_RE.sub("<redacted>", text)
+    text = _ABSOLUTE_PATH_RE.sub("<absolute-path>", text)
     if len(text) > MAX_SUMMARY_CHARS:
         return text[:MAX_SUMMARY_CHARS] + "…"
     return text
@@ -530,22 +608,133 @@ def _json_objects(stdout: object) -> list[Mapping[str, Any]]:
     return []
 
 
-def _token_usage(stdout: object) -> dict[str, Any]:
+def _json_mappings_with_paths(stdout: object) -> list[tuple[Mapping[str, Any], str]]:
+    """Return every JSON mapping and its repository-independent JSON path."""
+
+    raw = (
+        stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else str(stdout or "")
+    )
+    roots: list[Any] = []
+    try:
+        roots.append(json.loads(raw))
+    except (TypeError, json.JSONDecodeError):
+        for line in raw.splitlines():
+            if not line.strip():
+                continue
+            try:
+                roots.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    mappings: list[tuple[Mapping[str, Any], str]] = []
+
+    def visit(value: object, path: str) -> None:
+        if isinstance(value, Mapping):
+            mappings.append((value, path))
+            for key, child in value.items():
+                child_path = f"{path}.{key}" if path else str(key)
+                visit(child, child_path)
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, f"{path}[{index}]")
+
+    for root in roots:
+        visit(root, "")
+    return mappings
+
+
+def _json_parse_mismatch_path(stdout: object) -> str | None:
+    """Return the first malformed JSONL line, if the stream is not JSON."""
+
+    raw = (
+        stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else str(stdout or "")
+    )
+    try:
+        json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        for line_number, line in enumerate(raw.splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                json.loads(line)
+            except json.JSONDecodeError:
+                return f"jsonl.line[{line_number}]"
+    return None
+
+
+def _path_for_usage(base_path: str, field_path: Sequence[str]) -> str:
+    suffix = ".".join(field_path)
+    return f"{base_path}.{suffix}" if base_path else suffix
+
+
+def _cache_observation(
+    usage: Mapping[str, Any],
+    usage_path: str,
+    aliases: Sequence[tuple[str, ...]],
+) -> dict[str, Any]:
+    """Read one explicitly named provider field without treating absence as zero."""
+
+    for field_path in aliases:
+        value: object = usage
+        found = True
+        for key in field_path:
+            if not isinstance(value, Mapping) or key not in value:
+                found = False
+                break
+            value = value[key]
+        if not found:
+            continue
+        source_path = _path_for_usage(usage_path, field_path)
+        if type(value) is int and value >= 0:
+            return {"tokens": value, "status": "AVAILABLE", "source_path": source_path}
+        return {"tokens": None, "status": "INSUFFICIENT", "source_path": source_path}
+    return {"tokens": None, "status": "INSUFFICIENT", "source_path": None}
+
+
+def _empty_cache_usage() -> dict[str, dict[str, Any]]:
+    return {
+        component: {"tokens": None, "status": "INSUFFICIENT", "source_path": None}
+        for component in CACHE_USAGE_COMPONENTS
+    }
+
+
+def _token_usage(stdout: object, *, channel: str | None = None) -> dict[str, Any]:
     usage: Mapping[str, Any] | None = None
-    for payload in _json_objects(stdout):
+    usage_path = ""
+    parser_mismatch_path = _json_parse_mismatch_path(stdout)
+    mappings = _json_mappings_with_paths(stdout)
+    for payload, payload_path in mappings:
         candidate = payload.get("usage")
+        candidate_path = f"{payload_path}.usage" if payload_path else "usage"
         if not isinstance(candidate, Mapping):
+            if "usage" in payload:
+                parser_mismatch_path = candidate_path
             candidate = payload.get("token_usage")
+            candidate_path = f"{payload_path}.token_usage" if payload_path else "token_usage"
         if not isinstance(candidate, Mapping):
+            if "token_usage" in payload:
+                parser_mismatch_path = candidate_path
             direct_fields = {"input_tokens", "output_tokens", "prompt_tokens", "completion_tokens"}
             candidate = payload if direct_fields & set(payload) else None
+            candidate_path = payload_path
+            if candidate is not None:
+                parser_mismatch_path = candidate_path or "$"
         if isinstance(candidate, Mapping):
             usage = candidate
+            usage_path = candidate_path
     if not isinstance(usage, Mapping):
         return {
             "input_tokens": None,
             "output_tokens": None,
             "total_tokens": None,
+            "cache_usage": _empty_cache_usage(),
+            "usage_observation": {
+                "status": "INSUFFICIENT",
+                "reason": (
+                    "parser_mismatch" if parser_mismatch_path or not mappings else "missing_usage"
+                ),
+                "source_path": parser_mismatch_path or "$",
+            },
             "status": "INSUFFICIENT",
         }
     input_tokens = usage.get("input_tokens", usage.get("prompt_tokens", usage.get("input")))
@@ -555,10 +744,24 @@ def _token_usage(stdout: object) -> dict[str, Any]:
         input_tokens = input_tokens if type(input_tokens) is int and input_tokens >= 0 else None
         output_tokens = output_tokens if type(output_tokens) is int and output_tokens >= 0 else None
     available = input_tokens is not None and output_tokens is not None
+    cache_usage = _empty_cache_usage()
+    aliases = _CACHE_USAGE_ALIASES.get(channel or "", {})
+    for component in CACHE_USAGE_COMPONENTS:
+        cache_usage[component] = _cache_observation(
+            usage,
+            usage_path,
+            aliases.get(component, ()),
+        )
     return {
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "total_tokens": input_tokens + output_tokens if available else None,
+        "cache_usage": cache_usage,
+        "usage_observation": {
+            "status": "AVAILABLE" if available else "INSUFFICIENT",
+            "reason": "usage_observed" if available else "parser_mismatch",
+            "source_path": usage_path or "$",
+        },
         "status": "AVAILABLE" if available else "INSUFFICIENT",
     }
 
@@ -567,16 +770,28 @@ def _skill_loaded(
     stdout: object,
     channel: str,
     *,
+    arm: str,
+    expected_canary: str | None,
     reason: str | None = None,
 ) -> dict[str, Any]:
-    value = None
-    for candidate in _json_objects(stdout):
-        value = candidate.get("skill_loaded")
-        if not isinstance(value, bool):
-            metadata = candidate.get("metadata")
-            value = metadata.get("skill_loaded") if isinstance(metadata, Mapping) else None
+    value: bool | None = None
+    canary = _skill_canary_observation(
+        stdout,
+        arm=arm,
+        expected_canary=expected_canary,
+    )
+    for candidate, _ in _json_mappings_with_paths(stdout):
+        direct = candidate.get("skill_loaded")
+        nested = candidate.get("metadata")
+        value = direct if isinstance(direct, bool) else None
+        if value is None and isinstance(nested, Mapping):
+            nested_value = nested.get("skill_loaded")
+            value = nested_value if isinstance(nested_value, bool) else None
         if isinstance(value, bool):
             break
+    if arm == "skill-on":
+        value = True if canary["status"] == "AVAILABLE" else None
+        reason = reason or canary["reason"]
     if not isinstance(value, bool):
         value = None
         reason = reason or (
@@ -584,6 +799,60 @@ def _skill_loaded(
             "is not observable for this invocation"
         )
     return normalize_skill_observation(PROBE_HOSTS[channel], value, reason=reason)
+
+
+def _skill_canary_observation(
+    stdout: object,
+    *,
+    arm: str,
+    expected_canary: str | None,
+) -> dict[str, Any]:
+    """Find an exact structured canary echo without inspecting prose."""
+
+    if arm != "skill-on" or expected_canary is None:
+        return {
+            "expected": None,
+            "echo": None,
+            "source_path": None,
+            "status": "NOT_APPLICABLE",
+            "reason": "skill canary is only requested for skill-on probes",
+        }
+    first_path = "$"
+    for candidate, payload_path in _json_mappings_with_paths(stdout):
+        source_path = f"{payload_path}.skill_canary_echo" if payload_path else "skill_canary_echo"
+        if "skill_canary_echo" not in candidate:
+            continue
+        echo = candidate["skill_canary_echo"]
+        if not isinstance(echo, str):
+            return {
+                "expected": expected_canary,
+                "echo": None,
+                "source_path": source_path,
+                "status": "INSUFFICIENT",
+                "reason": "canary_mismatch",
+            }
+        if echo == expected_canary:
+            return {
+                "expected": expected_canary,
+                "echo": echo,
+                "source_path": source_path,
+                "status": "AVAILABLE",
+                "reason": "canary_echo_verified",
+            }
+        return {
+            "expected": expected_canary,
+            "echo": echo,
+            "source_path": source_path,
+            "status": "INSUFFICIENT",
+            "reason": "canary_mismatch",
+        }
+    return {
+        "expected": expected_canary,
+        "echo": None,
+        "source_path": first_path,
+        "status": "INSUFFICIENT",
+        "reason": "missing_canary_echo",
+    }
 
 
 def _base_result(
@@ -612,21 +881,39 @@ def _base_result(
         },
         "execution": {
             "exit_code": None,
+            "started_at": None,
+            "finished_at": None,
             "stdout_summary": "",
             "stderr_summary": "",
+            "partial_output_summary": {"stdout": "", "stderr": ""},
             "wall_time_seconds": 0.0,
             "reason": "unavailable",
+            "timeout_phase": None,
+            "termination_reason": None,
         },
         "token_usage": {
             "input_tokens": None,
             "output_tokens": None,
             "total_tokens": None,
+            "cache_usage": _empty_cache_usage(),
+            "usage_observation": {
+                "status": "INSUFFICIENT",
+                "reason": "missing_usage",
+                "source_path": "$",
+            },
             "status": "INSUFFICIENT",
         },
         "skill_loaded": _skill_loaded(
             "",
             spec.channel,
+            arm=spec.arm,
+            expected_canary=spec.skill_canary,
             reason="CLI channel was unavailable or did not complete; no skill state was observed",
+        ),
+        "skill_canary": _skill_canary_observation(
+            "",
+            arm=spec.arm,
+            expected_canary=spec.skill_canary,
         ),
         "stages": {"run": {"wall_time_seconds": 0.0}},
     }
@@ -641,6 +928,7 @@ class CLIProbeRunner:
         repo_root: str | Path = ".",
         commands: Mapping[str, ChannelConfig] | None = None,
         runner: CommandRunner = subprocess.run,
+        telemetry_ledger: str | Path | None = DEFAULT_TELEMETRY_LEDGER,
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
         if not self.repo_root.is_dir():
@@ -654,6 +942,42 @@ class CLIProbeRunner:
         if any(not isinstance(config, ChannelConfig) for config in self.commands.values()):
             raise ProbeError("commands values must be ChannelConfig instances")
         self.runner = runner
+        self.telemetry_ledger = telemetry_ledger
+
+    def _ingest_telemetry(self, result: dict[str, Any]) -> None:
+        """Append the new probe artifact without hiding ingestion failures."""
+
+        if self.telemetry_ledger is None:
+            return
+        try:
+            from devolaflow.harness.token_injection import ingest_cli_probe_artifact
+
+            ledger = Path(self.telemetry_ledger)
+            if not ledger.is_absolute():
+                ledger = self.repo_root / ledger
+            record = ingest_cli_probe_artifact(
+                self.repo_root / result["metadata"]["artifact_path"],
+                ledger,
+                repo_root=self.repo_root,
+                layer="L2",
+                profile="cli-probe",
+            )
+            result["telemetry"] = {
+                "status": "AVAILABLE",
+                "ledger_path": _relative_path(ledger, self.repo_root),
+                "event_id": record["event_id"],
+            }
+        except Exception as exc:  # noqa: BLE001 - result carries the failure
+            result["telemetry"] = {
+                "status": "INSUFFICIENT",
+                "ledger_path": _relative_path(
+                    Path(self.telemetry_ledger)
+                    if self.telemetry_ledger is not None
+                    else self.repo_root / DEFAULT_TELEMETRY_LEDGER,
+                    self.repo_root,
+                ),
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
 
     def run(self, spec: ProbeSpec) -> dict[str, Any]:
         """Execute and optionally serialize one probe result."""
@@ -670,6 +994,8 @@ class CLIProbeRunner:
             cwd=".",
         )
         started = time.perf_counter()
+        started_at = _iso_timestamp(None)
+        result["execution"]["started_at"] = started_at
         try:
             completed = _invoke_runner(
                 self.runner,
@@ -688,24 +1014,49 @@ class CLIProbeRunner:
             result["execution"].update(
                 {
                     "exit_code": exit_code,
+                    "finished_at": _iso_timestamp(None),
                     "stdout_summary": _safe_text(stdout),
                     "stderr_summary": _safe_text(stderr),
+                    "partial_output_summary": {
+                        "stdout": _safe_text(stdout),
+                        "stderr": _safe_text(stderr),
+                    },
                     "wall_time_seconds": wall_time,
                     "reason": "completed" if exit_code == 0 else "nonzero_exit",
+                    "termination_reason": "process_exit",
                 }
             )
             result["stages"]["run"]["wall_time_seconds"] = wall_time
-            result["token_usage"] = _token_usage(stdout)
-            result["skill_loaded"] = _skill_loaded(stdout, spec.channel)
+            result["token_usage"] = _token_usage(stdout, channel=spec.channel)
+            result["skill_loaded"] = _skill_loaded(
+                stdout,
+                spec.channel,
+                arm=spec.arm,
+                expected_canary=spec.skill_canary,
+            )
+            result["skill_canary"] = _skill_canary_observation(
+                stdout,
+                arm=spec.arm,
+                expected_canary=spec.skill_canary,
+            )
             result["status"] = "PASS" if exit_code == 0 else "FAIL"
         except subprocess.TimeoutExpired as exc:
             wall_time = time.perf_counter() - started
+            stdout_summary = _safe_text(exc.output)
+            stderr_summary = _safe_text(exc.stderr)
             result["execution"].update(
                 {
-                    "stdout_summary": _safe_text(exc.output),
-                    "stderr_summary": _safe_text(exc.stderr),
+                    "finished_at": _iso_timestamp(None),
+                    "stdout_summary": stdout_summary,
+                    "stderr_summary": stderr_summary,
+                    "partial_output_summary": {
+                        "stdout": stdout_summary,
+                        "stderr": stderr_summary,
+                    },
                     "wall_time_seconds": wall_time,
                     "reason": "timeout",
+                    "timeout_phase": "probe",
+                    "termination_reason": "timeout_expired",
                 }
             )
             result["stages"]["run"]["wall_time_seconds"] = wall_time
@@ -713,9 +1064,15 @@ class CLIProbeRunner:
             wall_time = time.perf_counter() - started
             result["execution"].update(
                 {
+                    "finished_at": _iso_timestamp(None),
                     "stderr_summary": _safe_text(f"{type(exc).__name__}: {exc}"),
+                    "partial_output_summary": {
+                        "stdout": "",
+                        "stderr": _safe_text(f"{type(exc).__name__}: {exc}"),
+                    },
                     "wall_time_seconds": wall_time,
                     "reason": "unavailable",
+                    "termination_reason": "runner_not_available",
                 }
             )
             result["stages"]["run"]["wall_time_seconds"] = wall_time
@@ -723,12 +1080,20 @@ class CLIProbeRunner:
             wall_time = time.perf_counter() - started
             result["execution"].update(
                 {
+                    "finished_at": _iso_timestamp(None),
                     "stderr_summary": _safe_text(f"{type(exc).__name__}: {exc}"),
+                    "partial_output_summary": {
+                        "stdout": "",
+                        "stderr": _safe_text(f"{type(exc).__name__}: {exc}"),
+                    },
                     "wall_time_seconds": wall_time,
                     "reason": "runner_error",
+                    "termination_reason": "runner_error",
                 }
             )
             result["stages"]["run"]["wall_time_seconds"] = wall_time
+        _write_result(result, self.repo_root)
+        self._ingest_telemetry(result)
         _write_result(result, self.repo_root)
         return result
 
@@ -755,6 +1120,13 @@ class CLIProbeRunner:
             cwd=".",
         )
         result["execution"]["reason"] = reason
+        result["execution"]["started_at"] = _iso_timestamp(None)
+        result["execution"]["finished_at"] = result["execution"]["started_at"]
+        result["execution"]["termination_reason"] = reason
+        if reason == "outer_timeout":
+            result["execution"]["timeout_phase"] = "calibration"
+        _write_result(result, self.repo_root)
+        self._ingest_telemetry(result)
         _write_result(result, self.repo_root)
         return result
 
@@ -782,10 +1154,16 @@ def run_cli_probe(
     repo_root: str | Path = ".",
     commands: Mapping[str, ChannelConfig] | None = None,
     runner: CommandRunner = subprocess.run,
+    telemetry_ledger: str | Path | None = DEFAULT_TELEMETRY_LEDGER,
 ) -> dict[str, Any]:
     """Convenience API for one bounded local CLI probe."""
 
-    return CLIProbeRunner(repo_root=repo_root, commands=commands, runner=runner).run(spec)
+    return CLIProbeRunner(
+        repo_root=repo_root,
+        commands=commands,
+        runner=runner,
+        telemetry_ledger=telemetry_ledger,
+    ).run(spec)
 
 
 def serialize_probe_result(result: Mapping[str, Any]) -> str:
@@ -798,9 +1176,11 @@ def serialize_probe_result(result: Mapping[str, Any]) -> str:
 
 __all__ = [
     "ARM_CHOICES",
+    "CACHE_USAGE_COMPONENTS",
     "ChannelConfig",
     "CLIProbeRunner",
     "DEFAULT_COMMAND_TEMPLATES",
+    "DEFAULT_TELEMETRY_LEDGER",
     "DEFAULT_TIMEOUT_SECONDS",
     "MAX_TIMEOUT_SECONDS",
     "ProbeError",

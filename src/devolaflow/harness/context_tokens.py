@@ -38,7 +38,7 @@ def stable_yaml(payload: dict[str, Any]) -> str:
 
 
 def estimate_text_tokens(text: str | None, *, field: str = "text") -> int | None:
-    """Measure supplied text, preserving ``None`` for unavailable input."""
+    """Estimate supplied text locally, not observe provider usage."""
     if text is None:
         return None
     if not isinstance(text, str):
@@ -140,8 +140,8 @@ def _payload_context_sources(
 
     ``select_context`` returns ``assembled_text`` plus an AGENTS.md slice
     summary rather than the sliced corpus itself.  The summary's
-    ``total_tokens`` is already an observed measurement and is therefore safe
-    to carry forward; absent components remain ``None`` rather than being
+    ``total_tokens`` is an explicitly supplied selector estimate, not a
+    provider observation; absent components remain ``None`` rather than being
     inferred from the dispatch payload.
     """
     containers: list[Mapping[str, Any]] = [payload]
@@ -153,7 +153,7 @@ def _payload_context_sources(
     skill_text: str | None = None
     rule_text: str | None = None
     report_envelope: Mapping[str, Any] | str | None = None
-    observed_rule_tokens: int | None = None
+    selector_rule_tokens: int | None = None
     source_found = False
     for container in containers:
         for key in ("skill_text", "skill_context", "assembled_text"):
@@ -178,20 +178,20 @@ def _payload_context_sources(
         if isinstance(slice_summary, Mapping):
             value = slice_summary.get("total_tokens")
             if type(value) is int and value >= 0:
-                observed_rule_tokens = value
+                selector_rule_tokens = value
                 source_found = True
 
     if not source_found:
         return None
-    return skill_text, rule_text, report_envelope, observed_rule_tokens
+    return skill_text, rule_text, report_envelope, selector_rule_tokens
 
 
 def context_tokens_from_payload(payload: dict[str, Any]) -> dict[str, int | None] | None:
     """Return explicit or selector-provided accounting from a dispatch.
 
     This is intentionally a zero-IO adapter.  It recognizes only context
-    values that the caller supplied, including the selector's measured
-    ``agents_md_slice.total_tokens`` value.
+    values that the caller supplied, including the selector's explicit
+    ``agents_md_slice.total_tokens`` estimate.
     """
     explicit = _payload_context_tokens(payload)
     if explicit is not None:
@@ -199,14 +199,14 @@ def context_tokens_from_payload(payload: dict[str, Any]) -> dict[str, int | None
     sources = _payload_context_sources(payload)
     if sources is None:
         return None
-    skill_text, rule_text, report_envelope, observed_rule_tokens = sources
+    skill_text, rule_text, report_envelope, selector_rule_tokens = sources
     accounting = measure_context_tokens(
         skill_text=skill_text,
         rule_text=rule_text,
         report_envelope=report_envelope,
     )
-    if observed_rule_tokens is not None:
-        accounting["rule_tokens"] = observed_rule_tokens
+    if selector_rule_tokens is not None:
+        accounting["rule_tokens"] = selector_rule_tokens
     return accounting
 
 
