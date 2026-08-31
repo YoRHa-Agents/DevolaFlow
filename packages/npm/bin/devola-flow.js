@@ -207,7 +207,10 @@ function executableCandidates(name) {
           path.join(process.env.LOCALAPPDATA || '', 'bin'),
         ]
       : [path.join(home, '.local', 'bin'), path.join(home, '.cargo', 'bin')];
-  const dirs = [...new Set([...pathDirs, ...extraDirs])];
+  // Prefer the active HOME's tool directories over inherited PATH entries.
+  // This prevents a stale user-level DevolaFlow executable from masking the
+  // runtime just installed into an isolated HOME or uv environment.
+  const dirs = [...new Set([...extraDirs, ...pathDirs])];
   return dirs.flatMap((dir) => names.map((candidate) => path.join(dir, candidate)));
 }
 
