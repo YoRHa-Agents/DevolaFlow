@@ -22,7 +22,7 @@ Copilot's project-level rule-file installation.
 ## Install, update, and doctor
 
 ```bash
-npm install -g @yorha-agents/devola-flow@22.1.0
+npm install -g @yorha-agents/devola-flow@22.1.1
 devola-flow install all
 
 devola-flow update cursor
@@ -31,7 +31,7 @@ devola-flow doctor
 ```
 
 `install` and `update` install skill files and provision Python 3.13 through
-uv, pinned to the matching `v22.1.0` source tag. If uv bootstrap or runtime
+uv, pinned to the matching `v22.1.1` source tag. If uv bootstrap or runtime
 installation is unavailable, skill files remain usable as `docs-only`; the
 command prints a copyable repair command. Use `--no-runtime` for an explicit
 docs-only install. `doctor` reports runtime state for all five locations and
@@ -60,11 +60,11 @@ Python is older than 3.11, use the uv-managed runtime rather than system pip:
 
 ```bash
 uv tool install --force --python 3.13 \
-  'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.0'
+  'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.1'
 ```
 
 For explicit `python -m devolaflow.*` execution, use
-`uv run --with 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.0'`
+`uv run --with 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.1'`
 followed by the module command. See the canonical repository guides:
 
 - [Quickstart](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md)

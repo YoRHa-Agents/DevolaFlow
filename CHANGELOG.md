@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [22.1.1] - 2026-08-31 — PATCH — Runtime Probe Resolution
+
+### Fixed
+
+- **npm runtime verification**: prefer the active HOME's uv tool directory
+  when probing `devola-version`, so an older inherited executable cannot mask
+  the runtime installed by the published npm package.
+
 ## [22.1.0] - 2026-08-31 — MINOR — Self-Contained npm Runtime Channel
 
 ### Added
