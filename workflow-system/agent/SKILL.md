@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "22.0.0"
+version: "22.1.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,30 +24,30 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v22.0.0**
+> **Now Using DevolaFlow v22.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 22.0.0 — Check only on explicit update request:
+**Current version:** 22.1.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
 
-- npm/npx copied skills:
-  `npx @yorha-agents/devola-flow update <cursor|claude|all>`;
+- npm/npx copied skills: `npm install -g @yorha-agents/devola-flow@<version> && devola-flow install all`
+  copies skills and provisions the matching Python runtime through uv; `npx @yorha-agents/devola-flow update <cursor|claude|all>` repeats both steps;
 - curl-installer copied skills:
   `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
   scans supported host skill copies only;
-- Python package:
-  `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`.
+- Python runtime: `uv tool install --force --python 3.13 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v<version>'`;
+  Python 3.11+ operators may use `pip install --upgrade` with the same pinned URL. runtime-dependent commands are `devola-local-archive`, `devola-init-doctor`, `devola-version`, and `python -m devolaflow.*`; see troubleshooting §2.19.
 
 curl `all` installs all supported host targets plus `local`; it excludes
 `standalone`. curl `update` does not scan local workspaces or standalone files;
 rerun the explicit `local` or `standalone` install target for those surfaces.
 Updating the Python package does not auto-refresh copied skills. Editable
 checkout users pull the checkout and rerun the relevant `devola-init` target.
-Workspace health is `devola-init-doctor`; copied-skill audit is
+If uv bootstrap or runtime installation fails, skill files remain **docs-only** and the installer prints a copyable repair command. Workspace health is `devola-init-doctor`; copied-skill audit is
 `devola-init-doctor --skills`; npm-channel parity is
 `npx @yorha-agents/devola-flow doctor`. Repair rule compilation with
 `sync-rules` or repository-local `make compile-rules`.

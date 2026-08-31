@@ -184,8 +184,8 @@ def test_current_demo_release_window_has_no_upcoming_release_residue(project_roo
 
     assert "Upcoming release" not in demo
     assert "即将发布" not in demo
-    assert demo.count("New in v22.0.0 · Optional Tool Retirement") == 2
-    assert "v22.0.0 新变化 · Optional Tool Retirement" in demo
+    assert demo.count("New in v22.1.0 · Self-Contained npm Runtime Channel") == 2
+    assert "v22.1.0 新变化 · Self-Contained npm Runtime Channel" in demo
 
 
 def test_demo_promotion_allows_already_promoted_pages() -> None:
@@ -430,3 +430,12 @@ def test_release_design_matches_v17_pipeline_contract() -> None:
     obsolete_claims = ("all 16 version locations", "all 10 version locations", "sample_data")
     lowered = design.lower()
     assert not any(claim in lowered for claim in obsolete_claims)
+
+
+def test_npm_runtime_pin_uses_the_release_tag() -> None:
+    """The npm installer and release package share one version pin."""
+    installer = (ROOT / "packages/npm/bin/devola-flow.js").read_text(encoding="utf-8")
+
+    assert "const DEFAULT_REF = `v${pkg.version}`;" in installer
+    assert "git+https://github.com/${REPO}.git@v${pkg.version}" in installer
+    assert "--python', RUNTIME_PYTHON" in installer

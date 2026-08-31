@@ -4,8 +4,8 @@ description: "Common questions about checklist rounds, installation scope, updat
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-30T23:06:56Z"
-source_version: "22.0.0"
+last_synced: "2026-08-31T11:34:52Z"
+source_version: "22.1.0"
 ---
 
 # FAQ
