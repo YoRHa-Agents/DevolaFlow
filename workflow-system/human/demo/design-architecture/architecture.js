@@ -9,7 +9,7 @@
   var sourceFacts = Object.freeze({
     skill: Object.freeze({
       path: 'workflow-system/agent/SKILL.md',
-      lines: 462
+      lines: 399
     }),
     seedCatalog: Object.freeze({
       path: 'workflow-system/human/demo/shared/seed-catalog.js',

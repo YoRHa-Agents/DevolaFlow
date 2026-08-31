@@ -35,6 +35,7 @@ CHECKLIST_ARTIFACTS = (
     "spec.md",
     "STATUS.yaml",
     "owned_files.txt",
+    "entrance.md",
     "learnings.jsonl",
 )
 
@@ -241,8 +242,9 @@ def test_checklist_load_roundtrip_uses_only_v16_artifacts_and_verbatim_evidence(
     change.to_active_folder(target)
     assert not (target / "acceptance.md").exists()
     assert not (target / "tasks.md").exists()
-    for filename in CHECKLIST_ARTIFACTS[:-1]:
+    for filename in CHECKLIST_ARTIFACTS[:-2]:
         assert (target / filename).read_bytes() == (source / filename).read_bytes()
+    assert (target / "entrance.md").is_file()
     for basename, text in evidence.items():
         assert (target / "evidence" / basename).read_text(encoding="utf-8") == text
     # entrance.md joins the write set (v20.0.x fix: the onboarding router is

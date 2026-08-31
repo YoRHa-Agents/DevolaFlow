@@ -133,6 +133,83 @@ def _payload_context_tokens(payload: dict[str, Any]) -> Mapping[str, object] | N
     return None
 
 
+def _payload_context_sources(
+    payload: dict[str, Any],
+) -> tuple[str | None, str | None, Mapping[str, Any] | str | None, int | None] | None:
+    """Measure selector-shaped context without reading files.
+
+    ``select_context`` returns ``assembled_text`` plus an AGENTS.md slice
+    summary rather than the sliced corpus itself.  The summary's
+    ``total_tokens`` is already an observed measurement and is therefore safe
+    to carry forward; absent components remain ``None`` rather than being
+    inferred from the dispatch payload.
+    """
+    containers: list[Mapping[str, Any]] = [payload]
+    for parent_key in ("context", "telemetry"):
+        parent = payload.get(parent_key)
+        if isinstance(parent, Mapping):
+            containers.append(parent)
+
+    skill_text: str | None = None
+    rule_text: str | None = None
+    report_envelope: Mapping[str, Any] | str | None = None
+    observed_rule_tokens: int | None = None
+    source_found = False
+    for container in containers:
+        for key in ("skill_text", "skill_context", "assembled_text"):
+            value = container.get(key)
+            if isinstance(value, str):
+                skill_text = value
+                source_found = True
+                break
+        for key in ("rule_text", "rules_text", "agents_md_text", "agents_md"):
+            value = container.get(key)
+            if isinstance(value, str):
+                rule_text = value
+                source_found = True
+                break
+        for key in ("report_envelope", "report", "status_report"):
+            value = container.get(key)
+            if isinstance(value, (str, Mapping)):
+                report_envelope = value
+                source_found = True
+                break
+        slice_summary = container.get("agents_md_slice")
+        if isinstance(slice_summary, Mapping):
+            value = slice_summary.get("total_tokens")
+            if type(value) is int and value >= 0:
+                observed_rule_tokens = value
+                source_found = True
+
+    if not source_found:
+        return None
+    return skill_text, rule_text, report_envelope, observed_rule_tokens
+
+
+def context_tokens_from_payload(payload: dict[str, Any]) -> dict[str, int | None] | None:
+    """Return explicit or selector-provided accounting from a dispatch.
+
+    This is intentionally a zero-IO adapter.  It recognizes only context
+    values that the caller supplied, including the selector's measured
+    ``agents_md_slice.total_tokens`` value.
+    """
+    explicit = _payload_context_tokens(payload)
+    if explicit is not None:
+        return _normalize_context_tokens(explicit)
+    sources = _payload_context_sources(payload)
+    if sources is None:
+        return None
+    skill_text, rule_text, report_envelope, observed_rule_tokens = sources
+    accounting = measure_context_tokens(
+        skill_text=skill_text,
+        rule_text=rule_text,
+        report_envelope=report_envelope,
+    )
+    if observed_rule_tokens is not None:
+        accounting["rule_tokens"] = observed_rule_tokens
+    return accounting
+
+
 def _resolve_context_tokens(
     payload: dict[str, Any],
     context_tokens: Mapping[str, object] | None,
@@ -152,8 +229,7 @@ def _resolve_context_tokens(
             rule_text=rule_text,
             report_envelope=report_envelope,
         )
-    payload_tokens = _payload_context_tokens(payload)
-    return _normalize_context_tokens(payload_tokens) if payload_tokens is not None else None
+    return context_tokens_from_payload(payload)
 
 
 def build_context_token_record(
@@ -258,11 +334,38 @@ def _append_context_token_record(
     return path
 
 
+def _append_dispatch_context_token_record(
+    ledger: str | Path,
+    *,
+    dispatch_id: str,
+    timestamp: str,
+    accounting: Mapping[str, int | None] | None,
+    metadata: Mapping[str, Any] | None,
+    append_record: Any,
+) -> dict[str, int | None]:
+    """Emit the context-token event paired with one dispatch record."""
+    resolved = accounting or {
+        "skill_tokens": None,
+        "rule_tokens": None,
+        "report_tokens": None,
+    }
+    append_record(
+        ledger,
+        None,
+        context_tokens=resolved,
+        timestamp=timestamp,
+        event_id=f"{CONTEXT_TOKEN_EVENT}:{dispatch_id}:{timestamp}",
+        metadata=metadata,
+    )
+    return resolved
+
+
 __all__ = [
     "CONTEXT_TOKEN_EVENT",
     "CONTEXT_TOKEN_FIELDS",
     "TelemetryGateError",
     "build_context_token_record",
+    "context_tokens_from_payload",
     "estimate_text_tokens",
     "measure_context_tokens",
     "stable_yaml",

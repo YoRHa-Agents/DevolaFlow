@@ -4,8 +4,8 @@ description: "Customize seeds, context profiles, rules, and local scaffolds with
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T12:25:20Z"
-source_version: "22.1.1"
+last_synced: "2026-08-31T15:15:03Z"
+source_version: "23.0.0"
 ---
 
 # Customization Guide

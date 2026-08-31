@@ -7,7 +7,7 @@
     "## Mode Awareness",
     "## 3-Layer Agent Hierarchy"
   ],
-  "line_count_range": [400, 500],
+  "line_count_range": [390, 410],
   "must_have_frontmatter_keys": ["id", "version", "purpose", "tier", "token_estimate", "name", "description"],
   "must_not_contain": ["MVP-SKILL", "evaluate_gate_with_nines", "run_nines_advisor"]
 }

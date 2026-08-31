@@ -32,7 +32,10 @@ meta:
   # v7.1.0: tool_output_truncation + summariser default-on for 6 decomposition profiles; opt-out per profile.
   compression_defaults:
     l0_to_l1: standard
-    l1_to_l2: minimal
+    # L1 hands a scoped, selector-produced context to L2. Standard
+    # compaction removes narration while preserving governed facts; safety,
+    # destructive, and audit contexts bypass in the dispatch assembly layer.
+    l1_to_l2: standard
     l2_to_l1: aggressive
     l1_to_l0: aggressive
   # v7.2.1+ (P-04) — complexity-tier → model_hint routing. When callers
@@ -295,16 +298,95 @@ meta:
         style: all
       rdrr:
         soul: all
-        architecture: all
-        conventions: all
-        workflow: all
-        style: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-7", "W-8", "W-9", "W-16", "W-18", "W-20", "W-21"]
       documentation:
         soul: ["S-1", "S-2", "S-4", "S-5", "S-7"]
         architecture: ["A-1", "A-3"]
         conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
         workflow: ["W-7"]
         style: all
+      skill-optimization:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5", "A-6"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-4", "W-5", "W-9", "W-16", "W-18"]
+      migration:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-16", "W-18", "W-20", "W-21"]
+      security-audit:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5", "A-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-9", "W-18", "W-20", "W-21"]
+      spike-poc:
+        soul: all
+        architecture: ["A-1", "A-2"]
+        conventions: ["C-1", "C-2"]
+        workflow: ["W-4", "W-9"]
+      demo-showcase:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-4", "W-5", "W-7", "W-9"]
+      perf-optimization:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-4", "W-9", "W-16", "W-18"]
+      dependency-setup:
+        soul: all
+        architecture: ["A-1", "A-3", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
+        workflow: ["W-4", "W-5", "W-9", "W-20"]
+      onboarding:
+        soul: all
+        architecture: ["A-1", "A-3", "A-4", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-1", "W-2", "W-4", "W-5", "W-9", "W-18"]
+      self_update:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5", "A-6", "A-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
+        workflow: ["W-4", "W-5", "W-7", "W-9", "W-18", "W-20", "W-21"]
+      feedback:
+        soul: all
+        architecture: ["A-1", "A-3", "A-4", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-3", "W-4", "W-7", "W-8", "W-9", "W-16", "W-18", "W-20", "W-21"]
+      verify_visual:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-3", "W-4", "W-9", "W-16", "W-18"]
+      verify_acceptance:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-3", "W-4", "W-9", "W-16", "W-18"]
+      verify_interaction:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-3", "W-4", "W-9", "W-16", "W-18"]
+      repo-init:
+        soul: all
+        architecture: ["A-1", "A-3", "A-4", "A-5", "A-6"]
+        conventions: ["C-1", "C-2", "C-4", "C-6", "C-7"]
+        workflow: ["W-1", "W-2", "W-4", "W-5", "W-9", "W-18", "W-20", "W-21", "W-25"]
+      product_verification:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-5", "A-7"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-3", "W-4", "W-5", "W-9", "W-16", "W-18", "W-20", "W-21"]
+      entropy_scan:
+        soul: all
+        architecture: ["A-1", "A-2", "A-3", "A-4", "A-5"]
+        conventions: ["C-1", "C-2", "C-4", "C-7"]
+        workflow: ["W-4", "W-7", "W-9", "W-16", "W-18", "W-26", "W-27", "W-28"]
       default:
         soul: all
         architecture: all
@@ -540,7 +622,7 @@ sections:
     content_type: table
 
   quick_action_decision:
-    lines: "69-79"
+    lines: "69-88"
     tokens_est: 163
     content_type: table
 
@@ -560,8 +642,8 @@ sections:
     content_type: spec
 
   quick_start_workflows:
-    lines: "127-161"
-    tokens_est: 612
+    lines: "136-163"
+    tokens_est: 416
     content_type: table
 
   # PV-W4.T7 boundary note (preserved verbatim from v11.4.0 PV-W4.T7):
@@ -620,13 +702,13 @@ sections:
   # Reference" header (had drifted onto §### "Reinforcement Rules" since
   # v13.0.0); end recomputed per realign_section_anchors.py.
   agent_teams:
-    lines: "260-271"
-    tokens_est: 520
+    lines: "268-274"
+    tokens_est: 74
     content_type: table
 
   context_isolation:
-    lines: "272-282"
-    tokens_est: 230
+    lines: "275-285"
+    tokens_est: 129
     content_type: spec
 
   dispatch_report:
@@ -645,13 +727,13 @@ sections:
     content_type: table
 
   reference_navigation:
-    lines: &reference_navigation_section_lines "328-359"
-    tokens_est: 343
+    lines: &reference_navigation_section_lines "344-370"
+    tokens_est: 378
     content_type: navigation
 
   rules_dispatchers:
     lines: *reference_navigation_section_lines
-    tokens_est: 343
+    tokens_est: 378
     content_type: rules
 
   convergence_loop:

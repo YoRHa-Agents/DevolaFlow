@@ -17,7 +17,8 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m devolaflow.agent_workspace.lint",
         description=(
             "Lint a .local/.agent/active/<change-id>/ folder against C-9 budgets, "
-            "or the .local/human/ surface with --human."
+            "a direct .local/tasks/<task-name>/ folder with --task, or the "
+            ".local/human/ surface with --human."
         ),
     )
     parser.add_argument(
@@ -31,6 +32,11 @@ def main(argv: list[str] | None = None) -> int:
         "--human",
         action="store_true",
         help="lint the .local/human/ INPUT + OUTPUT zones instead of a change folder",
+    )
+    parser.add_argument(
+        "--task",
+        action="store_true",
+        help="lint a direct .local/tasks/<task-name>/ folder",
     )
     parser.add_argument(
         "--repo-root",
@@ -57,19 +63,25 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    if args.human and args.task:
+        parser.error("--human and --task cannot be combined")
+
     if args.human:
         report = lint_human(repo_root=args.repo_root)
     else:
         if not args.change_id:
             parser.error("change_id is required unless --human is given")
         try:
-            report = lint_change(
-                args.change_id,
-                repo_root=args.repo_root,
-                active_dir=args.active_dir,
-                archive_dir=args.archive_dir,
-            )
-        except (FileNotFoundError, LegacyChangeLayoutError) as exc:
+            if args.task:
+                report = lint_task(args.change_id, repo_root=args.repo_root)
+            else:
+                report = lint_change(
+                    args.change_id,
+                    repo_root=args.repo_root,
+                    active_dir=args.active_dir,
+                    archive_dir=args.archive_dir,
+                )
+        except (FileNotFoundError, LegacyChangeLayoutError, ValueError) as exc:
             print(f"lint: {exc}", file=sys.stderr)
             return 2
 

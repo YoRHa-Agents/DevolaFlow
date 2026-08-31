@@ -63,8 +63,10 @@ from __future__ import annotations
 
 import copy
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from devolaflow.gate.models import GateVerdict, Severity
@@ -208,6 +210,18 @@ class ProposalEmitter:
         severity_floor: Severity = "major",
         reinforcement_factory: ReinforcementFactory,
         supplemental_reinforcement: ReinforcementBlock | None = None,
+        context_tokens: Mapping[str, object] | None = None,
+        skill_text: str | None = None,
+        rule_text: str | None = None,
+        report_envelope: Mapping[str, Any] | str | None = None,
+        profile: str | None = None,
+        telemetry_metadata: Mapping[str, Any] | None = None,
+        context_selection: Mapping[str, Any] | None = None,
+        context_task_type: str | None = None,
+        context_layer: str = "L2",
+        context_source: str = "selector",
+        context_profiles_path: Path | None = None,
+        agents_md_path: Path | None = None,
     ) -> dict[str, Any]:
         """Produce a dispatch for convergence round ``round_num``.
 
@@ -257,6 +271,18 @@ class ProposalEmitter:
             Stable id de-duplication and one global top-five cap apply only
             when this opt-in block is present; omitting it preserves legacy
             gate-only serialization byte-for-byte.
+        context_tokens, skill_text, rule_text, report_envelope, profile,
+        telemetry_metadata:
+            Optional observational accounting inputs. They are exposed to the
+            post-dispatch telemetry handler through an emission-only sidecar;
+            none are serialized into the returned dispatch.
+        context_selection, context_task_type, context_layer, context_source,
+        context_profiles_path, agents_md_path:
+            Explicit selector-to-dispatch assembly inputs. When either
+            ``context_selection`` or ``context_task_type`` is supplied, the
+            actual per-task AGENTS.md slice is placed in the existing
+            ``rules`` block and compression measurement is nested there.
+            Omitting both preserves the legacy no-op path.
 
         Returns
         -------
@@ -279,12 +305,51 @@ class ProposalEmitter:
             )
 
         block = _compose_reinforcement(supplemental_reinforcement, gate_block)
-        if block is None:
-            return self._fire_hook_chain(dispatch)
+        if block is not None:
+            dispatch = merge_reinforcement_into_dispatch(dispatch, block)
+        if context_selection is not None or context_task_type is not None:
+            from devolaflow.compressor import apply_context_assembly, assemble_context
 
-        return self._fire_hook_chain(merge_reinforcement_into_dispatch(dispatch, block))
+            task_type = context_task_type or ""
+            if not task_type:
+                task = dispatch.get("task")
+                if isinstance(task, Mapping):
+                    candidate = task.get("type", "")
+                    task_type = candidate if isinstance(candidate, str) else ""
+                elif isinstance(dispatch.get("task_type"), str):
+                    task_type = dispatch["task_type"]
+            assembly = assemble_context(
+                context_selection,
+                task_type=task_type,
+                layer=context_layer,
+                profile=profile,
+                source=context_source,
+                profiles_path=context_profiles_path,
+                agents_md_path=agents_md_path,
+            )
+            dispatch = apply_context_assembly(dispatch, assembly)
 
-    def _fire_hook_chain(self, dispatch: dict[str, Any]) -> dict[str, Any]:
+        return self._fire_hook_chain(
+            dispatch,
+            context_tokens=context_tokens,
+            skill_text=skill_text,
+            rule_text=rule_text,
+            report_envelope=report_envelope,
+            profile=profile,
+            telemetry_metadata=telemetry_metadata,
+        )
+
+    def _fire_hook_chain(
+        self,
+        dispatch: dict[str, Any],
+        *,
+        context_tokens: Mapping[str, object] | None = None,
+        skill_text: str | None = None,
+        rule_text: str | None = None,
+        report_envelope: Mapping[str, Any] | str | None = None,
+        profile: str | None = None,
+        telemetry_metadata: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Run the S-10 lifecycle hook chain on ``dispatch`` and return it unchanged.
 
         Verbatim move of the v10.5.x ``ProposalGenerator._emit_dispatch``
@@ -358,23 +423,44 @@ class ProposalEmitter:
             )
             return dispatch
 
-        for event in _HOOK_CHAIN:
-            # v15.0.0 strict graduation (G-038): only pre_dispatch is
-            # content-validating; it alone carries the strict default.
-            event_strict = self._pre_dispatch_strict and event == _HOOK_PRE_DISPATCH
-            try:
-                lifecycle.run_hooks(event, dispatch, strict=event_strict)
-            except Exception as exc:  # noqa: BLE001
-                if event_strict and isinstance(exc, lifecycle.HookViolation):
-                    # Governance raise — BLOCK the dispatch (block, not
-                    # warn). Permissive escape: pre_dispatch_strict=False.
-                    raise
-                logger.warning(
-                    "ProposalEmitter._fire_hook_chain: %s hook raised %s; "
-                    "dispatch returned unchanged",
-                    event,
-                    exc,
-                )
+        try:
+            from devolaflow.harness.telemetry import dispatch_context
+        except ImportError as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "ProposalEmitter._fire_hook_chain: telemetry context unavailable "
+                "(%s); dispatch hooks continue without context accounting",
+                exc,
+            )
+            context_manager = nullcontext()
+        else:
+            context_manager = dispatch_context(
+                context_tokens=context_tokens,
+                skill_text=skill_text,
+                rule_text=rule_text,
+                report_envelope=report_envelope,
+                profile=profile,
+                metadata=telemetry_metadata,
+                accounting_requested=True,
+            )
+
+        with context_manager:
+            for event in _HOOK_CHAIN:
+                # v15.0.0 strict graduation (G-038): only pre_dispatch is
+                # content-validating; it alone carries the strict default.
+                event_strict = self._pre_dispatch_strict and event == _HOOK_PRE_DISPATCH
+                try:
+                    lifecycle.run_hooks(event, dispatch, strict=event_strict)
+                except Exception as exc:  # noqa: BLE001
+                    if event_strict and isinstance(exc, lifecycle.HookViolation):
+                        # Governance raise — BLOCK the dispatch (block, not
+                        # warn). Permissive escape: pre_dispatch_strict=False.
+                        raise
+                    logger.warning(
+                        "ProposalEmitter._fire_hook_chain: %s hook raised %s; "
+                        "dispatch returned unchanged",
+                        event,
+                        exc,
+                    )
         return dispatch
 
 

@@ -114,6 +114,7 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         "spec.md",
         "STATUS.yaml",
         "owned_files.txt",
+        "entrance.md",
         "learnings.jsonl",
     )
     layout_cases = (

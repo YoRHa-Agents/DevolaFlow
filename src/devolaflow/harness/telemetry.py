@@ -25,6 +25,7 @@ from devolaflow.harness.context_tokens import (
     CONTEXT_TOKEN_FIELDS,
     TelemetryGateError,
     _append_context_token_record,
+    _append_dispatch_context_token_record,
     _build_context_token_accounting,
     _build_report_telemetry_record,
     _resolve_context_tokens,
@@ -33,6 +34,18 @@ from devolaflow.harness.context_tokens import (
     measure_context_tokens,
     stable_yaml,
 )
+from devolaflow.harness.dispatch_context import (
+    _AttributionError,
+    _dispatch_id,
+    _dispatch_layer,
+    _dispatch_profile,
+    _mapping,
+    _non_empty_string,
+    _resolve_active_change,
+    _round_number,
+    current_dispatch_context,
+    dispatch_context,
+)
 from devolaflow.harness.metadata import attach_run_metadata
 from devolaflow.harness.telemetry_storage import (
     HARNESS_SEGMENT_MAX_BYTES,
@@ -40,6 +53,20 @@ from devolaflow.harness.telemetry_storage import (
     append_harness_record,
 )
 from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
+from devolaflow.harness.token_injection import (
+    TOKEN_COMPONENTS,
+    TOKEN_INJECTION_EVENT,
+    TOKEN_INJECTION_FIELDS,
+    TOKEN_INJECTION_SCHEMA_VERSION,
+    TOKEN_INJECTION_SOURCES,
+    TokenInjectionError,
+    append_token_injection_measurement,
+    build_token_injection_measurement,
+    ingest_captured_transcript,
+    ingest_cli_probe_artifact,
+    ingest_measurement_artifact,
+    validate_token_injection_measurement,
+)
 from devolaflow.task_adaptive_selector import estimate_tokens
 
 if TYPE_CHECKING:
@@ -100,7 +127,6 @@ LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {
     "L2": 8_000,
 }
 
-_ACTIVE_ROOT = Path(".local") / ".agent" / "active"
 _BASE_LEDGER_NAME = "harness.jsonl"
 _BEHAVIORAL_GUIDELINES_REF = "workflow-system/agent/references/behavioral-guidelines.md"
 # Alias table owned by agent_workspace.layers (A-5 single-owner; merged v17).
@@ -113,97 +139,8 @@ build_context_token_accounting = _build_context_token_accounting
 build_report_telemetry_record = _build_report_telemetry_record
 
 
-class _AttributionError(ValueError):
-    """Internal signal for a dispatch that cannot be attributed safely."""
-
-
 class MetricObservationError(ValueError):
     """A metric observation is malformed or cannot be compared safely."""
-
-
-def _mapping(payload: dict[str, Any], key: str) -> dict[str, Any] | None:
-    value = payload.get(key)
-    return value if isinstance(value, dict) else None
-
-
-def _non_empty_string(value: object, *, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise _AttributionError(f"{field} must be a non-empty string")
-    return value
-
-
-def _dispatch_id(payload: dict[str, Any]) -> str:
-    hdr = _mapping(payload, "hdr")
-    header = _mapping(payload, "header")
-    candidates = (
-        hdr.get("id") if hdr else None,
-        hdr.get("dispatch_id") if hdr else None,
-        header.get("id") if header else None,
-        header.get("dispatch_id") if header else None,
-        payload.get("dispatch_id"),
-        payload.get("task_id"),
-    )
-    for candidate in candidates:
-        if isinstance(candidate, str) and candidate.strip():
-            return candidate
-    raise _AttributionError("dispatch_id is absent from hdr/header/top-level dispatch fields")
-
-
-def _normalize_layer(value: object, *, field: str) -> str:
-    token = _non_empty_string(value, field=field)
-    normalized = _LAYER_ALIASES.get(token)
-    if normalized is None:
-        raise _AttributionError(
-            f"{field} has unsupported layer {token!r}; expected L0/L1/L2 or project/wave/task"
-        )
-    return normalized
-
-
-def _dispatch_layer(payload: dict[str, Any]) -> str:
-    """Resolve current layer attribution without modifying legacy payloads."""
-
-    change_context = _mapping(payload, "change_context")
-    hdr = _mapping(payload, "hdr")
-    header = _mapping(payload, "header")
-    sources = (
-        ("change_context", change_context),
-        ("hdr", hdr),
-        ("header", header),
-    )
-
-    # An explicit destination is the strongest attribution signal.
-    for source_name, source in sources:
-        if source is not None and "to_layer" in source:
-            return _normalize_layer(source["to_layer"], field=f"{source_name}.to_layer")
-    if "to_layer" in payload:
-        return _normalize_layer(payload["to_layer"], field="to_layer")
-
-    if "layer" in payload:
-        return _normalize_layer(payload["layer"], field="layer")
-    for source_name, source in sources:
-        if source is not None and "layer" in source:
-            return _normalize_layer(source["layer"], field=f"{source_name}.layer")
-    raise _AttributionError("layer is absent from dispatch attribution fields")
-
-
-def _round_number(payload: dict[str, Any]) -> int:
-    change_context = _mapping(payload, "change_context")
-    round_context = change_context.get("round_context") if change_context is not None else None
-    if round_context is not None:
-        if not isinstance(round_context, dict):
-            raise _AttributionError("change_context.round_context must be a mapping")
-        value = round_context.get("round_n")
-        if type(value) is not int or value < 1:
-            raise _AttributionError("change_context.round_context.round_n must be an integer >= 1")
-        return value
-
-    for field in ("round", "round_num"):
-        if field in payload:
-            value = payload[field]
-            if type(value) is not int or value < 1:
-                raise _AttributionError(f"{field} must be an integer >= 1")
-            return value
-    return 1
 
 
 def _capacity_view() -> CapacityProfile:
@@ -355,6 +292,7 @@ def build_dispatch_record(
     skill_text: str | None = None,
     rule_text: str | None = None,
     report_envelope: Mapping[str, Any] | str | None = None,
+    profile: str | None = None,
     metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one exact-schema harness record from a dispatch payload.
@@ -400,6 +338,8 @@ def build_dispatch_record(
         rule_text=rule_text,
         report_envelope=report_envelope,
     )
+    if profile is not None:
+        profile = _non_empty_string(profile, field="profile")
     record_timestamp = timestamp or datetime.now(UTC).isoformat()
 
     record = {
@@ -426,6 +366,8 @@ def build_dispatch_record(
         # comparisons; retain host_rule_tokens for backward compatibility.
         "agents_md_tokens": host_rule_tokens,
     }
+    if profile is not None:
+        record["profile"] = profile
     if measurements:
         for name in CONSOLIDATION_METRIC_NAMES:
             if name == "agents_md_tokens":
@@ -1059,62 +1001,16 @@ def check_gate_telemetry(
     }
 
 
-def _explicit_change_id(payload: dict[str, Any]) -> str | None:
-    change_context = _mapping(payload, "change_context")
-    if change_context is None or "change_id" not in change_context:
-        return None
-    change_id = _non_empty_string(
-        change_context["change_id"],
-        field="change_context.change_id",
-    )
-    if Path(change_id).name != change_id:
-        raise _AttributionError("change_context.change_id must be one active-folder basename")
-    return change_id
-
-
-def _resolve_active_change(
-    payload: dict[str, Any],
-    *,
-    repo_root: Path,
-) -> Path | None:
-    active_root = repo_root / _ACTIVE_ROOT
-    explicit_change_id = _explicit_change_id(payload)
-    if explicit_change_id is not None:
-        explicit_folder = active_root / explicit_change_id
-        if explicit_folder.is_dir():
-            return explicit_folder
-        logger.warning(
-            "harness telemetry cannot attribute explicit change_id %r: "
-            "active folder %s is absent; record not written",
-            explicit_change_id,
-            explicit_folder,
-        )
-        return None
-
-    if not active_root.is_dir():
-        return None
-    active_folders = sorted(
-        (path for path in active_root.iterdir() if path.is_dir()),
-        key=lambda path: path.name,
-    )
-    if not active_folders:
-        return None
-    if len(active_folders) > 1:
-        logger.warning(
-            "harness telemetry found %d active changes but no explicit change_id; "
-            "record not written",
-            len(active_folders),
-        )
-        return None
-    return active_folders[0]
-
-
 def record_dispatch_telemetry(
     payload: dict[str, Any],
     *,
     strict: bool = False,
     repo_root: str | Path | None = None,
     context_tokens: Mapping[str, object] | None = None,
+    skill_text: str | None = None,
+    rule_text: str | None = None,
+    report_envelope: Mapping[str, Any] | str | None = None,
+    profile: str | None = None,
     metadata: Mapping[str, Any] | None = None,
 ) -> HookResult:
     """Nonblocking ``post_dispatch`` extra that records harness telemetry."""
@@ -1127,15 +1023,37 @@ def record_dispatch_telemetry(
         if not isinstance(payload, dict):
             raise _AttributionError("payload must be a dict")
         root = Path.cwd() if repo_root is None else Path(repo_root)
-        change_folder = _resolve_active_change(payload, repo_root=root)
+        change_folder = _resolve_active_change(payload, repo_root=root, log=logger)
         if change_folder is None:
             result.metadata["reason"] = "no unambiguous active change"
             return result
+
+        emission_context = current_dispatch_context()
+        if emission_context is not None:
+            context_tokens = (
+                context_tokens if context_tokens is not None else emission_context["context_tokens"]
+            )
+            skill_text = skill_text if skill_text is not None else emission_context["skill_text"]
+            rule_text = rule_text if rule_text is not None else emission_context["rule_text"]
+            report_envelope = (
+                report_envelope
+                if report_envelope is not None
+                else emission_context["report_envelope"]
+            )
+            profile = profile if profile is not None else emission_context["profile"]
+            metadata = metadata if metadata is not None else emission_context["metadata"]
+        requested = emission_context is not None
+        if profile is None:
+            profile = _dispatch_profile(payload)
 
         record = build_dispatch_record(
             payload,
             change_id=change_folder.name,
             context_tokens=context_tokens,
+            skill_text=skill_text,
+            rule_text=rule_text,
+            report_envelope=report_envelope,
+            profile=profile,
             metadata=metadata,
         )
         written_path = append_harness_record(change_folder, record)
@@ -1143,6 +1061,16 @@ def record_dispatch_telemetry(
             result.metadata["reason"] = "telemetry record not written"
         else:
             result.metadata["path"] = str(written_path)
+            accounting = record.get("context_tokens")
+            if accounting is not None or requested:
+                result.metadata["context_tokens"] = _append_dispatch_context_token_record(
+                    change_folder / _BASE_LEDGER_NAME,
+                    dispatch_id=record["dispatch_id"],
+                    timestamp=record["ts"],
+                    accounting=accounting,
+                    metadata=metadata,
+                    append_record=append_context_token_record,
+                )
         return result
     except Exception as exc:  # noqa: BLE001 - hook boundary must remain nonblocking
         logger.warning(
@@ -1161,9 +1089,16 @@ __all__ = [
     "CONSOLIDATION_METRICS_EVENT",
     "CONTEXT_TOKEN_EVENT",
     "CONTEXT_TOKEN_FIELDS",
+    "current_dispatch_context",
+    "dispatch_context",
     "METRIC_OBSERVATION_EVENT",
     "METRIC_OBSERVATION_FIELDS",
     "METRIC_OBSERVATION_MATCH_FIELDS",
+    "TOKEN_COMPONENTS",
+    "TOKEN_INJECTION_EVENT",
+    "TOKEN_INJECTION_FIELDS",
+    "TOKEN_INJECTION_SCHEMA_VERSION",
+    "TOKEN_INJECTION_SOURCES",
     "SI10_GATE_EVENT",
     "SI10_GATE_NAMES",
     "SI10_GATE_STATUSES",
@@ -1171,6 +1106,7 @@ __all__ = [
     "append_consolidation_metrics",
     "append_context_token_record",
     "append_metric_observation",
+    "append_token_injection_measurement",
     "append_gate_telemetry",
     "build_gate_record",
     "build_dispatch_record",
@@ -1179,15 +1115,21 @@ __all__ = [
     "build_consolidation_metrics_record",
     "build_metric_observation",
     "build_metric_observation_record",
+    "build_token_injection_measurement",
     "build_report_telemetry_record",
     "compare_metric_observations",
     "compare_metric_observation_sets",
     "check_gate_telemetry",
     "record_dispatch_telemetry",
+    "ingest_captured_transcript",
+    "ingest_cli_probe_artifact",
+    "ingest_measurement_artifact",
     "estimate_text_tokens",
     "measure_context_tokens",
     "stable_yaml",
     "TelemetryGateError",
     "MetricObservationError",
+    "TokenInjectionError",
     "validate_metric_observation",
+    "validate_token_injection_measurement",
 ]

@@ -3,7 +3,7 @@ id: "agent/references/meta-framework"
 version: "1.0.0"
 purpose: >
   Defines registry-v3 intent routing, the 26 declarative checklist seeds,
-  the sole change-driven runtime, seed provenance and materialization,
+  the sole change-driven runtime, seed provenance and four-draft materialization,
   compatibility aliases, and the historical primitive taxonomy.
 triggers:
   - "selecting checklist seed"
@@ -25,7 +25,7 @@ Registry schema v3 separates decomposition knowledge from execution:
 ```text
 user intent
   → TemplateRegistry.load_seed(<mode>)
-    → materialized goal.md + checklist.md + preflight.md
+    → materialized entrance.md + goal.md + checklist.md + preflight.md
       → TemplateRegistry.load_template("change-driven")
         → propose → preflight → bounded checklist rounds → archive
 ```
@@ -183,10 +183,10 @@ L0 materializes a seed by:
 5. attaching bounded verification modes;
 6. adding item dependencies only when the actual change needs them;
 7. assigning repository-relative owned and read-only files;
-8. drafting preflight blockers and authorization;
-9. validating that no placeholder or executable seed field leaked through.
-
-The result is a user contract, not a workflow template.
+8. drafting `entrance.md` as the static entry router and artifact inventory; 9. drafting preflight blockers and authorization;
+10. validating that no placeholder or executable seed field leaked through; 11. recording W-30 wait bounds, heartbeat/escalation paths, item/task scope of ordinary blocker pauses so unaffected siblings continue;
+    classify pauses as `dependency-blocked`, `finding-blocked`, or `wave conflict`.
+The four drafts are a user contract, not a workflow template; `entrance.md` routes readers to minimal scenario artifacts and does not encode execution steps, round state, or a stage DAG.
 
 ## 4. Loader API
 

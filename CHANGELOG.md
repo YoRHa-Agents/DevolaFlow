@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [23.0.0] - 2026-08-31 — MAJOR — Runtime Gates and Token Evidence
+
+### Added
+
+- **Change entrance and task scaffolding**: the fourth-draft entrance contract,
+  runtime gate, and task-folder scaffold keep `entrance.md` with the first
+  artifact batch.
+- **Continuous progress governance**: W-30 codifies bounded waits, progress
+  heartbeats, ready-work advancement, and selective blocker isolation.
+- **Token-injection harness**: six-channel capture/replay and a 120-run
+  operator matrix preserve provenance and mark unavailable observations
+  `INSUFFICIENT`; no unobserved host is reported as `PASS`.
+
+### Changed
+
+- **Context compression**: selector-backed rule and skill context now uses the
+  additive compressor assembly while preserving safety/audit bypasses and
+  explicit token measurements.
+
 ## [22.1.1] - 2026-08-31 — PATCH — Runtime Probe Resolution
 
 ### Fixed

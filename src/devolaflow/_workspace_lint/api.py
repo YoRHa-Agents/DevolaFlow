@@ -14,7 +14,7 @@ def lint_change(
     active_dir: Path | None = None,
     archive_dir: Path | None = None,
 ) -> BudgetReport:
-    """Lint one active or archived change using its detected layout contract.
+    """Lint one active, archived, or direct task folder.
 
     Checklist folders use the v16 budgets, evidence byte ceilings, strict
     frontmatter parsing, and four semantic check families. Mixed folders
@@ -28,6 +28,10 @@ def lint_change(
       archive_dir: override for the archive root (used as a fallback
         when the change is no longer active).
 
+    If no active or archived folder is found, a valid identifier is also
+    resolved under ``.local/tasks/<change_id>/``.  Use :func:`lint_task` when
+    the task surface should be selected explicitly.
+
     Returns:
       :class:`BudgetReport` with all violations + checked files.
 
@@ -37,7 +41,7 @@ def lint_change(
       LegacyChangeLayoutError: when the folder still uses the removed
         pre-v16 tasks.md/acceptance.md layout.
     """
-    root = repo_root or Path.cwd()
+    root = (repo_root or Path.cwd()).resolve()
     active_root = active_dir if active_dir is not None else Path(ACTIVE_DIR_DEFAULT)
     archive_root = archive_dir if archive_dir is not None else Path(ARCHIVE_DIR_DEFAULT)
     if not active_root.is_absolute():
@@ -45,18 +49,77 @@ def lint_change(
     if not archive_root.is_absolute():
         archive_root = root / archive_root
 
+    if (
+        not isinstance(change_id, str)
+        or not change_id
+        or Path(change_id).is_absolute()
+        or Path(change_id).name != change_id
+        or re.fullmatch(r"[a-z0-9][a-z0-9.-]*[a-z0-9]", change_id) is None
+    ):
+        raise ValueError(
+            f"change_id {change_id!r} must be one lowercase-kebab-case "
+            "repository-relative path component"
+        )
     change_folder = active_root / change_id
     archived = False
     if not change_folder.is_dir():
         # Fall back to archive lookup (linear scan; date prefix unknown).
         change_folder = _find_archived_folder(archive_root, change_id)
         if change_folder is None:
-            raise FileNotFoundError(
-                f"lint_change: no folder for {change_id!r} found under "
-                f"{active_root!s} or {archive_root!s}"
+            task_folder = _resolve_task_folder(root, change_id)
+            if task_folder is None:
+                raise FileNotFoundError(
+                    f"lint_change: no folder for {change_id!r} found under "
+                    f"{active_root!s}, {archive_root!s}, or .local/tasks"
+                )
+            return _lint_folder(
+                task_folder,
+                change_id=change_id,
+                repo_root=root,
+                archived=False,
             )
         archived = True
 
+    return _lint_folder(
+        change_folder,
+        change_id=change_id,
+        repo_root=root,
+        archived=archived,
+    )
+
+
+def lint_task(
+    task_name: str,
+    *,
+    repo_root: Path | None = None,
+) -> BudgetReport:
+    """Lint one direct ``.local/tasks/<task-name>/`` folder.
+
+    Task folders deliberately use the same checklist artifact budgets,
+    entrance validation, evidence limits, and semantic checks as active
+    changes.  ``task_name`` is a single repository-relative folder name;
+    traversal, absolute paths, and symlinked task roots are rejected.
+    """
+    root = (repo_root or Path.cwd()).resolve()
+    task_folder = _resolve_task_folder(root, task_name, require=True)
+    if task_folder is None:
+        raise FileNotFoundError(f"lint_task: no folder for {task_name!r} under .local/tasks")
+    return _lint_folder(
+        task_folder,
+        change_id=task_name,
+        repo_root=root,
+        archived=False,
+    )
+
+
+def _lint_folder(
+    change_folder: Path,
+    *,
+    change_id: str,
+    repo_root: Path,
+    archived: bool,
+) -> BudgetReport:
+    """Apply the shared checklist lint contract to one resolved folder."""
     report = BudgetReport(change_id=change_id, change_folder=change_folder)
     cache: dict[str, _ReadResult] = {}
     layout = detect_change_layout(change_folder)
@@ -73,18 +136,57 @@ def lint_change(
     _lint_token_budgets(change_folder, budgets, report, cache)
     _lint_learnings_size(change_folder, report)
     _lint_evidence_sizes(change_folder, report)
-    _check_harness_preflight(change_folder, repo_root=root, report=report, cache=cache)
-    _check_pathfinder_report(change_folder, repo_root=root, report=report, cache=cache)
+    _check_harness_preflight(change_folder, repo_root=repo_root, report=report, cache=cache)
+    _check_pathfinder_report(change_folder, repo_root=repo_root, report=report, cache=cache)
     if layout is ChangeLayout.CHECKLIST:
         _lint_checklist_semantics(
             change_folder,
-            repo_root=root,
+            repo_root=repo_root,
             archived=archived,
             report=report,
             cache=cache,
         )
 
     return report
+
+
+def _resolve_task_folder(
+    repo_root: Path,
+    task_name: str,
+    *,
+    require: bool = False,
+) -> Path | None:
+    """Resolve and safety-check a direct task folder beneath the repo root."""
+    from devolaflow.agent_workspace.task_folder import TASKS_DIR_DEFAULT
+
+    if (
+        not isinstance(task_name, str)
+        or not task_name
+        or Path(task_name).is_absolute()
+        or Path(task_name).name != task_name
+        or re.fullmatch(r"[a-z0-9][a-z0-9.-]*[a-z0-9]", task_name) is None
+    ):
+        raise ValueError(
+            f"task name {task_name!r} must be one lowercase-kebab-case "
+            "repository-relative path component"
+        )
+    tasks_root = repo_root / TASKS_DIR_DEFAULT
+    if tasks_root.exists() and (tasks_root.is_symlink() or not tasks_root.is_dir()):
+        raise ValueError(f"task root {tasks_root!s} is not a real directory")
+    candidate = tasks_root / task_name
+    if candidate.is_symlink():
+        raise ValueError(f"task folder {candidate!s} must not be a symlink")
+    if candidate.exists() and not candidate.is_dir():
+        raise ValueError(f"task folder {candidate!s} is not a directory")
+    if not candidate.is_dir():
+        if require:
+            raise FileNotFoundError(f"lint_task: no folder for {task_name!r} under .local/tasks")
+        return None
+    try:
+        candidate.resolve().relative_to(repo_root)
+    except ValueError as exc:
+        raise ValueError("task folder resolves outside the repository root") from exc
+    return candidate
 
 
 def _find_archived_folder(archive_root: Path, change_id: str) -> Path | None:

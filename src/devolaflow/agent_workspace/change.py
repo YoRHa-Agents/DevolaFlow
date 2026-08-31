@@ -77,8 +77,10 @@ __all__ = [
 ACTIVE_DIR_DEFAULT: Final[Path] = Path(".local") / ".agent" / "active"
 ARCHIVE_DIR_DEFAULT: Final[Path] = Path(".local") / ".agent" / "archive"
 
-# The checklist-anchored v16 artifact set. ``evidence/*.txt`` is represented
+# The checklist-anchored artifact set. ``evidence/*.txt`` is represented
 # separately by ``Change.evidence_files`` because its filenames are dynamic.
+# ``entrance.md`` is included here because it is materialized by every
+# canonical scaffold and is required by the current lint contract.
 ARTIFACT_FILES_V16: Final[tuple[str, ...]] = (
     "goal.md",
     "checklist.md",
@@ -87,6 +89,7 @@ ARTIFACT_FILES_V16: Final[tuple[str, ...]] = (
     "spec.md",
     "STATUS.yaml",
     "owned_files.txt",
+    "entrance.md",
     "learnings.jsonl",
 )
 

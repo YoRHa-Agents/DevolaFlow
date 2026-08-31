@@ -57,6 +57,24 @@ tasks continue. The caller classifies the result under bounded retry and
 escalation rules. Malformed wave definitions and non-callable factory output
 remain eager contract errors.
 
+## W-30 — Continuous progress and blocker isolation
+
+For long-running external work such as CI, installation, long tests, or
+deployment, L1 sets an explicit timeout, records progress heartbeats at least
+every five minutes (or the provider's documented cadence), and defines the
+abandon/escalation action before waiting. Polling is meaningful only when it
+observes new progress or a terminal state. If an independent task is ready and
+has no resource or ownership conflict, L1 advances it while the external task
+waits.
+
+After signed preflight, an ordinary blocker or `HUMAN_INTERVENE` outcome
+pauses only the affected task/item; unaffected siblings continue. L1 labels
+the state as `dependency-blocked`, `finding-blocked`, or `wave conflict`.
+Only no safely runnable work, a HARD breakpoint or STOP card,
+`FULL_ROLLBACK`, an ownership violation, or a destructive-policy violation
+justifies stopping the whole workflow. A wave conflict pauses the conflicting
+partition, not unrelated ready work.
+
 The async executor is a library boundary. It must be reached through
 `devolaflow.dispatch.dispatch_wave_tasks`; no compatibility re-export is
 required from `devolaflow.feedback`.

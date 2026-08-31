@@ -234,8 +234,8 @@ def test_v20_1_w29_is_compiled_and_indexed(project_root: Path) -> None:
     )
 
     assert "## W-29 — Retro-Digest Evidence and Consent" in source
-    assert "Total rules: **51**" in index
-    assert "22 (W-1..W-9, W-16..W-18, W-20..W-29)" in index
+    assert "Total rules: **52**" in index
+    assert "23 (W-1..W-9, W-16..W-18, W-20..W-30)" in index
     assert "| W-29 | `workflow-system/agent/references/retro-digest.md` |" in index
     assert all("## W-29 — Retro-Digest Evidence and Consent" in text for text in compiled)
 

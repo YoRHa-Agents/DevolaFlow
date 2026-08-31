@@ -2,9 +2,10 @@
 id: plan-mode-enforcement
 version: "11.0.0"
 purpose: >
-  Plan-mode L0 contract for producing goal, checklist, and preflight drafts;
-  confirming priorities, verification, dependencies, and ownership; and
-  handing the approved contract to the bounded checklist-round runtime.
+  Plan-mode L0 contract for producing the entrance, goal, checklist, and
+  preflight drafts; confirming priorities, verification, dependencies, and
+  ownership; and handing the approved contract to the bounded checklist-round
+  runtime.
 tier: 2
 token_estimate: 3000
 last_updated: "2026-08-25"
@@ -63,9 +64,11 @@ the plan is ready and waits; it does not simulate approval.
 
 ## 3. Canonical Plan Output
 
-Plan Mode produces three drafts: `goal.md`, `checklist.md`, and
-`preflight.md`. It does not produce a fixed stage DAG. `stage.md` is created
-or updated by L0 only when execution begins and records actual round history.
+Plan Mode produces four drafts: `entrance.md`, `goal.md`, `checklist.md`, and
+`preflight.md`. `entrance.md` is the first-batch static router and artifact
+inventory, not an execution plan or status mirror. It does not produce a fixed
+stage DAG. `stage.md` is created or updated by L0 only when execution begins
+and records actual round history.
 
 Use the following output structure:
 
@@ -76,6 +79,13 @@ Use the following output structure:
 [1–2 sentences] | Complexity: [class] | Seed: [registered seed name]
 Runtime: TemplateRegistry.load_template("change-driven")
 Escalation: Task → Wave → Project → Human
+
+## entrance.md draft
+Purpose: static entry router, not an execution plan
+Change: [goal title verbatim] (`goal.md`)
+Routes: resume | new L2 task | review/verify | human audit → minimal artifact reads
+Inventory: entrance, goal, checklist, stage, preflight, spec, STATUS, owned_files, evidence
+Pointers: [rule IDs + repository-relative owning files]
 
 ## goal.md draft
 Why: [problem and desired outcome]
@@ -191,21 +201,25 @@ plans MUST use the explicit two-call form.
 
 Before presenting the plan, L0 verifies:
 
-1. The three drafts are present.
-2. Every goal has at least one checklist assertion.
-3. Every checklist assertion has a confirmed priority and verification mode.
-4. Every command verification has a bounded timeout.
-5. Every dependency references an existing checklist item.
-6. No dependency cycle blocks all remaining items. A cycle is an item-level
+1. The four drafts (`entrance.md`, `goal.md`, `checklist.md`, `preflight.md`)
+   are present and internally consistent.
+2. The first-batch artifact set is complete: `entrance.md`, `goal.md`,
+   `checklist.md`, `stage.md`, `preflight.md`, `spec.md`, `STATUS.yaml`,
+   `owned_files.txt`, and `evidence/`.
+3. Every goal has at least one checklist assertion.
+4. Every checklist assertion has a confirmed priority and verification mode.
+5. Every command verification has a bounded timeout.
+6. Every dependency references an existing checklist item.
+7. No dependency cycle blocks all remaining items. A cycle is an item-level
    contract error, not a reason to recreate a workflow DAG.
-7. Writable ownership is declared and can be partitioned without parallel
+8. Writable ownership is declared and can be partitioned without parallel
    overlap.
-8. Round capacity can fit within 5 tasks per wave and 7 waves per round.
-9. Every loop has a maximum.
-10. All paths are repository-relative.
-11. Preflight clearly distinguishes preauthorized actions from mandatory
+9. Round capacity can fit within 5 tasks per wave and 7 waves per round.
+10. Every loop has a maximum.
+11. All paths are repository-relative.
+12. Preflight clearly distinguishes preauthorized actions from mandatory
     human stops.
-12. No seed field is treated as an executable instruction.
+13. No seed field is treated as an executable instruction.
 
 A failed item blocks plan handoff and requires plan revision.
 
@@ -251,7 +265,7 @@ waiver may collapse dispatch.
 
 At Plan-Mode entry, L0 scans the workspace and reads up to the three newest
 feedback files. It extracts concise themes and uses them to challenge scope,
-terminology, and defaults in the three drafts.
+terminology, and defaults in the four drafts.
 
 ### Automatic Ingestion at Plan-Mode Entry (v9.1.4+)
 
@@ -324,6 +338,13 @@ Round PASS requires all selected items to have valid evidence and passing
 checks, plus zero blockers. Composite score is recorded in `stage.md` as a
 trend signal; it is not a round-PASS condition.
 
+After the preflight is signed and execution begins, W-30 applies: an ordinary
+blocker or `HUMAN_INTERVENE` pauses only its affected item/task, while
+independent siblings continue. Long-running external work must use a bounded
+wait, progress heartbeat, and abandon/escalation path; safe dependency-ready
+work should advance during the wait. Label paused work
+`dependency-blocked`, `finding-blocked`, or `wave conflict`.
+
 Termination:
 
 - all checklist items checked and no reverted item open → archive gate;
@@ -348,8 +369,13 @@ L2 Task → L1 Wave → L0 Project → Human
 | Class | Trigger | Action |
 |---|---|---|
 | retry | transient fault below retry ceiling | bounded redispatch |
-| escalate | blocker, stagnation, dependency decision, exhausted limit | send upward |
-| abort | ownership, schema, or destructive-policy violation | halt and report |
+| escalate | affected blocker, stagnation, dependency decision, exhausted limit | send upward while unaffected siblings continue |
+| abort | ownership, schema, or destructive-policy violation | halt the required scope and report |
+
+Whole-workflow stopping is permitted only when no task can be safely advanced,
+or a HARD breakpoint, preflight STOP card, `FULL_ROLLBACK`, ownership
+violation, or destructive-policy violation requires it. A wave conflict stops
+only its conflicting partition; it is not an ordinary blocker-wide stop.
 
 ```yaml
 exception_escalation:

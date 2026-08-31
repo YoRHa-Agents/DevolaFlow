@@ -10,6 +10,7 @@ import pytest
 
 from devolaflow.harness.__main__ import main
 from devolaflow.harness.cli_probe import (
+    PROBE_HOSTS,
     SUPPORTED_CHANNELS,
     ChannelConfig,
     CLIProbeRunner,
@@ -147,16 +148,16 @@ def test_metadata_is_stable_and_paths_are_relative(tmp_path: Path) -> None:
     assert not first["output_path"].startswith("/")
 
 
-def test_matrix_has_240_ordered_specs_without_execution() -> None:
+def test_matrix_has_400_ordered_specs_without_execution() -> None:
     specs = plan_probe_matrix(10, seed="matrix-seed")
 
-    assert len(specs) == 240
+    assert len(specs) == 400
     assert specs[0].as_dict()["task_class"] == "read-only"
     assert specs[0].as_dict()["channel"] == "claude"
     assert specs[0].as_dict()["arm"] == "skill-off"
     assert specs[0].replicate == 1
     assert specs[-1].as_dict()["task_class"] == "recovery"
-    assert specs[-1].as_dict()["channel"] == "kimi"
+    assert specs[-1].as_dict()["channel"] == "copilot"
     assert specs[-1].as_dict()["arm"] == "skill-on"
     assert specs[-1].replicate == 10
 
@@ -219,7 +220,7 @@ def test_cli_plan_is_dry_run_and_writes_machine_readable_json(tmp_path: Path) ->
     )
     plan = json.loads(output.read_text())
     assert plan["status"] == "PLAN"
-    assert plan["count"] == 240
+    assert plan["count"] == 400
 
 
 def test_command_template_uses_argv_without_shell(tmp_path: Path) -> None:
@@ -237,3 +238,57 @@ def test_command_template_uses_argv_without_shell(tmp_path: Path) -> None:
 
     assert observed[0] == ["fake-cli", "--prompt", "value; touch SHOULD_NOT_EXIST"]
     assert not (tmp_path / "SHOULD_NOT_EXIST").exists()
+
+
+def test_new_channels_map_to_existing_hosts_and_parse_jsonl_evidence(tmp_path: Path) -> None:
+    assert PROBE_HOSTS["cursor-agent"] == "cursor"
+    assert PROBE_HOSTS["copilot"] == "copilot"
+    calls: list[dict] = []
+
+    def fake_runner(argv, **kwargs):
+        calls.append({"argv": argv, **kwargs})
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=(
+                '{"message":"stream"}\n'
+                '{"usage":{"prompt_tokens":8,"completion_tokens":3},'
+                '"metadata":{"skill_loaded":false}}\n'
+            ),
+            stderr="token=secret-value",
+        )
+
+    for channel in ("cursor-agent", "copilot"):
+        result = CLIProbeRunner(
+            repo_root=tmp_path,
+            commands={channel: ChannelConfig(channel, f"fake-{channel}", ("{prompt}",))},
+            runner=fake_runner,
+        ).run(_spec(tmp_path, channel=channel, output_path=f"{channel}.json"))
+        assert result["status"] == "PASS"
+        assert result["measurement"] == {"host": PROBE_HOSTS[channel], "channel": channel}
+        assert result["token_usage"]["total_tokens"] == 11
+        assert result["skill_loaded"]["value"] is False
+        assert result["execution"]["stderr_summary"] == "token=<redacted>"
+
+    assert all(call["shell"] is False for call in calls)
+
+
+def test_success_without_explicit_usage_or_skill_stays_insufficient(tmp_path: Path) -> None:
+    def fake_runner(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 0, stdout="completed in 2 seconds", stderr="")
+
+    result = CLIProbeRunner(
+        repo_root=tmp_path,
+        commands={"copilot": ChannelConfig("copilot", "fake-copilot", ("{prompt}",))},
+        runner=fake_runner,
+    ).run(_spec(tmp_path, channel="copilot"))
+
+    assert result["status"] == "PASS"
+    assert result["token_usage"] == {
+        "input_tokens": None,
+        "output_tokens": None,
+        "total_tokens": None,
+        "status": "INSUFFICIENT",
+    }
+    assert result["skill_loaded"]["value"] is None
+    assert result["skill_loaded"]["status"] == "INSUFFICIENT"

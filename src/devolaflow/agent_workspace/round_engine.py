@@ -462,14 +462,37 @@ def evaluate_round_pass(
     blocker_count: int,
     reverted_item_ids: Sequence[str] = (),
     closed_reinforcement_ids: Sequence[str] = (),
+    entrance_finding: object | None = None,
 ) -> RoundPassResult:
-    """Evaluate the checklist-first round PASS contract without side effects."""
+    """Evaluate the checklist-first round PASS contract without side effects.
+
+    ``entrance_finding`` accepts the same ``ENTRANCE_*`` finding surfaced by
+    the task-stop workspace gate. A blocking finding contributes one blocker;
+    a lite-mode warning remains observable to its caller but does not turn a
+    round into a false failure. Omitting it preserves the legacy contract.
+    """
 
     if type(blocker_count) is not int or blocker_count < 0:
         raise RoundEngineError(
             "INVALID_BLOCKER_COUNT",
             f"blocker_count must be a non-negative integer; got {blocker_count!r}",
         )
+
+    if entrance_finding is not None:
+        code = getattr(entrance_finding, "kind", getattr(entrance_finding, "code", None))
+        severity = getattr(entrance_finding, "severity", None)
+        if not isinstance(code, str) or not code.startswith("ENTRANCE_"):
+            raise RoundEngineError(
+                "INVALID_ENTRANCE_FINDING",
+                "entrance_finding must expose an ENTRANCE_* code or kind",
+            )
+        if severity not in {"FAIL", "blocker", "error", "warning", "WARN"}:
+            raise RoundEngineError(
+                "INVALID_ENTRANCE_FINDING",
+                "entrance_finding severity must be FAIL, blocker, error, WARN, or warning",
+            )
+        if severity in {"FAIL", "blocker", "error"}:
+            blocker_count += 1
 
     picked = tuple(dict.fromkeys(picked_item_ids))
     checked = frozenset(checked_item_ids)

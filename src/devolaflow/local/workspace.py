@@ -49,13 +49,16 @@ Conventions:
     "tasks": """\
 # tasks/
 
-Format: Markdown overview + optional YAML specs.
+Direct task folders use `devolaflow.agent_workspace.scaffold_task_folder()` and
+the same checklist artifact contract as active changes. Every folder is
+`.local/tasks/<task-name>/` and begins with `entrance.md`.
 
 Conventions:
-- Line 1: `# Task: [title]`
-- Line 3: `> ID: T-[ver]-[seq] | Priority: P1-P4 | Status: planned/active/done`
-- Sections: Description, Acceptance Criteria (checklist), Files
-- YAML specs for machine-readable dispatch live alongside .md overviews
+- `goal.md`, `checklist.md`, `stage.md`, `preflight.md`, `spec.md`, and
+  `STATUS.yaml` hold the planning and state contract.
+- `owned_files.txt` is the legal write surface; `evidence/` stores verification.
+- `python -m devolaflow.agent_workspace.lint --task <task-name>` validates the
+  folder without modifying it.
 """,
     "memory": """\
 # memory/
@@ -82,6 +85,7 @@ Each subfolder is `<change-id>/` with the per-change artifact set:
 - `spec.md` — OpenSpec-style ADDED/MODIFIED/REMOVED delta (<= 1500 tokens)
 - `STATUS.yaml` — machine-readable state block (<= 150 tokens)
 - `owned_files.txt` — ownership manifest (<= 50 tokens, max 6 paths)
+- `entrance.md` — static onboarding router (<= 400 tokens)
 - `learnings.jsonl` — per-change reflections (capped 50 KB)
 
 S-8 invariant: L2 task agents inside this folder MUST NOT write outside
@@ -532,6 +536,22 @@ def scaffold_local(
             )
 
     return local_dir
+
+
+def scaffold_task_folder(
+    task_name: str,
+    cwd: str | Path,
+    *,
+    title: str | None = None,
+) -> Path:
+    """Create a complete direct ``.local/tasks/<task-name>/`` folder.
+
+    The artifact contract is owned by ``agent_workspace.task_folder``; this
+    convenience entry point keeps local-workspace callers on that same SSOT.
+    """
+    from devolaflow.agent_workspace.task_folder import scaffold_task_folder as _scaffold_task_folder
+
+    return _scaffold_task_folder(task_name, cwd, title=title)
 
 
 def generate_memory_index(memory_dir: Path) -> Path:

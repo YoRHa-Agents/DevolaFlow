@@ -13,7 +13,8 @@ comparison is retained only as labeled legacy context.
 
 Algorithm:
 
-1. Glob ``src/devolaflow/compressor/*.py`` and record per-file LOC.
+1. Glob ``src/devolaflow/compressor/*.py`` and record per-file LOC,
+   including the additive ``context.py`` and ``evidence.py`` modules.
 2. Invoke ``radon cc -nB`` once. If radon is unavailable or fails, emit an
    explicit degraded LOC/function-count-only report.
 3. Parse local radon output and compute per-file and aggregate rank metrics.

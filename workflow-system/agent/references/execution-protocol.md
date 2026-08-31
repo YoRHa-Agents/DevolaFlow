@@ -326,7 +326,7 @@ From §5:
 |-------|-------------|-------------|--------|
 | **AUTO_RECOVER** | Transient errors (network, rate limit, tool timeout, flaky test) | Retry up to 3× with exponential backoff (2s, 4s, 8s) | NO — promote to PAUSE if exhausted |
 | **PAUSE** | Non-urgent info gaps (ambiguous spec, missing optional dep, style decision) | Pause affected task. Queue question. Continue parallel work | BATCHED — at wave boundary or 3 questions |
-| **HUMAN_INTERVENE** | Decisions needing human judgment (arch trade-offs, security, credentials, irreversible ops) | Stop affected checklist item/round. Present options. Wait | YES — immediately with structured options |
+| **HUMAN_INTERVENE** | Decisions needing human judgment (arch trade-offs, security, credentials, irreversible ops) | Pause affected task/item; classify the finding and continue unaffected siblings after L1 routing | YES — immediately with structured options |
 | **FULL_ROLLBACK** | Fundamental errors (corrupted state, impossible requirement, persistent tool failure, data loss) | Rollback to last checkpoint. Halt all execution | YES — with failure report |
 
 ### Classification Rules
@@ -389,10 +389,10 @@ Task Agent encounters error
 
 | Severity | L2 Task | L1 Wave | L0 Project | Human |
 |----------|---------|---------|------------|-------|
-| AUTO_RECOVER | **Handles** within bound | Notified | — | — |
-| PAUSE | **Detects** | Continues independent tasks; batches | **Presents** batch | Answers |
-| HUMAN_INTERVENE | **Detects** | Forwards evidence | **Presents** options | **Decides** |
-| FULL_ROLLBACK | **Detects** | Halts dispatch; reports | **Coordinates** checkpoint rollback and report | Reviews |
+| AUTO_RECOVER | **Handles** within bound; W-30(a) external waits require timeout, heartbeat, progress-only polling, and abandon/escalate path | Notified | — | — |
+| PAUSE | **Detects**; continues independent, unaffected siblings | Continues independent tasks; batches | **Presents** batch | Answers |
+| HUMAN_INTERVENE | **Detects**; after signed preflight pause affected task/item and classify dependency-blocked, finding-blocked, or wave conflict | Forwards evidence | **Presents** options | **Decides** |
+| FULL_ROLLBACK | **Detects**; HARD/preflight STOP card/ownership/destructive-policy violation halt required scope; W-30 whole-workflow stop requires no safe work or these hard conditions | Halts dispatch; reports | **Coordinates** checkpoint rollback and report | Reviews |
 
 ## 4. Human Intervention Breakpoints
 From §6:

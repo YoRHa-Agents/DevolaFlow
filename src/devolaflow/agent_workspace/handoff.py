@@ -306,7 +306,7 @@ class HandoffEnvelope:
         return asdict(self)
 
 
-def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
+def _fire_task_stop_hook(envelope: HandoffEnvelope, *, repo_root: Path) -> None:
     """Fire the ``task_stop`` lifecycle hook for a StatusReport envelope.
 
     Production call site for
@@ -338,7 +338,12 @@ def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
     from devolaflow.lifecycle.runtime_wiring import fire_task_stop
 
     try:
-        fire_task_stop(dict(envelope.report or {}))
+        report = dict(envelope.report or {})
+        # ``change_id`` belongs to the envelope schema, while the lifecycle
+        # hook consumes the report block. Carry it across only for this
+        # in-memory check so active-workspace resolution has explicit context.
+        report.setdefault("change_id", envelope.change_id)
+        fire_task_stop(report, repo_root=repo_root)
     except HookViolation:
         # v15.0.0 strict graduation: block the envelope write + escalate.
         raise
@@ -410,7 +415,7 @@ class HandoffStore:
         # and a byte-identical zero-IO no-op when
         # ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1".
         if envelope.envelope_kind == "StatusReport":
-            _fire_task_stop_hook(envelope)
+            _fire_task_stop_hook(envelope, repo_root=self.repo_root)
         target = self.handoff_root / envelope.filename
         target.parent.mkdir(parents=True, exist_ok=True)
         # Write to a unique sibling, then atomically install it with a hard

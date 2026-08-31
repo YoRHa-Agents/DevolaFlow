@@ -156,6 +156,67 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
     return violations
 
 
+def _workspace_entrance_violations(
+    payload: dict[str, Any],
+    *,
+    strict: bool,
+) -> tuple[list[HookViolation], tuple[str, ...]]:
+    """Turn explicit workspace entrance findings into lifecycle violations.
+
+    ``run_hooks`` deliberately invokes handlers with ``strict=False`` so it
+    can aggregate every handler result. ``strict_blocker_codes`` is therefore
+    returned as metadata for the dispatcher to promote when the aggregate
+    caller requested strict mode.
+    """
+    from devolaflow.lifecycle.workspace_gate import (
+        WorkspaceContextError,
+        inspect_workspace_entrance,
+    )
+
+    try:
+        check = inspect_workspace_entrance(payload)
+    except WorkspaceContextError as exc:
+        severity = "blocker" if strict else "warning"
+        return [
+            HookViolation(
+                code="WORKSPACE_CONTEXT_INVALID",
+                message=str(exc),
+                severity=severity,
+            )
+        ], ("WORKSPACE_CONTEXT_INVALID",)
+    except (FileNotFoundError, OSError) as exc:
+        severity = "blocker" if strict else "warning"
+        return [
+            HookViolation(
+                code="WORKSPACE_LINT_ERROR",
+                message=f"workspace entrance lint could not complete: {exc}",
+                severity=severity,
+            )
+        ], ("WORKSPACE_LINT_ERROR",)
+
+    if check is None or not check.findings:
+        return [], ()
+
+    workspace = check.workspace
+    context = {
+        "surface": workspace.surface,
+        "workspace": f"{workspace.folder.relative_to(workspace.repo_root).as_posix()}",
+    }
+    violations: list[HookViolation] = []
+    strict_codes: list[str] = []
+    for finding in check.findings:
+        strict_codes.append(finding.kind)
+        violations.append(
+            HookViolation(
+                code=finding.kind,
+                message=finding.message,
+                severity="blocker" if strict else "warning",
+                context={**context, "filename": finding.filename},
+            )
+        )
+    return violations, tuple(strict_codes)
+
+
 def _try_consolidate_learnings(payload: dict[str, Any]) -> None:
     """Best-effort persist learnings from a successful task completion."""
     try:
@@ -369,7 +430,14 @@ def test_on_complete(payload: dict[str, Any], *, strict: bool = False) -> HookRe
     callers see no behavioural change).
     """
     violations = _collect_violations(payload)
+    workspace_violations, strict_blocker_codes = _workspace_entrance_violations(
+        payload,
+        strict=strict,
+    )
+    violations.extend(workspace_violations)
     result = finalize(EVENT, violations, strict=strict)
+    if strict_blocker_codes:
+        result.metadata["strict_blocker_codes"] = list(strict_blocker_codes)
     if result.passed:
         _try_consolidate_learnings(payload)
     _try_persist_session_state(payload, hook_passed=result.passed)

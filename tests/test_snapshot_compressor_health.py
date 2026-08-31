@@ -30,15 +30,16 @@ def repo_root() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Test 1: scan finds the 5 compressor module files
+# Test 1: scan finds the 6 compressor module files
 # ---------------------------------------------------------------------------
 
 
 def test_scan_compressor_files_returns_five_modules(snapshot_module, repo_root) -> None:
-    """``scan_compressor_files`` returns the 5 known compressor modules.
+    """``scan_compressor_files`` returns the 6 known compressor modules.
 
-    Pins the v9.3.0 PV-04 4-way split: ``__init__.py`` + ``layout.py``
-    + ``patterns.py`` + ``transforms.py``, plus the v21.0.0 evidence module.
+    Pins the current package shape: ``__init__.py`` + ``context.py`` +
+    ``layout.py`` + ``patterns.py`` + ``transforms.py``, plus the
+    v21.0.0 evidence module.
     If a future cycle adds or removes one, this test fails so the snapshot script's
     schema stays in sync.
     """
@@ -46,6 +47,7 @@ def test_scan_compressor_files_returns_five_modules(snapshot_module, repo_root) 
     names = sorted(f.name for f in files)
     assert names == [
         "__init__.py",
+        "context.py",
         "evidence.py",
         "layout.py",
         "patterns.py",
@@ -210,7 +212,7 @@ def test_run_writes_output_file(snapshot_module, repo_root, tmp_path) -> None:
     """End-to-end smoke test: ``run()`` writes the markdown report to a file.
 
     Exercises the full pipeline against the real compressor package
-    (5 files). Asserts the output file exists, contains the §1
+    (6 files). Asserts the output file exists, contains the §1
     package-summary header, and reports exactly 5 files.
     """
     output_path = tmp_path / "v10.6.X_compressor_health.md"
@@ -220,5 +222,5 @@ def test_run_writes_output_file(snapshot_module, repo_root, tmp_path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "# Compressor Health Snapshot" in text
     assert "## §1 — Per-package summary" in text
-    # Per-package row reports 5 files.
-    assert "| 5 |" in text, "§1 row must report 5 files in the compressor package"
+    # Per-package row reports 6 files.
+    assert "| 6 |" in text, "§1 row must report 6 files in the compressor package"
