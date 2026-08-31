@@ -19,12 +19,12 @@ def test_v22_1_npm_channel_provisions_a_pinned_runtime(project_root: Path) -> No
     assert "runtime-dependent commands" in skill
 
 
-def test_v22_1_feedback_record_contains_verification_addendum(project_root: Path) -> None:
-    """The submitted feedback retains its original record and its correction."""
-    feedback = (project_root / ".local/feedbacks/feedback_for_v21.2.0.md").read_text(
+def test_v22_1_cycle_archive_contains_verification_evidence(project_root: Path) -> None:
+    """The committed cycle archive retains the feedback correction."""
+    gap_analysis = (project_root / "docs/cycle-archive/v22.1.0/v22.1.0_gap_analysis.md").read_text(
         encoding="utf-8"
     )
 
-    assert "## 六、上游核验与修复方向（2026-08-31，追加）" in feedback
-    assert "P2 原始结论不成立" in feedback
-    assert "v22.0.0" in feedback
+    assert "D-5" in gap_analysis
+    assert "measurement error" in gap_analysis
+    assert "v22.0.0" in gap_analysis
