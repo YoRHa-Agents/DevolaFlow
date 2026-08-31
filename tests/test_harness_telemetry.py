@@ -25,6 +25,7 @@ from devolaflow.harness import (
     build_dispatch_record,
     build_gate_record,
     check_gate_telemetry,
+    estimate_text_tokens,
     record_dispatch_telemetry,
 )
 from devolaflow.harness.aggregator import aggregate_ledger, load_ledger_records
@@ -404,6 +405,84 @@ def test_record_dispatch_telemetry_resolves_only_one_implicit_active_change(
     assert multiple_result.metadata["reason"] == "no unambiguous active change"
     assert not (second / "harness.jsonl").exists()
     assert "found 2 active changes" in caplog.text
+
+
+def test_dispatch_telemetry_records_selector_context_with_dispatch_trace(tmp_path: Path) -> None:
+    folder = _active_folder(tmp_path, "selector-context")
+    payload = _payload(change_id="selector-context")
+    payload["task"]["type"] = "research"
+    payload["context"] = {
+        "profile_name": "research",
+        "assembled_text": "selected skill context",
+        "agents_md_slice": {"total_tokens": 23},
+    }
+    metadata = {
+        "run_id": "run-selector-context",
+        "sampled_at": "2026-08-29T00:00:00+00:00",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "salt": "pv03",
+        "salt_status": "AVAILABLE",
+        "ledger_path": "harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "main",
+        "repo_sha": "a" * 40,
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE",
+    }
+
+    result = record_dispatch_telemetry(payload, repo_root=tmp_path, metadata=metadata)
+
+    assert result.passed is True
+    records = load_ledger_records(folder)
+    assert records[0]["context_tokens"] == {
+        "skill_tokens": estimate_text_tokens("selected skill context"),
+        "rule_tokens": 23,
+        "report_tokens": None,
+    }
+    assert records[0]["profile"] == "research"
+    assert records[1]["event"] == "context_token_accounting"
+    assert records[1]["event_id"].startswith("context_token_accounting:dispatch-telemetry-001:")
+    assert records[1]["context_tokens"] == records[0]["context_tokens"]
+    assert records[1]["metadata"]["run_id"] == "run-selector-context"
+
+
+def test_real_emission_marks_missing_context_insufficient_without_payload_mutation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from devolaflow.feedback import ProposalGenerator
+
+    folder = _active_folder(tmp_path, "missing-context")
+    payload = _payload(change_id="missing-context")
+    payload["hdr"] = {"id": "dispatch-missing-context"}
+    payload["layer"] = "L2"
+    payload["accept"] = ["dispatch remains unchanged"]
+    before = copy.deepcopy(payload)
+    monkeypatch.chdir(tmp_path)
+    if record_dispatch_telemetry not in list_handlers(POST_DISPATCH_EVENT):
+        register_hook(POST_DISPATCH_EVENT, record_dispatch_telemetry)
+
+    result = ProposalGenerator().generate_round_dispatch(
+        payload,
+        None,
+        round_num=1,
+        profile="research",
+    )
+
+    assert result == before
+    records = load_ledger_records(folder)
+    assert records[0]["profile"] == "research"
+    assert records[-1]["event"] == "context_token_accounting"
+    assert records[-1]["context_tokens"] == {
+        "skill_tokens": None,
+        "rule_tokens": None,
+        "report_tokens": None,
+    }
+    assert aggregate_ledger(folder)["tokens"]["context_tokens"]["skill_tokens"]["status"] == (
+        "INSUFFICIENT"
+    )
 
 
 def test_attribution_and_io_failures_warn_without_blocking(

@@ -21,6 +21,11 @@ from __future__ import annotations
 
 import os as _os
 
+from devolaflow.compressor.context import (
+    apply_context_assembly,
+    assemble_context,
+)
+
 # Public re-exports (covered by __all__ below).
 from devolaflow.compressor.evidence import (
     DEFAULT_EVIDENCE_INLINE_MAX_BYTES,
@@ -361,4 +366,6 @@ __all__ = [
     "dedup_predecessor_summaries",
     "DEDUP_HASH_PREFIX_LENGTH",
     "DEDUP_DIGEST_MAX_CHARS",
+    "assemble_context",
+    "apply_context_assembly",
 ]

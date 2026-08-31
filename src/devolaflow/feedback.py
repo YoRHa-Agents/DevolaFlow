@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -493,6 +494,18 @@ class ProposalGenerator:
         checklist: ChecklistDocument | None = None,
         selection: RoundSelection | None = None,
         round_n: int | None = None,
+        context_tokens: Mapping[str, object] | None = None,
+        skill_text: str | None = None,
+        rule_text: str | None = None,
+        report_envelope: Mapping[str, Any] | str | None = None,
+        profile: str | None = None,
+        telemetry_metadata: Mapping[str, Any] | None = None,
+        context_selection: Mapping[str, Any] | None = None,
+        context_task_type: str | None = None,
+        context_layer: str = "L2",
+        context_source: str = "selector",
+        context_profiles_path: Path | None = None,
+        agents_md_path: Path | None = None,
     ) -> dict[str, Any]:
         """Produce a dispatch for convergence round ``round_num``.
 
@@ -529,7 +542,11 @@ class ProposalGenerator:
         ``change_context`` NEST before emission and prepend selected open
         revert reasons as blocker reinforcement. Partial input fails before
         any lifecycle hook fires. Omitting all three preserves the legacy
-        positional API and byte output.
+        positional API and byte output. Optional context-token inputs are
+        observational only and never alter the emitted dispatch payload.
+        Selector-to-dispatch context assembly is opt-in: supplying
+        ``context_selection`` or ``context_task_type`` connects the actual
+        AGENTS.md slice to the existing ``rules`` block.
         """
         prepared_dispatch = base_dispatch
         supplemental_reinforcement = None
@@ -564,6 +581,18 @@ class ProposalGenerator:
             severity_floor=severity_floor,
             reinforcement_factory=self.generate_reinforcement,
             supplemental_reinforcement=supplemental_reinforcement,
+            context_tokens=context_tokens,
+            skill_text=skill_text,
+            rule_text=rule_text,
+            report_envelope=report_envelope,
+            profile=profile,
+            telemetry_metadata=telemetry_metadata,
+            context_selection=context_selection,
+            context_task_type=context_task_type,
+            context_layer=context_layer,
+            context_source=context_source,
+            context_profiles_path=context_profiles_path,
+            agents_md_path=agents_md_path,
         )
 
 

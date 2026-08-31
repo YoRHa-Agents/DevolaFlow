@@ -316,7 +316,7 @@ checklist or priority change.
 
 - Missing/failed evidence with budget remaining → reinforce and schedule a
   later round.
-- Blocker → escalate unless a preauthorized bounded response applies.
+- W-30(b): after signed preflight, an ordinary blocker or `HUMAN_INTERVENE` pauses only its affected item/task; continue independent, unaffected siblings. Label `dependency-blocked`, `finding-blocked`, or `wave conflict`; a wave conflict pauses its partition, not unrelated ready work. Whole-workflow stop requires no safely runnable task, or a HARD breakpoint, preflight STOP card, `FULL_ROLLBACK`, ownership violation, or destructive-policy violation.
 - Zero net checklist progress for 2 rounds → escalate.
 - Same item selected and not completed for 3 rounds → item-level escalation.
 - `max_rounds` reached → escalate to the user.
@@ -351,7 +351,7 @@ the user's reason preserved verbatim.
 L2 handles reinforcement before new work and reports closure IDs. L1 validates
 closure evidence. L0 decides whether the checklist item may be marked.
 
-## 10. Failure and Escalation
+## 10. Failure and Escalation (W-30(a))
 
 ```text
 L2 Task → L1 Wave → L0 Project → Human
@@ -361,12 +361,12 @@ L2 Task → L1 Wave → L0 Project → Human
 |---|---|---|
 | Task | transient command failure | retry once if authorized |
 | Task | deterministic failure, scope mismatch | report to Wave |
-| Wave | ownership conflict, contradictory evidence | stop wave, report to Project |
+| Wave | ownership conflict, contradictory evidence | pause conflicting partition; report to Project and continue unrelated ready work |
 | Round | blocker, stagnation, exhausted item retries | reinforce or escalate |
 | Project | invalid preflight, scope decision, archive failure | human decision |
 
 Every response is classified as retry, escalate, or abort. No retry counter is
-raised automatically.
+raised automatically. Long-running external work (CI, installation, long tests, deployment) requires a timeout, progress heartbeat, and abandon/escalation path; advance ready work when dependencies, resources, and ownership permit instead of idle or meaningless polling.
 
 ## 11. Validation Checklist
 

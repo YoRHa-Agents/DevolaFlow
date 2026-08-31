@@ -3,8 +3,9 @@ id: "agent/references/agent-workspace"
 version: "2.0.0"
 purpose: >
   Current agent-workspace contract for checklist-driven changes: canonical
-  goal/checklist/stage/preflight/evidence artifacts, three-layer ownership,
-  resume, append-only handoffs, source-of-truth deltas, archive, and budgets.
+  entrance/goal/checklist/stage/preflight/evidence artifacts, four-draft
+  planning, three-layer ownership, resume, append-only handoffs,
+  source-of-truth deltas, archive, and budgets.
 triggers:
   - "opening or resuming an active change"
   - "writing checklist-round artifacts"
@@ -36,7 +37,9 @@ and engages only when `DEVOLAFLOW_AGENT_WORKSPACE=1`.
 
 For STANDARD/COMPLEX work, L0 selects a checklist seed, loads the sole
 `change-driven` runtime, and creates the active-change contract before the
-first L1 Wave dispatch. Seed `source_stages` remain non-executable provenance.
+first L1 Wave dispatch. The first batch materializes `entrance.md` together
+with the complete artifact set below. Seed `source_stages` remain
+non-executable provenance.
 
 ## 2. Current Layout
 
@@ -107,7 +110,8 @@ Before any returning-session dispatch, L0:
 2. reads `STATUS.yaml` and rejects terminal `ARCHIVED`/`ESCALATED` changes;
 3. validates `preflight.md` authorization and project-config hash;
 4. reconciles `last_handoff_seq` with the append-only envelope ledger;
-5. reads `goal.md`, `checklist.md`, `stage.md`, and `preflight.md`;
+5. reads `entrance.md` first, then `goal.md`, `checklist.md`, `stage.md`, and
+   `preflight.md`;
 6. selects only open/reverted items whose dependencies are checked;
 7. resumes at the next bounded round coordinate.
 
@@ -119,9 +123,9 @@ Agents joining outside this protocol (fresh sessions, non-DevolaFlow-aware
 tools, human auditors) read `entrance.md` FIRST — its scenario routing table
 maps each onboarding case to the minimal artifact read order. The canonical
 store write (`Change.to_active_folder`) always materializes the router with
-the planning artifacts: a pre-v17.2 folder without one is backfilled from
-the scaffold template on the next write (lint reports `ENTRANCE_MISSING` as
-WARN until then).
+the planning artifacts. Older active folders may lack `entrance.md`; migration
+or recovery may backfill it from the scaffold template (lint reports
+`ENTRANCE_MISSING` as WARN until then).
 
 `force_no_change=True` on `activation_verdict()` remains the explicit
 operator escape hatch for an ad-hoc dispatch.
@@ -130,7 +134,8 @@ operator escape hatch for an ad-hoc dispatch.
 
 ### `entrance.md`
 
-The agent onboarding entry point — a STATIC ROUTER, not a status mirror:
+The fourth Plan Mode draft and first-batch onboarding entry point — a STATIC
+ROUTER, not an execution plan or status mirror:
 
 - Section 1 names the change (goal title verbatim + `goal.md` link) and is
   the only per-change personalized section;

@@ -91,15 +91,15 @@ fixed execution DAG from them.
 3. Select bounded items and partition them into at most 7 waves, at most
    5 tasks per wave.
 4. Assign pairwise-disjoint writable ownership within each wave.
-5. Dispatch each wave to L1.
+5. Dispatch each wave to L1; while external work waits, keep dependency-ready, non-conflicting siblings moving.
 6. Verify the aggregated evidence and checks against checklist item IDs.
 7. Mark eligible checklist items complete; L2 never self-checks an item.
 8. Evaluate the round gate:
    - every selected item has valid evidence and a passing check;
    - zero blocker findings;
    - composite score is recorded as trend-only context.
-9. On FAIL, build up to 5 severity-filtered reinforcement rules for the next
-   round. On PASS, checkpoint and select the next round.
+9. On FAIL, build up to 5 severity-filtered reinforcement rules for the next round; ordinary findings pause only
+   the affected item/task while independent, unaffected siblings continue after signed preflight. On PASS, checkpoint.
 10. Refresh progress state and report material changes to the user.
 
 ### 3.3 Completion and archive
@@ -141,7 +141,7 @@ L1 receives one bounded wave and coordinates its L2 tasks.
 After all tasks settle, L1:
 
 - records completion, failure, and escalation state per task;
-- checks cross-task file and interface conflicts;
+- checks cross-task file/interface conflicts, keeps unaffected siblings running for ordinary findings, and labels `dependency-blocked`, `finding-blocked`, or `wave conflict` (W-30);
 - preserves verbatim paths, errors, metric values, and command evidence;
 - aggregates `ac_results` by checklist item ID;
 - emits a lean WaveReport with an evidence-backed checklist proposal;
@@ -152,9 +152,10 @@ referenced artifacts.
 
 ### 4.3 Failure handling
 
-L1 may retry a transient task once when the round budget permits. Deterministic
-failure, ownership conflict, exhausted retry, or an unresolvable dependency is
-reported to L0 with a classified `ExceptionEscalation`.
+L1 may retry a transient task once when the round budget permits. Deterministic failure, exhausted retry, or an
+unresolvable dependency is reported to L0 with a classified `ExceptionEscalation`; ownership/interface conflict
+pauses its partition. Whole-workflow stopping is reserved for no safely runnable work, a HARD breakpoint or STOP
+card, `FULL_ROLLBACK`, an ownership violation, or a destructive-policy violation.
 
 ## 5. L2 Task Agent
 
@@ -189,8 +190,7 @@ Reports:    Task → Wave → Project
 Escalation: Task → Wave → Project → Human
 ```
 
-Escalation always moves upward and never skips a layer. Every loop declares a
-ceiling and classifies failure as retry, escalate, or abort.
+Escalation always moves upward and never skips a layer. Every loop declares a ceiling and classifies failure as retry, escalate, or abort. Long-running external tasks require a timeout, progress heartbeat, abandon/escalation path, and safe advancement of ready work.
 
 | Constraint | Limit |
 |---|---|

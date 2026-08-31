@@ -23,6 +23,12 @@ from devolaflow.harness.telemetry import (
     compare_metric_observation_sets,
     validate_metric_observation,
 )
+from devolaflow.harness.token_injection import (
+    TOKEN_COMPONENTS,
+    TOKEN_INJECTION_EVENT,
+    TokenInjectionError,
+    validate_token_injection_measurement,
+)
 
 _BASE_LEDGER_NAME: Final[str] = "harness.jsonl"
 _SEGMENT_RE: Final[re.Pattern[str]] = re.compile(r"^harness\.([1-9]\d*)\.jsonl$")
@@ -319,6 +325,18 @@ def _validate_metric_observation_event(
     return record
 
 
+def _validate_token_injection_event(
+    record: dict[str, Any],
+    *,
+    path: Path,
+    line: int,
+) -> dict[str, Any]:
+    try:
+        return validate_token_injection_measurement(record)
+    except TokenInjectionError as exc:
+        raise _error(path, line, str(exc)) from exc
+
+
 def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise _error(path, line, "record must be a JSON object")
@@ -330,6 +348,8 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
         return _validate_context_token_event(record, path=path, line=line)
     if record.get("event") == METRIC_OBSERVATION_EVENT:
         return _validate_metric_observation_event(record, path=path, line=line)
+    if record.get("event") == TOKEN_INJECTION_EVENT:
+        return _validate_token_injection_event(record, path=path, line=line)
     if "event" in record:
         _check_event_fields(record, _EVENT_FIELDS, path=path, line=line, label="proposal event")
         if record["schema_version"] != 1:
@@ -564,6 +584,10 @@ def _metric_observation_records(records: list[dict[str, Any]]) -> list[dict[str,
     return [record for record in records if record.get("event") == METRIC_OBSERVATION_EVENT]
 
 
+def _token_injection_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [record for record in records if record.get("event") == TOKEN_INJECTION_EVENT]
+
+
 def _measurement_provenance(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {"source": "telemetry", "metadata": record["metadata"]}
@@ -579,6 +603,76 @@ def _observation_provenance(record: Mapping[str, Any]) -> dict[str, Any]:
         "command": record["command"],
         "environment": record["environment"],
         "measurement": record["measurement"],
+    }
+
+
+def _coverage(observed: int, total: int) -> dict[str, Any]:
+    return {
+        "observed_records": observed,
+        "total_records": total,
+        "ratio": observed / total if total else 0.0,
+        "status": "AVAILABLE" if observed else "INSUFFICIENT",
+    }
+
+
+def _token_injection_group(records: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(records)
+    components: dict[str, dict[str, Any]] = {}
+    for component in TOKEN_COMPONENTS:
+        values = [
+            record[f"{component}_tokens"]
+            for record in records
+            if record[f"{component}_tokens"] is not None
+        ]
+        mean = sum(values) / len(values) if values else None
+        variance = sum((value - mean) ** 2 for value in values) / len(values) if values else None
+        components[component] = {
+            "mean": mean,
+            "variance": variance,
+            "interval": {"low": min(values), "high": max(values)} if values else None,
+            "coverage": _coverage(len(values), total),
+            "status": "AVAILABLE" if values else "INSUFFICIENT",
+        }
+    complete = sum(record["status"] == "AVAILABLE" for record in records)
+    return {
+        "records": total,
+        "complete_records": complete,
+        "coverage": _coverage(complete, total),
+        "components": components,
+        "status": "AVAILABLE" if total and complete == total else "INSUFFICIENT",
+    }
+
+
+def _token_injection_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate measured injection components by host/channel and dimensions."""
+
+    measurements = _token_injection_records(records)
+    by_host_channel: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    by_host: dict[str, list[dict[str, Any]]] = {}
+    by_channel: dict[str, list[dict[str, Any]]] = {}
+    for record in measurements:
+        key = (record["host"], record["channel"])
+        by_host_channel.setdefault(key, []).append(record)
+        by_host.setdefault(record["host"], []).append(record)
+        by_channel.setdefault(record["channel"], []).append(record)
+
+    def render_groups(
+        groups: Mapping[object, list[dict[str, Any]]],
+    ) -> dict[str, dict[str, Any]]:
+        rendered: dict[str, dict[str, Any]] = {}
+        for key in sorted(groups, key=str):
+            rendered_key = "/".join(key) if isinstance(key, tuple) else str(key)
+            rendered[rendered_key] = _token_injection_group(groups[key])
+        return rendered
+
+    complete = sum(record["status"] == "AVAILABLE" for record in measurements)
+    return {
+        "records": len(measurements),
+        "coverage": _coverage(complete, len(measurements)),
+        "status": "AVAILABLE" if measurements and complete == len(measurements) else "INSUFFICIENT",
+        "by_host_channel": render_groups(by_host_channel),
+        "by_host": render_groups(by_host),
+        "by_channel": render_groups(by_channel),
     }
 
 
@@ -774,6 +868,9 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     observations = _metric_observation_records(records)
     if observations:
         result["metric_observations"] = observations
+    token_injection = _token_injection_records(records)
+    if token_injection:
+        result["token_injection"] = _token_injection_summary(records)
     return result
 
 

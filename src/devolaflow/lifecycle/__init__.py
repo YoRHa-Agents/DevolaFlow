@@ -181,6 +181,13 @@ from devolaflow.lifecycle.validate_surgical_scope import (
 from devolaflow.lifecycle.validate_trivial_path import (
     validate_trivial_path,
 )
+from devolaflow.lifecycle.workspace_gate import (
+    ResolvedWorkspace,
+    WorkspaceContextError,
+    WorkspaceEntranceCheck,
+    inspect_workspace_entrance,
+    resolve_workspace,
+)
 
 # v11.0.0 PV-02 D-Q-3 — NEW canonical lifecycle event names per the
 # `pre_*` / `post_*` / `check_*` taxonomy. Each NEW name is wired as a
@@ -416,6 +423,7 @@ __all__ = [
     "HookHandler",
     "HookResult",
     "HookViolation",
+    "ResolvedWorkspace",
     "POST_DISPATCH_EVENT",
     "POST_FILE_EDIT_EVENT",
     "POST_TASK_COMPLETE_EVENT",
@@ -428,6 +436,8 @@ __all__ = [
     "Severity",
     "SurgicalScopeError",
     "TASK_STOP_EVENT",
+    "WorkspaceContextError",
+    "WorkspaceEntranceCheck",
     "auto_write_handoff",
     "check_envelope_append_only",
     "check_file_ownership",
@@ -445,6 +455,7 @@ __all__ = [
     "format_on_edit",
     "get_canonical_manifest",
     "is_workspace_engaged",
+    "inspect_workspace_entrance",
     "list_handlers",
     "post_dispatch",
     "pre_plugin_invocation",
@@ -457,6 +468,7 @@ __all__ = [
     "reject_subagent_banner_emission",
     "reject_subagent_quality_score",
     "run_hooks",
+    "resolve_workspace",
     "test_on_complete",
     "unregister_pre_dispatch_extra",
     "validate_dispatch",

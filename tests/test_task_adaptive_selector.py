@@ -1728,3 +1728,17 @@ class TestAgentsMdSliceAccount:
         assert result["profile_name"] == "hotfix"
         assert result["total_tokens"] > 0
         assert result["assembled_text"]
+
+    def test_every_declared_profile_uses_a_positive_configured_slice(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        profile_names = tuple(config["profiles"])
+        slice_profiles = config["meta"]["agents_md_slice"]["profiles"]
+
+        assert len(profile_names) == 27
+        assert set(profile_names) <= set(slice_profiles)
+        for profile_name in profile_names:
+            account = select_context(profile_name, profiles_path=PROFILES_YAML)["agents_md_slice"]
+            assert account["profile_name"] == profile_name
+            assert account["slice_enabled"] is True
+            assert account["full_tokens"] > account["total_tokens"] > 0
+            assert account["slice_savings_pct"] > 0

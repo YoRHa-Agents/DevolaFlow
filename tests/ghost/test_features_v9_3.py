@@ -99,10 +99,9 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
        loop is a no-op (the literals tuple is empty); the canonical
        inventory check moved to the sister negative-pin lint
        ``test_v12_0_0_pv03_d2_shortcut_simple_retirement``.
-    4. The PV-04 compressor split delivered exactly 4 files in the
-       package (`__init__.py` + `layout.py` + `patterns.py` +
-       `transforms.py`). A future PV that accidentally collapses the
-       split or grows it to a 5th module would break this test.
+    4. The PV-04 compressor split remains present alongside the additive
+       `context.py` and `evidence.py` modules. A future PV that accidentally
+       collapses the split or changes the package shape would break this test.
 
     Failure modes:
       * "symbol import failed" → the CHANGELOG cites a feature that
@@ -110,8 +109,8 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
       * "missing baseline file" → restore the archived evidence or the
         immutable layout witness; do not regenerate retired EvoBench data.
       * "compressor package member count drift" → either accept the
-        new structure (and update this test in the same PR) OR
-        restore the v9.3.0 PV-04 4-file shape.
+        additive structure (and update this test in the same PR) OR
+        restore the historical split.
     """
     import importlib
 
@@ -162,7 +161,7 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
             f"helper function names. Add the §2.12 block."
         )
 
-    # §4 — PV-04 compressor 3-module split shape (4 files: __init__ + 3 modules).
+    # §4 — PV-04 split plus additive context/evidence package modules.
     compressor_pkg = project_root / "src" / "devolaflow" / "compressor"
     assert compressor_pkg.is_dir(), (
         "W-18 v9.3.0 violation: src/devolaflow/compressor/ is not a directory. "
@@ -171,6 +170,7 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     # v21.0.0 T2 adds bounded evidence transport as an additive package module.
     expected_pkg_files = {
         "__init__.py",
+        "context.py",
         "evidence.py",
         "layout.py",
         "patterns.py",

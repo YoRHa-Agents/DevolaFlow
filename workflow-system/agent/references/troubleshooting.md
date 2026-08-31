@@ -61,6 +61,7 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | Baseline regen scores diverge ~7pp from pytest scoring | tokenization determinism | §2.16 | v11.1.3 D-3 |
 | `devola-init` target fails on a pip-wheel-only install | install / CLI | §2.17 | v9.2.2 (I-001/I-004) |
 | Pre-existing working-tree corruption at cycle entry | working-tree sanity | §2.18 | v12.2.0 retro §4.3 |
+| Long wait or unrelated sibling stopped after a blocker | W-30 continuous progress | §2.20 | current PV |
 
 ### 2. Diagnostic Patterns
 
@@ -392,6 +393,25 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   To run a module explicitly, use
   `uv run --with 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v<version>' python -m devolaflow.<module>`.
 
+#### 2.20 W-30 — Long waits and selective blocker isolation
+
+* **Symptom A**: an agent repeatedly polls CI, installation, long tests, or
+  deployment without a new progress signal, or waits while an independent
+  task is ready.
+* **Fix A**: set an explicit timeout and heartbeat cadence before waiting.
+  Advance dependency-ready work when resources and ownership do not conflict.
+  At the deadline or no-progress threshold, abandon the wait and escalate with
+  the last heartbeat and one bounded next action.
+* **Symptom B**: a normal blocker or `HUMAN_INTERVENE` finding stops unrelated
+  siblings after preflight has been signed.
+* **Fix B**: pause only the affected item/task and continue unaffected
+  siblings. Label the state `dependency-blocked`, `finding-blocked`, or
+  `wave conflict`; a wave conflict pauses only the conflicting partition.
+* **Hard-stop exception**: stop the whole workflow only when no task can be
+  safely advanced, or a HARD breakpoint, preflight STOP card,
+  `FULL_ROLLBACK`, ownership violation, or destructive-policy violation
+  requires it. HBP-01 still blocks execution before signed preflight.
+
 ### 3. Escalation Patterns
 
 DevolaFlow's escalation chain (P4 Bounded Retry) is **always upward**:
@@ -401,7 +421,7 @@ Task → Wave → Project → Human. Never skip levels.
 |---|---|---|
 | `AUTO_RECOVER` | Retry up to 3× with exponential backoff | Same agent |
 | `PAUSE` | Pause task, queue question, continue parallel work | Wave / Project |
-| `HUMAN_INTERVENE` | Stop the affected wave/round, present options | Human |
+| `HUMAN_INTERVENE` | Pause affected task/item; continue unaffected siblings after routing | Human |
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt all | Human (mandatory) |
 
 **Stagnation pattern (W-8 / SI-9)**: if checklist progress is zero for two

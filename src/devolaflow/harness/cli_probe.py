@@ -1,4 +1,4 @@
-"""Bounded, replayable probes for local Claude, Codex, and Kimi CLIs.
+"""Bounded, replayable probes for supported local agent CLIs.
 
 This module deliberately keeps subprocess execution separate from the legacy
 provider/model probe in :mod:`devolaflow.harness.probe`.  A probe is an
@@ -25,8 +25,20 @@ from typing import Any, Final
 
 from devolaflow.host_contract import normalize_skill_observation
 
-SUPPORTED_CHANNELS: Final[tuple[str, ...]] = ("claude", "codex", "kimi")
-PROBE_HOSTS: Final[dict[str, str]] = {"claude": "claude", "codex": "codex", "kimi": "kimicode"}
+SUPPORTED_CHANNELS: Final[tuple[str, ...]] = (
+    "claude",
+    "codex",
+    "kimi",
+    "cursor-agent",
+    "copilot",
+)
+PROBE_HOSTS: Final[dict[str, str]] = {
+    "claude": "claude",
+    "codex": "codex",
+    "kimi": "kimicode",
+    "cursor-agent": "cursor",
+    "copilot": "copilot",
+}
 TASK_CLASSES: Final[tuple[str, ...]] = (
     "read-only",
     "tool-heavy",
@@ -48,11 +60,17 @@ DEFAULT_COMMAND_TEMPLATES: Final[dict[str, tuple[str, ...]]] = {
     "claude": ("claude", "-p", "{prompt}", "--output-format", "json"),
     "codex": ("codex", "exec", "--json", "{prompt}"),
     "kimi": ("kimi", "--prompt", "{prompt}", "--output-format", "stream-json"),
+    "cursor-agent": ("cursor-agent", "-p", "{prompt}", "--output-format", "json"),
+    "copilot": ("copilot", "-p", "{prompt}", "--output-format", "json"),
 }
 
 _SECRET_RE = re.compile(
     r"(?i)(authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|"
-    r"password|secret)\s*[:=]\s*([\"']?)[^\s,\"']+\2"
+    r"password|secret|token)\s*[:=]\s*([\"']?)[^\s,\"']+\2"
+)
+_SECRET_FLAG_RE = re.compile(
+    r"(?i)(--?(?:api[-_]?key|access[-_]?token|refresh[-_]?token|password|secret|token)\s+)"
+    r"[^\s]+"
 )
 _BEARER_RE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _KEY_RE = re.compile(r"\b(?:sk|key|token)[-_][A-Za-z0-9_-]{12,}\b", re.IGNORECASE)
@@ -415,6 +433,7 @@ def load_channel_configs(path: str | Path | None = None) -> dict[str, ChannelCon
 def _safe_text(value: object) -> str:
     text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value or "")
     text = _SECRET_RE.sub(r"\1=<redacted>", text)
+    text = _SECRET_FLAG_RE.sub(r"\1<redacted>", text)
     text = _BEARER_RE.sub("Bearer <redacted>", text)
     text = _KEY_RE.sub("<redacted>", text)
     if len(text) > MAX_SUMMARY_CHARS:
@@ -479,25 +498,49 @@ def build_probe_metadata(spec: ProbeSpec, *, repo_root: str | Path = ".") -> dic
     }
 
 
-def _json_object(stdout: object) -> Mapping[str, Any] | None:
+def _json_objects(stdout: object) -> list[Mapping[str, Any]]:
+    """Return JSON response objects from JSON or JSONL CLI output.
+
+    Agent CLIs differ in whether their machine-readable mode emits one JSON
+    object or a stream of objects.  This helper only locates explicit JSON
+    fields; it never derives usage or skill state from prose or text length.
+    """
+
     raw = (
         stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else str(stdout or "")
     )
     try:
         parsed = json.loads(raw)
     except (TypeError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, Mapping) else None
+        objects: list[Mapping[str, Any]] = []
+        for line in raw.splitlines():
+            if not line.strip():
+                continue
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, Mapping):
+                objects.append(value)
+        return objects
+    if isinstance(parsed, Mapping):
+        return [parsed]
+    if isinstance(parsed, list):
+        return [value for value in parsed if isinstance(value, Mapping)]
+    return []
 
 
 def _token_usage(stdout: object) -> dict[str, Any]:
-    payload = _json_object(stdout)
-    usage = payload.get("usage") if payload is not None else None
-    if not isinstance(usage, Mapping) and payload is not None:
-        usage = payload.get("token_usage")
-    if not isinstance(usage, Mapping) and payload is not None:
-        direct_fields = {"input_tokens", "output_tokens", "prompt_tokens", "completion_tokens"}
-        usage = payload if direct_fields & set(payload) else None
+    usage: Mapping[str, Any] | None = None
+    for payload in _json_objects(stdout):
+        candidate = payload.get("usage")
+        if not isinstance(candidate, Mapping):
+            candidate = payload.get("token_usage")
+        if not isinstance(candidate, Mapping):
+            direct_fields = {"input_tokens", "output_tokens", "prompt_tokens", "completion_tokens"}
+            candidate = payload if direct_fields & set(payload) else None
+        if isinstance(candidate, Mapping):
+            usage = candidate
     if not isinstance(usage, Mapping):
         return {
             "input_tokens": None,
@@ -526,11 +569,14 @@ def _skill_loaded(
     *,
     reason: str | None = None,
 ) -> dict[str, Any]:
-    payload = _json_object(stdout)
-    value = payload.get("skill_loaded") if payload is not None else None
-    if not isinstance(value, bool) and payload is not None:
-        metadata = payload.get("metadata")
-        value = metadata.get("skill_loaded") if isinstance(metadata, Mapping) else None
+    value = None
+    for candidate in _json_objects(stdout):
+        value = candidate.get("skill_loaded")
+        if not isinstance(value, bool):
+            metadata = candidate.get("metadata")
+            value = metadata.get("skill_loaded") if isinstance(metadata, Mapping) else None
+        if isinstance(value, bool):
+            break
     if not isinstance(value, bool):
         value = None
         reason = reason or (
@@ -553,6 +599,10 @@ def _base_result(
         "status": "INSUFFICIENT",
         "metadata": dict(metadata),
         "channel": spec.channel,
+        "measurement": {
+            "host": PROBE_HOSTS[spec.channel],
+            "channel": spec.channel,
+        },
         "task_class": spec.task_class,
         "arm": spec.arm,
         "command": {

@@ -102,6 +102,7 @@ from devolaflow.agent_workspace.lint import (
     estimate_tokens,
     lint_change,
     lint_human,
+    lint_task,
 )
 from devolaflow.agent_workspace.memory_bridge import (
     MemoryBridgeError,
@@ -197,6 +198,11 @@ from devolaflow.agent_workspace.spec_bootstrap import (
     SpecBootstrapError,
     seed_initial_spec,
 )
+from devolaflow.agent_workspace.task_folder import (
+    TASKS_DIR_DEFAULT,
+    TaskFolderError,
+    scaffold_task_folder,
+)
 
 __all__ = [
     # archive
@@ -252,6 +258,7 @@ __all__ = [
     "estimate_tokens",
     "lint_change",
     "lint_human",
+    "lint_task",
     # memory_bridge (v8.2.8 — closes H-006)
     "MemoryBridgeError",
     "consolidate_change_on_archive",
@@ -340,6 +347,10 @@ __all__ = [
     # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
     "SpecBootstrapError",
     "seed_initial_spec",
+    # task folders
+    "TASKS_DIR_DEFAULT",
+    "TaskFolderError",
+    "scaffold_task_folder",
 ]
 
 

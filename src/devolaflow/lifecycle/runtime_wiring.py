@@ -199,6 +199,7 @@ def fire_file_write(
 def fire_task_stop(
     report: dict[str, Any],
     *,
+    repo_root: str | Path | None = None,
     strict: bool = True,
 ) -> HookResult | None:
     """Fire the ``task_stop`` hook for a finalised L2 status report.
@@ -210,6 +211,11 @@ def fire_task_stop(
     report evidence only; it spawns NO subprocesses (ADR-003
     §Decision 2 — the report-side ``self_check`` / ``ac_results``
     evidence transport is the v15-ADR-007 companion).
+
+    ``repo_root`` optionally identifies the repository containing the
+    workspace context. It is supplied by ``HandoffStore`` so a report
+    emitted from another repository is linted in that repository rather
+    than in the process cwd.
 
     ``strict`` is ``True`` by default since v15.0.0 (S-8 "mode: full"
     per ADR-003 §Decision 3): a failing report (e.g. ``tests_failed >
@@ -225,7 +231,10 @@ def fire_task_stop(
     """
     if not is_workspace_engaged():
         return None
-    return run_hooks(_TASK_STOP_EVENT, report, strict=strict)
+    payload = dict(report)
+    if repo_root is not None:
+        payload.setdefault("_workspace_repo_root", str(repo_root))
+    return run_hooks(_TASK_STOP_EVENT, payload, strict=strict)
 
 
 __all__ = [

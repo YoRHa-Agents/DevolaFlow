@@ -4,8 +4,8 @@ description: "三层清单轮次架构、来源原语与证据门。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T12:25:20Z"
-source_version: "22.1.1"
+last_synced: "2026-08-31T15:15:03Z"
+source_version: "23.0.0"
 ---
 
 # 架构概述
@@ -38,7 +38,7 @@ source_version: "22.1.1"
 
 任务自适应选择来自 `workflow-system/agent/context_profiles.yaml` 中派生的
 27 个 profile。规范 `.rules/` 源当前包含
-51 个规则 ID；生成面必须经编译，不得手改。
+52 个规则 ID；生成面必须经编译，不得手改。
 
 harness 基线结算与周期归档保留是政策。周期负责人在周期关闭时人工执行归档汇总；
 目前没有自动归档 hook。

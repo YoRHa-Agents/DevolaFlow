@@ -366,7 +366,18 @@ def run_hooks(
             result = handler(copy.deepcopy(payload), strict=False)
             if not isinstance(result, HookResult):
                 raise TypeError(f"handler returned {type(result).__name__}, expected HookResult")
-            aggregate.violations.extend(result.violations)
+            strict_blocker_codes = {
+                str(code) for code in result.metadata.get("strict_blocker_codes", [])
+            }
+            for violation in result.violations:
+                if strict and violation.code in strict_blocker_codes:
+                    violation = HookViolation(
+                        code=violation.code,
+                        message=violation.message,
+                        severity="blocker",
+                        context=violation.context,
+                    )
+                aggregate.violations.append(violation)
             for key, value in result.metadata.items():
                 aggregate.metadata.setdefault(key, copy.deepcopy(value))
             if not result.passed:

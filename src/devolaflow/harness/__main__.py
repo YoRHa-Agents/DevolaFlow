@@ -33,6 +33,7 @@ from devolaflow.harness.cli_probe import (
     plan_probe_matrix,
     run_cli_probe,
 )
+from devolaflow.harness.cursor_capture import ingest_cursor_ide_capture
 from devolaflow.harness.evaluator import (
     DEFAULT_CROSS_VALIDATION_DELTA,
     DEFAULT_THRESHOLD,
@@ -66,6 +67,12 @@ from devolaflow.harness.telemetry import (
     append_metric_observation,
     check_gate_telemetry,
 )
+from devolaflow.harness.token_injection import (
+    TOKEN_INJECTION_SOURCES,
+    ingest_captured_transcript,
+    ingest_cli_probe_artifact,
+    ingest_measurement_artifact,
+)
 from devolaflow.llm_client import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TIMEOUT_S,
@@ -76,7 +83,12 @@ from devolaflow.llm_client import (
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m devolaflow.harness",
-        description="Aggregate harness telemetry and run deterministic W-3 evaluation.",
+        description=(
+            "Aggregate harness telemetry and run deterministic W-3 evaluation. "
+            "Executable measurement channels: Claude, Codex, KimiCode, Cursor Agent, "
+            "and GitHub Copilot; Cursor IDE and DSH evidence is replayed offline. "
+            "HSC tiers remain guaranteed, community-installable, and community-build-only."
+        ),
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
     aggregate = subcommands.add_parser("aggregate", help="aggregate one harness ledger")
@@ -149,7 +161,7 @@ def _parser() -> argparse.ArgumentParser:
     cli_probe = subcommands.add_parser(
         "probe-cli",
         aliases=["cli-probe"],
-        help="run one bounded local Claude/Codex/Kimi CLI probe",
+        help="run one bounded local CLI probe (Claude/Codex/Kimi/Cursor Agent/Copilot)",
     )
     cli_probe.add_argument("--channel", choices=SUPPORTED_CHANNELS, required=True)
     cli_probe.add_argument("--task-class", choices=TASK_CLASSES, required=True)
@@ -196,7 +208,10 @@ def _parser() -> argparse.ArgumentParser:
     calibration.add_argument("--dry-run", action="store_true")
     plan = subcommands.add_parser(
         "probe-plan",
-        help="dry-run an ordered 4×3×2×N CLI probe matrix",
+        help=(
+            "dry-run an ordered 4×5×2×N executable matrix; six HSC hosts are "
+            "covered by CLI or captured/replay evidence"
+        ),
     )
     plan.add_argument("--replicates", type=int, required=True)
     plan.add_argument("--seed", required=True)
@@ -255,6 +270,29 @@ def _parser() -> argparse.ArgumentParser:
     append_observation.add_argument("--ledger", type=Path, required=True)
     append_observation.add_argument("--observation", type=Path, required=True)
     append_observation.add_argument("--metadata", type=Path)
+    ingest = telemetry_commands.add_parser(
+        "ingest",
+        aliases=["import"],
+        help="import existing CLI-probe or cursor capture JSON/JSONL without executing a CLI",
+    )
+    ingest.add_argument("--input", "--artifact", dest="artifact", type=Path, required=True)
+    ingest.add_argument("--ledger", type=Path, required=True)
+    ingest.add_argument("--source", choices=sorted(TOKEN_INJECTION_SOURCES), required=True)
+    ingest.add_argument("--repo-root", type=Path, default=Path("."))
+    ingest.add_argument("--host")
+    ingest.add_argument("--channel")
+    ingest.add_argument("--layer")
+    ingest.add_argument("--profile")
+    ingest.add_argument("--metadata", type=Path)
+    capture_ingest = telemetry_commands.add_parser(
+        "ingest-cursor-ide",
+        aliases=["capture-cursor-ide"],
+        help="ingest a captured Cursor IDE transcript without executing a CLI",
+    )
+    capture_ingest.add_argument("--input", "--artifact", dest="artifact", type=Path, required=True)
+    capture_ingest.add_argument("--ledger", type=Path, required=True)
+    capture_ingest.add_argument("--repo-root", type=Path, default=Path("."))
+    capture_ingest.add_argument("--metadata", type=Path)
     check = telemetry_commands.add_parser("check", help="check complete SI-10 gate evidence")
     check.add_argument("--ledger", type=Path, required=True)
     check.add_argument("--pv", required=True)
@@ -550,6 +588,59 @@ def _run_telemetry_command(args: argparse.Namespace) -> int:
             metadata=_load_optional_metadata(args.metadata),
         )
         print(f"harness telemetry: appended metric observation to {destination}")
+        return 0
+    if args.telemetry_command in {"ingest", "import"}:
+        ingest_kwargs = {
+            "repo_root": args.repo_root,
+            "host": args.host,
+            "channel": args.channel,
+            "layer": args.layer,
+            "profile": args.profile,
+            "metadata": _load_optional_metadata(args.metadata),
+        }
+        if args.source == "cli_probe":
+            records = [ingest_cli_probe_artifact(args.artifact, args.ledger, **ingest_kwargs)]
+        elif args.source == "captured":
+            records = ingest_captured_transcript(args.artifact, args.ledger, **ingest_kwargs)
+        else:
+            records = ingest_measurement_artifact(
+                args.artifact,
+                args.ledger,
+                source=args.source,
+                **ingest_kwargs,
+            )
+        print(
+            json.dumps(
+                {
+                    "status": "AVAILABLE" if records else "INSUFFICIENT",
+                    "imported": len(records),
+                    "event_ids": [record["event_id"] for record in records],
+                    "ledger": args.ledger.as_posix(),
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        )
+        return 0
+    if args.telemetry_command in {"ingest-cursor-ide", "capture-cursor-ide"}:
+        records = ingest_cursor_ide_capture(
+            args.artifact,
+            args.ledger,
+            repo_root=args.repo_root,
+            metadata=_load_optional_metadata(args.metadata),
+        )
+        print(
+            json.dumps(
+                {
+                    "status": "AVAILABLE" if records else "INSUFFICIENT",
+                    "imported": len(records),
+                    "event_ids": [record["event_id"] for record in records],
+                    "ledger": args.ledger.as_posix(),
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        )
         return 0
 
     result = check_gate_telemetry(args.ledger, args.pv, historical=args.historical)

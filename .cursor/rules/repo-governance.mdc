@@ -132,122 +132,90 @@ Source: v15-ADR-008 §S-10.
 
 ## A-1 — 3-Layer Agent Hierarchy (P1–P5)
 
-### P1 Dispatcher-Not-Implementer
-The dispatcher-not-implementer prohibition, Task-Agent execution boundary,
-L0-L1 tool permissions, delegation requirement, and trivial exception are
-defined by S-1. A-1 applies that S-1 contract to the Project → Wave → Task
-hierarchy.
-
-### P2 Minimal Context
-Each agent layer receives only the context it needs:
-- L0 Project Agent: ~5K tokens (workflow template + round status)
-- L1 Wave Agent: ~5K tokens (task list + dependency map + evidence summaries)
-- L2 Task Agent: ~8K tokens (task spec + owned files + rules)
-
-### P3 Structured Messages
-All inter-layer communication uses typed YAML message schemas (TaskDispatch, StatusReport, ExceptionEscalation). Free-form natural language between layers is prohibited.
-
-### P4 Bounded Retry
-Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Project→Human.
-
-### P5 Artifacts as Contracts
-Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
+The dispatcher boundary is defined by S-1. S-1 applies to Project→Wave→Task:
+L0/L1 dispatch only; L2 executes within ~8K; L0/L1 receive ~5K. Inter-layer
+messages MUST use typed YAML (TaskDispatch, StatusReport, ExceptionEscalation);
+free-form messages are prohibited. Every loop has `max_iterations`; failures
+classify as retry/escalate/abort and escalate Task→Wave→Project→Human.
+Artifacts are typed, producer-written contracts; no shared/bidirectional state.
 
 ## A-2 — P6 Preserve Cached Prefix (Cache-Layout Governance v2)
 
-Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 17 in the live schema; position 16 was the v8.3.0 PV-05 historical layout). Reordering existing keys is a release blocker.
+Dispatch payloads MUST honor `schemas/lean-dispatch.yaml#layout_invariant`;
+call `devolaflow.compressor.assert_dispatch_layout(payload)` before sending.
+New top-level keys MUST append after position 17 in the live schema; reordering is a release
+blocker.
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-The first 12 positions of `canonical_order` are the **FROZEN PREFIX**. Their
-byte-stable rendering is the LLM cache prefix; reordering, renaming, or
-removing any of these keys is a release blocker. Enforced by
+The first 12 `canonical_order` positions are the **FROZEN PREFIX** and their
+byte-stable rendering is the LLM cache prefix. Reordering, renaming, or
+removing one is a release blocker; enforce with
 `devolaflow.compressor.assert_layout_spec_invariant`.
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
-Positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at
-position N+1, never in a lower slot.
+Positions 13+ are **APPEND-ONLY**: new top-level keys land at N+1, never lower.
 
 ### A-2.3 — Nest-vs-Append Decision Rule
 
-Per v9-ADR-002 D3, when introducing a new dispatch behaviour, authors choose between **NEST** under an existing canonical key and **APPEND** a new canonical key. The bias is toward **NEST** whenever the data shape allows — every nest preserves cache-prefix length while every append adds a position the runtime must serialise. APPEND is reserved for orthogonal payload that does not nest naturally. Decision matrix:
-
-| Test | Verdict |
-|------|---------|
-| Does the behaviour modify how an existing block is interpreted? | NEST under that block |
-| Does the behaviour reuse an existing block's data shape? | NEST as a new field |
-| Does the behaviour add an orthogonal concern unrelated to existing blocks? | APPEND a new top-level key |
-| Does the behaviour reference cross-block state? | APPEND a new top-level key |
-| Is the new field always present together with an existing block? | NEST as a sub-field |
-| Is the new field independently optional? | Either is acceptable; prefer NEST when the data shape allows |
+Per v9-ADR-002 D3, **NEST** when behavior modifies/reuses an existing block or
+is co-present; **APPEND** only for orthogonal/cross-block state. Independently
+optional fields may use either, but prefer NEST; every append can extend the
+serialized cache prefix.
 
 ### A-2.4 — Multi-Baseline Byte Test (Tiered Retention)
 
-CI runs `tests/test_layout_invariant_multi_baseline.py` against the
-`layout_invariant_v*.yaml` golden set. Any witness drift fails CI. Schema bumps
-must add a new golden and keep all existing witnesses passing.
+CI runs `tests/test_layout_invariant_multi_baseline.py` against
+`layout_invariant_v*.yaml`; witness drift fails. Schema bumps add a new golden
+and retain every existing witness.
 
-* **Tier A**: immutable layout witnesses under
+* **Tier A** immutable layout witnesses in
   `benchmarks/devolaflow_context/baselines/`.
-* **Tier B**: the current and previous two `harness_baseline_<cycle>.json`
-  files under `.local/telemetry/baselines/`.
-* **Tier C**: older harness baselines under
-  `docs/cycle-archive/<cycle>/harness/`; history is never deleted.
+* **Tier B** current + previous two
+  `.local/telemetry/baselines/harness_baseline_<cycle>.json`.
+* **Tier C** older baselines in
+  `docs/cycle-archive/<cycle>/harness/`; history is retained.
 
 ## A-3 — Context Token Budgets
 
-Context profiles (`workflow-system/agent/context_profiles.yaml`) must define explicit token budgets per task type. Budgets are enforced by priority-based allocation: critical sections first, then important, then supplementary.
-
-| Layer | Budget | Role |
-|-------|--------|------|
-| L0 Project | ~5K tokens | Workflow template + round status |
-| L1 Wave | ~5K tokens | Task list + dependency map + evidence summaries |
-| L2 Task | ~8K tokens | Task spec + owned files + rules |
+`workflow-system/agent/context_profiles.yaml` MUST define explicit per-task
+budgets, allocated by priority: critical, then important, then supplementary.
+Layer budgets: L0 Project ~5K (template/status), L1 Wave ~5K
+(tasks/dependencies/evidence), L2 Task ~8K (spec/owned files/rules).
 
 ## A-4 — Source-of-Truth Spec Location (M-004 ADR)
 
-`.local/memory/specs/<domain>/spec.md` is the source-of-truth for current
-system behavior. Per-change `.local/.agent/active/<id>/spec.md` files contain
-DELTAS (ADDED/MODIFIED/REMOVED Requirements) relative to source-of-truth.
-
-Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
-(W-3 / SI-3 composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The gate
-runs the explicit `mergeability_check` (v8.2.5 reporter module) before
-allowing the merge.
+`.local/memory/specs/<domain>/spec.md` is behavioral SSOT; per-change
+`.local/.agent/active/<id>/spec.md` contains ADDED/MODIFIED/REMOVED deltas.
+SSOT mutates ONLY at archive time after a passed gate (W-3/SI-3 ≥8.5 minor,
+≥9.0 major); its `mergeability_check` (v8.2.5 reporter) must pass before merge.
 
 ## A-5 — Single-Source-of-Truth Registry Pattern
 
-Every domain registry surface (value-type cache / plugin manifest /
-archive adapter) MUST have **exactly one owner module** — the canonical
-source-of-truth for the registration data. Cross-cutting consumers
-import from the owner module; they never re-define or shadow the
-registration data locally.
-
-The current SSOT registries are listed below. Parity is enforced by
-`tests/ghost/test_registries.py`; derived views are not owners:
+Every domain registry surface MUST have **exactly one owner module**. Consumers
+import its registration data and MUST NOT redefine or shadow it. Parity and
+derived-view status are enforced by `tests/ghost/test_registries.py`.
 
 | # | Registry surface | Owner module / file |
 |---|---|---|
-| 1 | Plugin registry (membership, canonical IDs, install/upgrade/version truth, workflow wiring) | `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by `devolaflow.plugins.installer.load_registry`). `workflow-system/agent/plugins.yaml` is its DERIVED capability/role/stage-mapping view (v15.0.0 G-021; loaded by `devolaflow.plugins.loader`; mirror pinned by `tests/test_plugins.py::TestV15PluginRegistryUnification`) — not a second owner |
+| 1 | Plugin registry | `workflow-system/agent/knowledge/runtime-plugins.yaml`, loaded by `devolaflow.plugins.installer.load_registry`; `plugins.yaml` is a derived view, pinned by `tests/test_plugins.py::TestV15PluginRegistryUnification` |
 | 2 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
-| 3 | Host Support Contract (identity, tiers, delivery floor, and declared extras) | `workflow-system/agent/hosts.yaml` (loaded by `devolaflow.host_contract.load_host_contract`). `workflow-system/agent/manifest.yaml::install_profiles` is its derived partial install view — not a second owner |
+| 3 | Host Support Contract | `workflow-system/agent/hosts.yaml`, loaded by `devolaflow.host_contract.load_host_contract`; `manifest.yaml::install_profiles` is derived |
 | 4 | Local archive adapters (registered surfaces and archive destinations) | `src/devolaflow/local/archive_adapters.py::ARCHIVE_ADAPTERS` |
 
 ### A-5.1 — Single-Owner Invariant
 
-Adding a registry surface requires picking **ONE** owner module and routing
-every consumer through it. Splitting the registration data across two
-modules invalidates cache reasoning and is a release blocker. Enforced by
-`tests/ghost/test_registries.py::test_registry_single_owner` which
-fails when an AST walk over `src/devolaflow/` finds more than one
-module-level definition for the same registry name.
+Adding a surface requires one owner and routing all consumers through it.
+Splitting registration data invalidates cache reasoning and is a release
+blocker. `tests/ghost/test_registries.py::test_registry_single_owner` uses an
+AST walk to reject multiple module-level definitions.
 
 ### A-5.2 — DEFAULT_ALLOWLIST Hygiene
 
-`DEFAULT_ALLOWLIST` contains public APIs without in-repo callers. SSOT registry
-symbols MUST NOT appear there. Enforced by
-`_check_allowlist_domain_overlap` and `tests/test_dead_apis.py`.
+`DEFAULT_ALLOWLIST` covers public APIs without in-repo callers; SSOT registry
+symbols MUST NOT appear there. Enforce with `_check_allowlist_domain_overlap`
+and `tests/test_dead_apis.py`.
 
 ## A-6 — Workspace Engagement Auto-Activation
 
@@ -288,40 +256,29 @@ When an agent creates or opens a task/change folder under
 `.local/.agent/active/<id>/` or `.local/tasks/<name>/`, `entrance.md` MUST be
 written in the first artifact batch, unless the programmatic scaffold
 (`scaffold_change_folder` / `Change.to_active_folder`) performs that write.
-This is a repo-local governance contract and does not change release artifacts.
 
 ## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
 
-When a dispatch payload's `gate.cascade_required` field is `true`
-(populated by `devolaflow.skills.change_activation::cascade_requirement`
-when the classified complexity is STANDARD or COMPLEX), the dispatch
-chain MUST traverse at least `gate.cascade_min_layers` layers of the
-3-layer agent hierarchy (default 3 = L0 Project→L1 Wave→L2 Task) before
-reaching an L2 Task Agent. SIMPLE/TRIVIAL complexity bypasses this rule per
-`cascade_requirement()` returning `"CASCADE_OPTIONAL"`.
+When `gate.cascade_required` is `true` (STANDARD/COMPLEX from
+`devolaflow.skills.change_activation::cascade_requirement`), dispatch MUST
+traverse at least `gate.cascade_min_layers` layers before L2 (default 3:
+L0 Project→L1 Wave→L2 Task). SIMPLE/TRIVIAL returns
+`"CASCADE_OPTIONAL"` and bypasses this rule.
 
 ### A-7.1 — Conditional strict enforcement
 
-Strict enforcement is conditioned on `cascade_requirement(complexity)`:
-
-* `cascade_requirement == "CASCADE_REQUIRED"` (STANDARD/COMPLEX) →
-  `validate_cascade_gate_fields` enforces the contract in STRICT mode:
-  it returns `None` on pass and raises `CascadeViolationError` on the
-  first invalid field or depth violation. Declared `cascade_min_layers`
-  values are validated at face value.
-* `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
-  validation is skipped; legacy dispatches without cascade fields pass
-  byte-identically.
+For `"CASCADE_REQUIRED"`, STRICT
+`validate_cascade_gate_fields` returns `None` on pass and raises
+`CascadeViolationError` on the first invalid field/depth violation; declared
+`cascade_min_layers` is validated at face value. For `"CASCADE_OPTIONAL"`,
+validation is skipped and legacy dispatches without fields remain byte-identical.
 
 ### A-7.2 — Trivial waiver
 
-Per A-1 P1, single-file edits < 20 lines authored by L0 directly are
-trivially waived from the cascade-depth check. The waiver is verified
-at the dispatch payload level: when `gate.cascade_required` is omitted
-(default for v11.0.x dispatches), no validation runs. The
-`populate_cascade_gate_fields` opt-in helper preserves this default by
-  returning a deep copy of the base dispatch unchanged when complexity
-  is SIMPLE/TRIVIAL.
+Per A-1 P1, L0 may directly author a single-file edit under 20 lines. At
+payload level, omitted `gate.cascade_required` (v11.0.x default) skips
+validation; `populate_cascade_gate_fields` returns an unchanged deep copy for
+SIMPLE/TRIVIAL.
 
 ### A-7.3 — Operator override
 
@@ -329,56 +286,40 @@ at the dispatch payload level: when `gate.cascade_required` is omitted
 
 ### A-7.4 — Enforcement surface
 
-* CI-side: `tests/test_cascade_enforcement.py` covers strict mode,
-  backward compatibility, skip paths, propagation, and input immutability.
-* Runtime: `validate_cascade_gate_fields` returns `None` on pass and
-  raises `CascadeViolationError` on the first violation;
-  `populate_cascade_gate_fields` writes the default minimum of 3 when
-  cascade is required.
-* Audit: `scripts/audit_layer_usage.py --threshold N` runs the strict
-  ratchet by default and returns exit 1 when cycle-doc cascade_ratio is
-  below N; `--no-strict` is the explicit compatibility opt-out. The
-  default threshold is 0.30.
-* Schema: `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
-  are nested under the existing `gate` block; absence is canonical.
+* Tests: `tests/test_cascade_enforcement.py` covers strict, compatibility,
+  skip, propagation, and immutability.
+* Runtime: `validate_cascade_gate_fields` returns `None` or raises
+  `CascadeViolationError`; `populate_cascade_gate_fields` defaults to 3.
+* Audit: `scripts/audit_layer_usage.py --threshold N` is strict by default
+  (exit 1 below `cascade_ratio` N); `--no-strict` opts out; default N=0.30.
+* Schema: `gate.cascade_required: bool` and `gate.cascade_min_layers: int`
+  nest under `gate`; absence is canonical.
 
 # Conventions Rules (P2) — Coding & Format Standards
 
 ## C-1 — Pre-Commit Verification Checklist
 
-Before committing to this repository, verify:
-1. `python -m pytest tests/ -q` — all tests pass
-2. `ruff check src/ tests/` — no lint errors
-3. `ruff format --check src/ tests/` — formatting correct
-4. No absolute filesystem paths introduced in agent-facing files
-5. CHANGELOG updated if user-visible changes were made
+Before committing, verify `python -m pytest tests/ -q`, `ruff check src/ tests/`,
+`ruff format --check src/ tests/`, no absolute paths in agent-facing files,
+and CHANGELOG updates for user-visible changes.
 
 Source: CP-7.
 
 ## C-2 — Lean Message Format
 
-Inter-layer messages (TaskDispatch, StatusReport) must use the lean format
-defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`.
-Verbose prose descriptions are prohibited in dispatch/report YAML. Use
-verbatim compaction (`key_facts` lists, cause→effect notation) instead of
-summarization.
-
-`key_facts` in predecessor artifacts and `delta` in status reports must be
-verbatim extractions from source. Never paraphrase file paths, error messages,
-metric values, or commit hashes. This prevents hallucination risk per the LLM
-Scaling Paradox research.
+TaskDispatch and StatusReport MUST use the lean formats in
+`schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`; verbose prose is
+prohibited. Use verbatim `key_facts` and cause→effect notation. Predecessor
+`key_facts` and report `delta` MUST be source extractions: never paraphrase
+paths, errors, metrics, or commit hashes (CO-1/CO-2).
 
 Source: CO-1; CO-2.
 
 ## C-4 — Tiered Line Budget
 
-Agent-facing skill files are subject to tiered line-count ceilings:
-
-| Tier | Ceiling | Files |
-|------|---------|-------|
-| Default | < 500 | `workflow-system/agent/SKILL.md` |
-| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (26 files) |
-| XL | ≤ 1600 | `workflow-system/agent/examples/*.md` (3 files) |
+Tiered ceilings: Default `<500` lines for `workflow-system/agent/SKILL.md`;
+Large `≤1000` for `references/*.md` (26 files); XL `≤1600` for
+`examples/*.md` (3 files).
 
 Verify with:
 ```bash
@@ -386,528 +327,399 @@ wc -l workflow-system/agent/SKILL.md workflow-system/agent/references/*.md workf
 python -m pytest tests/test_integration.py::test_skill_md_under_500_lines tests/test_reference_size_budgets.py -v
 ```
 
-Source: SF-1.
-
 ### Required SKILL.md Frontmatter Keys
 
-SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does.
-
-Source: SF-2.
+Frontmatter MUST include ALL: `id`, `version`, `purpose`, `triggers`, `tier`,
+`token_estimate`, `last_updated`, `name`, `description`. `description` MUST
+state WHEN/WHY to activate, not WHAT it does. Verify with the C-4 commands.
+Source: SF-1; SF-2.
 
 ## C-6 — Version Consistency
 
-The version string must match `src/devolaflow/__init__.py` `__version__` in ALL canonical 7 locations:
+The version MUST match `src/devolaflow/__init__.py::__version__` in all 7:
 
-1. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:" text
-2. `workflow-system/agent/workflow-skill.yaml` — identity section
-3. `pyproject.toml` — version field
-4. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
-5. `tests/test_smoke.py` — version assertion
-6. `README.md` — version example (`prints "DevolaFlow vX.Y.Z"`)
-7. `packages/npm/package.json` — npm installer `version` field (v17.0.0 R6; publish workflow fail-fasts on tag/version mismatch)
+1. SKILL.md frontmatter, banner, and `Current version:`
+2. `workflow-skill.yaml` identity
+3. `pyproject.toml`
+4. `scripts/generate_human_docs.py::SOURCE_VERSION`
+5. `tests/test_smoke.py`
+6. README example (`DevolaFlow vX.Y.Z`)
+7. `packages/npm/package.json` (publish workflow tag check)
 
-Two former locations are DERIVED, not pattern-managed (v14.4.0 G-031): the `README.md` version badge is a shields.io dynamic TOML badge that reads `pyproject.toml` from the GitHub raw URL at render time, and `workflow-system/human/demo/benchmark-results/index.html` derives its displayed version at load time from `version-timeline/versions.json` (newest entry; its in-file `SAMPLE_DATA` literal is a clearly-marked `file://` fallback that MAY lag and is intentionally NOT synced by `scripts/bump_version.py`).
-
-When bumping the version, update ALL tracked locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify.
+The README badge is **DERIVED, not pattern-managed (v14.4.0 G-031)**: it is a
+dynamic TOML derivation; benchmark-results derives the displayed version from
+`version-timeline/versions.json`. Its marked `file://` `SAMPLE_DATA` fallback
+MAY lag and is not synced. Use
+`scripts/bump_version.py`, then run `python -m pytest tests/test_version.py -v`.
 
 Source: SF-3. Absorbs W-10 (CP-3) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
 
 ## C-7 — Valid Reference Links
 
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (27 entries as of v17.1.0) is enumerated verbatim in `tests/ghost/test_registries.py::_SF4_REFERENCE_SET` (re-exported by the `tests/test_no_ghost_features.py` aggregator shim until v15.0.0) and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in the `references:` list of `workflow-system/agent/manifest.yaml` — the install-manifest SSOT (per A-5) from which `scripts/sync_cursor_skill.py::MIRRORED_FILES`, `scripts/install.sh`, and `devola-init` all derive their file lists (machine-readable parity linted by `tests/test_install_manifest.py`; `scripts/scaffold_reference.py` automates places (a)+(c)+(d)).
-
-Source: SF-4.
+Every `references/xxx.md` cited by SKILL.md MUST exist under
+`workflow-system/agent/references/`. The SF-4 set is owned by
+`tests/ghost/test_registries.py::_SF4_REFERENCE_SET` and pinned by
+`test_skill_reference_links_match_sf4_set`. A new reference MUST add (a) the
+file, (b) the SF-4 entry, (c) a SKILL Tier-2 row, and (d) the
+`workflow-system/agent/manifest.yaml::references` entry. That manifest is the
+install SSOT for `sync_cursor_skill.py::MIRRORED_FILES`, `scripts/install.sh`,
+and `devola-init`; parity is tested by `tests/test_install_manifest.py`.
+`scripts/scaffold_reference.py` automates (a), (c), and (d). Source: SF-4.
 
 ### Lightweight Agent Workspace Artifacts
 
-Files inside `.local/.agent/active/<change-id>/` and
-`.local/.agent/archive/<date>-<id>/` are subject to per-artifact token
-budgets:
+Files in `.local/.agent/active/<change-id>/` and
+`.local/.agent/archive/<date>-<id>/` use these token budgets:
 
-| File | Soft budget | Hard ceiling |
-|------|-------------|--------------|
+| File | Soft | Hard |
+|---|---:|---:|
 | goal.md | 200 | 400 |
 | checklist.md | 1200 | 2400 |
 | stage.md | 400 | 800 |
 | preflight.md | 600 | 1200 |
 | harness_preflight.md | 800 | 1600 |
 | pathfinder_report.md | 800 | 1600 |
-| entrance.md | 400 | 800 |
 | spec.md | 1500 | 3000 |
 | STATUS.yaml | 150 | 300 |
 | owned_files.txt | 50 | 100 |
 | Handoff envelope | 600 | 1200 |
 | evidence/ | No token limit | ≤ 10 KB/file; ≤ 50 KB/directory |
+| entrance.md | 400/800 |
 
-The `.local/human/` surface (v14.0.0) carries its own per-artifact token
-budgets (TOKENS are the sole enforced unit; line/word figures are
-authoring guidance only):
+Soft budget overages warn; Hard ceiling breaches fail commit.
 
-| File | Soft budget | Hard ceiling |
-|------|-------------|--------------|
-| `.local/human/input/constitution.md` | 800 | 1500 |
-| `.local/human/input/requirements.md` | 1200 | 2500 |
-| `.local/human/input/requirements/<domain>.md` (shard, per-file) | 1200 | 2500 |
-| `.local/human/input/amendments/<date>-<slug>.md` (per-file) | 400 | 800 |
-| `.local/human/output/DIGEST.md` | 600 | 1000 |
-| `.local/human/output/convergence/<version>-convergence.md` | 700 | 1000 |
+`.local/human/` uses token-only budgets (line/word counts are guidance):
+
+| `input/constitution.md` | 800/1500 |
+| `input/requirements.md`, `input/requirements/<domain>.md` | 1200/2500 |
+| `input/amendments/<date>-<slug>.md` | 400/800 |
+| `output/DIGEST.md` | 600/1000 |
+| `output/convergence/<version>-convergence.md` | 700/1000 |
 
 Verify with:
 ```bash
 python -m devolaflow.agent_workspace.lint <change-id>   # agent-workspace artifacts
 python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"  # .local/human/ surface
 ```
-Soft budget over → warn. Hard ceiling over → fail commit.
-
-Source: v15-ADR-008 §C-9; human-surface details in `references/human-surface.md` §4c.
+Soft over → warn; hard over → fail commit. Source: v15-ADR-008 §C-9;
+human details: `references/human-surface.md` §4c.
 
 # Workflow Rules (P3) — Development Process
 
 ## W-1 — Iteration Planning Gate (SI-1)
 
-Before starting any version iteration, produce a research/analysis artifact identifying gaps between current state and target goals. No implementation without documented gap analysis. Analysis artifacts live in `.local/research/`. The gap analysis must enumerate: (a) specific deficiencies found, (b) priority ranking, (c) proposed fixes with file-level scope. This gate is the entry point for SI-2 through SI-10.
+Before any version iteration, L0 MUST write a gap analysis in
+`.local/research/` before implementation. It MUST list deficiencies, priorities,
+and file-scoped fixes; this is the SI-2–SI-10 entry gate.
 
 ## W-2 — Harness-Driven Analysis (SI-2)
 
-Iteration analysis MUST be grounded in repository evidence and the built-in
-harness evaluator:
+Iteration analysis MUST use repository evidence and the built-in evaluator:
 ```
 python -m devolaflow.harness evaluate --ledger .local/telemetry/harness.jsonl --repo . --output .local/research/<cycle>_harness_evaluation.json
 ```
-Run the evaluator again for end-of-iteration self-evaluation and store its raw
-JSON output in `.local/research/`. Missing or insufficient evidence MUST remain
-explicit as `INSUFFICIENT` and be resolved or escalated before release.
-There is no external-tool or manual fallback.
+Run it again for end-of-iteration self-evaluation and store raw JSON in
+`.local/research/`. Missing/insufficient evidence MUST remain `INSUFFICIENT`
+until resolved or escalated. There is no external-tool or manual fallback
+that bypasses the built-in evaluator.
 
 ## W-3 — Evaluation Before Release (SI-3)
 
-Every pre-release requires an evaluation report covering: Code quality (0.20), Architecture rationality (0.20), Test adequacy (0.20), Maintainability (0.15), Compatibility (0.10), Performance impact (0.15). Version readiness threshold: weighted composite ≥ 8.5/10.
-
-External benchmark results and version-quality claims MUST NOT rely on a
-single seeded run. The claim evidence MUST carry reproducibility metadata
-including a run identifier, the caller-supplied salt when one exists, and the
-source repository reference. It MUST also include variance or uncertainty
-evidence appropriate to the comparison; metadata MUST remain explicit in the
-harness output, telemetry ledger, and StatusReport metadata face. Missing
-metadata or uncertainty evidence is `INSUFFICIENT`, never `PASS`; a generated
-identifier MUST NOT be represented as an experimental salt.
+Every pre-release needs a report covering Code quality (0.20), Architecture
+(0.20), Tests (0.20), Maintainability (0.15), Compatibility (0.10), and
+Performance (0.15); readiness is weighted composite ≥8.5/10.
+External claims MUST NOT rely on a single seeded run; use more than one seeded
+run and explicit reproducibility metadata: run identifier, caller-supplied salt
+when present, source repository, and suitable variance or uncertainty evidence;
+metadata or uncertainty evidence is `INSUFFICIENT`, never `PASS`; generated IDs
+MUST NOT be called experimental salts.
 
 ## W-4 — Harness Regression Guard (SI-4)
 
-Changes to selector/config/schema/SKILL/gate/harness modules require:
-```
-make test-harness
-```
-Harness tests MUST pass. Context optimization must compare token-injection
+Changes to selector/config/schema/SKILL/gate/harness modules MUST run and pass
+`make test-harness`; context optimization compares token-injection
 distributions, `quantifiable_ratio`, checklist completion, and
-reversion/blocker trends against the active W-16 harness baseline. Threshold breaches
-are release blockers and belong in the iteration evaluation.
-
-Changes to `src/devolaflow/gate/` also require:
-```
-python -m pytest tests/test_gate.py -v
-```
+reversion/blocker trends with the W-16 baseline. Breaches are release blockers.
+The comparison uses the active W-16 harness baseline.
+Changes to `src/devolaflow/gate/` also MUST run
+`python -m pytest tests/test_gate.py -v`.
 
 ## W-5 — Skill Format Coupling (SI-5)
 
-Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check within the
-SKILL.md budget, (2) `build-skill` for every host with a registered adapter as
-declared by the Host Support Contract, (3) `make test-harness` passes, (4)
-version consistency passes. Partial compliance is treated as full violation.
-
-Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running
-`build-skill` and verifying the core and data-driven adapter sets declared by
-`workflow-system/agent/hosts.yaml` and `adapter_configs/*.yaml` build
-successfully and stay within their budgets.
+Changes to SKILL.md or CLAUDE.md MUST check its line budget, run `build-skill`
+for every HSC-registered adapter, pass `make test-harness`, and pass version
+consistency; partial compliance is a violation. Changes to workflow-skill.yaml
+also MUST verify core/data-driven adapters from `hosts.yaml` and
+`adapter_configs/*.yaml` build within budget.
 
 ## W-6 — Context Budget Enforcement (SI-6)
 
-Changes to `context_profiles.yaml` require running `python -m devolaflow.task_adaptive_selector <task_type> --verbose` for all affected task types and verifying no section marked `critical` was dropped.
-
-Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
+Changes to `context_profiles.yaml` MUST run
+`python -m devolaflow.task_adaptive_selector <task_type> --verbose` for every
+affected type and verify relevant `critical` sections are retained while
+unrelated sections are `skip`.
 
 ## W-7 — Iteration Retrospective (SI-8)
 
-After completing a version release, produce a retrospective artifact
-summarizing: (1) Gaps identified, (2) What was implemented, (3) What was
-deferred and why, (4) Key learnings. Store in `.local/research/`.
+After each version release, store a `.local/research/` retrospective covering
+gaps, implementation, deferrals/reasons, and learnings.
 
-At cycle close, after W-16 has settled the completed cycle's harness evidence,
-L0 MUST run:
+After W-16 settles cycle evidence, L0 MUST run:
 
 ```text
 python scripts/archive_research_artifacts.py <cycle-version>
 ```
 
-and commit the result under `docs/cycle-archive/<cycle-version>/`. The archive
-operation is idempotent: repeating it preserves the canonical archive contents
-without duplicating or silently clobbering artifacts.
+and commit the result under `docs/cycle-archive/<cycle-version>/`. Archiving is
+idempotent: repeats preserve canonical contents without duplicates or clobbering.
 
-Archive format (per cycle):
+Each cycle archive contains `README.md`, `gap_analysis.md`,
+`implementation_plan.md`, `design/`, `harness/`, `evaluation/`, and
+`retrospective.md` under `docs/cycle-archive/v<MAJOR>.<MINOR>.0/`.
 
-```
-docs/cycle-archive/v<MAJOR>.<MINOR>.0/
-├── README.md             # auto-generated index
-├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
-├── implementation_plan.md
-├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
-├── harness/              # built-in harness evaluations and settled baselines
-├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
-└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
-```
-
-The W-16 settlement MUST occur before the cycle archive is produced. Patch
-releases do not create independent baselines or cycle archives. Existing
-historical archive contents are retained; archive refreshes remain idempotent.
+W-16 settlement MUST precede archive creation. Patch releases create neither
+independent baselines nor cycle archives. Historical contents are retained.
 
 ## W-8 — Convergence Round Reinforcement (SI-9)
 
-Multi-round convergence iterations MUST use the reinforcement mechanism (`src/devolaflow/gate/reinforcement.py`). Maximum 5 reinforcement rules per round, severity-filtered. If score stagnates for 2+ rounds → escalate to human.
+Multi-round convergence MUST use `src/devolaflow/gate/reinforcement.py`, with
+at most 5 severity-filtered rules per round. Stagnation for 2+ rounds MUST
+escalate to human.
 
 ## W-9 — Test-Then-Commit Protocol (SI-10)
 
-Every iteration follows this strict pre-commit sequence — all 6 must pass:
-1. `make test-core` — all tests pass (`pytest tests/ -q --tb=short`, excluding the three standalone gate surfaces for gates 4/5/7)
-2. `ruff check src/ tests/` — no lint errors
-3. `ruff format --check src/ tests/` — formatting correct (`make lint` runs gates 2–3)
-4. `make test-version` — version consistency (`tests/test_version.py`, standalone)
-5. `make test-harness` — built-in harness contracts (`tests/harness/`, standalone)
-6. `make check-cursor-skill` — exit 0
+Every iteration MUST pass the six SI-10 gates in order:
+1. `make test-core` — all tests pass
+2. `ruff check src/ tests/`
+3. `ruff format --check src/ tests/`
+4. `make test-version`
+5. `make test-harness`
+6. `make check-cursor-skill`
 
-Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps its own red/green attribution. `make test` stays the undeduplicated full suite (not a chain gate).
-
-`make precommit-full` (alias for `release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 6 SI-10 core gates plus the release-only extras (NOT SI-10 gates) enumerated in the Makefile's `release-preflight` section — rule prose does not hand-pin the extras count. The extras include `check-functional-matrix` (Loop v3): the hard-fail functional-matrix contract gate (`scripts/check_functional_matrix.py`); functional row execution itself stays inside `test-core` via pytest markers per G-033 single-execution.
+`make precommit-full` aliases `release-preflight`; the Makefile is authoritative
+for its six core gates and release-only extras. Single-execution is required:
+no test runs twice in one chain, while `make test` remains the full suite.
 
 ## W-16 — Harness Baseline Settlement
 
-Each MAJOR or MINOR cycle MUST settle its harness evidence exactly once. At
-cycle close, or before the first PV of the next cycle, aggregate the completed
-cycle's telemetry and freeze the active comparison artifact as
-`.local/telemetry/baselines/harness_baseline_<cycle>.json`. Patch releases do
-not create independent baselines.
-
-Every PV in the new cycle compares against that single settled artifact rather
-than an incremental predecessor-PV snapshot. Keep the current and previous two
-cycle artifacts in the active Tier-B window; archive older artifacts under
-`docs/cycle-archive/<cycle>/harness/` per A-2.4 Tier C and W-7.
-
-Schema bumps still require a new immutable `layout_invariant_v*.yaml` witness
-and all existing Tier-A witnesses to pass per A-2.4. Harness settlement never
-regenerates, relocates, or prunes those byte witnesses.
+Each MAJOR or MINOR cycle MUST settle its harness evidence exactly once in
+`.local/telemetry/baselines/harness_baseline_<cycle>.json` at close or before
+the next PV. Patch releases create no baseline. Every PV compares with that
+settled artifact; retain current + previous two Tier-B files and archive older
+ones in `docs/cycle-archive/<cycle>/harness/` (A-2.4 Tier C/W-7). Schema bumps
+still require a new immutable `layout_invariant_v*.yaml` witness and all
+Tier-A witnesses; settlement never regenerates, relocates, or prunes them.
 
 ## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
 
-Each PV may add at most **+30 NEW test functions**. Parametrized expansions
-of existing tests do not count. The cycle delta MUST stay ≤ **+150 NEW test
-functions**.
-
-At the cycle midpoint, L0 MUST report cumulative delta and forecast the
-remaining budget. If projected above +150, defer non-essential tests.
-
-Verify with:
-```bash
-# total collected (includes parametrize expansions) — for trend monitoring
-python -m pytest tests/ --collect-only -q | tail -1
-
-# NEW test functions in this PV — what the cap actually counts
-git diff <previous-tag>..HEAD -- tests/ | grep -cE '^\+\s*def test_'
-```
+Each PV may add at most **+30 NEW test functions** (parameter expansions do not
+count); cycle delta MUST stay ≤**+150**. At midpoint L0 MUST report cumulative
+delta and forecast the remainder; if projected over +150, defer non-essential
+tests. Count additions with `git diff <previous-tag>..HEAD -- tests/` and
+`^\+\s*def test_`.
 
 ## W-18 — Ghost-Audit Refresh Precondition
 
-Before a CHANGELOG entry mentions a feature, the `tests/ghost/` audit MUST
-contain a coverage check for that feature. This is a hard precondition to S-4.
-
-Refresh mechanism: add the primary symbol to the current-cycle ghost module,
-run `python -m pytest tests/ghost/ -v`, then author the CHANGELOG entry.
-`tests/ghost/test_rules.py::test_ghost_audit_refresh_present` enforces the
-presence of the audit.
+Before CHANGELOG mentions a feature, `tests/ghost/` MUST cover it (S-4
+precondition). Add its primary symbol to the current-cycle module, run
+`python -m pytest tests/ghost/ -v`, then author the entry;
+`tests/ghost/test_rules.py::test_ghost_audit_refresh_present` enforces this.
 
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
-Before authoring a NEW `DEVOLAFLOW_*` environment variable, the proposing L2 Task Agent MUST consult `workflow-system/agent/references/env-flags.md` (the canonical inventory) and apply the **reuse-first** test:
+Before authoring a NEW `DEVOLAFLOW_*` variable, L2 MUST consult
+`references/env-flags.md` (canonical inventory) and apply **reuse-first**:
 
-1. Does an existing flag activate the SAME runtime surface? → REUSE it.
-2. Does an existing flag's R5 strict pattern apply (env-var read EXACTLY `"1"` + companion runtime probe)? → If yes, the new flag MUST adopt the same parsing + zero-IO design.
-3. Is the new behaviour BEHAVIOURALLY ORTHOGONAL to every existing flag (i.e. would activate independently regardless of any other flag's state)? → ONLY THEN may a new flag be authored.
+1. Same runtime surface? → REUSE it.
+2. R5 pattern applies (read EXACTLY `"1"` + companion probe)? → MUST use
+   that parsing and zero-IO off path.
+3. Behaviorally orthogonal to every existing flag? → ONLY THEN author new.
 
-A NEW flag PR that fails the orthogonality test is a **W-20 violation**. The reviewer MUST either reject (REUSE) or require the orthogonality argument to be documented inline in the PR body + cross-linked to the `references/env-flags.md` §7 checklist.
+A failed orthogonality test is a **W-20 violation**; reviewers MUST reject
+(REUSE) or require the argument in the PR body linked to §7.
 
-Authoring requirements for a justified new flag:
+For a justified flag:
 
-* Add the flag to `references/env-flags.md` §2 (active runtime flags) IN THE SAME PR as the handler implementation.
-* Author an R5-strict zero-IO test in `tests/test_<feature>_disabled_is_noop.py`.
-* Cite the new flag by name in the CHANGELOG `## [vX.Y.Z]` entry under "Operator-visible behaviour change".
+* add it to `references/env-flags.md` §2 in the same PR as its handler;
+* add `tests/test_<feature>_disabled_is_noop.py` zero-IO coverage;
+* cite it in CHANGELOG `## [vX.Y.Z]` under operator-visible behavior.
 
 ## W-21 — Soul-Set Freeze Governance
 
-The Soul rule layer (S-1..S-N) is FROZEN at the count established by the
-most recent MAJOR or MINOR cycle release. Any proposed addition (S-(N+1))
-MUST satisfy ALL of the following BEFORE landing:
-
-1. **2-cycle telegraph**: record the proposal in cycle N's retrospective;
-   cycle N+1 does not consider it.
-2. **SI-1 entry in cycle N+2**: document the invariant, coverage gap,
-   enforcement surface, and prior deferral.
-3. **SI-3 architecture score ≥ 9.5/10** in cycle N+2.
-4. **Soul cap**: keep the Soul layer at ≤12 entries; later invariants belong
-   in Architecture.
-
-The current freeze is S-1..S-10. W-21 is human-gated; the broader 60-rule cap
-is enforced by `tests/ghost/test_rules.py::test_rule_count_under_cap`.
+The Soul layer is frozen at its latest MAJOR/MINOR count. A proposed S-(N+1)
+MUST, before landing, be telegraphed in cycle N's retrospective, re-entered
+as SI-1 in N+2 with gap/enforcement evidence, and earn SI-3 architecture
+≥9.5/10 in N+2. Keep Soul ≤12; later invariants belong in Architecture.
+Current freeze: S-1..S-10. W-21 is human-gated; the 60-rule cap is enforced by
+`tests/ghost/test_rules.py::test_rule_count_under_cap`.
 
 ## W-22 — Grill Mode Activation Contract
 
-DevolaFlow's grill mode (codified by
-`workflow-system/agent/references/grill-mode.md` and
-`src/devolaflow/skills/grill_mode.py`) is the parallel-orthogonal
-sibling of plan mode that conducts a one-question-at-a-time
-interview to stress-test an in-flight plan against the codebase,
-the project's domain glossary (CONTEXT.md), and the project's
-ADR ledger (docs/adr/). Activation is purely natural-language:
-
-* Explicit triggers (return `GRILL_REQUESTED` from
-  `classify_grill_intent`): "grill", "interview me",
-  "stress-test", "stress test", "challenge my plan",
-  "challenge the plan", "interrogate", "sharpen terminology",
-  "sharpen the domain".
-* Suggested triggers (return `GRILL_SUGGESTED`): "domain
-  glossary", "clarify terms", "ambiguous terms", "fuzzy
-  language", "fuzzy terms", "context.md", "adr",
-  "is this an adr", "should we record", "hard to reverse".
-* Default verdict (`NO_GRILL`) when neither trigger is
-  present.
+Grill mode is a natural-language, one-question interview; its contract and
+implementation are `references/grill-mode.md` and
+`src/devolaflow/skills/grill_mode.py`. `classify_grill_intent` returns
+`GRILL_REQUESTED`, `GRILL_SUGGESTED`, or `NO_GRILL` for explicit, soft, or no
+triggers.
 
 ### W-22.1 — Parallel-orthogonal composition with plan mode
 
-When PLAN MODE and GRILL MODE are both active, L0 alternates:
-grill the operator on AC + scope FIRST, then write the plan
-template per `references/plan-mode-enforcement.md` §3. Neither
-mode is a prerequisite for the other; both can run
-concurrently. Reinforcement loops (W-8 / SI-9) and convergence
-loops (gen-verify) operate on artifacts, NOT on operator
-utterances — they are orthogonal to grill mode.
+PLAN and GRILL may coexist; when both are active, L0 MUST grill AC/scope FIRST,
+then plan per `references/plan-mode-enforcement.md` §3. W-8/SI-9 and gen-verify
+operate on artifacts, not utterances.
 
 ### W-22.2 — R5 strict default-OFF for auto-writes
 
-The question-asking pattern is default-active. Auto-writes to
-`CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` MUST require
-explicit operator consent per session. The L0 asks "shall I
-record this in CONTEXT.md as `<term>: <definition>`?" before
-writing. Companion rule: W-23 (Domain Glossary Maintenance).
+Auto-writes to `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` MUST require
+session consent; L0 MUST ask before writing. Companion: W-23.
 
 ### W-22.3 — 3-condition ADR gate (normative obligation)
 
-When grill mode surfaces a candidate decision for an ADR, the
-L0 MUST evaluate via
+For an ADR candidate, L0 MUST call
 `devolaflow.skills.grill_mode.qualifies_as_adr(decision)` →
-`(qualifies, missing_conditions)`. If `qualifies` is False,
-the L0 SHALL skip the ADR offer and surface to the operator
-which of the 3 conditions failed (Hard to reverse / Surprising
-without context / Real trade-off). The 3-condition gate is the
-canonical anti-sprawl mechanism for ADRs going forward.
+`(qualifies, missing_conditions)`. If false, L0 SHALL skip the offer and
+surface failed conditions: Hard to reverse, Surprising without context, and
+Real trade-off; all three are required.
 
 ### W-22.4 — W-20 env-flag reuse-first preservation
 
-NO new `DEVOLAFLOW_*` env flag is introduced for grill mode.
-Activation is purely natural-language via
-`classify_grill_intent`; the active-flag count remains unchanged —
-see `workflow-system/agent/references/env-flags.md` §2, the
-canonical inventory (counting basis per its §2.0; rule prose does
-not hand-pin numerals). Behaviourally orthogonal but activation-
-surface-distinct from the existing flags — the W-20
-orthogonality test is satisfied because grill mode does NOT
-share an env-flag activation surface with any existing
-DEVOLAFLOW_* flag.
+NO new `DEVOLAFLOW_*` flag is introduced: activation is solely
+`classify_grill_intent`; see `references/env-flags.md` §2.
 
 ## W-23 — Domain Glossary Maintenance
 
-When grill mode is active and a term is resolved, the L0 MAY
-update the project's domain glossary (CONTEXT.md) inline per
-the format specified in
-`workflow-system/agent/references/domain-awareness.md`. This
-rule codifies the lazy-creation discipline + opinionated-term
-discipline + project-specific scope discipline that the
-upstream `grill-with-docs` skill establishes.
+When grill mode resolves a term, L0 MAY update the glossary per
+`references/domain-awareness.md` (format/mechanics).
 
 ### W-23.1 — Lazy file creation
 
-* No `CONTEXT.md` exists until the first term is resolved.
-* No `CONTEXT-MAP.md` exists until the repo declares 2+
-  contexts.
-* No `docs/adr/` directory exists until the first ADR clears
-  the W-22.3 3-condition gate.
-
-The repo-init workflow (per SKILL.md §"Repo-Init Pre-Dispatch
-Contract") does NOT auto-create these files — they remain
-absent until grill mode populates them with operator consent.
+Create `CONTEXT.md` only for the first term, `CONTEXT-MAP.md` only for 2+
+contexts, and `docs/adr/` only after W-22.3 passes. Repo-init MUST NOT create
+them; operator consent remains required.
 
 ### W-23.2 — Opinionated-term discipline
 
-When multiple words exist for the same domain concept, the
-glossary picks ONE canonical term and lists the others as
-aliases under "_Avoid_:" entries. The
-`devolaflow.skills.grill_mode.detect_fuzzy_terms(plan_text,
-glossary)` function detects when a plan uses an Avoid-listed
-alias and returns FuzzyTerm entries for the operator to
-resolve. The
-`devolaflow.skills.grill_mode.propose_canonical_term(candidate,
-glossary)` function suggests the canonical replacement for a
-fuzzy candidate.
+The glossary MUST select ONE canonical term and list alternatives as `_Avoid_:`
+aliases. `detect_fuzzy_terms(plan_text, glossary)` surfaces aliases;
+`propose_canonical_term(candidate, glossary)` suggests the canonical term.
 
 ### W-23.3 — Project-specific scope
 
-CONTEXT.md only includes terms specific to THIS project's
-domain. General programming concepts (timeouts, error types,
-utility patterns, language keywords) DO NOT belong even when
-the project uses them extensively. The decision rule before
-adding a term: "Is this a concept unique to THIS project's
-domain, or a general programming concept?" Only the former
-qualifies.
+`CONTEXT.md` MUST contain only THIS project's domain terms; general programming
+concepts DO NOT belong.
 
 ### W-23.4 — CONTEXT.md vs spec.md separation (per A-4)
 
-`CONTEXT.md` is VOCABULARY (what the project's domain experts
-call things). `.local/memory/specs/<domain>/spec.md` (per
-Architecture rule A-4) is BEHAVIOUR (what the system does).
-They DO NOT overlap. A term resolved in grill mode goes into
-CONTEXT.md. A behaviour decided in grill mode goes into the
-per-change `.local/.agent/active/<id>/spec.md`.
+`CONTEXT.md` is VOCABULARY; `.local/memory/specs/<domain>/spec.md` is BEHAVIOR.
+They DO NOT overlap: terms go to `CONTEXT.md`, behavior decisions to
+`.local/.agent/active/<id>/spec.md`.
 
 ### W-23.5 — Single vs multi-context layout inference
 
-The
-`devolaflow.skills.grill_mode.infer_context_layout(repo_root)`
-pure function returns one of `SINGLE_CONTEXT` /
-`MULTI_CONTEXT` / `NO_CONTEXT_YET` based on the presence of
-`CONTEXT-MAP.md` (multi) / `CONTEXT.md` (single) / neither
-(yet to create). This is the only function in the module that
-touches disk; it raises `FileNotFoundError` when `repo_root`
-itself does not exist (S-5: no silent failure).
+`infer_context_layout(repo_root)` returns `MULTI_CONTEXT` when
+`CONTEXT-MAP.md` exists (map wins), `SINGLE_CONTEXT` for `CONTEXT.md`, else
+`NO_CONTEXT_YET`; it is the only filesystem probe and MUST raise
+`FileNotFoundError` for a missing root (S-5).
 
 ## W-24 — Subagent Pattern Selection
 
-The subagent-pattern selection (v11.4.0+; codified by
-`workflow-system/agent/references/subagent-patterns.md` and
-`src/devolaflow/skills/subagent_pattern.py`) is the AGENT-to-AGENT
-dispatch pattern decision rule that operators consult at L0/L1/L2
-wave-decomposition time. Pairs with W-22 (HUMAN-facing grill mode)
-on the orthogonal natural-language activation axis. The supported
-patterns map to the L0..L2 hierarchy as:
-**Pattern 1 Inline Tool** (native — one L2 Task via `Task`);
-**Pattern 2 Fan-Out** (native — one L1 Wave, max 5 parallel L2 Tasks
-per `references/agent-hierarchy.md` §5); **Pattern 4 Teams**
-(PERMANENTLY NOT SUPPORTED — Soul-level P5 invariant forbids cross-agent shared
-state; reversal requires SI-1 + ADR + W-21 cadence + SI-3 §3.2 ≥ 9.5/10).
+At wave decomposition, consult `references/subagent-patterns.md` and
+`src/devolaflow/skills/subagent_pattern.py`. Supported patterns: **INLINE**
+(one L2 via `Task`) and **FAN_OUT** (one L1, ≤5 parallel L2 tasks). **Teams
+are permanently unsupported**: Soul P5 forbids shared state; reversal requires
+SI-1, ADR, W-21 cadence, and SI-3 §3.2 ≥9.5/10.
 
 ### W-24.1 — Selection contract
 
-Operators invoke `select_pattern(complexity, model_tier, task_count,
-parallel_independence)` →
-`"INLINE" | "FAN_OUT"`. The verdict NEVER
-returns `"TEAMS_FORBIDDEN"` — that literal is reserved for
-`forbidden_pattern_rationale("TEAMS_FORBIDDEN")` (operator-education).
+`select_pattern(complexity, model_tier, task_count, parallel_independence)`
+returns `"INLINE" | "FAN_OUT"` and NEVER `"TEAMS_FORBIDDEN"`; that literal is
+reserved for `forbidden_pattern_rationale("TEAMS_FORBIDDEN")`.
 ### W-24.3 — Pattern 4 permanent-NOT-SUPPORTED rationale
 
-`TEAMS_FORBIDDEN` is reserved for the operator-education path; the
-helper NEVER auto-returns it. Callers explicitly invoke
-`forbidden_pattern_rationale("TEAMS_FORBIDDEN")` for the P5-invariant
-rationale citing `repo-governance.mdc` §A-1 P5 verbatim.
+The helper NEVER auto-returns `TEAMS_FORBIDDEN`; callers invoke the rationale
+function explicitly for the P5 citation.
 
 Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.
 
 ## W-25 — Host Support Contract Evidence and Revision
 
 `workflow-system/agent/hosts.yaml` owns host identity, tiers, delivery floor,
-and extras. An implemented `boundary_bridge` MUST list a fixture with
-`captured` or `vendor-doc` provenance; `vendor-doc` requires a `provenance_ref`
-URL. `synthetic` and `TBD-audit` cannot substantiate implementation.
-
-Adding a host, channel, or capability axis MUST update schema, loader/parity
-tests, and the current-cycle ghost audit before CHANGELOG or human-facing
-claims. Unsupported capabilities stay explicitly `undeclared`, `designed`, or
-`broken`; derived views such as `manifest.yaml::install_profiles` require
-parity checks. New axes need a design artifact and evidence-backed tests, not
-empty placeholders. W-20 still governs environment flags; no new flag is
-authorized here.
+and extras. A `boundary_bridge` MUST list `captured` or `vendor-doc`
+provenance; the latter requires a `provenance_ref` URL, and
+`synthetic`/`TBD-audit` cannot substantiate implementation. Adding a host,
+channel, or axis MUST update schema, loader/parity tests, and current-cycle
+ghost audit before claims. Unsupported capabilities remain `undeclared`,
+`designed`, or `broken`; derived manifest views need parity checks. New axes
+need design and evidence-backed tests; W-20 governs flags.
 
 Source: v17.4.0 HSC design.
 
 ## W-26 — Local-Archive Deletion Safety (C-G4.3)
 
-Deletion is permanently operator-only. The local-archive runtime exposes no
-automatic deletion API or deletion workflow mode for any registered surface
-(`tasks`, `feedbacks`, or `research`). Report-only planning and approved
-non-deletion moves remain allowed; clean checks and plan approval never
-authorize deletion. The runtime MUST NOT invoke `git clean -fdx` or an
-equivalent destructive command.
-
-Dirty, ambiguous, missing, unreadable, nested-repository, symlink, protected,
-or worktree-conflicted paths MUST produce explicit refusal findings. A refused
-candidate remains in place. The operator owns any later deletion decision and
-action outside this runtime. `.local/human/` and `.local/.agent/` remain owned
-by their existing lifecycle mechanisms and are never adapter inputs.
-
-Primary references: `workflow-system/agent/references/local-archive.md` §§6–7,
-`src/devolaflow/local/archive.py`, and
-`docs/cycle-archive/v17.4.0/design/v17.4.0_local_archive_design.md` §§3.4–3.5.
-Enforcement: `tests/test_local_archive.py`,
-`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
-ghost audit.
+Deletion is permanently operator-only: no automatic deletion API/workflow for
+`tasks`, `feedbacks`, or `research`; planning/clean checks never authorize it.
+Runtime MUST NOT invoke `git clean -fdx` or equivalent. Dirty, ambiguous,
+missing, unreadable, nested-repository, symlink, protected, or conflicted paths
+MUST yield explicit refusal findings and remain in place. `.local/human/` and
+`.local/.agent/` are never adapter inputs. See
+`references/local-archive.md` §§6–7, `src/devolaflow/local/archive.py`,
+`tests/test_local_archive.py`, `tests/test_local_archive_surfaces.py`, and the
+current ghost audit.
 
 ## W-27 — Local-Archive Mapping Append-Only Behavior (C-G4.4)
 
-Every physical move MUST append one dedicated mapping record to the ledger
-owned by its registered surface. Tasks retain
-`.local/tasks/archive-mappings.yaml`; feedbacks use
-`.local/feedbacks/archive/archive-mappings.yaml`; research uses
-`.local/research/archive/archive-mappings.yaml`. Each row records `sequence`,
-`source`, `destination`, `reason`, and `timestamp`; sequence values increase
-from the existing maximum. Existing rows are immutable, and duplicate source
-or destination paths MUST be refused.
-
-These are dedicated surface ledgers, not existing `.local/.agent/` handoff
-envelopes; S-9 remains independently enforced.
-
-Primary references: `workflow-system/agent/references/local-archive.md` §8 and
-`src/devolaflow/local/archive.py::append_mapping_record`. Enforcement:
-`tests/test_local_archive.py::test_mapping_append_only_and_no_clobber`,
-`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
-ghost audit.
+Every physical move MUST append a record to its surface ledger:
+`.local/tasks/archive-mappings.yaml`, `.local/feedbacks/archive/archive-mappings.yaml`,
+or `.local/research/archive/archive-mappings.yaml`. Rows contain increasing
+`sequence`, `source`, `destination`, `reason`, `timestamp`; existing rows are
+immutable and duplicate source/destination MUST be refused. These are not
+`.local/.agent/` handoffs; S-9 remains separate. See
+`references/local-archive.md` §8, `src/devolaflow/local/archive.py::append_mapping_record`,
+and cited local-archive tests/ghost audit.
 
 ## W-28 — Local-Archive Index-Generation Honesty (C-G4.5)
 
-Each registered surface owns a generated navigation view beside its mapping
-ledger. Tasks retain `.local/tasks/INDEX.md`; feedbacks use
-`.local/feedbacks/archive/INDEX.md`; research uses
-`.local/research/archive/INDEX.md`. Generated output MUST carry its
-surface-specific generated marker (the tasks marker remains
-`<!-- devolaflow: generated task archive index -->`). A missing index may be
-created only by an approved apply operation.
-
-A human-maintained, symlinked, or unreadable index MUST never be silently
-overwritten. Stale or non-generated index bytes MUST produce an explicit
-refusal or drift finding.
-
-Primary references: `workflow-system/agent/references/local-archive.md` §8 and
-`src/devolaflow/local/archive.py::render_index` /
-`_validate_index_target`. Enforcement: `tests/test_local_archive.py`,
-`tests/test_local_archive_surfaces.py`, and the current-cycle local-archive
-ghost audit.
+Each surface owns a generated index beside its ledger:
+`.local/tasks/INDEX.md`, `.local/feedbacks/archive/INDEX.md`, or
+`.local/research/archive/INDEX.md`. Output MUST carry its surface marker
+(tasks: `<!-- devolaflow: generated task archive index -->`); only approved
+apply may create a missing index. Human-maintained, symlinked, unreadable,
+stale, or non-generated indexes MUST produce refusal/drift, never overwrite.
+See `references/local-archive.md` §8, `src/devolaflow/local/archive.py::render_index`,
+and cited tests/ghost audit.
 
 ## W-29 — Retro-Digest Evidence and Consent
 
-Retro-Digest activation is natural-language only. It MUST NOT introduce a new
-`DEVOLAFLOW_*` environment flag or CLI. Deterministic extraction MUST preserve
-verbatim source text and repository-relative provenance. Optional L0 curation
-MAY select and label entries, but MUST NOT rewrite their source.
+Retro-Digest is natural-language only and MUST NOT add a `DEVOLAFLOW_*` flag or
+CLI. Extraction MUST preserve verbatim source and repository-relative
+provenance; L0 MAY select/label but MUST NOT rewrite it. Default is report-only;
+writing `operational.jsonl` requires consent. Benefits stay report-only.
+Missing evidence is `INSUFFICIENT`, never `PASS`. See
+`references/retro-digest.md`.
 
-Default execution is report-only. Writing selected entries to
-`operational.jsonl` requires explicit operator consent. Benefits MUST remain a
-separate report-only section. Missing evidence MUST be reported as
-`INSUFFICIENT`, never `PASS`.
+## W-30 — Continuous Progress Contract
 
-Primary reference: `workflow-system/agent/references/retro-digest.md`.
+### W-30(a) — Bounded Wait and Ready-Work Progress
+
+While a long-running external task is active (including CI, installation,
+long tests, deployment, or an equivalent operation), agents MUST NOT idle or
+meaninglessly poll. Every wait MUST have a timeout, heartbeat, and terminal
+abandon/escalation path. When dependencies are satisfied and resources permit,
+dispatchers MUST advance ready work instead of waiting.
+
+### W-30(b) — Selective Blocker Isolation
+
+After preflight, an ordinary blocker or `HUMAN_INTERVENE` finding pauses only
+its affected item/task. Independent, unaffected siblings MUST continue. Reports MUST
+distinguish `dependency-blocked` (waiting for a prerequisite),
+`finding-blocked` (an unresolved finding), and `wave conflict` (ownership or
+interface overlap). The workflow may stop only when no task can advance, or a
+HARD breakpoint, preflight STOP card, `FULL_ROLLBACK`, ownership violation, or
+destructive-policy violation requires it. A signed preflight does not waive
+hard stops.
+
+Primary references: `workflow-system/agent/references/execution-protocol.md`
+§3, `references/decomposition-gate.md` §10, and
+`references/wave-dispatch.md` §"Continuous progress and blocker isolation".
 
 # Style Rules (P4) — Documentation & Presentation
 

@@ -2494,5 +2494,19 @@
       "Governance contraction — lifecycle events reduced to 15 and SI-10 release gates reduced to six"
     ],
     "metrics": {}
+  },
+  {
+    "version": "23.0.0",
+    "date": "2026-08-31",
+    "era": "runtime-gates-token-evidence",
+    "headline": "MAJOR — Runtime gates, continuous progress, and token-injection evidence",
+    "summary": "The release adds the fourth-draft change entrance contract, runtime workspace gate, task-folder scaffold, W-30 continuous-progress governance, and a six-channel token-injection harness with a 120-run operator matrix. Unavailable observations remain INSUFFICIENT.",
+    "highlights": [
+      "Change entrance — entrance.md is materialized with the first artifact batch unless the programmatic scaffold writes it",
+      "Runtime gate — workspace activation and task-folder creation share explicit entrance enforcement",
+      "Continuous progress — bounded waits, progress heartbeats, ready-work advancement, and selective blocker isolation",
+      "Token evidence — six-channel capture/replay and 120-run operator matrix preserve provenance without converting unavailable observations to PASS"
+    ],
+    "metrics": {}
   }
 ]

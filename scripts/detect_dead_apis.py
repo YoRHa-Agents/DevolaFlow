@@ -257,6 +257,13 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # production callers in later cycles and were purged in the
         # v17.0.0 R1 audit.
         "devolaflow.agent_workspace.delta_parser:serialize_delta_spec",
+        # PV-01/PV-03 task-folder scaffold is an intentional public library
+        # surface for external workflow callers. The local-workspace facade
+        # delegates to the same owner; neither API is invoked by the runtime
+        # dispatch path, so both remain explicit external-only allowlist
+        # entries rather than dead functionality.
+        "devolaflow.agent_workspace.task_folder:scaffold_task_folder",
+        "devolaflow.local.workspace:scaffold_task_folder",
         # ---- Memory bridge public API (v8.2.8 PV-08 — H-006 closure) ----
         # Per .local/research/v8.3.0_design.md §4 and
         # .local/research/v8.3.0_patch_plan.md §"v8.2.8 — Memory Bridge +

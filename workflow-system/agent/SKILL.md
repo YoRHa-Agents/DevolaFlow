@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "22.1.1"
+version: "23.0.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -14,7 +14,7 @@ triggers:
   - "update_devola"
   - "/update-devola"
 tier: 1
-token_estimate: 6000
+token_estimate: 4500
 last_updated: "2026-08-26"
 name: devola-flow
 description: >
@@ -24,63 +24,45 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v22.1.1**
+> **Now Using DevolaFlow v23.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 22.1.1 — Check only on explicit update request:
+**Current version:** 23.0.0 — check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
-Use the channel that created the installation:
-
-- npm/npx copied skills: `npm install -g @yorha-agents/devola-flow@<version> && devola-flow install all`
-  copies skills and provisions the matching Python runtime through uv; `npx @yorha-agents/devola-flow update <cursor|claude|all>` repeats both steps;
-- curl-installer copied skills:
-  `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-  scans supported host skill copies only;
-- Python runtime: `uv tool install --force --python 3.13 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v<version>'`;
-  Python 3.11+ operators may use `pip install --upgrade` with the same pinned URL. runtime-dependent commands are `devola-local-archive`, `devola-init-doctor`, `devola-version`, and `python -m devolaflow.*`; see troubleshooting §2.19.
-
-curl `all` installs all supported host targets plus `local`; it excludes
-`standalone`. curl `update` does not scan local workspaces or standalone files;
-rerun the explicit `local` or `standalone` install target for those surfaces.
-Updating the Python package does not auto-refresh copied skills. Editable
-checkout users pull the checkout and rerun the relevant `devola-init` target.
-If uv bootstrap or runtime installation fails, skill files remain **docs-only** and the installer prints a copyable repair command. Workspace health is `devola-init-doctor`; copied-skill audit is
-`devola-init-doctor --skills`; npm-channel parity is
-`npx @yorha-agents/devola-flow doctor`. Repair rule compilation with
-`sync-rules` or repository-local `make compile-rules`.
-Wheel-only limits: `references/troubleshooting.md` §2.17.
+Install details:
+`references/troubleshooting.md` §2.17/§2.19. npm provisions matching Python;
+curl `all` excludes `standalone`; curl `update` scans supported host skill copies only; runtime-dependent commands:
+`devola-local-archive`, `devola-init-doctor`, `devola-version`, and
+`python -m devolaflow.*`. Repair with `sync-rules` or
+repository-local `make compile-rules`; copied skills are excluded.
+Commands: `npx @yorha-agents/devola-flow doctor`,
+`npx @yorha-agents/devola-flow update <cursor|claude|all>`,
+`scripts/install.sh | bash -s update`, `pip install --upgrade`,
+`sync-rules`, and `make compile-rules`.
 
 ### Session Banner Contract (v12.3.0+)
-
-L0 emits:
-
-- start: `🌸 DevolaFlow vX.Y.Z active · workflow: <type> · mode: <agent|plan|grill>`;
-- end: `🌸 DevolaFlow vX.Y.Z complete · <rounds> rounds · <waves> waves · <tasks> tasks`;
-- Task Quality Score footer containing `DevolaFlow vX.Y.Z`.
-
-Banners are operator chat output only. L1/L2 reports MUST NOT include them;
-`reject_subagent_banner_emission` enforces the prohibition.
+L0 emits start: `🌸 DevolaFlow vX.Y.Z active · workflow: <type> · mode: <agent|plan|grill>`;
+end: `🌸 DevolaFlow vX.Y.Z complete · <rounds> rounds · <waves> waves · <tasks> tasks`;
+and Task Quality Score footer: `DevolaFlow vX.Y.Z`. Banners are
+operator chat output only; L1/L2 reports MUST NOT include them.
+`reject_subagent_banner_emission` enforces this.
 
 ## Workspace Engagement
 
-Before classifying work, call `devolaflow.workspace_context.scan_workspace(repo_root)` and inspect:
+Before classifying, call `devolaflow.workspace_context.scan_workspace(repo_root)` and inspect:
 
-| Surface | L0 use |
-|---|---|
-| `.local/feedbacks/feedback_for_v*.md` | Read latest three themes for planning |
-| `.local/memory/specs/<domain>/spec.md` | Treat as source-of-truth behavior |
-| `.local/memory/cases/*.md` | Consult when memory routing is enabled |
-| `.local/.agent/active/<id>/` | Resume active state instead of duplicating it |
-| `.local/.agent/active/<id>/entrance.md` | MUST be written in the first change/task artifact batch; read first, then only scenario-needed artifacts |
-| `.rules/*.mdc` and `AGENTS.md` | Apply governance contract |
-| `.codegraph/codegraph.db` | Prefer indexed planning lookup when available |
-Every active change/task first-batch write MUST include `entrance.md` with `goal.md`, `checklist.md`, `stage.md`, `preflight.md`, `spec.md`, `STATUS.yaml`, `owned_files.txt`, and `evidence/`; `learnings.jsonl` remains opt-in.
-`entrance.md` is a required write artifact, not only a read surface.
+Read latest three `.local/feedbacks/feedback_for_v*.md`, source-of-truth
+`.local/memory/specs/<domain>/spec.md`, enabled memory cases, active
+`.local/.agent/active/<id>/` (read `entrance.md` first), `.rules/*.mdc`,
+`AGENTS.md`, and `.codegraph/codegraph.db` when present. Every active change/task
+MUST materialize `entrance.md` (static router), `goal.md`,
+`checklist.md`, `stage.md`, `preflight.md`, `spec.md`, `STATUS.yaml`,
+`owned_files.txt`, and `evidence/`; `learnings.jsonl` is opt-in.
 
-Scanning is always read-only. Workspace auto-writes remain default-OFF unless `DEVOLAFLOW_AGENT_WORKSPACE=1`. See `references/agent-workspace.md`.
+Scanning is read-only; auto-writes default-OFF unless `DEVOLAFLOW_AGENT_WORKSPACE=1`. See `references/agent-workspace.md`.
 
 ## Quick Action Decision
 
@@ -91,54 +73,43 @@ Scanning is always read-only. Workspace auto-writes remain default-OFF unless `D
 | Standard | 3–10 files, multiple checks | L0 → L1 → L2 cascade |
 | Complex | 10+ files or cross-cutting | Full cascade, strict preflight |
 
-STANDARD+ requires the three-layer cascade. For STANDARD/COMPLEX,
-`cascade_requirement` returns `CASCADE_REQUIRED`; set the gate fields and traverse
-L0 Project → L1 Wave → L2 Task (default 3 layers). SIMPLE/TRIVIAL is
-`CASCADE_OPTIONAL`.
-The S1 short path is machine-detectable only when StatusReport execution metadata has `trivial_path.declared_complexity == "TRIVIAL"` and `trivial_path.is_cross_cutting == false`, while measured `diff_stats` has `files == 1` and `insertions + deletions < 20`; zero files fails. The canonical `task_stop`/`post_task_complete` chain returns stable violation codes plus `upgrade_target`; strict mode raises blocker/`HookViolation`, lite (`strict=False`) warns, and non-TRIVIAL or declaration/evidence-free reports remain no-ops.
+STANDARD+ requires the three-layer cascade: `cascade_requirement` returns
+`CASCADE_REQUIRED`; set gate fields and traverse `L0 Project → L1 Wave → L2 Task`
+(default 3 layers). SIMPLE/TRIVIAL is `CASCADE_OPTIONAL`. The S1 short
+path is machine-detectable only with StatusReport
+`trivial_path.declared_complexity == "TRIVIAL"`,
+`is_cross_cutting == false`, and measured `diff_stats` of one file with
+`insertions + deletions < 20` (zero files fails). `task_stop`/
+`post_task_complete` returns stable violation codes and `upgrade_target`;
+strict raises blocker/`HookViolation`, lite (`strict=False`) warns, and
+non-TRIVIAL or evidence-free reports are no-ops.
 
 ## Mode Awareness
 
-Detection priority:
-
-1. host says Plan Mode is active;
-2. Cursor current mode is `plan`;
-3. user asks to plan/design first;
-4. grill intent activates Grill Mode alongside the current mode;
-5. otherwise Agent Mode.
+Detection priority: host Plan Mode; Cursor `plan`; user plan/design request;
+Grill intent; otherwise Agent Mode.
 
 ### PLAN MODE — Draft the Contract, Do Not Execute
 
-L0 produces `goal.md`, `checklist.md`, and `preflight.md` drafts. Every
-checklist item includes P0/P1/P2 priority, bounded verification,
-item-level dependencies, owned files, and read-only files. There is no fixed
-workflow DAG. Execution waits for user approval and signed preflight. Full
-template: `references/plan-mode-enforcement.md`. L1/L2 MUST NOT call
-`AskQuestion`, edit files, or begin implementation in PLAN MODE.
+L0 produces `entrance.md`, `goal.md`, `checklist.md`, and `preflight.md`;
+entrance is a static router/inventory, not a plan. Items include priority,
+bounded verification, dependencies, owned and read-only files; no fixed DAG.
+Wait for approval and signed preflight. Full contract:
+`references/plan-mode-enforcement.md`. L1/L2 MUST NOT call `AskQuestion`, edit,
+or implement in PLAN MODE.
 
 ### AGENT MODE — Run Checklist Rounds
 
-L0 orchestrates and never performs delegated task work.
+L0 orchestrates and never performs delegated work. Select
+`TemplateRegistry.load_seed(name)`; load only
+`TemplateRegistry.load_template("change-driven")`; anchor contract/ownership;
+select reverted blockers then P0→P1→P2; partition ≤7 waves and ≤5 tasks/wave;
+dispatch L0→L1→parallel L2; run bounded L2
+`implement→review→fix→re-review`; aggregate; gate evidence/checks/reinforcement;
+iterate/checkpoint; report/archive.
 
-Execution protocol:
-
-1. **ASSESS** complexity and active-change state.
-2. **SELECT SEED** from intent with `TemplateRegistry.load_seed(name)`.
-3. **LOAD RUNTIME** only with `TemplateRegistry.load_template("change-driven")`.
-4. **ANCHOR** goal, checklist, preflight, priorities, and ownership with user.
-5. **SELECT ROUND**: reverted blockers → P0 → P1 → P2 → stable order.
-6. **PARTITION** into ≤7 waves/round and ≤5 tasks/wave.
-7. **DISPATCH** L0 → L1 Wave → parallel L2 Tasks.
-8. **INTRA-TASK CONVERGENCE** — L2 runs bounded
-   `implement → review → fix → re-review` loops with `max_iterations`, then
-   reports evidence.
-9. **AGGREGATE** L1 checks conflicts and submits item-level evidence proposals.
-10. **GATE** L0 verifies evidence/checks, zero blockers, and reinforcement closure.
-11. **ITERATE** with bounded reinforcement or checkpoint a passing round.
-12. **REPORT** progress, decisions, archive result, and Task Quality Score.
-
-L0 verifies evidence, not vibes. Composite score is round trend only; it does
-not replace item evidence.
+L0 verifies evidence, not vibes. Composite score is a trend signal,
+not item evidence.
 
 `checklist.md` pins a `## Progress` header under its H1: an effort-weighted bar
 plus `done | doing | todo | total` counts. L0 MUST re-align it on every state
@@ -153,47 +124,42 @@ context + Real trade-off all pass. See `references/grill-mode.md`.
 
 ### PATHFINDER ROLE — Look Ahead Without Implementing
 
-When the operator requests a Pathfinder or look-ahead reconnaissance, select
-the `pathfind` L2 task specialization. It inspects the next wave's
-infrastructure shape and writes only `pathfinder_report.md`; a separate
-owned task handles every repair. Natural-language activation is classified by
+For Pathfinder/look-ahead reconnaissance, select the `pathfind` L2 task
+specialization. It inspects the next wave's infrastructure shape and writes
+only `pathfinder_report.md`; a separate owned task handles every repair.
+Natural-language activation is classified by
 `devolaflow.skills.pathfinder.classify_pathfind_intent`. See
 `references/pathfinder.md`. If `harness_preflight.md` is present, `should_schedule_pathfind` automatically offers Pathfinder in the first execution wave; the operator may opt out naturally.
 
 ## Quick Start — Workflow Selection
 
-Match intent to a registry-v3 checklist seed. Every row uses
-`load_seed(<name>)`; execution always uses the sole `change-driven` runtime.
-
-| Intent | Checklist seed |
-|---|---|
-| research, compare, survey | `research-only` |
-| design, architecture, API/schema | `design-only` |
-| bug, crash, urgent patch | `hotfix` |
-| refactor, tech debt | `refactoring` |
-| migrate, upgrade, port | `migration` |
-| prototype, spike, experiment | `spike-poc` |
-| documentation, guide | `documentation-only` |
-| security, CVE, vulnerability | `security-audit` |
-| extend or enhance feature | `feature-enhancement` |
-| greenfield or end-to-end build | `full-pipeline` |
-| research-led iterative design | `research-design-review-refine` |
-| demo, showcase, pitch | `demo-showcase` |
-| performance, latency, benchmark | `performance-optimization` |
-| dependencies, environment setup | `dependency-setup` |
-| contributor onboarding | `onboarding` |
-| skill/context optimization | `skill-optimization` |
-| self-update or reference audit | `self-update` |
-| user-facing verification/UAT | `product-verification` |
-| historical compatibility lookup (opaque ID only) | `nines-assisted` |
-| initialize repository workspace | `repo-init` |
-| change lifecycle explicitly | `change-driven` |
-| stale docs or drift cleanup | `entropy-cleanup` |
+Match intent to a registry-v3 seed; every selection calls `load_seed(<name>)`
+and execution uses the sole `change-driven` runtime. Seed names remain
+discoverable here: `hotfix`, `research-only`, `design-only`,
+`documentation-only`, `spike-poc`, `refactoring`, `feature-enhancement`,
+`full-pipeline`, `performance-optimization`, `security-audit`,
+`research-design-review-refine`, `dependency-setup`, `onboarding`,
+`demo-showcase`, `product-verification`, `entropy-cleanup`, `local-archive`,
+`harness-construction`, `pathfinder`, `retro-digest`, `migration`,
+`skill-optimization`, `self-update`, `nines-assisted`, `repo-init`,
+`change-driven`, and `web-design`. Match signals compactly:
+`research/compare/survey → research-only`; `design/architecture/API/schema →
+design-only`; `bug/crash/urgent patch → hotfix`; `refactor/tech debt →
+refactoring`; `migrate/upgrade/port → migration`; `prototype/spike/experiment →
+spike-poc`; `documentation/guide → documentation-only`; `security/CVE →
+security-audit`; `extend/enhance → feature-enhancement`; `greenfield/end-to-end
+→ full-pipeline`; `research-led iterative design →
+research-design-review-refine`; `demo/showcase/pitch → demo-showcase`;
+`performance/latency/benchmark → performance-optimization`;
+`dependencies/environment → dependency-setup`; `onboarding → onboarding`;
+`skill/context optimization → skill-optimization`; `self-update/reference audit
+→ self-update`; `UAT → product-verification`; `historical opaque-ID lookup →
+nines-assisted`; `initialize → repo-init`; `explicit lifecycle → change-driven`;
+`drift cleanup → entropy-cleanup`; `local archive/clustering → local-archive`;
+`harness construction/evaluation → harness-construction`;
+`look-ahead reconnaissance → pathfinder`; `retro-digest → retro-digest`;
+`frontend/web → web-design`.
 | local task archive or clustering | `local-archive` |
-| harness construction, evaluation infrastructure, observation coverage | `harness-construction` |
-| look-ahead infrastructure or harness reconnaissance | `pathfinder` |
-| retrospective digest, cycle learning, loop-improve | `retro-digest` |
-| frontend/web design | `web-design` |
 
 Seeds are non-executable decomposition knowledge. `source_stages` retain
 historical provenance only; order does not imply execution order. Details:
@@ -210,7 +176,7 @@ pre-existing user changes, and stop when write ownership is uncertain.
 
 #### Canonical manifest
 
-All depth modes create the canonical paths:
+All depth modes create the canonical workspace paths:
 
 | # | Path |
 |---:|---|
@@ -229,8 +195,8 @@ files. Post-init workspace health: `devola-init-doctor`; installed copies:
 `devola-init-doctor --skills`.
 
 The repo-init seed marks codegraph suggest-tier; indexing runs in the
-background with explicit ready/failed markers. A missing CLI is a non-blocking
-warning. See `references/codegraph.md`.
+background with ready/failed markers; missing CLI warns. See
+`references/codegraph.md`.
 
 ## 3-Layer Agent Hierarchy
 
@@ -254,63 +220,45 @@ L0 → L1 → L2 without bypassing ownership or cascade checks.
 
 ### Skill Residency Observation
 
-HSC `floor.skill_delivery` declares installation delivery only; `skill_loaded` is a runtime fact, never inferred from the skill-on arm or delivery path.
-If unobservable, record `null` with status `INSUFFICIENT` and an explicit reason.
+HSC `floor.skill_delivery` covers installation; `skill_loaded` is a runtime fact,
+never inferred from the arm or delivery path. If unobservable, record `null` with
+status `INSUFFICIENT` and a reason.
+
 ### Rationalization Prevention
 
-| Rationalization | Reality |
-|---|---|
-| "I can implement this faster as L0/L1" | Dispatcher isolation is the contract |
-| "The seed says this step comes next" | Seed order is provenance, not runtime |
-| "The composite is high enough" | Round PASS needs evidence, checks, zero blockers |
-| "One more retry" | Respect the declared ceiling |
-| "The Task says done" | L1 aggregates; L0 adjudicates |
-| "Tests can come later" | L2 self-verifies before reporting |
+Dispatcher isolation, runtime-vs-seed order, evidence-based PASS, retry ceilings,
+L1 aggregation/L0 adjudication, and L2 self-verification are mandatory; speed,
+seed order, composite score, retries, done claims, and deferred tests are never
+exceptions.
 ### Wave Coordination Modes
 
-L1 chooses from the current dependency and ownership map:
+L1 uses the dependency/ownership map: independent items fan out; dependencies or
+shared writable files are sequential; high-risk outputs use generator-verifier;
+mixed work partitions, then integrates.
+Pattern 3 Agent Pool remains forward-only; shared-state Teams remain
+forbidden by P5. See `references/subagent-patterns.md`.
 
-| Shape | Mode |
-|---|---|
-| Independent items | parallel fan-out |
-| Item dependency/shared writable file | sequential waves |
-| High-risk producer output | generator-verifier |
-| Mixed | independent partitions then integration |
-Pattern 3 Agent Pool remains forward-only; shared-state Teams remain forbidden
-by P5. See `references/subagent-patterns.md`.
 ## Stage Primitives Index (Seed Provenance)
 
-These 14 historical labels preserve seed provenance; they are not executable:
-
-| Category | Primitives |
-|---|---|
-| Discover | research, analyze |
-| Shape | design, plan |
-| Build | implement, refine |
-| Verify | review, test, validate, verify |
-| Deliver | release, deploy, monitor |
-| Control | gate |
-
-They do not define order, team, duration, loops, or gates. See
+Non-executable labels: discover (`research`, `analyze`); shape (`design`,
+`plan`); build (`implement`, `refine`); verify (`review`, `test`, `validate`,
+`verify`); deliver (`release`, `deploy`, `monitor`); control (`gate`). Labels
+define no order, team, duration, loops, or gates. See
 `references/meta-framework.md`.
 
 ## Gate Mechanism
 
-Round PASS requires all selected checklist items to have valid evidence and
-passing configured checks, all reinforcement accounted for, zero blocker
-findings, and no unresolved ownership/interface conflict.
+Round PASS requires valid evidence and checks for selected items, accounted
+reinforcement, zero blocker findings, and no ownership/interface conflict.
 
-Existing quality composite remains a recorded trend signal. It is not a
-round-PASS condition.
+Quality composite is a trend signal, not round-PASS evidence.
 
 ### Built-in Harness Truth
 
-Cross-change analysis and self-evaluation use
-`python -m devolaflow.harness evaluate`; aggregation, bounded model probes,
-proposal generation, and explicit approval/application live in the same
-`devolaflow.harness` domain. Missing evidence remains `INSUFFICIENT`, never an
-implicit manual pass. The historical NineS compatibility package was removed
-in v17.0.0.
+Harness owns cross-change analysis, self-evaluation, aggregation, model probes,
+proposals, and approval/application; use
+`python -m devolaflow.harness evaluate`. Missing evidence remains
+`INSUFFICIENT`, never an implicit manual pass.
 
 When evidence is supplied, `evaluate_gate(artifact_evidence=...)` adds the
 profile's `artifact_evidence_weight` dimension: `0.05` in
@@ -336,41 +284,47 @@ before new work; L1 verifies closure evidence. See
 
 Teams are L2 task specializations, not hierarchy layers. Select from Research,
 Design, Implement, Test, Pathfind, Review, Preflight, or HarnessBuild; each role
-has its own evidence contract. Full role profiles and evidence requirements:
+has its own evidence contract. Roles/evidence:
 `references/team-roles.md`.
 
 ## Context Isolation
 
-Each L2 Task starts fresh with only its TaskDispatch, owned/read-only files,
-relevant contracts, rules, and bounded predecessor summaries. The canonical
-budget and isolation contract is `references/agent-hierarchy.md` §8.
+Each L2 starts fresh with its TaskDispatch, owned/read-only files,
+relevant contracts, rules, and bounded predecessor summaries. Canonical
+budget/isolation contract: `references/agent-hierarchy.md` §8.
 
-Never leak conversation history, sibling internals, full predecessor artifacts,
-unrelated errors/scores, or deferred items. Share interface contracts, decisions,
-naming, thresholds, and item acceptance criteria by artifact reference. See
+Never leak history, sibling internals, full predecessor artifacts, unrelated
+errors/scores, or deferred items. Share contracts, decisions, naming,
+thresholds, and item criteria by artifact reference. See
 `references/context-isolation.md`.
 
 ## Subagent Hang Prevention
 
-Set task-type timeouts: research 2700s, implementation 1800s, test 900s, review
-1200s, hotfix 600s. L2 `AskQuestion` is forbidden because agents below L0 have
-no direct human channel; Recursive `Task` re-entry is forbidden because no
-child-agent spawning.
-Unbounded `Shell` is forbidden; every call carries `block_until_ms` for bounded
-Shell execution. Unbounded `WebFetch` and `WebSearch` are forbidden; require an
-upstream `timeout` or escalation. Internal loops require `max_iterations`.
+Timeouts: research 2700s, implementation 1800s, test 900s, review 1200s,
+hotfix 600s. L2 `AskQuestion` is forbidden; Recursive `Task` re-entry is forbidden.
+Unbounded `Shell` is forbidden; every call carries `block_until_ms`.
+Unbounded `WebFetch` and `WebSearch` are forbidden; require upstream `timeout`
+or escalation. Internal loops require `max_iterations`.
 Long tasks report progress at least every five minutes; timeout or ten minutes
 without progress escalates Task → Wave → Project → Human.
+Continuous progress (W-30): during any bounded wait, advance a
+dependency-ready task when resources and ownership do not conflict; never poll
+without new progress. After preflight is
+signed, an ordinary blocker or `HUMAN_INTERVENE` pauses only its affected
+item/task while independent, unaffected siblings continue. Whole-workflow
+stopping is reserved for no safely runnable work, a HARD breakpoint or STOP card,
+`FULL_ROLLBACK`, an ownership violation, or a destructive-policy violation.
+Classify pauses as `dependency-blocked`, `finding-blocked`, or `wave conflict`.
 
 ## Dispatch & Report Protocol
 
-TaskDispatch includes task/checklist IDs, description, predecessor artifact
-summaries, owned/read-only files, acceptance criteria, timeout, model hint,
-compression intensity, and optional verification config.
+TaskDispatch includes task/checklist IDs, description, predecessor summaries,
+owned/read-only files, acceptance criteria, timeout, model hint, compression
+intensity, and optional verification config.
 
 L2 StatusReport includes state, progress, artifacts, item-keyed `ac_results`,
 command/metric evidence, diff stats, self-check, findings, and reinforcement
-closure. L1 WaveReport adds conflict results and checklist evidence proposals.
+closure; L1 WaveReport adds conflict results and checklist evidence proposals.
 Subagents DO NOT include `quality_score`; L2 emits falsifiable evidence, not a
 numeric score; L0 alone supplies it to `evaluate_gate(artifact_evidence=...)`.
 
@@ -402,66 +356,37 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 
 ## Reference Navigation Guide
 
-**Tier 2 — Domain references**:
+**Tier 2 — Domain references (load only when needed):**
+`references/agent-hierarchy.md`, `references/agent-workspace.md`,
+`references/artifact-quality.md`, `references/behavioral-guidelines.md`,
+`references/codegraph.md`, `references/compression-pipeline.md`,
+`references/context-isolation.md`, `references/decomposition-gate.md`,
+`references/degraded-mode.md`, `references/domain-awareness.md`,
+`references/env-flags.md`, `references/evaluator-rosetta.md`,
+`references/execution-protocol.md`, `references/grill-mode.md`,
+`references/harness-construction.md`, `references/host-bridges.md`,
+`references/host-contract.md`, `references/human-surface.md`,
+`references/impeccable.md`, `references/local-archive.md`,
+`references/message-schemas.md`, `references/meta-framework.md`,
+`references/pathfinder.md`, `references/plan-mode-enforcement.md`,
+`references/repo-modes.md`, `references/retro-digest.md`,
+`references/memory-router.md`, `references/subagent-patterns.md`,
+`references/task-quality-score.md`, `references/team-roles.md`,
+`references/troubleshooting.md`, and `references/wave-dispatch.md`.
 
-| File | Load when |
-|---|---|
-| `references/agent-hierarchy.md` | Layer responsibilities and evidence flow |
-| `references/agent-workspace.md` | Change folders and archive |
-| `references/artifact-quality.md` | L2 self-verification evidence |
-| `references/behavioral-guidelines.md` | Task behavior primitives |
-| `references/codegraph.md` | Indexed code exploration |
-| `references/compression-pipeline.md` | Dispatch compression |
-| `references/context-isolation.md` | Context budgets and leak prevention |
-| `references/decomposition-gate.md` | Round/wave/task and gates |
-| `references/degraded-mode.md` | Upstream capability fallback |
-| `references/domain-awareness.md` | Glossary and ADRs |
-| `references/env-flags.md` | Runtime flag inventory |
-| `references/evaluator-rosetta.md` | Evaluation cross-walk |
-| `references/execution-protocol.md` | Task lifecycle and checkpoints |
-| `references/grill-mode.md` | Plan stress-testing |
-| `references/harness-construction.md` | Harness gap preflight and capability review |
-| `references/host-bridges.md` | wiring host-agent tool events (Cursor/Claude/Codex/Kimi/DSH hooks) into boundary enforcement, or configuring DEVOLAFLOW_HOST_ENFORCE |
-| `references/host-contract.md` | checking host support tiers, delivery floor, and evidence-backed capability declarations |
-| `references/human-surface.md` | Human input/output contracts |
-| `references/impeccable.md` | Design refinement checks |
-| `references/local-archive.md` | Explicit local-task inventory, approved non-deletion moves, and archive mapping |
-| `references/message-schemas.md` | Typed dispatch/report fields |
-| `references/meta-framework.md` | Registry v3 and seeds |
-| `references/pathfinder.md` | selecting the Pathfinder L2 role or look-ahead harness reconnaissance |
-| `references/plan-mode-enforcement.md` | Three-draft Plan Mode contract |
-| `references/repo-modes.md` | Repository capability detection |
-| `references/retro-digest.md` | Running the approved loop-improve retrospective digest workflow |
-| `references/memory-router.md` | Planning-time memory-case routing |
-| `references/subagent-patterns.md` | Wave dispatch patterns |
-| `references/task-quality-score.md` | Workflow-close L0 rubric |
-| `references/team-roles.md` | L2 task specializations |
-| `references/troubleshooting.md` | Failure diagnostics |
-| `references/wave-dispatch.md` | L1 Wave async dispatch boundary |
-
-**Tier 3 — On-demand knowledge and examples**
-
-| File | Load when |
-|---|---|
-| `knowledge/index.md` | Discovering the knowledge catalog |
-| `knowledge/interview-protocol.md` | Running a bounded interview |
-| `knowledge/code-rules-mapping.md` | Mapping rules across tools |
-| `knowledge/principle-mapping.md` | Tracing principles to checks |
-| `knowledge/reference-dependencies.yaml` | Resolving reference dependencies |
-| `knowledge/runtime-plugins.yaml` | Resolving plugin capabilities |
-| `examples/full-pipeline-trace.md` | Inspecting a full trace |
-| `examples/hotfix-trace.md` | Inspecting a hotfix trace |
-| `examples/multi-stage-trace.md` | Inspecting historical provenance |
-| `examples/convergence-loop-trace.md` | Inspecting convergence evidence |
+**Tier 3 — On-demand knowledge/examples:**
+`knowledge/index.md`, `knowledge/interview-protocol.md`,
+`knowledge/code-rules-mapping.md`, `knowledge/principle-mapping.md`,
+`knowledge/reference-dependencies.yaml`, `knowledge/runtime-plugins.yaml`,
+`examples/full-pipeline-trace.md`, `examples/hotfix-trace.md`,
+`examples/multi-stage-trace.md`, and `examples/convergence-loop-trace.md`.
 
 ## Task Quality Score
 
-**L0 ONLY** — Subagents MUST NOT score; L1/L2 subagents MUST NOT load, score, or emit this rubric. The full
-rubric loads on-demand from `references/task-quality-score.md` only after
-workflow completion and only when the user explicitly asks to score the
-original request. The footer includes `DevolaFlow vX.Y.Z`.
+**L0 ONLY** — Subagents MUST NOT score; subagents MUST NOT load, score, or emit this rubric. The rubric loads on-demand from `references/task-quality-score.md` after
+workflow completion when explicitly requested. Footer: `DevolaFlow vX.Y.Z`.
 
 ## Operational Learnings
 
-Session learnings decay by confidence, promote when reused, and may be pinned for one session; reserve pinning for blockers.
-Consolidation and decay operate on artifact state, never hidden conversation history.
+Session learnings decay; promote reused learnings, pin blockers, and consolidate
+from artifacts, never history.

@@ -19,6 +19,8 @@ last_updated: "2026-08-26"
 governing_rules: [P2, P5, S-8, C-9]
 
 instance_path_template: ".local/.agent/active/<change-id>/entrance.md"
+additional_instance_path_templates:
+  - ".local/tasks/<task-name>/entrance.md"
 archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/entrance.md"
 format: markdown_with_frontmatter
 
@@ -94,8 +96,8 @@ body:
 
 lint_findings:
   - code: ENTRANCE_MISSING
-    severity: WARN
-    trigger: "entrance.md absent from a checklist-layout folder (pre-v17.2 folders; backfilled by the next Change.to_active_folder write per design D-4)."
+    severity: FAIL
+    trigger: "entrance.md absent from a checklist-layout active change or direct task folder; backfilled by the next canonical scaffold/store write, but lint remains failing until present."
   - code: ENTRANCE_PARENT
     severity: FAIL
     trigger: "frontmatter parent does not equal the change-id."
