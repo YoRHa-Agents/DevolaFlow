@@ -1,8 +1,9 @@
 # @yorha-agents/devola-flow
 
-Thin, zero-dependency npm installer for the
+Thin, zero-npm-dependency installer for the
 [DevolaFlow](https://github.com/YoRHa-Agents/DevolaFlow) agent skill. It
-requires Node 18 or newer and works on Windows.
+requires Node 18 or newer and works on Windows. The installer also provisions
+the matching Python runtime through uv.
 
 ## Scope
 
@@ -21,17 +22,20 @@ Copilot's project-level rule-file installation.
 ## Install, update, and doctor
 
 ```bash
-npx @yorha-agents/devola-flow install cursor
-npx @yorha-agents/devola-flow install claude
-npx @yorha-agents/devola-flow install all
+npm install -g @yorha-agents/devola-flow@22.1.0
+devola-flow install all
 
-npx @yorha-agents/devola-flow update cursor
-npx @yorha-agents/devola-flow update all
-npx @yorha-agents/devola-flow doctor
+devola-flow update cursor
+devola-flow update all
+devola-flow doctor
 ```
 
-`doctor` reports all five supported user locations, installed version stamps,
-and file parity against `workflow-system/agent/manifest.yaml`.
+`install` and `update` install skill files and provision Python 3.13 through
+uv, pinned to the matching `v22.1.0` source tag. If uv bootstrap or runtime
+installation is unavailable, skill files remain usable as `docs-only`; the
+command prints a copyable repair command. Use `--no-runtime` for an explicit
+docs-only install. `doctor` reports runtime state for all five locations and
+file parity against `workflow-system/agent/manifest.yaml`.
 
 ## Download ref and file list
 
@@ -48,9 +52,20 @@ the npm package, curl installer, and source checkout on one profile contract.
 
 ## More targets and Python tooling
 
-For project-local installation, Copilot, Windsurf, Zed, Cline, Roo, local
-workspace scaffolding, or Python doctor commands, use the canonical repository
-guides:
+For project-local installation, Copilot, Windsurf, Zed, Cline, Roo, or local
+workspace scaffolding, use the canonical repository guides. Runtime console
+commands such as `devola-local-archive`, `devola-init-doctor`, and
+`devola-version` are available after a full-runtime install. On systems whose
+Python is older than 3.11, use the uv-managed runtime rather than system pip:
+
+```bash
+uv tool install --force --python 3.13 \
+  'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.0'
+```
+
+For explicit `python -m devolaflow.*` execution, use
+`uv run --with 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v22.1.0'`
+followed by the module command. See the canonical repository guides:
 
 - [Quickstart](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md)
 - [Integration guide](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/integration-guide.md)

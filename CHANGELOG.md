@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [22.1.0] - 2026-08-31 — MINOR — Self-Contained npm Runtime Channel
+
+### Added
+
+- **Self-contained npm installation**: `devola-flow install` and `update` now
+  provision the Python runtime pinned to the matching release tag through uv,
+  including official POSIX and Windows uv bootstrap paths.
+- **Runtime health reporting**: npm `doctor` distinguishes `full-runtime` and
+  `docs-only` installations and reports a copyable repair command when the
+  runtime is unavailable or mismatched.
+
+### Changed
+
+- **Channel contract documentation**: SKILL.md now identifies runtime-dependent
+  commands, documents the Python 3.11 floor and uv-managed Python path, and
+  provides the explicit `python -m` escape hatch.
+- **Failure behavior**: skill files remain installed when runtime provisioning
+  fails; `--no-runtime` provides an explicit docs-only opt-out.
+
+Evidence: [v22.1.0 gap analysis](.local/research/v22.1.0_gap_analysis.md),
+[entry harness evaluation](.local/research/v22.1.0_harness_evaluation_entry.json),
+and [current-cycle ghost audit](tests/ghost/test_features_v22_1.py).
+
 ## [22.0.0] - 2026-08-31 — MAJOR — Optional Tool Retirement
 
 ### Removed

@@ -53,7 +53,7 @@ def _load_pkg() -> dict:
 
 
 def test_package_json_contract() -> None:
-    """package.json fields match the R6 spec; zero runtime dependencies."""
+    """package.json fields match the R6 spec; zero npm dependencies."""
     from devolaflow import __version__
 
     pkg = _load_pkg()
@@ -88,7 +88,14 @@ def test_bin_help_and_version_offline() -> None:
     """--help and --version run offline, exit 0, and report the pkg version."""
     help_run = _run_bin("--help")
     assert help_run.returncode == 0, help_run.stderr
-    for expected in ("install", "update", "doctor", "DEVOLA_FLOW_REF", "manifest.yaml"):
+    for expected in (
+        "install",
+        "update",
+        "doctor",
+        "DEVOLA_FLOW_REF",
+        "manifest.yaml",
+        "--no-runtime",
+    ):
         assert expected in help_run.stdout, f"--help output missing {expected!r}"
 
     version_run = _run_bin("--version")
@@ -124,6 +131,19 @@ def test_bin_fails_loudly_on_bad_input() -> None:
     bad_manifest = _run_bin("files", "cursor", "--manifest-file", "does/not/exist.yaml")
     assert bad_manifest.returncode != 0
     assert "does/not/exist.yaml" in bad_manifest.stderr
+
+
+@requires_node
+def test_bin_runtime_channel_contract_is_pinned_and_cross_platform() -> None:
+    """Runtime provisioning pins the package tag and handles both host OSes."""
+    source = BIN_JS.read_text(encoding="utf-8")
+    assert "uv tool install" in source
+    assert "--force" in source
+    assert "--python', RUNTIME_PYTHON" in source
+    assert "v${pkg.version}" in source
+    assert "powershell.exe" in source
+    assert "curl -LsSf" in source
+    assert "docs-only" in source
 
 
 def test_npm_publish_workflow_contract() -> None:

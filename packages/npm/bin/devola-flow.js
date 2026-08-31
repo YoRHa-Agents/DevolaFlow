@@ -9,17 +9,21 @@
 // from workflow-system/agent/manifest.yaml — the install-manifest single
 // source of truth shared with scripts/install.sh (repo rules A-5 / C-7).
 //
-// Zero runtime dependencies: Node >= 18 built-ins only (fetch, fs, path, os).
+// Zero npm dependencies: Node >= 18 built-ins only (fetch, fs, path, os).
 
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const pkg = require(path.join(__dirname, '..', 'package.json'));
 
 const REPO = 'YoRHa-Agents/DevolaFlow';
 const DEFAULT_REF = `v${pkg.version}`;
 const STAMP = '.devola-flow-version';
+const RUNTIME_PYTHON = '3.13';
+const UV_INSTALL_URL = 'https://astral.sh/uv/install.sh';
+const UV_INSTALL_PS1_URL = 'https://astral.sh/uv/install.ps1';
 
 // npm-surface targets. install.sh covers more tools; this package covers the
 // five user-level skill directories selected by the Host Support Contract.
@@ -183,7 +187,158 @@ function readStamp(dir) {
   }
 }
 
-async function installTarget(name, manifest, stampVersion) {
+function runtimeSpec() {
+  return `devolaflow @ git+https://github.com/${REPO}.git@v${pkg.version}`;
+}
+
+function runtimeInstallCommand() {
+  return `uv tool install --force --python ${RUNTIME_PYTHON} '${runtimeSpec()}'`;
+}
+
+function executableCandidates(name) {
+  const names = process.platform === 'win32' ? [name, `${name}.exe`] : [name];
+  const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  const home = os.homedir();
+  const extraDirs =
+    process.platform === 'win32'
+      ? [
+          path.join(home, '.local', 'bin'),
+          path.join(process.env.LOCALAPPDATA || '', 'uv'),
+          path.join(process.env.LOCALAPPDATA || '', 'bin'),
+        ]
+      : [path.join(home, '.local', 'bin'), path.join(home, '.cargo', 'bin')];
+  const dirs = [...new Set([...pathDirs, ...extraDirs])];
+  return dirs.flatMap((dir) => names.map((candidate) => path.join(dir, candidate)));
+}
+
+function findExecutable(name) {
+  for (const candidate of executableCandidates(name)) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function runExecutable(command, args = []) {
+  const executable = findExecutable(command) || command;
+  const envPath = executable.includes(path.sep)
+    ? `${path.dirname(executable)}${path.delimiter}${process.env.PATH || ''}`
+    : process.env.PATH;
+  const result = spawnSync(executable, args, {
+    encoding: 'utf8',
+    timeout: 120000,
+    env: { ...process.env, PATH: envPath },
+  });
+  return { executable, result };
+}
+
+function probeRuntime() {
+  const { result } = runExecutable('devola-version');
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  const match = output.match(/DevolaFlow v([0-9A-Za-z.-]+)/);
+  return {
+    version: match ? match[1] : null,
+    available: result.error == null && result.status === 0 && Boolean(match),
+  };
+}
+
+function bootstrapUv() {
+  const existing = findExecutable('uv');
+  if (existing) return existing;
+
+  const command =
+    process.platform === 'win32'
+      ? [
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-Command',
+            `irm ${UV_INSTALL_PS1_URL} | iex`,
+          ],
+        ]
+      : ['/bin/sh', ['-c', `curl -LsSf ${UV_INSTALL_URL} | sh`]];
+  const result = spawnSync(command[0], command[1], {
+    encoding: 'utf8',
+    timeout: 120000,
+    env: process.env,
+  });
+  if (result.error || result.status !== 0) {
+    const detail = (result.stderr || result.stdout || result.error?.message || '').trim();
+    throw new CliError(
+      `could not bootstrap uv (${detail || `exit ${result.status}`}); ` +
+        `install uv manually, then run: ${runtimeInstallCommand()}`,
+    );
+  }
+  const installed = findExecutable('uv');
+  if (!installed) {
+    throw new CliError(
+      `uv bootstrap completed but uv is not on PATH; ` +
+        `install uv manually, then run: ${runtimeInstallCommand()}`,
+    );
+  }
+  return installed;
+}
+
+async function ensureRuntime() {
+  const expected = pkg.version;
+  const before = probeRuntime();
+  if (before.available && before.version === expected) {
+    return { state: 'full-runtime', version: before.version };
+  }
+
+  const uv = bootstrapUv();
+  const result = spawnSync(
+    uv,
+    ['tool', 'install', '--force', '--python', RUNTIME_PYTHON, runtimeSpec()],
+    {
+      encoding: 'utf8',
+      timeout: 300000,
+      env: { ...process.env, PATH: `${path.dirname(uv)}${path.delimiter}${process.env.PATH || ''}` },
+    },
+  );
+  if (result.error || result.status !== 0) {
+    const detail = (result.stderr || result.stdout || result.error?.message || '').trim();
+    throw new CliError(
+      `runtime install failed (${detail || `exit ${result.status}`}); ` +
+        `retry with: ${runtimeInstallCommand()}`,
+    );
+  }
+
+  const after = probeRuntime();
+  if (!after.available || after.version !== expected) {
+    throw new CliError(
+      `runtime install completed but devola-version reported ` +
+        `${after.version || 'no usable runtime'}; retry with: ${runtimeInstallCommand()}`,
+    );
+  }
+  return { state: 'full-runtime', version: after.version };
+}
+
+function runtimeFromStamp(dir) {
+  try {
+    const lines = fs.readFileSync(path.join(dir, STAMP), 'utf8').split(/\r?\n/);
+    const state = lines.find((line) => line.startsWith('runtime:'))?.split(':', 2)[1]?.trim();
+    const version = lines
+      .find((line) => line.startsWith('runtime_version:'))
+      ?.split(':', 2)[1]
+      ?.trim();
+    return { state: state || null, version: version || null };
+  } catch {
+    return { state: null, version: null };
+  }
+}
+
+function writeStamp(dir, stampVersion, runtime) {
+  const lines = [`${stampVersion}`, `runtime: ${runtime.state}`];
+  if (runtime.version) lines.push(`runtime_version: ${runtime.version}`);
+  if (runtime.error) {
+    lines.push(`runtime_error: ${runtime.error.replace(/\s+/g, ' ').slice(0, 300)}`);
+  }
+  fs.writeFileSync(path.join(dir, STAMP), `${lines.join('\n')}\n`);
+}
+
+async function installTarget(name, manifest, stampVersion, runtime) {
   const target = TARGETS[name];
   const dir = target.dir();
   const files = profileFiles(manifest, target.profile);
@@ -209,7 +364,7 @@ async function installTarget(name, manifest, stampVersion) {
         failures.join('\n  ')
     );
   }
-  fs.writeFileSync(path.join(dir, STAMP), `${stampVersion}\n`);
+  writeStamp(dir, stampVersion, runtime);
 }
 
 async function cmdInstall(targetArg, opts, isUpdate) {
@@ -217,15 +372,32 @@ async function cmdInstall(targetArg, opts, isUpdate) {
   const manifest = await loadManifest(opts);
   const stampVersion = await resolveStampVersion();
   console.log(`DevolaFlow installer (package v${pkg.version}, ref ${gitRef()})`);
+  let runtime = { state: 'docs-only', version: null };
 
   for (const name of targets) {
     const previous = isUpdate ? readStamp(TARGETS[name].dir()) : null;
-    await installTarget(name, manifest, stampVersion);
+    await installTarget(name, manifest, stampVersion, runtime);
     if (isUpdate && previous) {
       console.log(`  ${name}: updated ${previous} -> ${stampVersion}`);
     } else {
       console.log(`  ${name}: installed v${stampVersion}`);
     }
+  }
+
+  if (opts.noRuntime) {
+    console.log('Runtime: docs-only (--no-runtime requested)');
+  } else {
+    try {
+      runtime = await ensureRuntime();
+      console.log(`Runtime: ${runtime.state} v${runtime.version}`);
+    } catch (err) {
+      runtime.error = err.message;
+      console.error(`devola-flow: warning: ${err.message}`);
+      console.error(`devola-flow: warning: skill files will remain docs-only`);
+    }
+  }
+  for (const name of targets) {
+    writeStamp(TARGETS[name].dir(), stampVersion, runtime);
   }
   console.log('Done.');
 }
@@ -250,7 +422,16 @@ function listInstalledFiles(dir) {
 
 async function cmdDoctor(opts) {
   const manifest = await loadManifest(opts);
+  const runtimeProbe = probeRuntime();
   console.log(`DevolaFlow doctor (package v${pkg.version}, ref ${gitRef()})`);
+  if (runtimeProbe.available && runtimeProbe.version === pkg.version) {
+    console.log(`Runtime: full-runtime v${runtimeProbe.version}`);
+  } else if (runtimeProbe.available) {
+    console.log(`Runtime: runtime-mismatch v${runtimeProbe.version} (expected v${pkg.version})`);
+  } else {
+    console.log(`Runtime: docs-only (devola-version is unavailable)`);
+    console.log(`  fix: ${runtimeInstallCommand()}`);
+  }
 
   for (const [name, target] of Object.entries(TARGETS)) {
     const dir = target.dir();
@@ -259,17 +440,28 @@ async function cmdDoctor(opts) {
       continue;
     }
     const stamp = readStamp(dir) || '(no stamp)';
+    const stampedRuntime = runtimeFromStamp(dir);
+    const expectedRuntime = stamp === '(no stamp)' ? pkg.version : stamp;
     const expected = profileFiles(manifest, target.profile);
     const installed = listInstalledFiles(dir).filter((rel) => rel !== STAMP);
     const missing = expected.filter((rel) => !installed.includes(rel));
     const extra = installed.filter((rel) => !expected.includes(rel));
-    console.log(`  ${name}: installed, version ${stamp} (${dir})`);
+    const runtimeState =
+      runtimeProbe.available && runtimeProbe.version === expectedRuntime
+        ? `full-runtime v${runtimeProbe.version}`
+        : stampedRuntime.state === 'docs-only'
+          ? 'docs-only'
+          : `runtime-mismatch (expected v${expectedRuntime})`;
+    console.log(`  ${name}: installed, version ${stamp}, ${runtimeState} (${dir})`);
     if (missing.length === 0 && extra.length === 0) {
       console.log(`    files: OK (${expected.length}/${expected.length} match the manifest)`);
     } else {
       if (missing.length > 0) console.log(`    files MISSING vs manifest: ${missing.join(', ')}`);
       if (extra.length > 0) console.log(`    files NOT in manifest: ${extra.join(', ')}`);
       console.log(`    fix: npx @yorha-agents/devola-flow update ${name}`);
+    }
+    if (runtimeState !== `full-runtime v${expectedRuntime}`) {
+      console.log(`    runtime fix: ${runtimeInstallCommand()}`);
     }
   }
 }
@@ -327,6 +519,7 @@ Install locations:
 Environment:
   DEVOLA_FLOW_REF   Git ref to download from (branch, tag, or SHA).
                     Default: the tag matching this package version (${DEFAULT_REF}).
+  --no-runtime      Install skill files without provisioning the Python runtime.
 
 Skill files are not bundled in this package: they are downloaded from
 https://github.com/${REPO} at the resolved ref, and the file list is derived
@@ -335,7 +528,7 @@ truth used by scripts/install.sh).`);
 }
 
 function parseArgs(argv) {
-  const args = { positional: [], manifestFile: null, help: false, version: false };
+  const args = { positional: [], manifestFile: null, help: false, version: false, noRuntime: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
@@ -347,6 +540,8 @@ function parseArgs(argv) {
       if (!args.manifestFile) throw new CliError('--manifest-file requires a path');
     } else if (arg.startsWith('--manifest-file=')) {
       args.manifestFile = arg.slice('--manifest-file='.length);
+    } else if (arg === '--no-runtime') {
+      args.noRuntime = true;
     } else if (arg.startsWith('-')) {
       throw new CliError(`unknown option '${arg}' (run --help for usage)`);
     } else {

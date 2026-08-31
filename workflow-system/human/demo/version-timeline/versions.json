@@ -2456,6 +2456,20 @@
     }
   },
   {
+    "version": "22.1.0",
+    "date": "2026-08-31",
+    "era": "npm-runtime-channel",
+    "headline": "MINOR — Self-Contained npm Runtime Channel",
+    "summary": "The npm installer now provisions the matching Python runtime through uv, reports docs-only versus full-runtime state, and documents pinned installation for systems below the Python 3.11 floor.",
+    "highlights": [
+      "Runtime provisioning — install and update pin the Python package to the matching release tag",
+      "Cross-platform bootstrap — missing uv is installed through the official POSIX or Windows path",
+      "Runtime health — doctor reports runtime availability, version mismatch, and copyable repair commands",
+      "Channel contract — SKILL.md documents runtime-dependent commands and the explicit module escape hatch"
+    ],
+    "metrics": {}
+  },
+  {
     "version": "22.0.0",
     "date": "2026-08-31",
     "era": "optional-tool-retirement",

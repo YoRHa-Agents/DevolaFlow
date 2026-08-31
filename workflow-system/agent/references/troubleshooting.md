@@ -371,6 +371,27 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   proceeding so the SI-1 entry gate operates on a clean baseline
   (source: `docs/cycle-archive/v12.2.0/v12.2.0_retrospective.md` §4.3).
 
+#### 2.19 npm install reports a docs-only runtime (v22.1.0)
+
+* **Symptom**: `devola-flow install all` copies the skill files but reports
+  `Runtime: docs-only`, or commands such as `devola-local-archive`,
+  `devola-init-doctor`, and `devola-version` are unavailable.
+* **Root cause / contract**: the npm package is a zero-dependency Node
+  installer, while operational commands are delivered by the Python package.
+  The installer provisions the Python runtime with uv, pinned to the tag that
+  matches the npm package version. A failed or explicitly skipped provisioning
+  step never removes the skill files; `devola-flow doctor` reports the state.
+* **Fix**: rerun the printed command, or install uv with its official
+  platform installer (`curl -LsSf https://astral.sh/uv/install.sh | sh` on
+  POSIX; `irm https://astral.sh/uv/install.ps1 | iex` in PowerShell) and then
+  run:
+  `uv tool install --force --python 3.13 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v<version>'`.
+  On a system with Python older than 3.11, keep using the uv-managed Python
+  rather than `pip` against the system interpreter.
+* **Module escape hatch**: console scripts are the supported runtime surface.
+  To run a module explicitly, use
+  `uv run --with 'devolaflow @ git+https://github.com/YoRHa-Agents/DevolaFlow.git@v<version>' python -m devolaflow.<module>`.
+
 ### 3. Escalation Patterns
 
 DevolaFlow's escalation chain (P4 Bounded Retry) is **always upward**:
