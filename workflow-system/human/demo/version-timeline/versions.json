@@ -2456,6 +2456,18 @@
     }
   },
   {
+    "version": "22.1.1",
+    "date": "2026-08-31",
+    "era": "npm-runtime-channel",
+    "headline": "PATCH — Runtime Probe Resolution",
+    "summary": "The npm runtime probe now prefers the active HOME's uv tool directory, preventing stale inherited executables from masking a newly installed runtime.",
+    "highlights": [
+      "Runtime probe — active HOME tool directories are checked before inherited PATH entries",
+      "Published patch — v22.1.1 carries the fix into the npm registry"
+    ],
+    "metrics": {}
+  },
+  {
     "version": "22.1.0",
     "date": "2026-08-31",
     "era": "npm-runtime-channel",
