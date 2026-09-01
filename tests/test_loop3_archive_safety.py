@@ -181,6 +181,21 @@ def test_ignored_review_note_outside_operation_scope_does_not_refuse(
     assert not source.exists()
 
 
+def test_review_named_source_itself_is_movable(tmp_path: Path) -> None:
+    source = _task(tmp_path, "legacy-review")
+    (tmp_path / ".gitignore").write_text(".local/tasks/legacy-review/\n", encoding="utf-8")
+    _clean_repo(tmp_path)
+    plan = build_archive_plan(tmp_path)
+    entry = next(item for item in plan.entries if item.source.endswith("/legacy-review"))
+
+    inspection = inspect_safety(tmp_path, entry.source, entry.destination)
+    result = apply_archive_plan(tmp_path, plan, [entry])
+
+    assert "UNTRACKED_REVIEW_NOTE" not in _codes(inspection.findings)
+    assert result.success
+    assert not source.exists()
+
+
 def test_ignored_review_note_inside_moved_source_still_refuses(
     tmp_path: Path,
 ) -> None:

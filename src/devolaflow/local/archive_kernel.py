@@ -121,7 +121,10 @@ def _review_note_overlaps_scope(
     operation's source/destination subtrees can be endangered by the move;
     review/note paths elsewhere in the repository must not block unrelated
     operations, otherwise conventional artifact names (``*-review`` change
-    folders, ``v*_review_*`` research files) deadlock every apply.
+    folders, ``v*_review_*`` research files) deadlock every apply. The
+    approved subject is exempt: the operator saw the full source/destination
+    path at approval time, so review/note is matched only against the path
+    remainder beneath a scope — content the approval did not spell out.
     """
 
     for line in status_output.splitlines():
@@ -133,15 +136,11 @@ def _review_note_overlaps_scope(
         if " -> " in path:
             path = path.split(" -> ", 1)[1]
         candidate = path.rstrip("/")
-        lowered = candidate.lower()
-        if "review" not in lowered and "note" not in lowered:
-            continue
         for scope in scope_paths:
-            if (
-                candidate == scope
-                or candidate.startswith(scope + "/")
-                or scope.startswith(candidate + "/")
-            ):
+            if not candidate.startswith(scope + "/"):
+                continue
+            remainder = candidate[len(scope) + 1 :].lower()
+            if "review" in remainder or "note" in remainder:
                 return True
     return False
 

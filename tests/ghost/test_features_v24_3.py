@@ -181,6 +181,25 @@ def test_the_cycle_audit_is_registered_and_cited() -> None:
         assert "## W-7" in text
 
 
+def test_review_note_guard_is_scoped_to_the_operation() -> None:
+    """Unreleased fix. Behaviour: tests/test_loop3_archive_safety.py."""
+
+    from devolaflow.local.archive_kernel import _review_note_overlaps_scope
+
+    ignored = "!! code-review-notes.md\n!! .local/tasks/legacy-review/\n"
+    scope = [".local/tasks/legacy-review"]
+    assert not _review_note_overlaps_scope(ignored, [".local/tasks/other"], marker="!!"), (
+        "a bystander note elsewhere in the repository must not block the operation"
+    )
+    assert not _review_note_overlaps_scope(ignored, scope, marker="!!"), (
+        "the explicitly approved subject is not a bystander note"
+    )
+    inside = "!! .local/tasks/legacy-review/scratch-review.md\n"
+    assert _review_note_overlaps_scope(inside, scope, marker="!!"), (
+        "a note inside the moved subtree still refuses"
+    )
+
+
 def test_retro_digest_reports_silence_and_persists_incrementally() -> None:
     """C-G3.3. Behaviour: tests/test_retro_digest.py."""
 

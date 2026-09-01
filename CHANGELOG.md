@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Fixed
+
+- Local-archive safety: the `UNTRACKED_REVIEW_NOTE` sweep in
+  `devolaflow.local.archive_kernel.inspect_safety` is scoped to the
+  operation's source/destination subtrees, and the approved subject itself is
+  exempt. The previous repository-wide substring match deadlocked every apply
+  in workspaces whose conventional artifact names contain "review"
+  (`*-review` change folders, `v*_review_*` research files). A review/note
+  path inside a moved subtree still refuses. Regressions:
+  `tests/test_loop3_archive_safety.py`; ghost:
+  `tests/ghost/test_features_v24_3.py`.
+
 ## [24.3.0] - 2026-09-01 — MINOR — Durability Queue Clearance
 
 Each v24 cycle closed by parking what it found. This one spends itself on that
