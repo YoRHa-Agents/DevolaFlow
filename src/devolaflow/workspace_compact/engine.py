@@ -21,7 +21,11 @@ from pathlib import Path
 from devolaflow._durability import fsync_directory as _fsync_directory
 from devolaflow.parking.models import RiskState
 from devolaflow.parking.store import PARKING_DIRNAME, ParkingStore
-from devolaflow.workspace_compact.metering import measure_file, resident_tokens
+from devolaflow.workspace_compact.metering import (
+    largest_resident_tokens,
+    measure_file,
+    resident_tokens,
+)
 from devolaflow.workspace_compact.models import (
     ARCHIVED_DIRNAME,
     COMPACT_DIRNAME,
@@ -86,6 +90,32 @@ def load_mappings(folder: Path) -> tuple[dict[str, object], ...]:
             key=lambda row: int(row["sequence"]),
         )
     )
+
+
+def pending_moves(folder: str | Path) -> dict[str, dict[str, object]]:
+    """Return mapping rows describing a move that was journalled but not made.
+
+    A row qualifies only when all three hold: the destination is absent, the
+    source is still in place, and the source still hashes to the value the row
+    recorded. That combination can only be produced by an interrupted apply,
+    and it is recoverable precisely because the original is untouched. Any
+    other missing destination is a real loss, not a pending move, and is left
+    to report itself as one.
+    """
+
+    root = Path(folder)
+    pending: dict[str, dict[str, object]] = {}
+    for row in load_mappings(root):
+        destination = root / str(row["destination"])
+        if destination.exists():
+            continue
+        source = root / str(row["source"])
+        if not source.is_file():
+            continue
+        recorded = str(row.get("sha256", ""))
+        if recorded and sha256_path(source) == recorded:
+            pending[str(row["source"])] = row
+    return pending
 
 
 def _is_within(path: Path, ancestor: Path) -> bool:
@@ -170,6 +200,7 @@ def build_plan(
         operator_named.add(resolved)
 
     closed_risks = _closed_risk_ids(root)
+    pending = pending_moves(root)
     next_sequence = len(load_mappings(root)) + 1
     entries: list[CompactEntry] = []
     retained_tokens = 0
@@ -184,7 +215,19 @@ def build_plan(
         )
         measurement = measure_file(path)
         relative = path.relative_to(root)
-        if action is Action.MOVE:
+        pending_row = pending.get(relative.as_posix())
+        is_pending = pending_row is not None
+        if is_pending:
+            # The ledger already committed to relocating this file, and its row
+            # cannot be revised, so the journal overrides classification: the
+            # destination and the decision to move both come from the row.
+            assert pending_row is not None
+            action = Action.MOVE
+            destination = Path(str(pending_row["destination"]))
+            reason = f"completing the move journalled at sequence {pending_row['sequence']}"
+            movable_tokens += measurement.tokens
+            findings.append(f"PENDING_MOVE: {relative.as_posix()}")
+        elif action is Action.MOVE:
             destination = (
                 Path(COMPACT_DIRNAME) / ARCHIVED_DIRNAME / f"{next_sequence:04d}" / relative
             )
@@ -204,6 +247,7 @@ def build_plan(
                 tokens_estimated=measurement.tokens,
                 sha256=sha256_path(path),
                 subject=subject,
+                pending=is_pending,
                 # Retained `live` entries are summarised too: they are the
                 # `--include` candidate list, and a path alone does not tell
                 # an operator whether the file is still worth keeping resident.
@@ -268,7 +312,10 @@ def apply_plan(
     prior = load_mappings(root)
     known = {str(row["source"]) for row in prior}
     for entry in selected:
-        if entry.source in known:
+        # A pending entry is *expected* to have a row: that row is what makes
+        # it pending. Only an unjournalled source colliding with an existing
+        # row is a duplicate.
+        if entry.source in known and not entry.pending:
             findings.append(f"MAPPING_DUPLICATE: {entry.source}")
     if findings:
         return CompactResult(findings=tuple(findings), refused=True)
@@ -279,28 +326,32 @@ def apply_plan(
         source_path = root / entry.source
         destination_path = root / entry.destination
         try:
+            # The ledger row goes first, so the worst outcome of a failure is a
+            # recorded move that has not happened yet — visible to `verify` and
+            # completable by a re-run — instead of a moved file no row mentions.
+            # A pending entry already has its row and must not append a second.
+            if not entry.pending:
+                append_ledger_row(
+                    mappings_path(root),
+                    {
+                        "source": entry.source,
+                        "destination": entry.destination,
+                        "reason": f"{entry.category.value}: {entry.reason}",
+                        "timestamp": utc_now(),
+                        "sha256": entry.sha256,
+                        "bytes": entry.bytes,
+                        "tokens_estimated": entry.tokens_estimated,
+                        "summary": entry.summary,
+                    },
+                    required_fields=("source", "destination", "reason", "timestamp", "sha256"),
+                    unique_fields=("source", "destination"),
+                )
             destination_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(os.fspath(source_path), os.fspath(destination_path))
             _fsync_directory(source_path.parent)
             _fsync_directory(destination_path.parent)
-            moved_hash = sha256_path(destination_path)
-            if moved_hash != entry.sha256:
+            if sha256_path(destination_path) != entry.sha256:
                 findings.append(f"HASH_MISMATCH_AFTER_MOVE: {entry.source}")
-            append_ledger_row(
-                mappings_path(root),
-                {
-                    "source": entry.source,
-                    "destination": entry.destination,
-                    "reason": f"{entry.category.value}: {entry.reason}",
-                    "timestamp": utc_now(),
-                    "sha256": moved_hash,
-                    "bytes": entry.bytes,
-                    "tokens_estimated": entry.tokens_estimated,
-                    "summary": entry.summary,
-                },
-                required_fields=("source", "destination", "reason", "timestamp", "sha256"),
-                unique_fields=("source", "destination"),
-            )
         except (OSError, LedgerError) as exc:
             logger.warning("compact apply refused after partial progress: %s", exc)
             findings.append(f"APPLY_ERROR: {entry.source}: {exc}")
@@ -317,6 +368,7 @@ def apply_plan(
 
     from devolaflow.workspace_compact.digest import write_digest
 
+    working_set_before = largest_resident_tokens(root, exclude=(archived_root(root),))
     digest_findings = write_digest(root)
     result = CompactResult(
         applied=tuple(applied),
@@ -327,15 +379,23 @@ def apply_plan(
         tokens_after=resident_tokens(root, exclude=(archived_root(root),)),
         digest_findings=tuple(digest_findings),
     )
-    _record_telemetry(root, result, telemetry_ledger)
+    _record_telemetry(root, result, telemetry_ledger, working_set_before=working_set_before)
     return result
 
 
-def _record_telemetry(root: Path, result: CompactResult, ledger: str | Path | None) -> None:
+def _record_telemetry(
+    root: Path,
+    result: CompactResult,
+    ledger: str | Path | None,
+    *,
+    working_set_before: int,
+) -> None:
     """Record one applied-compaction event; never let telemetry fail the move."""
 
     if ledger is None:
         return
+    excluded = (archived_root(root),)
+    digest_tokens = measure_file(digest_path(root)).tokens
     append_event(
         ledger,
         build_event(
@@ -345,6 +405,12 @@ def _record_telemetry(root: Path, result: CompactResult, ledger: str | Path | No
             tokens_after=result.tokens_after,
             entries=len(result.applied),
             reason="; ".join(result.findings),
+            digest_tokens=digest_tokens,
+            working_set_before=working_set_before,
+            # The digest is part of the reading path now, so it is charged to
+            # the after-figure even though it is not the heaviest file.
+            working_set_after=digest_tokens
+            + largest_resident_tokens(root, exclude=(*excluded, digest_path(root))),
         ),
     )
 
@@ -450,14 +516,22 @@ def verify_integrity(folder: str | Path) -> tuple[str, ...]:
     """Re-hash every archived original and report any mismatch.
 
     This is what makes the zero-loss claim auditable rather than asserted.
+    A journalled move that never happened reports as ``PENDING_MOVE`` rather
+    than as a loss, because the original is still where the row says it came
+    from and a re-run finishes the job.
     """
 
     root = Path(folder)
     problems: list[str] = []
+    pending = pending_moves(root)
     for row in load_mappings(root):
         destination = root / str(row["destination"])
         if not destination.exists():
-            problems.append(f"MISSING_ARCHIVED: {row['destination']}")
+            source = str(row["source"])
+            if source in pending:
+                problems.append(f"PENDING_MOVE: {source} -> {row['destination']}")
+            else:
+                problems.append(f"MISSING_ARCHIVED: {row['destination']}")
             continue
         recorded = str(row.get("sha256", ""))
         if not recorded:
@@ -477,6 +551,7 @@ __all__ = [
     "load_mappings",
     "locate",
     "mappings_path",
+    "pending_moves",
     "restore",
     "verify_integrity",
 ]

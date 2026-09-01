@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from devolaflow.parking import ParkingStore, RiskState
@@ -402,3 +404,170 @@ def test_suggestion_text_points_at_the_include_escape_hatch(tmp_path):
     text = suggestion_text(scan_bloat(tmp_path, threshold_tokens=1000), threshold=1000)
     assert "--include" in text
     assert "candidates" in text
+
+
+# ── v24.3.0 — the mapping ledger is the recovery journal ─────────────
+
+
+def test_the_ledger_row_is_written_before_the_file_moves(folder, monkeypatch):
+    """A move that fails must leave a recorded intention, not an unrecorded file.
+
+    The v24.0.0 order was move-then-record inside one `try`, so a failing
+    append left the file at its destination with no mapping row: locate,
+    restore, and verify all lost it and nothing said so.
+    """
+    plan = build_plan(folder)
+    entry = plan.movable[0]
+    import devolaflow.workspace_compact.engine as engine_module
+
+    def explode(*args, **kwargs):
+        raise OSError("filesystem said no")
+
+    monkeypatch.setattr(engine_module.shutil, "move", explode)
+    result = apply_plan(folder, plan, approval_fingerprint=plan.fingerprint, sources=[entry.source])
+
+    assert result.refused is True
+    assert any(item.startswith("APPLY_ERROR") for item in result.findings)
+    assert (folder / entry.source).is_file(), "the original must not have been touched"
+    rows = load_mappings(folder)
+    assert [str(row["source"]) for row in rows] == [entry.source]
+
+
+def test_an_interrupted_move_reports_as_pending_not_as_loss(folder, monkeypatch):
+    """`verify` must distinguish re-runnable from lost, or every row reads alike."""
+    plan = build_plan(folder)
+    entry = plan.movable[0]
+    import devolaflow.workspace_compact.engine as engine_module
+
+    monkeypatch.setattr(
+        engine_module.shutil, "move", lambda *a, **k: (_ for _ in ()).throw(OSError("interrupted"))
+    )
+    apply_plan(folder, plan, approval_fingerprint=plan.fingerprint, sources=[entry.source])
+    monkeypatch.undo()
+
+    problems = verify_integrity(folder)
+    assert any(item.startswith(f"PENDING_MOVE: {entry.source}") for item in problems)
+    assert not any(item.startswith("MISSING_ARCHIVED") for item in problems)
+
+
+def test_a_pending_move_is_completed_by_the_next_apply(folder, monkeypatch):
+    """The recorded destination is honoured, because its row cannot be revised."""
+    plan = build_plan(folder)
+    entry = plan.movable[0]
+    import devolaflow.workspace_compact.engine as engine_module
+
+    monkeypatch.setattr(
+        engine_module.shutil, "move", lambda *a, **k: (_ for _ in ()).throw(OSError("interrupted"))
+    )
+    apply_plan(folder, plan, approval_fingerprint=plan.fingerprint, sources=[entry.source])
+    monkeypatch.undo()
+    journalled = str(load_mappings(folder)[0]["destination"])
+
+    recovery = build_plan(folder)
+    resumed = next(item for item in recovery.movable if item.source == entry.source)
+    assert resumed.pending is True
+    assert resumed.destination == journalled
+    assert recovery.pending == (resumed,)
+    assert f"PENDING_MOVE: {entry.source}" in recovery.findings
+
+    result = apply_plan(
+        folder, recovery, approval_fingerprint=recovery.fingerprint, sources=[entry.source]
+    )
+    assert result.success is True
+    assert (folder / journalled).is_file()
+    assert not (folder / entry.source).exists()
+    assert len(load_mappings(folder)) == 1, "completion must not append a second row"
+    assert verify_integrity(folder) == ()
+
+
+def test_an_unjournalled_source_that_collides_with_a_row_is_still_refused(folder):
+    """Idempotent completion must not become a licence to re-move a moved file."""
+    plan = build_plan(folder)
+    entry = plan.movable[0]
+    assert apply_plan(
+        folder, plan, approval_fingerprint=plan.fingerprint, sources=[entry.source]
+    ).success
+
+    (folder / entry.source).parent.mkdir(parents=True, exist_ok=True)
+    (folder / entry.source).write_text("a different file at the same path\n", encoding="utf-8")
+    replan = build_plan(folder)
+    revived = next(item for item in replan.movable if item.source == entry.source)
+    assert revived.pending is False
+
+    result = apply_plan(
+        folder, replan, approval_fingerprint=replan.fingerprint, sources=[entry.source]
+    )
+    assert result.refused is True
+    assert result.findings == (f"MAPPING_DUPLICATE: {entry.source}",)
+
+
+def test_a_missing_archive_with_no_recoverable_source_stays_a_loss(folder):
+    """Only source-in-place-and-hash-matching is pending; the rest is real loss."""
+    plan = build_plan(folder)
+    entry = plan.movable[0]
+    apply_plan(folder, plan, approval_fingerprint=plan.fingerprint, sources=[entry.source])
+    destination = str(load_mappings(folder)[0]["destination"])
+    (folder / destination).unlink()
+
+    problems = verify_integrity(folder)
+    assert problems == (f"MISSING_ARCHIVED: {destination}",)
+
+
+def test_the_digest_table_explains_why_instead_of_showing_half_a_hash(folder):
+    """A 12-character hash verifies nothing; the reason a file moved was ledger-only."""
+    plan = build_plan(folder)
+    result = apply_plan(folder, plan, approval_fingerprint=plan.fingerprint)
+    assert result.success
+
+    digest = (folder / result.digest_path).read_text(encoding="utf-8")
+    header = next(line for line in digest.splitlines() if line.startswith("| Seq |"))
+    assert "Category" in header
+    assert "sha256" not in header
+    row = load_mappings(folder)[0]
+    assert f"`{str(row['sha256'])[:12]}`" not in digest
+    assert f"`{Category.HISTORICAL_OUTPUT.value}`" in digest
+    assert "devola-compact verify" in digest, "the hash has to be reachable, not just absent"
+
+
+def test_the_digest_price_follows_the_rendered_layout(folder):
+    """`digest_tokens` must be derived from the rows, not from a drifting constant."""
+    plan = build_plan(folder)
+    priced = plan.digest_tokens
+    result = apply_plan(folder, plan, approval_fingerprint=plan.fingerprint)
+
+    written = measure_file(folder / result.digest_path).tokens
+    assert priced > 0
+    assert abs(written - priced) <= max(8, priced // 10), (
+        f"the plan priced {priced} tokens but wrote {written}"
+    )
+
+
+def test_a_malformed_invocation_still_prints_one_json_object(folder, capsys):
+    """Argparse wrote prose to stderr and exited, breaking the only output contract.
+
+    A caller that parses stdout received nothing, and exit 2 was shared with a
+    domain refusal, so a mistyped flag and a considered "no" read identically.
+    """
+    code = compact_main(["plan", "--folder", str(folder), "--nonsense"])
+    captured = capsys.readouterr()
+
+    assert code == 2, "the exit code must not change; only the payload is new"
+    assert captured.err == "", "the whole answer belongs on stdout"
+    payload = json.loads(captured.out)
+    assert payload["error_kind"] == "usage"
+    assert payload["findings"][0]["code"] == "USAGE_REJECTED"
+    assert "devola-compact" in payload["usage"]
+    assert payload["healthy"] is False
+
+
+def test_usage_and_domain_refusals_are_told_apart_by_field_not_by_code(folder, capsys):
+    """Both exit 2, so the distinction has to live in the object itself."""
+    assert compact_main(["locate", "--folder", str(folder), "--query", "  "]) == 2
+    domain = json.loads(capsys.readouterr().out)
+
+    assert compact_main(["locate", "--folder", str(folder)]) == 2
+    usage = json.loads(capsys.readouterr().out)
+
+    assert domain["error_kind"] == "domain"
+    assert usage["error_kind"] == "usage"
+    assert domain["findings"][0]["code"] == "COMPACT_REFUSED"

@@ -89,6 +89,15 @@ class CompactEntry:
     it about", which forces a search for every question and undoes the point
     of a compact index.
     """
+    pending: bool = False
+    """This move is already journalled and needs completing, not starting.
+
+    The mapping ledger is written before the file moves, so a row whose
+    destination is absent while its source is still in place and still hashes
+    to the recorded value describes an interrupted move. Such an entry keeps
+    the destination the ledger recorded rather than the one a fresh plan would
+    compute, because that row is append-only and cannot be revised.
+    """
 
     @property
     def key(self) -> tuple[str, str]:
@@ -112,6 +121,17 @@ class CompactPlan:
         """Return only the entries the plan proposes to relocate."""
 
         return tuple(entry for entry in self.entries if entry.action is Action.MOVE)
+
+    @property
+    def pending(self) -> tuple[CompactEntry, ...]:
+        """Return the moves an earlier run journalled but did not finish.
+
+        Surfaced on the plan so the operator approves the recovery rather than
+        discovering it: the destination shown for these entries comes from the
+        existing ledger row, not from this plan's sequence numbering.
+        """
+
+        return tuple(entry for entry in self.movable if entry.pending)
 
     @property
     def fingerprint(self) -> str:

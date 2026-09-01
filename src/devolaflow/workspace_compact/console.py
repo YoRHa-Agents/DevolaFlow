@@ -13,10 +13,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from devolaflow.cli_envelope import (
+    JsonUsageParser,
+    UsageError,
+    domain_envelope,
+    usage_envelope,
+)
 from devolaflow.workspace_compact.bloat import (
     DEFAULT_THRESHOLD_TOKENS,
     scan_bloat,
@@ -38,7 +44,7 @@ from devolaflow.workspace_compact.handoff_relocate import (
     plan_relocation,
     verify_relocations,
 )
-from devolaflow.workspace_compact.models import CompactError, CompactPlan
+from devolaflow.workspace_compact.models import Action, CompactEntry, CompactError, CompactPlan
 from devolaflow.workspace_compact.telemetry import (
     DEFAULT_LEDGER,
     OUTCOME_BYPASSED,
@@ -86,6 +92,12 @@ def _plan_note(plan: CompactPlan) -> str:
     return "report-only; apply requires --approve <fingerprint>"
 
 
+def _largest_tokens(entries: Iterable[CompactEntry]) -> int:
+    """Return the heaviest single entry's token cost, or zero for none."""
+
+    return max((entry.tokens_estimated for entry in entries), default=0)
+
+
 def _plan_payload(plan: CompactPlan) -> dict[str, Any]:
     return {
         "artifact_type": "compact-plan",
@@ -98,6 +110,7 @@ def _plan_payload(plan: CompactPlan) -> dict[str, Any]:
         "net_tokens": plan.net_tokens,
         "pays_for_itself": plan.pays_for_itself,
         "projected_reduction": round(plan.projected_reduction, 4),
+        "pending": [entry.source for entry in plan.pending],
         "findings": list(plan.findings),
         "entries": [
             {
@@ -109,6 +122,7 @@ def _plan_payload(plan: CompactPlan) -> dict[str, Any]:
                 "bytes": entry.bytes,
                 "tokens_estimated": entry.tokens_estimated,
                 "sha256": entry.sha256,
+                "pending": entry.pending,
             }
             for entry in plan.entries
             if entry.action.value == "move"
@@ -127,7 +141,7 @@ def _plan_payload(plan: CompactPlan) -> dict[str, Any]:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = JsonUsageParser(
         prog="devola-compact",
         description=(
             "Non-destructive compaction of one task or change folder: relocate "
@@ -299,6 +313,14 @@ def _dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                     tokens_after=plan.retained_tokens,
                     entries=len(plan.movable),
                     reason=reason,
+                    # A plan has priced its digest without writing it, so the
+                    # projected row nets out the same way an applied one does.
+                    digest_tokens=plan.digest_tokens,
+                    working_set_before=_largest_tokens(plan.entries),
+                    working_set_after=plan.digest_tokens
+                    + _largest_tokens(
+                        entry for entry in plan.entries if entry.action is not Action.MOVE
+                    ),
                 ),
             )
         return _plan_payload(plan), COMPACT_OK
@@ -317,7 +339,11 @@ def _dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             "schema_version": _SCHEMA_VERSION,
             "folder": str(folder),
             "applied": [
-                {"source": entry.source, "destination": entry.destination}
+                {
+                    "source": entry.source,
+                    "destination": entry.destination,
+                    "completed_pending": entry.pending,
+                }
                 for entry in result.applied
             ],
             "findings": list(result.findings),
@@ -465,19 +491,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run one compaction command and print exactly one JSON object."""
 
     parser = _build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
+    try:
+        args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
+    except UsageError as exc:
+        print(_json(usage_envelope("compact-error", exc, schema_version=_SCHEMA_VERSION)), end="")
+        return COMPACT_MALFORMED
     _resolve_shared_options(args)
     try:
         payload, exit_code = _dispatch(args)
     except (CompactError, LedgerError) as exc:
         print(
             _json(
-                {
-                    "artifact_type": "compact-error",
-                    "schema_version": _SCHEMA_VERSION,
-                    "findings": [{"code": "COMPACT_REFUSED", "message": str(exc)}],
-                    "healthy": False,
-                }
+                domain_envelope(
+                    "compact-error",
+                    "COMPACT_REFUSED",
+                    str(exc),
+                    schema_version=_SCHEMA_VERSION,
+                )
             ),
             end="",
         )
