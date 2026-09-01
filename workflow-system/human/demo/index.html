@@ -401,11 +401,11 @@
 
         <div class="release-window">
           <article class="release-entry">
-            <h3 data-i18n="home.release.v19.heading">New in v24.1.0 · Self-Digest: What v24 Got Wrong</h3>
+            <h3 data-i18n="home.release.v19.heading">New in v24.2.0 · Durable Moves, Honest Refusals</h3>
             <ul>
-              <li data-i18n="home.release.v19.governance">A compaction plan now prices the digest it would write, so a folder is never made more expensive to read than it was before.</li>
-              <li data-i18n="home.release.v19.archive">Automatic classification alone left every over-threshold folder with nothing to move; the heaviest retained files are now named alongside the exact command that includes them.</li>
-              <li data-i18n="home.release.v19.release">S-9.1 permits relocating an archived change's handoff envelopes through one sanctioned tool, while rewriting or deleting their content stays prohibited.</li>
+              <li data-i18n="home.release.v19.governance">A run where every move committed no longer reports itself as refused because the digest found an anchor that stopped resolving.</li>
+              <li data-i18n="home.release.v19.archive">The digest table comes from the append-only ledger, so it is re-rendered even when the narration above it fails validation.</li>
+              <li data-i18n="home.release.v19.release">The retired-gate reader fix that restored evaluation in v24.0.0 is now covered by a test that actually reads one from a ledger.</li>
             </ul>
           </article>
 
@@ -526,10 +526,10 @@
       'home.seeds.compat': 'The nines-assisted filename remains an opaque compatibility ID. It does not activate or recommend an evaluator.',
       'home.release.heading': 'Current release window',
       'home.release.desc': 'Home keeps a compact v24 window. The former release stack belongs in Timeline, where older history can retain its original context.',
-      'home.release.v19.heading': 'New in v24.1.0 · Self-Digest: What v24 Got Wrong',
-      'home.release.v19.governance': 'A compaction plan now prices the digest it would write, so a folder is never made more expensive to read than it was before.',
-      'home.release.v19.archive': 'Automatic classification alone left every over-threshold folder with nothing to move; the heaviest retained files are now named alongside the exact command that includes them.',
-      'home.release.v19.release': 'S-9.1 permits relocating an archived change\'s handoff envelopes through one sanctioned tool, while rewriting or deleting their content stays prohibited.',
+      'home.release.v19.heading': 'New in v24.2.0 · Durable Moves, Honest Refusals',
+      'home.release.v19.governance': 'A run where every move committed no longer reports itself as refused because the digest found an anchor that stopped resolving.',
+      'home.release.v19.archive': 'The digest table comes from the append-only ledger, so it is re-rendered even when the narration above it fails validation.',
+      'home.release.v19.release': 'The retired-gate reader fix that restored evaluation in v24.0.0 is now covered by a test that actually reads one from a ledger.',
       'home.release.v18.heading': 'New in v21.1.0 · Skill Residency and Calibration Evidence',
       'home.release.v18.residency': 'The host contract now distinguishes skill delivery from an observed runtime skill_loaded fact, with explicit status and provenance requirements.',
       'home.release.v18.calibration': 'The harness adds bounded CLI probes and a reproducible calibration matrix for read-only, tool-heavy, multi-file, and recovery task classes.',
@@ -609,10 +609,10 @@
       'home.seeds.compat': 'nines-assisted 文件名仅作为不透明的兼容 ID 保留，不会激活或推荐任何评估器。',
       'home.release.heading': '当前发布窗口',
       'home.release.desc': '首页保留紧凑的 v24 窗口。更早的发布内容已归入时间线，让历史保留其原始上下文。',
-      'home.release.v19.heading': 'v24.1.0 新变化 · 自我消化：v24 哪里做错了',
-      'home.release.v19.governance': '收缩计划现在会为它自己要写的摘要计价，因此一个目录不会在收缩之后反而更费读。',
-      'home.release.v19.archive': '仅靠自动分类，每个超阈值目录都无物可搬；现在最重的保留文件会被点名列出，并附上把它纳入的确切命令。',
-      'home.release.v19.release': 'S-9.1 允许经由唯一受认可的工具搬迁已归档变更的交接信封，而改写或删除其内容依然被禁止。',
+      'home.release.v19.heading': 'v24.2.0 新变化 · 移动是持久的，拒绝是诚实的',
+      'home.release.v19.governance': '所有搬迁都已落盘的那一次运行，不再因为摘要里某条锚点失效而把自己报成“被拒绝”。',
+      'home.release.v19.archive': '摘要表格来自只追加的台账，因此即便它上方的叙述未通过校验，表格依然会被重新渲染。',
+      'home.release.v19.release': 'v24.0.0 里恢复评估能力的退役门读取修复，现在终于有一条真正从台账里读出它的测试。',
       'home.release.v18.heading': 'v21.1.0 新变化 · Skill Residency and Calibration Evidence',
       'home.release.v18.residency': '主机契约现在区分技能交付与观测到的运行时 skill_loaded 事实，并明确状态与出处要求。',
       'home.release.v18.calibration': 'Harness 新增有界 CLI 探针与可复现校准矩阵，覆盖只读、工具密集、多文件和恢复任务类别。',

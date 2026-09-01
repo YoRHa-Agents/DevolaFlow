@@ -576,3 +576,67 @@ def test_quarantine_still_fails_when_no_row_survives(tmp_path: Path) -> None:
     with pytest.raises(AggregationError, match="contains no records"):
         load_ledger_records(ledger, quarantine=[])
 
+
+def test_a_retired_gate_row_loads_from_a_real_ledger(tmp_path: Path, caplog) -> None:
+    """The F-00 fix was to the reader, so read it.
+
+    The existing coverage asserts the writer refuses a retired name and that
+    the frozenset holds the right entries. Both would still pass if this call
+    raised — which is precisely the outage. Strict mode, no quarantine: a
+    retired name must cost a warning and nothing else.
+    """
+    from devolaflow.harness.telemetry import RETIRED_SI10_GATE_NAMES
+
+    retired = next(iter(RETIRED_SI10_GATE_NAMES))
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "event": "si10_gate",
+                "event_id": f"si10_gate:PV-5:{retired}:PASS",
+                "ts": "2026-08-28T04:19:02.034067+00:00",
+                "pv": "PV-5",
+                "gate": retired,
+                "status": "PASS",
+            }
+        )
+        + "\n"
+        + json.dumps(_record("d-1"))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("WARNING"):
+        records = load_ledger_records(ledger)
+
+    assert len(records) == 2
+    assert records[0]["gate"] == retired
+    assert "retaining retired SI-10 gate" in caplog.text
+
+
+def test_an_unknown_gate_name_still_aborts_a_strict_read(tmp_path: Path) -> None:
+    """Retirement is an explicit list, not an open door.
+
+    If an unrecognised gate were tolerated, the retired-name vocabulary would
+    stop meaning anything and a typo would enter the ledger unnoticed.
+    """
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "event": "si10_gate",
+                "event_id": "si10_gate:PV-5:test-kore:PASS",
+                "ts": "2026-08-28T04:19:02.034067+00:00",
+                "pv": "PV-5",
+                "gate": "test-kore",
+                "status": "PASS",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AggregationError, match="SI-10 gate must be one of"):
+        load_ledger_records(ledger)

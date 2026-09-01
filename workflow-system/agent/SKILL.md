@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "24.1.0"
+version: "24.2.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v24.1.0**
+> **Now Using DevolaFlow v24.2.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 24.1.0 — check only on explicit update request:
+**Current version:** 24.2.0 — check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Install details:
@@ -142,7 +142,8 @@ discoverable here: `hotfix`, `research-only`, `design-only`,
 `demo-showcase`, `product-verification`, `entropy-cleanup`, `local-archive`,
 `harness-construction`, `pathfinder`, `retro-digest`, `migration`,
 `skill-optimization`, `self-update`, `nines-assisted`, `repo-init`,
-`change-driven`, and `web-design`. Match signals compactly:
+`change-driven`, `web-design`, and `workspace-compact`. Match signals
+compactly:
 `research/compare/survey → research-only`; `design/architecture/API/schema →
 design-only`; `bug/crash/urgent patch → hotfix`; `refactor/tech debt →
 refactoring`; `migrate/upgrade/port → migration`; `prototype/spike/experiment →
@@ -158,7 +159,8 @@ nines-assisted`; `initialize → repo-init`; `explicit lifecycle → change-driv
 `drift cleanup → entropy-cleanup`; `local archive/clustering → local-archive`;
 `harness construction/evaluation → harness-construction`;
 `look-ahead reconnaissance → pathfinder`; `retro-digest → retro-digest`;
-`frontend/web → web-design`.
+`frontend/web → web-design`; `folder too large to read/risk parking →
+workspace-compact`.
 | local task archive or clustering | `local-archive` |
 
 Seeds are non-executable decomposition knowledge. `source_stages` retain

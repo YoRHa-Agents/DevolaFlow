@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "24.1.0"
+  version: "24.2.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -189,7 +189,7 @@ content:
       design_source: "design_meta_framework.md"
       load_when: "Selecting registry-v3 checklist seeds or the sole change-driven runtime"
       tier: 2
-      estimated_lines: 360
+      estimated_lines: 361
 
     - id: "decomposition-gate"
       file: "references/decomposition-gate.md"
@@ -580,7 +580,7 @@ manifest:
       type: "knowledge"
       design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
-  # Registry v3 inventory: one registry, 27 checklist seeds, one executable
+  # Registry v3 inventory: one registry, 28 checklist seeds, one executable
   # runtime, and two operator-facing checklist-round artifact templates.
   templates:
     - path: "templates/registry.yaml"

@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [24.2.0] - 2026-09-01 — MINOR — Durable Moves, Honest Refusals
+
+v24.1.0 closed with seven findings parked rather than fixed. Two of them were
+about a result that contradicts the filesystem, and they are addressed here.
+
+### Fixed
+
+- **A successful apply no longer reports itself as refused.** `apply_plan`
+  folded whatever `write_digest` returned into `findings` and then set
+  `refused = bool(findings)`. So a run where every move and every ledger row
+  committed came back `refused=True` because a pre-existing narration held an
+  anchor that no longer resolved — telling an operator nothing happened when
+  in fact everything had. `CompactResult` now carries `digest_findings` and
+  `digest_current` alongside `findings` and `refused`, and the CLI reports
+  both. The moves are durable; the index being stale is a different fact and
+  now reads as one.
+- **A narration problem no longer withholds the ledger table.**
+  `write_digest` returned early on any narration finding, leaving `DIGEST.md`
+  without the rows that had just been appended to `mappings.yaml`. The table
+  is derived from the append-only ledger, so holding it back over agent prose
+  hides exactly what the digest exists to list. It is now always re-rendered,
+  the narration is written through unchanged so the flagged claim stays
+  visible, and the findings are still reported.
+- **`workspace-compact` was in the registry but not discoverable from it.**
+  v24.0.0 registered the seed in `templates/registry.yaml` without the two
+  SKILL-side surfaces C-7 requires, so an agent reading the Workflow-Selection
+  list or the Quick-Reference table could not find the workflow the cycle had
+  just shipped, and `workflow-skill.yaml` still claimed 27 seeds. Only
+  `GHOST_FULL=1` runs those parity checks, which is why the six-gate chain did
+  not catch it.
+
+### Added
+
+- **A test that reads a retired gate from a ledger.** The v24.0.0 F-00 fix was
+  to the reader, but its two tests covered the writer refusing to emit a
+  retired name and the contents of the frozenset — both would have passed if
+  `load_ledger_records` still raised on that row, which is the outage itself.
+  Strict-mode read now asserts warn-not-raise, with a companion asserting an
+  unrecognised gate name still aborts so retirement stays an explicit list.
+
 ## [24.1.0] - 2026-09-01 — MINOR — Self-Digest: What v24 Got Wrong
 
 v24 shipped two surfaces; running them against the real repository rather than

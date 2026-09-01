@@ -2547,5 +2547,18 @@
       "S-9.1 — tool-mediated relocation of an archived change's handoff envelopes, with content rewrite and deletion still prohibited"
     ],
     "metrics": {}
+  },
+  {
+    "version": "24.2.0",
+    "date": "2026-09-01",
+    "era": "workspace-compaction",
+    "headline": "MINOR — Durable Moves, Honest Refusals",
+    "summary": "Two findings parked at the close of v24.1.0 concerned a result that contradicts the filesystem: a committed apply reporting itself refused, and a digest table withheld over agent prose.",
+    "highlights": [
+      "Separated outcomes — digest_findings and digest_current sit alongside findings and refused, so a durable move never reads as a refusal",
+      "Ledger table always re-rendered — narration problems are reported without hiding the rows the digest exists to list",
+      "The v24.0.0 retired-gate reader fix is finally covered by a test that reads one from a ledger"
+    ],
+    "metrics": {}
   }
 ]
