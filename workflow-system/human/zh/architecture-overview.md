@@ -4,8 +4,8 @@ description: "三层清单轮次架构、来源原语与证据门。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-09-01T07:32:53Z"
-source_version: "24.2.0"
+last_synced: "2026-09-01T08:58:23Z"
+source_version: "24.3.0"
 ---
 
 # 架构概述

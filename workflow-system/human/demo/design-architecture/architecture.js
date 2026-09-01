@@ -33,6 +33,7 @@
     reference("codegraph"),
     reference("compression-pipeline"),
     reference("context-isolation"),
+    reference("cycle-audit"),
     reference("decomposition-gate"),
     reference("degraded-mode"),
     reference("domain-awareness"),

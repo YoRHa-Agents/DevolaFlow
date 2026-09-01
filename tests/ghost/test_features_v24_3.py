@@ -139,3 +139,65 @@ def test_the_digest_spends_its_column_on_the_reason() -> None:
     assert "sha256" not in rendered
     assert "`historical_output`" in rendered
     assert "a" * 12 not in rendered, "a hash too short to verify with is not worth a column"
+
+
+def test_declared_vocabulary_has_a_production_writer() -> None:
+    """C-G3.1. Behaviour: tests/test_enum_writers.py."""
+
+    from devolaflow.enum_writers import (
+        ALLOWLIST,
+        find_unwritten_vocabulary,
+        unused_allowlist_entries,
+    )
+
+    assert find_unwritten_vocabulary(".") == ()
+    assert unused_allowlist_entries(".") == ()
+    assert all(len(reason) > 30 for reason in ALLOWLIST.values())
+
+    parking = Path("src/devolaflow/parking/models.py").read_text(encoding="utf-8")
+    assert "EVENT_COMPACT_APPLIED" not in parking, (
+        "the first run's one real find: declared and validated in v24.0.0, written by nothing"
+    )
+
+
+def test_the_cycle_audit_is_registered_and_cited() -> None:
+    """C-G3.2: C-7 four-step registration, and W-7 text that points at it."""
+
+    from tests.ghost.test_registries import _SF4_REFERENCE_SET
+
+    assert "cycle-audit.md" in _SF4_REFERENCE_SET
+    assert Path("workflow-system/agent/references/cycle-audit.md").is_file()
+
+    for surface in (
+        "workflow-system/agent/SKILL.md",
+        "workflow-system/agent/manifest.yaml",
+        "workflow-system/human/demo/design-architecture/architecture.js",
+    ):
+        assert "cycle-audit" in Path(surface).read_text(encoding="utf-8"), surface
+
+    for compiled in (".rules/workflow.mdc", "AGENTS.md"):
+        text = Path(compiled).read_text(encoding="utf-8")
+        assert "references/cycle-audit.md" in text, compiled
+        assert "## W-7" in text
+
+
+def test_retro_digest_reports_silence_and_persists_incrementally() -> None:
+    """C-G3.3. Behaviour: tests/test_retro_digest.py."""
+
+    from dataclasses import fields
+
+    from devolaflow.skills.retro_digest import (
+        PERSISTENCE_DEPTH,
+        DigestResult,
+        build_digest,
+        recent_cycles,
+        to_learning_entries,
+    )
+
+    assert "unparsed_sources" in {field.name for field in fields(DigestResult)}
+    assert PERSISTENCE_DEPTH == 2
+
+    digest = build_digest(Path("."))
+    assert digest.unparsed_sources == ()
+    assert len({entry.key.split(":", 1)[0] for entry in to_learning_entries(digest)}) <= 2
+    assert len(recent_cycles(digest)) == 2

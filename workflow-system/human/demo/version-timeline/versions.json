@@ -2560,5 +2560,19 @@
       "The v24.0.0 retired-gate reader fix is finally covered by a test that reads one from a ledger"
     ],
     "metrics": {}
+  },
+  {
+    "version": "24.3.0",
+    "date": "2026-09-01",
+    "era": "workspace-compaction",
+    "headline": "MINOR — Durability Queue Clearance",
+    "summary": "Each v24 cycle closed by parking what it found. This one spends itself on that queue: the five live risks and the three items v24.2.0 telegraphed, leaving the Rust runtime question for v25.",
+    "highlights": [
+      "The ledger is a journal — a mapping row lands before its move, so an interrupted apply is a pending move the next run completes rather than a file nothing records",
+      "Telemetry answers whether compaction paid for itself, with a pessimistic working-set estimate that never flatters the tool",
+      "Both CLIs keep their one-JSON-object promise on a bad invocation, distinguishing a typo from a refusal by error_kind rather than by an exit code they share",
+      "A read-only cycle audit is now required before the retrospective, and declared vocabulary must have a production writer"
+    ],
+    "metrics": {}
   }
 ]

@@ -4,8 +4,8 @@ description: "从注册表派生的清单种子与唯一的 change-driven 运行
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-09-01T07:32:53Z"
-source_version: "24.2.0"
+last_synced: "2026-09-01T08:58:23Z"
+source_version: "24.3.0"
 ---
 
 # 清单种子目录

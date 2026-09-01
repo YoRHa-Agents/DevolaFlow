@@ -161,7 +161,6 @@ EVENT_RISK_UPDATED: Final[str] = "risk_updated"
 EVENT_QUESTION_RAISED: Final[str] = "question_raised"
 EVENT_JUDGMENT_RECORDED: Final[str] = "judgment_recorded"
 EVENT_RISK_ARCHIVED: Final[str] = "risk_archived"
-EVENT_COMPACT_APPLIED: Final[str] = "compact_applied"
 
 EVENT_NAMES: Final[frozenset[str]] = frozenset(
     {
@@ -171,7 +170,6 @@ EVENT_NAMES: Final[frozenset[str]] = frozenset(
         EVENT_QUESTION_RAISED,
         EVENT_JUDGMENT_RECORDED,
         EVENT_RISK_ARCHIVED,
-        EVENT_COMPACT_APPLIED,
     }
 )
 
@@ -209,7 +207,6 @@ def validate_transition(current: RiskState, target: RiskState) -> None:
 
 
 __all__ = [
-    "EVENT_COMPACT_APPLIED",
     "EVENT_JUDGMENT_RECORDED",
     "EVENT_NAMES",
     "EVENT_QUESTION_RAISED",

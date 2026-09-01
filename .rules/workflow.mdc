@@ -80,6 +80,11 @@ Each cycle archive contains `README.md`, `gap_analysis.md`,
 W-16 settlement MUST precede archive creation. Patch releases create neither
 independent baselines nor cycle archives. Historical contents are retained.
 
+Before the retrospective is authored, L0 MUST run the read-only cycle audit
+sweep per `references/cycle-audit.md` and record its surfaces and finding count
+— including zero — in the retrospective. Findings are parked, not fixed in the
+same pass.
+
 ## W-8 — Convergence Round Reinforcement (SI-9)
 
 Multi-round convergence MUST use `src/devolaflow/gate/reinforcement.py`, with

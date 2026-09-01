@@ -9,7 +9,7 @@ Natural-language activation is pure and does not inspect process state.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
@@ -33,6 +33,7 @@ __all__ = [
     "extract_digest_records",
     "extract_evaluation_findings",
     "extract_retrospective_records",
+    "recent_cycles",
     "render_digest_report",
     "to_learning_entries",
 ]
@@ -155,6 +156,17 @@ class DigestResult:
     Named separately from `reason` so a caller can act on the list rather
     than parse prose. A silent source means the extractor did not recognise
     its section headings, which is a different problem from an empty file.
+    """
+
+    unparsed_sources: tuple[str, ...] = ()
+    """The subset of `silent_sources` whose section *was* found and still gave nothing.
+
+    The distinction is the whole point. A file with no learnings heading may
+    genuinely have no learnings, and saying so is not an accusation. A file
+    that has the heading and yields nothing under it promised evidence and did
+    not deliver, whether because the section is empty or because the extractor
+    cannot read what is there. Only the second forces INSUFFICIENT (W-29),
+    instead of being averaged away into an aggregate OK.
     """
 
     @property
@@ -321,6 +333,22 @@ def _extract_section(
     if resolved_path.startswith("/"):
         resolved_path = Path(resolved_path).name
     resolved_cycle = cycle or _cycle_for(resolved_path)
+
+    def _record(text: str, raw: str, offset: int, span: int) -> DigestRecord:
+        line_number = first_line + offset
+        return DigestRecord(
+            record_id=f"{resolved_path}#L{line_number}",
+            cycle=resolved_cycle,
+            category=category,
+            text=text,
+            source_path=resolved_path,
+            start_line=line_number,
+            end_line=first_line + span,
+            source_kind=source_kind,
+            section=section_name,
+            raw_text=raw,
+        )
+
     records: list[DigestRecord] = []
     offset = 0
     while offset < len(lines):
@@ -345,21 +373,42 @@ def _extract_section(
         else:
             offset += 1
             continue
-        line_number = first_line + offset
-        records.append(
-            DigestRecord(
-                record_id=f"{resolved_path}#L{line_number}",
-                cycle=resolved_cycle,
-                category=category,
-                text=text,
-                source_path=resolved_path,
-                start_line=line_number,
-                end_line=first_line + span,
-                source_kind=source_kind,
-                section=section_name,
-                raw_text=raw,
-            )
-        )
+        records.append(_record(text, raw, offset, span))
+        offset = span + 1
+
+    if records:
+        return tuple(records)
+    return _prose_paragraphs(lines, _record)
+
+
+def _prose_paragraphs(
+    lines: list[str],
+    make_record: Callable[[str, str, int, int], DigestRecord],
+) -> tuple[DigestRecord, ...]:
+    """Read a section that speaks only in prose, one record per paragraph.
+
+    Reached only when the structured rules found nothing, so a section that
+    already yields bullets, table rows, or bold ledes is untouched and its
+    intro sentence does not become a record alongside them.
+
+    The strict reading — a lesson is a bullet — was written before there was a
+    corpus to check it against. Four cycles (v18, v21, v22, v23.1) state their
+    learnings as unadorned paragraphs, and the digest read all four as zero
+    while reporting OK. A section a human can read and this cannot is an
+    extraction defect, not a malformed retrospective.
+    """
+
+    records: list[DigestRecord] = []
+    offset = 0
+    while offset < len(lines):
+        if not lines[offset].strip():
+            offset += 1
+            continue
+        span = offset
+        while span + 1 < len(lines) and lines[span + 1].strip():
+            span += 1
+        text = " ".join(item.strip() for item in lines[offset : span + 1])
+        records.append(make_record(text, lines[offset], offset, span))
         offset = span + 1
     return tuple(records)
 
@@ -457,17 +506,30 @@ def build_digest(repo_root: Path | str) -> DigestResult:
     # the evidence a digest exists to surface (W-29 — missing evidence is
     # INSUFFICIENT, never PASS).
     contributing = {record.source_path for record in records}
-    silent = tuple(
+    silent_pairs = tuple(
         sorted(
-            source.path
+            (source.path, "lesson" if source.kind == "retrospective" else "benefit")
             for source in (*retrospectives, *evaluations)
             if source.path not in contributing
         )
+    )
+    silent = tuple(path for path, _ in silent_pairs)
+    unparsed = tuple(
+        path
+        for path, category in silent_pairs
+        if _section_lines((repo_root / path).read_text(encoding="utf-8"), category=category)
+        is not None
     )
     if not records:
         status, reason = (
             "INSUFFICIENT",
             "No supported retrospective or evaluation sections were found.",
+        )
+    elif unparsed:
+        status = "INSUFFICIENT"
+        reason = (
+            f"{len(unparsed)} source(s) carry a recognised section that yielded nothing; "
+            "the heading promised evidence the digest could not read: " + ", ".join(unparsed)
         )
     elif silent:
         status = "OK"
@@ -483,6 +545,7 @@ def build_digest(repo_root: Path | str) -> DigestResult:
         status=status,
         reason=reason,
         silent_sources=silent,
+        unparsed_sources=unparsed,
     )
 
 
@@ -511,17 +574,57 @@ def _stable_slug(text: str) -> str:
     return slug[:80] or "record"
 
 
+#: Cycles whose lessons are eligible for persistence: the current one and the
+#: one before it.
+PERSISTENCE_DEPTH: Final[int] = 2
+
+
+def _cycle_sort_key(cycle: str) -> tuple[int, ...]:
+    parts = re.findall(r"\d+", cycle)
+    return tuple(int(part) for part in parts) if parts else (-1,)
+
+
+def recent_cycles(
+    digest: DigestResult | Iterable[DigestRecord],
+    *,
+    depth: int = PERSISTENCE_DEPTH,
+) -> tuple[str, ...]:
+    """Return the newest ``depth`` cycles present, newest first.
+
+    Ordering is by parsed version numbers, so ``v9.5.0`` sorts below
+    ``v24.0.0`` rather than above it as a string comparison would have it.
+    """
+
+    cycles = {record.cycle for record in _records_from(digest)}
+    cycles.discard("unknown-cycle")
+    return tuple(sorted(cycles, key=_cycle_sort_key, reverse=True)[:depth])
+
+
 def to_learning_entries(
     digest: DigestResult | Iterable[DigestRecord],
     curation: DigestCuration | Iterable[DigestRecord] | None = None,
+    *,
+    cycles: Iterable[str] | None = None,
 ) -> tuple[Learning, ...]:
     """Convert selected lessons to immutable-at-source Learning payloads.
 
     Evaluation benefits are intentionally excluded: they are report-only
     evidence and must not become operational learnings.
+
+    Persistence is **incremental**: only lessons from the current and previous
+    cycle are converted. A digest over this repository reaches back more than
+    twenty cycles, and adopting all of it at once would file decade-old
+    conclusions about code that no longer exists as live operational guidance,
+    ranked alongside what the last release actually learned. Older cycles stay
+    in the report, where a reader can weigh them in context. Pass `cycles` to
+    override the window explicitly; pass `()` to convert every cycle.
     """
     records = _curated_records(_records_from(digest), curation)
     lessons = tuple(record for record in records if record.category == "lesson")
+    window = tuple(cycles) if cycles is not None else recent_cycles(lessons)
+    if window:
+        eligible = set(window)
+        lessons = tuple(record for record in lessons if record.cycle in eligible)
     seen_slugs: dict[tuple[str, str], int] = {}
     entries: list[Learning] = []
     curated_source = "retro-digest-curated" if curation is not None else "retro-digest"

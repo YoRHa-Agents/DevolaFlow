@@ -69,6 +69,15 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `count_agents_md_rules` is a pure read-only helper that walks the
         # compiled AGENTS.md file.
         "devolaflow.agents_md_slice:count_agents_md_rules",
+        # v24.3.0 — the enum-writer audit is a repo-wide AST scan whose
+        # in-repo production caller IS the CI lint
+        # (`tests/test_enum_writers.py`, and the W-18 stanza in
+        # `tests/ghost/test_features_v24_3.py`). Wiring it into a runtime path
+        # would mean scanning the source tree during ordinary operation, which
+        # is the wrong time to ask the question. NOT domain-SSOT registry
+        # symbols per A-5.2: both are pure read-only walks over source files.
+        "devolaflow.enum_writers:find_unwritten_vocabulary",
+        "devolaflow.enum_writers:unused_allowlist_entries",
         # Loop v3 (B4-DISP-003 closure) — ``async_dispatch_wave_tasks`` is
         # the awaitable companion to ``dispatch_wave_tasks`` for callers
         # that already run inside an active event loop (where the sync

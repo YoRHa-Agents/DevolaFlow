@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "24.2.0"
+version: "24.3.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -24,12 +24,12 @@ description: >
   not name this skill.
 ---
 
-> **Now Using DevolaFlow v24.2.0**
+> **Now Using DevolaFlow v24.3.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 24.2.0 — check only on explicit update request:
+**Current version:** 24.3.0 — check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Install details:
@@ -362,7 +362,8 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 `references/agent-hierarchy.md`, `references/agent-workspace.md`,
 `references/artifact-quality.md`, `references/behavioral-guidelines.md`,
 `references/codegraph.md`, `references/compression-pipeline.md`,
-`references/context-isolation.md`, `references/decomposition-gate.md`,
+`references/context-isolation.md`, `references/cycle-audit.md`,
+`references/decomposition-gate.md`,
 `references/degraded-mode.md`, `references/domain-awareness.md`,
 `references/env-flags.md`, `references/evaluator-rosetta.md`,
 `references/execution-protocol.md`, `references/grill-mode.md`,

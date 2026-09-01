@@ -14,6 +14,7 @@ from devolaflow.skills import (
     discover_retrospectives,
     extract_evaluation_findings,
     extract_retrospective_records,
+    recent_cycles,
     render_digest_report,
     to_learning_entries,
 )
@@ -173,7 +174,7 @@ def test_report_is_deterministic_and_separates_lessons_from_benefits() -> None:
     [
         "",
         "# No supported section\n- not extracted",
-        "## Key learnings\nParagraph only, not a bullet.",
+        "## Key learnings\n",
     ],
 )
 def test_missing_or_malformed_sections_are_empty(markdown: str) -> None:
@@ -235,9 +236,19 @@ def test_bold_lead_paragraphs_are_extracted_verbatim() -> None:
 
 
 def test_emphasis_inside_prose_is_not_mistaken_for_a_lede(tmp_path: Path) -> None:
-    """Only a deliberate bold lede counts; emphasised prose is not a lesson."""
-    markdown = "## Learnings\n\nThis paragraph merely **emphasises** a word.\n"
-    assert extract_retrospective_records(markdown, source_path="r.md", cycle="v1.0.0") == ()
+    """A lede is a deliberate opening claim; emphasised prose is ordinary prose.
+
+    v24.3.0: the distinction is no longer visible in whether a record appears —
+    prose in a learnings section is now read — so it is checked where it still
+    matters. Alongside a bullet, a lede is a peer record and plain prose is not.
+    """
+    markdown = (
+        "## Learnings\n\nThis paragraph merely **emphasises** a word.\n\n- an unambiguous bullet\n"
+    )
+
+    records = extract_retrospective_records(markdown, source_path="r.md", cycle="v1.0.0")
+
+    assert [record.text for record in records] == ["an unambiguous bullet"]
 
 
 def test_a_discovered_source_that_yields_nothing_is_reported_not_hidden(tmp_path: Path) -> None:
@@ -275,3 +286,143 @@ def test_no_silent_sources_leaves_the_reason_empty(tmp_path: Path) -> None:
 
     assert result.silent_sources == ()
     assert result.reason == ""
+
+
+# --------------------------------------------------------------------------
+# v24.3.0 — silence had two causes and only one of them is a defect
+# --------------------------------------------------------------------------
+
+
+def test_a_learnings_section_written_as_prose_is_read(tmp_path: Path) -> None:
+    """Four cycles state their learnings in paragraphs and were read as zero.
+
+    v18.0.0, v21.0.0, v22.0.0, and v23.1.0 each write an unadorned prose
+    section. The extractor recognised the heading, found no bullet, and
+    returned nothing while the digest still reported OK.
+    """
+    markdown = (
+        "## Learning\n\n"
+        "Transport artifact hashes must not define measurement identity when\n"
+        "an ingestion path rewrites the artifact.\n\n"
+        "Missing provider evidence must remain explicit through archival.\n"
+    )
+
+    records = extract_retrospective_records(markdown, source_path="r.md", cycle="v23.1.0")
+
+    assert len(records) == 2
+    assert records[0].text.startswith("Transport artifact hashes")
+    assert records[0].text.endswith("rewrites the artifact.")
+    assert records[1].text == "Missing provider evidence must remain explicit through archival."
+
+
+def test_prose_does_not_compete_with_the_bullets_beside_it(tmp_path: Path) -> None:
+    """The fallback is per section, so a working section is left exactly as it was."""
+    markdown = "## Key learnings\n\nHere is what we found:\n\n- the actual lesson\n"
+
+    records = extract_retrospective_records(markdown, source_path="r.md", cycle="v1.0.0")
+
+    assert [record.text for record in records] == ["the actual lesson"]
+
+
+def test_a_heading_that_delivers_nothing_forces_insufficient(tmp_path: Path) -> None:
+    """W-29: promised evidence that does not arrive is INSUFFICIENT, never PASS.
+
+    Distinct from an absent heading, which may legitimately mean the file has
+    no learnings. Only the unmet promise downgrades the whole digest, and it
+    does so even with a hundred good records beside it.
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v1.0.0_retrospective.md").write_text(
+        "## Key learnings\n\n- a recognised lesson\n", encoding="utf-8"
+    )
+    (research / "v2.0.0_retrospective.md").write_text(
+        "## Key learnings\n\n\n## Next steps\n\n- unrelated\n", encoding="utf-8"
+    )
+
+    result = build_digest(tmp_path)
+
+    assert result.unparsed_sources == (".local/research/v2.0.0_retrospective.md",)
+    assert result.status == "INSUFFICIENT"
+    assert "could not read" in result.reason
+    assert result.lessons, "the downgrade reports the gap; it does not discard the evidence"
+
+
+def test_an_absent_section_is_reported_without_being_called_a_defect(tmp_path: Path) -> None:
+    """Two kinds of silence, and conflating them was the v24.1.0 wording gap."""
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v1.0.0_retrospective.md").write_text(
+        "## Key learnings\n\n- a recognised lesson\n", encoding="utf-8"
+    )
+    (research / "v2.0.0_retrospective.md").write_text(
+        "## Postmortem Notes\n\n- an unrecognised section\n", encoding="utf-8"
+    )
+
+    result = build_digest(tmp_path)
+
+    assert result.silent_sources == (".local/research/v2.0.0_retrospective.md",)
+    assert result.unparsed_sources == ()
+    assert result.status == "OK"
+
+
+def test_this_repository_has_no_unparsed_source() -> None:
+    """The closing condition for C-G3.3, measured against the real corpus."""
+    result = build_digest(Path("."))
+
+    assert result.unparsed_sources == (), "\n".join(result.unparsed_sources)
+
+
+def test_persistence_takes_the_current_and_previous_cycle_only(tmp_path: Path) -> None:
+    """Twenty cycles of conclusions must not all become live operational guidance."""
+    records = tuple(
+        DigestRecord(
+            record_id=f"r{index}",
+            cycle=cycle,
+            category="lesson",
+            text=f"lesson from {cycle}",
+            source_path=f"{cycle}.md",
+            start_line=1,
+            end_line=1,
+            source_kind="retrospective",
+            section="Key learnings",
+        )
+        for index, cycle in enumerate(("v9.5.0", "v23.1.0", "v24.1.0", "v24.2.0"))
+    )
+
+    persisted = {entry.insight for entry in to_learning_entries(records)}
+
+    assert persisted == {"lesson from v24.1.0", "lesson from v24.2.0"}
+
+
+def test_cycles_are_ordered_by_number_not_by_string() -> None:
+    """`v9.5.0` sorts below `v24.0.0`; a string comparison puts it on top."""
+    records = tuple(
+        DigestRecord(
+            record_id=f"r{index}",
+            cycle=cycle,
+            category="lesson",
+            text="x",
+            source_path="s.md",
+            start_line=1,
+            end_line=1,
+            source_kind="retrospective",
+            section="Key learnings",
+        )
+        for index, cycle in enumerate(("v9.5.0", "v24.0.0", "v3.0.0"))
+    )
+
+    assert recent_cycles(records) == ("v24.0.0", "v9.5.0")
+
+
+def test_history_stays_in_the_report_it_is_excluded_from_the_ledger() -> None:
+    """Not backfilled is not hidden: the report keeps every cycle it found."""
+    digest = build_digest(Path("."))
+
+    report = render_digest_report(digest)
+    persisted_cycles = {entry.key.split(":", 1)[0] for entry in to_learning_entries(digest)}
+
+    assert len(persisted_cycles) <= 2
+    older = {record.cycle for record in digest.lessons} - persisted_cycles
+    assert older, "the repository has more than two cycles of retrospectives"
+    assert any(f"[{cycle}]" in report for cycle in older)

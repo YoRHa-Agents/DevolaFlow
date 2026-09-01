@@ -9,6 +9,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [24.3.0] - 2026-09-01 — MINOR — Durability Queue Clearance
+
+Each v24 cycle closed by parking what it found. This one spends itself on that
+queue: the five live risks and the three items v24.2.0 telegraphed. One risk
+remains open at close — the Rust runtime question, which belongs to v25 — plus
+one the cycle's own audit turned up.
+
+### Fixed
+
+- **A compaction apply can no longer move a file it does not record.**
+  `apply_plan` moved each file and then appended its mapping row. If the
+  append failed, the file sat at its destination with nothing naming it, and
+  `locate`, `restore`, and `verify` all lost it — silent divergence, the
+  highest-severity item in the repository for three releases. The row is now
+  written first, which makes the ledger a journal: a row whose destination is
+  missing, whose source is still in place, and whose source still hashes to
+  the recorded value is a **pending move**, and the next `apply` completes it
+  instead of refusing it as a duplicate. `verify_integrity` reports
+  `PENDING_MOVE` for it rather than a missing archive. Failure went from
+  invisible to visible and re-runnable.
+- **Compaction telemetry can answer whether it was worth doing.** A row
+  recorded `tokens_before` and `tokens_after` and nothing about the digest it
+  had to write to get there, so the reported saving was gross. `build_event`
+  now records `digest_tokens`, a derived `net_tokens`, and a
+  `working_set_before` / `working_set_after` pair estimated **pessimistically**
+  — the digest plus the largest single retained file — so the figure never
+  flatters the tool. `summarize()` reports `pays_for_itself`, and rows written
+  before these fields existed are counted in `rows_without_net_accounting`
+  rather than being assumed free.
+- **Both CLIs keep their one-JSON-object promise when the invocation is
+  wrong.** `devola-compact` and `devola-parking` document a single JSON object
+  on stdout as their whole output contract, and argparse broke it identically
+  in both: usage prose to stderr, exit 2, nothing on stdout. Exit 2 was also
+  shared with a domain refusal, so a typo and a considered "no" were
+  indistinguishable. **Every exit code is unchanged**; the envelope now carries
+  `error_kind` (`usage` or `domain`), which is where the distinction belongs.
+  `--help` is deliberately left as prose.
+- **The digest spends its last column on the reason instead of half a hash.**
+  The generated table carried 12 characters of sha256 — too few to verify with
+  and enough to look authoritative. That column is now Category. The full hash
+  stays in `mappings.yaml`, which is where `verify` reads it, and
+  `digest_tokens` reprices itself because it derives from the rendered rows.
+- **The retro-digest reads retrospectives written in prose.** Lessons were
+  extracted from bullets, table rows, and bold ledes. v18.0.0, v21.0.0,
+  v22.0.0, and v23.1.0 each state their learnings as unadorned paragraphs, so
+  the extractor found each heading, read it as empty, and reported OK. Prose
+  paragraphs are now read as a per-section fallback, reached only where the
+  structured rules found nothing, so sections that already worked are
+  unchanged. The repository's lesson count went from 463 to 514.
+
+### Added
+
+- **A read-only cycle audit, required before the retrospective.**
+  `references/cycle-audit.md` defines a per-cycle sweep of the surfaces this
+  repository builds for itself, and W-7 now cites it. The sweep parks findings
+  and never fixes them in the same pass, and must report the surfaces it
+  covered and the count including zero. It exists because the v24.2.0 audit
+  was one read-only pass that returned a blocker plus a critical with every
+  gate green. **No new numbered rule** — the obligation is a paragraph in the
+  existing W-7 body.
+- **A repo-wide check that declared vocabulary has a production writer.**
+  `devolaflow.enum_writers` walks the source tree for enum members and
+  `Final[str]` constants collected into a validating set, then looks for code
+  that writes each one, excluding tests: a value only a test produces is the
+  finding, not the refutation. It generalises v24.1.0's `bypassed` — declared,
+  validated, documented, tested, written by nothing. Its first run found
+  `EVENT_COMPACT_APPLIED`, shipped in v24.0.0 under the same description,
+  now removed. Exemptions live in one allowlist and each must state a reason.
+
+### Changed
+
+- **The retro-digest names two kinds of silence and only calls one a defect.**
+  A discovered source contributing nothing is listed in `silent_sources` as
+  before. If its heading was *found* and still yielded nothing, it is now also
+  in `unparsed_sources` and the whole digest is `INSUFFICIENT` (W-29): a
+  heading promised evidence that did not arrive. A source with no such heading
+  may genuinely have none, so it is reported without a verdict.
+- **Persistence to `operational.jsonl` is incremental.**
+  `to_learning_entries` converts the current and previous cycle only. This
+  repository's digest reaches back more than twenty cycles, and adopting all
+  of it would file conclusions about deleted code as live guidance, ranked
+  beside what the last release learned. Older cycles stay in the rendered
+  report. Pass `cycles` to override the window.
+- **`references/risk-parking.md` states that the ledger is authoritative for
+  an archived risk.** A compacted risk's relocated file keeps whatever state
+  it had when it was written, and `events.yaml` records the archival. The file
+  is deliberately never rewritten, because the approval chain is bound to its
+  content hash. That was the design; it was not written down.
+
 ## [24.2.0] - 2026-09-01 — MINOR — Durable Moves, Honest Refusals
 
 v24.1.0 closed with seven findings parked rather than fixed. Two of them were

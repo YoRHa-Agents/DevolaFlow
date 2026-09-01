@@ -39,6 +39,7 @@ references:
   - references/codegraph.md
   - references/compression-pipeline.md
   - references/context-isolation.md
+  - references/cycle-audit.md
   - references/decomposition-gate.md
   - references/degraded-mode.md
   - references/domain-awareness.md

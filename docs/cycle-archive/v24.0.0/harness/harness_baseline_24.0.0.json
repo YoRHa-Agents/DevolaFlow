@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "cycle": "v24.0.0",
+  "version": "24.0.0",
+  "status": "SETTLED",
+  "reason": "Workspace-compaction and risk-parking cycle settled with a readable primary ledger for the first time this cycle: the F-00 retired-gate fix let harness evaluate run against .local/telemetry/harness.jsonl end to end.",
+  "observed_validation": {
+    "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+    "package_version": "24.0.0",
+    "entry_composite": 9.17,
+    "entry_verdict": "READY",
+    "exit_composite": 9.83,
+    "exit_verdict": "READY",
+    "ledger": ".local/telemetry/harness.jsonl",
+    "ledger_readable": true,
+    "test_count": 5584,
+    "test_failures": 0,
+    "new_test_functions": 71,
+    "si10_gates": {
+      "test-core": "PASS",
+      "ruff-check": "PASS",
+      "ruff-format": "PASS",
+      "test-version": "PASS",
+      "test-harness": "PASS",
+      "check-cursor-skill": "PASS"
+    }
+  },
+  "compaction_evidence": {
+    "sample": ".local/tasks/add_compact_and_new_files/sample-risk-parking.md",
+    "working_set_before_tokens": 8679,
+    "working_set_after_tokens": 1284,
+    "working_set_reduction": 0.8521,
+    "resident_tokens_before": 25190,
+    "resident_tokens_after": 15261,
+    "resident_reduction": 0.3942,
+    "zero_loss_verified": true,
+    "mapping_rows": 15,
+    "hash_mismatches": [],
+    "restore_cost_ratio": 0.0089,
+    "note": "Working set is the agent reading cost (generated index plus the one risk file a question concerns). Resident tokens are the stored sum and are reported alongside because per-risk records add structure: the smaller number is the honest counterweight to the larger one."
+  },
+  "settlement": {
+    "status": "SETTLED",
+    "evidence_status": "SUFFICIENT",
+    "method": "W-16 snapshot taken after all six SI-10 gates passed and the full suite ran clean. Entry and exit composites both come from the primary ledger; no filtered or substituted evidence is used.",
+    "historical_comparison": "NO_REGRESSION",
+    "settled_at": "2026-09-01"
+  }
+}
