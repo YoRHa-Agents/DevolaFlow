@@ -49,8 +49,21 @@ def build_event(
     entries: int,
     reason: str = "",
     timestamp: str | None = None,
+    digest_tokens: int = 0,
+    working_set_before: int = 0,
+    working_set_after: int = 0,
 ) -> dict[str, Any]:
-    """Build one compaction telemetry record."""
+    """Build one compaction telemetry record.
+
+    ``net_tokens`` is derived rather than accepted, so a caller cannot record a
+    saving that does not net out against the digest it had to write.
+
+    The working-set pair is a **pessimistic** estimate of what an agent must
+    load at once: before is the heaviest single resident file, after is the
+    digest plus the heaviest single *retained* file. Framed that way the
+    after-figure carries a cost the before-figure does not, so the reported
+    improvement understates rather than flatters.
+    """
 
     if outcome not in OUTCOMES:
         raise ValueError(f"outcome must be one of {sorted(OUTCOMES)}")
@@ -68,6 +81,10 @@ def build_event(
         "reduction": reduction,
         "entries": entries,
         "reason": reason,
+        "digest_tokens": digest_tokens,
+        "net_tokens": (tokens_before - tokens_after) - digest_tokens,
+        "working_set_before": working_set_before,
+        "working_set_after": working_set_after,
     }
 
 
@@ -123,12 +140,26 @@ def read_events(ledger: str | Path) -> tuple[dict[str, Any], ...]:
 
 
 def summarize(ledger: str | Path) -> dict[str, Any]:
-    """Summarise compaction history for a harness or retrospective reading."""
+    """Summarise compaction history for a harness or retrospective reading.
+
+    Answers the question the v24.0.0 ledger could not: not "how many tokens
+    moved" but "was the folder cheaper to read afterwards, having paid for the
+    digest". Rows written before net accounting existed are counted separately
+    rather than defaulted to a zero digest cost, because treating an unknown
+    cost as free is how a tool comes to look like it always pays off.
+    """
 
     rows = read_events(ledger)
     applied = [row for row in rows if row.get("outcome") == OUTCOME_APPLIED]
     tokens_saved = sum(
         int(row.get("tokens_before", 0)) - int(row.get("tokens_after", 0)) for row in applied
+    )
+    accounted = [row for row in applied if "net_tokens" in row]
+    net_tokens_saved = sum(int(row["net_tokens"]) for row in accounted)
+    digest_cost = sum(int(row.get("digest_tokens", 0)) for row in accounted)
+    working_set_saved = sum(
+        int(row.get("working_set_before", 0)) - int(row.get("working_set_after", 0))
+        for row in accounted
     )
     reductions = [float(row.get("reduction", 0.0)) for row in applied]
     return {
@@ -137,6 +168,11 @@ def summarize(ledger: str | Path) -> dict[str, Any]:
         "planned": sum(1 for row in rows if row.get("outcome") == OUTCOME_PLANNED),
         "bypassed": sum(1 for row in rows if row.get("outcome") == OUTCOME_BYPASSED),
         "tokens_saved": tokens_saved,
+        "digest_cost": digest_cost,
+        "net_tokens_saved": net_tokens_saved,
+        "working_set_saved": working_set_saved,
+        "pays_for_itself": bool(accounted) and net_tokens_saved > 0,
+        "rows_without_net_accounting": len(applied) - len(accounted),
         "mean_reduction": round(sum(reductions) / len(reductions), 4) if reductions else 0.0,
         "folders": sorted({str(row.get("folder", "")) for row in rows if row.get("folder")}),
     }

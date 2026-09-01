@@ -30,6 +30,9 @@ _EXPECTED_EXPORTS = {
     "extract_retrospective_records",
     "render_digest_report",
     "to_learning_entries",
+    # v24.3.0 — the persistence window's own accessor, exported so a caller
+    # can see which cycles will be adopted before consenting to the write.
+    "recent_cycles",
 }
 
 

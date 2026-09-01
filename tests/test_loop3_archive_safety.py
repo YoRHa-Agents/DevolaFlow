@@ -162,6 +162,58 @@ def test_archive_consolidation_failure_restores_active_change(tmp_path: Path) ->
     assert "state: VERIFYING" in (active / "STATUS.yaml").read_text(encoding="utf-8")
 
 
+def test_ignored_review_note_outside_operation_scope_does_not_refuse(
+    tmp_path: Path,
+) -> None:
+    source = _task(tmp_path, "first")
+    (tmp_path / ".gitignore").write_text("code-review-notes.md\n", encoding="utf-8")
+    (tmp_path / "code-review-notes.md").write_text("operator note", encoding="utf-8")
+    _clean_repo(tmp_path)
+    plan = build_archive_plan(tmp_path)
+    entry = next(item for item in plan.entries if item.source.endswith("/first"))
+
+    inspection = inspect_safety(tmp_path, entry.source, entry.destination)
+    result = apply_archive_plan(tmp_path, plan, [entry])
+
+    assert "UNTRACKED_REVIEW_NOTE" not in _codes(inspection.findings)
+    assert inspection.safe
+    assert result.success
+    assert not source.exists()
+
+
+def test_review_named_source_itself_is_movable(tmp_path: Path) -> None:
+    source = _task(tmp_path, "legacy-review")
+    (tmp_path / ".gitignore").write_text(".local/tasks/legacy-review/\n", encoding="utf-8")
+    _clean_repo(tmp_path)
+    plan = build_archive_plan(tmp_path)
+    entry = next(item for item in plan.entries if item.source.endswith("/legacy-review"))
+
+    inspection = inspect_safety(tmp_path, entry.source, entry.destination)
+    result = apply_archive_plan(tmp_path, plan, [entry])
+
+    assert "UNTRACKED_REVIEW_NOTE" not in _codes(inspection.findings)
+    assert result.success
+    assert not source.exists()
+
+
+def test_ignored_review_note_inside_moved_source_still_refuses(
+    tmp_path: Path,
+) -> None:
+    source = _task(tmp_path, "second")
+    (tmp_path / ".gitignore").write_text("scratch-review.md\n", encoding="utf-8")
+    (source / "scratch-review.md").write_text("in-flight review", encoding="utf-8")
+    _clean_repo(tmp_path)
+    plan = build_archive_plan(tmp_path)
+    entry = next(item for item in plan.entries if item.source.endswith("/second"))
+
+    inspection = inspect_safety(tmp_path, entry.source, entry.destination)
+    result = apply_archive_plan(tmp_path, plan, [entry])
+
+    assert "UNTRACKED_REVIEW_NOTE" in _codes(inspection.findings)
+    assert result.refused
+    assert source.exists()
+
+
 def test_archive_move_rolls_back_when_directory_flush_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

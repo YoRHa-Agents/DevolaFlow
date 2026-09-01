@@ -88,6 +88,19 @@ The canonical implementation is
   that write. Only then may the L0 invoke the explicit
   `capture_digest_entries` boundary. Consent to review or curate is not
   consent to persist.
+- **Persistence is incremental (v24.3.0):** `to_learning_entries` converts
+  lessons from the current and previous cycle only. This repository's digest
+  reaches back more than twenty cycles; adopting all of it would file
+  conclusions about deleted code as live operational guidance, ranked beside
+  what the last release actually learned. Older cycles stay in the rendered
+  report, where a reader weighs them in context. Pass `cycles` to override the
+  window; pass `()` to convert everything.
+- **Two kinds of silence (v24.3.0):** a discovered source that contributes no
+  record is always listed in `silent_sources`. If its learnings or findings
+  heading was *found* and still yielded nothing, it is additionally listed in
+  `unparsed_sources` and the whole digest is `INSUFFICIENT` — a heading
+  promised evidence that did not arrive. A source with no such heading may
+  genuinely have none, so it is reported without downgrading the result.
 - **Learning metadata:** persisted lesson entries use confidence `0.9`,
   `ttl_days: 90`, and the standard learning confidence decay
   (`DEFAULT_DECAY_HALF_LIFE_DAYS`). These values do not apply to report-only

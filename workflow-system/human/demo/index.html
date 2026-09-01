@@ -401,11 +401,11 @@
 
         <div class="release-window">
           <article class="release-entry">
-            <h3 data-i18n="home.release.v19.heading">New in v24.2.0 · Durable Moves, Honest Refusals</h3>
+            <h3 data-i18n="home.release.v19.heading">New in v24.3.0 · Durability Queue Clearance</h3>
             <ul>
-              <li data-i18n="home.release.v19.governance">A run where every move committed no longer reports itself as refused because the digest found an anchor that stopped resolving.</li>
-              <li data-i18n="home.release.v19.archive">The digest table comes from the append-only ledger, so it is re-rendered even when the narration above it fails validation.</li>
-              <li data-i18n="home.release.v19.release">The retired-gate reader fix that restored evaluation in v24.0.0 is now covered by a test that actually reads one from a ledger.</li>
+              <li data-i18n="home.release.v19.governance">A mapping row is written before its file moves, so an interrupted apply leaves a pending move the next run completes instead of a file nothing records.</li>
+              <li data-i18n="home.release.v19.archive">Compaction telemetry answers whether a run paid for itself, using a working-set estimate deliberately chosen to never flatter the tool.</li>
+              <li data-i18n="home.release.v19.release">A read-only audit is now required before each retrospective, and declared vocabulary has to have a production writer.</li>
             </ul>
           </article>
 
@@ -526,10 +526,10 @@
       'home.seeds.compat': 'The nines-assisted filename remains an opaque compatibility ID. It does not activate or recommend an evaluator.',
       'home.release.heading': 'Current release window',
       'home.release.desc': 'Home keeps a compact v24 window. The former release stack belongs in Timeline, where older history can retain its original context.',
-      'home.release.v19.heading': 'New in v24.2.0 · Durable Moves, Honest Refusals',
-      'home.release.v19.governance': 'A run where every move committed no longer reports itself as refused because the digest found an anchor that stopped resolving.',
-      'home.release.v19.archive': 'The digest table comes from the append-only ledger, so it is re-rendered even when the narration above it fails validation.',
-      'home.release.v19.release': 'The retired-gate reader fix that restored evaluation in v24.0.0 is now covered by a test that actually reads one from a ledger.',
+      'home.release.v19.heading': 'New in v24.3.0 · Durability Queue Clearance',
+      'home.release.v19.governance': 'A mapping row is written before its file moves, so an interrupted apply leaves a pending move the next run completes instead of a file nothing records.',
+      'home.release.v19.archive': 'Compaction telemetry answers whether a run paid for itself, using a working-set estimate deliberately chosen to never flatter the tool.',
+      'home.release.v19.release': 'A read-only audit is now required before each retrospective, and declared vocabulary has to have a production writer.',
       'home.release.v18.heading': 'New in v21.1.0 · Skill Residency and Calibration Evidence',
       'home.release.v18.residency': 'The host contract now distinguishes skill delivery from an observed runtime skill_loaded fact, with explicit status and provenance requirements.',
       'home.release.v18.calibration': 'The harness adds bounded CLI probes and a reproducible calibration matrix for read-only, tool-heavy, multi-file, and recovery task classes.',
@@ -609,10 +609,10 @@
       'home.seeds.compat': 'nines-assisted 文件名仅作为不透明的兼容 ID 保留，不会激活或推荐任何评估器。',
       'home.release.heading': '当前发布窗口',
       'home.release.desc': '首页保留紧凑的 v24 窗口。更早的发布内容已归入时间线，让历史保留其原始上下文。',
-      'home.release.v19.heading': 'v24.2.0 新变化 · 移动是持久的，拒绝是诚实的',
-      'home.release.v19.governance': '所有搬迁都已落盘的那一次运行，不再因为摘要里某条锚点失效而把自己报成“被拒绝”。',
-      'home.release.v19.archive': '摘要表格来自只追加的台账，因此即便它上方的叙述未通过校验，表格依然会被重新渲染。',
-      'home.release.v19.release': 'v24.0.0 里恢复评估能力的退役门读取修复，现在终于有一条真正从台账里读出它的测试。',
+      'home.release.v19.heading': 'v24.3.0 新变化 · 耐久性清队',
+      'home.release.v19.governance': '台账行先于文件搬迁写入，因此中断的 apply 留下的是下一次运行可以补完的待完成搬迁，而不是一个无人记录的文件。',
+      'home.release.v19.archive': '压缩遥测现在能回答这次运行是否值回成本，而其工作集估算刻意选得悲观，从不美化工具自己。',
+      'home.release.v19.release': '每份回顾之前都必须先跑一遍只读审计，而声明过的词汇必须有生产代码写入它。',
       'home.release.v18.heading': 'v21.1.0 新变化 · Skill Residency and Calibration Evidence',
       'home.release.v18.residency': '主机契约现在区分技能交付与观测到的运行时 skill_loaded 事实，并明确状态与出处要求。',
       'home.release.v18.calibration': 'Harness 新增有界 CLI 探针与可复现校准矩阵，覆盖只读、工具密集、多文件和恢复任务类别。',

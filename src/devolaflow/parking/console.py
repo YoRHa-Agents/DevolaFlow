@@ -21,6 +21,12 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from devolaflow.cli_envelope import (
+    JsonUsageParser,
+    UsageError,
+    domain_envelope,
+    usage_envelope,
+)
 from devolaflow.parking.adopt import apply_adoption, plan_adoption
 from devolaflow.parking.models import ParkingError, RiskState, Severity
 from devolaflow.parking.store import ParkingStore
@@ -96,7 +102,7 @@ def _status_payload(store: ParkingStore) -> dict[str, Any]:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = JsonUsageParser(
         prog="devola-parking",
         description=(
             "Single write entry point for risk parking, the judgment ledger, "
@@ -325,19 +331,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run one parking command and print exactly one JSON object."""
 
     parser = _build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
+    try:
+        args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
+    except UsageError as exc:
+        print(_json(usage_envelope("parking-error", exc, schema_version=_SCHEMA_VERSION)), end="")
+        return PARKING_MALFORMED
     _resolve_shared_options(args)
     try:
         payload, exit_code = _dispatch(args)
     except (ParkingError, LedgerError) as exc:
         print(
             _json(
-                {
-                    "artifact_type": "parking-error",
-                    "schema_version": _SCHEMA_VERSION,
-                    "findings": [{"code": "PARKING_REFUSED", "message": str(exc)}],
-                    "healthy": False,
-                }
+                domain_envelope(
+                    "parking-error",
+                    "PARKING_REFUSED",
+                    str(exc),
+                    schema_version=_SCHEMA_VERSION,
+                )
             ),
             end="",
         )

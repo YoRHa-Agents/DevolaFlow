@@ -100,9 +100,30 @@ def resident_tokens(folder: Path, *, exclude: Iterable[Path] = ()) -> int:
     return total
 
 
+def largest_resident_tokens(folder: Path, *, exclude: Iterable[Path] = ()) -> int:
+    """Return the token cost of the single heaviest file still in the reading path.
+
+    The resident sum answers "what does this folder cost in total"; this
+    answers "what is the largest thing an agent has to load at once". The
+    v24.0.0 retrospective named those as the pair that has to be read
+    together, because a folder can shrink in total while the one document that
+    actually blocks a single-pass read does not move at all.
+    """
+
+    excluded = {path.resolve() for path in exclude}
+    largest = 0
+    for child in sorted(p for p in folder.rglob("*") if p.is_file()):
+        resolved = child.resolve()
+        if any(resolved == item or item in resolved.parents for item in excluded):
+            continue
+        largest = max(largest, measure_file(child).tokens)
+    return largest
+
+
 __all__ = [
     "TEXT_SUFFIXES",
     "PathMeasurement",
+    "largest_resident_tokens",
     "measure_file",
     "measure_path",
     "resident_tokens",

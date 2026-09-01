@@ -108,6 +108,43 @@ def _run_git(root: Path, args: Sequence[str]) -> tuple[str | None, Finding | Non
     return completed.stdout, None
 
 
+def _review_note_overlaps_scope(
+    status_output: str,
+    scope_paths: Sequence[str],
+    *,
+    marker: str | None = None,
+) -> bool:
+    """Return True when a review/note status path overlaps the operation scope.
+
+    ``git status --short`` lines carry a two-character code, a space, then a
+    repository-relative path. Only paths inside (or containing) the current
+    operation's source/destination subtrees can be endangered by the move;
+    review/note paths elsewhere in the repository must not block unrelated
+    operations, otherwise conventional artifact names (``*-review`` change
+    folders, ``v*_review_*`` research files) deadlock every apply. The
+    approved subject is exempt: the operator saw the full source/destination
+    path at approval time, so review/note is matched only against the path
+    remainder beneath a scope — content the approval did not spell out.
+    """
+
+    for line in status_output.splitlines():
+        if marker is not None and not line.startswith(marker):
+            continue
+        path = line[3:].strip()
+        if path.startswith('"') and path.endswith('"'):
+            path = path[1:-1]
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        candidate = path.rstrip("/")
+        for scope in scope_paths:
+            if not candidate.startswith(scope + "/"):
+                continue
+            remainder = candidate[len(scope) + 1 :].lower()
+            if "review" in remainder or "note" in remainder:
+                return True
+    return False
+
+
 def inspect_safety(
     repo_root: str | Path,
     source: str | Path,
@@ -129,6 +166,7 @@ def inspect_safety(
         return SafetyInspection(False, tuple(findings))
     assert source_rel is not None
     source_path = root / source_rel
+    scope_paths: list[str] = [source_rel.as_posix()]
     destination_path: Path | None = None
     if destination is not None:
         destination_rel, destination_error = _relative_path(root, destination)
@@ -137,6 +175,7 @@ def inspect_safety(
         else:
             assert destination_rel is not None
             destination_path = root / destination_rel
+            scope_paths.append(destination_rel.as_posix())
     source_root = root / source_boundary
     destination_root = root / (destination_boundary or source_boundary)
     for label, path in (("source", source_path), ("destination", destination_path)):
@@ -196,9 +235,7 @@ def inspect_safety(
         findings.append(
             _finding("DIRTY_TREE", "git status contains staged, unstaged, or untracked paths")
         )
-        if any(
-            "review" in line.lower() or "note" in line.lower() for line in git_status.splitlines()
-        ):
+        if _review_note_overlaps_scope(git_status, scope_paths):
             findings.append(
                 _finding("UNTRACKED_REVIEW_NOTE", "git status contains a review/note path")
             )
@@ -217,10 +254,7 @@ def inspect_safety(
     )
     if ignored_error:
         findings.append(ignored_error)
-    elif ignored_status and any(
-        line.startswith("!!") and ("review" in line.lower() or "note" in line.lower())
-        for line in ignored_status.splitlines()
-    ):
+    elif ignored_status and _review_note_overlaps_scope(ignored_status, scope_paths, marker="!!"):
         findings.append(
             _finding("UNTRACKED_REVIEW_NOTE", "ignored review/note path requires review")
         )

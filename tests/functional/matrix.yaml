@@ -237,7 +237,7 @@ rows:
     expected: parking probe reports runtime and write availability as JSON
     design_source:
       - pyproject.toml#project.scripts
-      - .local/research/v24.0.0_design_adr.md#5
+      - .local/research/archive/24.0.0/v24.0.0_design_adr.md#5
   - id: pv1.console.devola-compact
     domain: workspace_context_management
     surface: console_script
@@ -249,7 +249,7 @@ rows:
     expected: compact planning reports JSON without moving or deleting anything
     design_source:
       - pyproject.toml#project.scripts
-      - .local/research/v24.0.0_design_adr.md#5
+      - .local/research/archive/24.0.0/v24.0.0_design_adr.md#5
   # PV-1 O-04 — maintained python -m paths use the same subprocess contract.
   - id: pv1.module.devolaflow-build-skill
     domain: agent_skill_delivery

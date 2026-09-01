@@ -101,6 +101,7 @@ from devolaflow.skills.retro_digest import (
     extract_digest_records,
     extract_evaluation_findings,
     extract_retrospective_records,
+    recent_cycles,
     render_digest_report,
     to_learning_entries,
 )
@@ -146,6 +147,7 @@ __all__: list[str] = [
     "infer_context_layout",
     "propose_canonical_term",
     "qualifies_as_adr",
+    "recent_cycles",
     "render_digest_report",
     "select_pattern",
     "to_learning_entries",

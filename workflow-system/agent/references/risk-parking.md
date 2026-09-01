@@ -113,6 +113,22 @@ open ──▶ parked ──▶ active ──▶ mitigating ──▶ closed ─
 `archived` is terminal. Reopening it would leave the mapping ledger describing
 a relocated file that came back, so a recurrence starts a new risk instead.
 
+### `archived` lives in the ledger, not in the file
+
+For an archived risk, `events.yaml` is authoritative and the relocated file is
+not. Compaction appends `risk_archived` and deliberately leaves the original
+byte-identical, so a reader who opens it sees the `state:` it had when it
+moved — usually `closed`.
+
+That is the intended trade, not an oversight. Approval for the move is bound to
+the original's content hash, and `verify` re-checks that hash to substantiate
+the zero-loss claim. Rewriting one line of frontmatter would invalidate both,
+which is a worse failure than a stale field in a file the reader reached
+*through* a mapping row that already says the risk is archived.
+
+So: read state from `events.yaml`, or from `INDEX.md`, which is generated from
+it. `DIGEST.md` names the mapping row for every relocated original.
+
 "Needs a decision" is deliberately **not** a state. It is a reference into
 `judgments.yaml`, so a risk can be actively worked while one of its open
 questions waits for the operator.

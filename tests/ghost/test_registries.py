@@ -278,6 +278,12 @@ _SF4_REFERENCE_SET = frozenset(
         # content hashes, an append-only mapping ledger, and a dual-layer
         # digest whose narration must carry resolvable verbatim anchors.
         "workspace-compact.md",
+        # v24.3.0 — the read-only per-cycle audit sweep W-7 requires before a
+        # retrospective is authored. Findings are parked, never fixed in the
+        # same pass; the surfaces covered and the count, including zero, are
+        # reported. Institutionalises the pass that returned a blocker plus a
+        # critical in v24.2.0 with every gate green.
+        "cycle-audit.md",
     }
 )
 

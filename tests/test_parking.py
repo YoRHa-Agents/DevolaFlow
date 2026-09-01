@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from devolaflow.parking import (
@@ -246,3 +248,39 @@ def test_console_accepts_folder_after_the_subcommand(tmp_path, capsys):
     assert parking_main(["--folder", str(folder), "status"]) == 0
     assert capsys.readouterr().out == after, "both argument orders must agree exactly"
     assert "after-order" in after
+
+
+def test_a_malformed_invocation_still_prints_one_json_object(tmp_path, capsys):
+    """The docstring promises one JSON object on stdout; argparse promised nothing."""
+    code = parking_main(["frobnicate", "--folder", str(tmp_path)])
+    captured = capsys.readouterr()
+
+    assert code == 2, "the exit code must not change; only the payload is new"
+    assert captured.err == ""
+    payload = json.loads(captured.out)
+    assert payload["artifact_type"] == "parking-error"
+    assert payload["error_kind"] == "usage"
+    assert "devola-parking" in payload["usage"]
+
+
+def test_a_domain_refusal_names_itself_as_one(store, capsys):
+    """Exit 2 is shared, so the payload has to say which kind of 2 it is."""
+    assert (
+        parking_main(
+            [
+                "transition",
+                "--folder",
+                str(store.folder),
+                "--risk",
+                "RISK-404",
+                "--to",
+                "closed",
+                "--reason",
+                "nope",
+            ]
+        )
+        == 2
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error_kind"] == "domain"
+    assert payload["findings"][0]["code"] == "PARKING_REFUSED"

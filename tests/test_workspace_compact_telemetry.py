@@ -227,3 +227,101 @@ def test_plan_records_planned_when_the_move_pays_for_itself(tmp_path, capsys):
 
     rows = read_events(ledger)
     assert rows[0]["outcome"] == OUTCOME_PLANNED
+
+
+# ── v24.3.0 — the ledger can answer whether compaction paid off ─────
+
+
+def test_a_row_carries_the_digest_it_had_to_write(tmp_path):
+    """Gross savings alone cannot say whether the folder got cheaper to read."""
+    event = build_event(
+        "task",
+        OUTCOME_APPLIED,
+        tokens_before=1000,
+        tokens_after=400,
+        entries=3,
+        digest_tokens=250,
+        working_set_before=800,
+        working_set_after=430,
+    )
+    assert event["digest_tokens"] == 250
+    assert event["net_tokens"] == 350
+    assert event["working_set_before"] == 800
+    assert event["working_set_after"] == 430
+
+
+def test_net_tokens_is_derived_and_cannot_be_overstated(tmp_path):
+    """A caller must not be able to record a saving that ignores the digest."""
+    event = build_event(
+        "task",
+        OUTCOME_APPLIED,
+        tokens_before=500,
+        tokens_after=400,
+        entries=1,
+        digest_tokens=300,
+    )
+    assert event["net_tokens"] == -200, "a move that costs more must read as negative"
+
+
+def test_summarize_answers_whether_compaction_paid_for_itself(tmp_path):
+    ledger = tmp_path / "compact.jsonl"
+    append_event(
+        ledger,
+        build_event(
+            "a",
+            OUTCOME_APPLIED,
+            tokens_before=1000,
+            tokens_after=300,
+            entries=2,
+            digest_tokens=200,
+            working_set_before=900,
+            working_set_after=500,
+        ),
+    )
+    summary = summarize(ledger)
+    assert summary["tokens_saved"] == 700
+    assert summary["digest_cost"] == 200
+    assert summary["net_tokens_saved"] == 500
+    assert summary["working_set_saved"] == 400
+    assert summary["pays_for_itself"] is True
+    assert summary["rows_without_net_accounting"] == 0
+
+
+def test_a_row_predating_net_accounting_is_named_not_assumed_free(tmp_path):
+    """An unknown digest cost must not be defaulted to zero and counted as profit."""
+    ledger = tmp_path / "compact.jsonl"
+    legacy = build_event("a", OUTCOME_APPLIED, tokens_before=1000, tokens_after=300, entries=2)
+    del legacy["net_tokens"]
+    del legacy["digest_tokens"]
+    append_event(ledger, legacy)
+
+    summary = summarize(ledger)
+    assert summary["applied"] == 1
+    assert summary["tokens_saved"] == 700
+    assert summary["rows_without_net_accounting"] == 1
+    assert summary["net_tokens_saved"] == 0
+    assert summary["pays_for_itself"] is False
+
+
+def test_an_applied_run_records_the_working_set_pair(tmp_path):
+    """The pair has to come from a real run, not only from a hand-built record."""
+    folder = tmp_path / "task"
+    folder.mkdir()
+    (folder / "goal.md").write_text("# goal\n", encoding="utf-8")
+    (folder / "loops").mkdir()
+    (folder / "loops" / "round0.md").write_text("narration line\n" * 60, encoding="utf-8")
+
+    ledger = tmp_path / "compact.jsonl"
+    plan = build_plan(folder)
+    result = apply_plan(
+        folder,
+        plan,
+        approval_fingerprint=plan.fingerprint,
+        telemetry_ledger=ledger,
+    )
+    assert result.success
+
+    row = read_events(ledger)[-1]
+    assert row["digest_tokens"] > 0, "the digest it wrote must be priced"
+    assert row["net_tokens"] == (row["tokens_before"] - row["tokens_after"]) - row["digest_tokens"]
+    assert row["working_set_after"] >= row["digest_tokens"], "the digest is in the reading path"
