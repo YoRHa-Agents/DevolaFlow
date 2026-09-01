@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "workflow-system/human/demo/index.html"
+        ],
+        "createdAt": "2026-09-01T03:23:26.023Z",
+        "reason": "Pre-existing NieR: Automata demo identity (ST-2); .boundary-note and .runtime-callout left accents predate this change and are out of scope for a v24.1.0 version-propagation edit"
+      }
+    ]
+  }
+}
