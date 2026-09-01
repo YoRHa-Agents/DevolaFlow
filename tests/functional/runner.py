@@ -47,6 +47,7 @@ KNOWN_DOMAINS = frozenset(
         "code_intelligence",
         "compression_pipeline",
         "local_task_archive",
+        "workspace_context_management",
         "hostbridge_protocol",
         "agent_skill_delivery",
         "npm_installer_delivery",
@@ -382,6 +383,36 @@ _CONSOLE_SCRIPT_CASES: dict[str, EntrypointCase] = {
         malformed_exit_codes=frozenset({2}),
         malformed_stdout=('"MALFORMED_PLAN"',),
     ),
+    # v24.0.0 — the probe subcommand is the availability contract itself: an
+    # agent runs it to learn whether tool-mediated writes are possible at all.
+    "devola-parking": EntrypointCase(
+        "console_script",
+        ("probe",),
+        frozenset({0}),
+        expected_stdout=('"runtime_available": true',),
+        malformed_args=(
+            "--folder",
+            "{repo_root}",
+            "transition",
+            "--risk",
+            "RISK-404",
+            "--to",
+            "closed",
+            "--reason",
+            "none",
+        ),
+        malformed_exit_codes=frozenset({2}),
+        malformed_stdout=('"PARKING_REFUSED"',),
+    ),
+    "devola-compact": EntrypointCase(
+        "console_script",
+        ("probe",),
+        frozenset({0}),
+        expected_stdout=('"runtime_available": true',),
+        malformed_args=("--folder", "{repo_root}/missing-folder", "plan"),
+        malformed_exit_codes=frozenset({2}),
+        malformed_stdout=('"COMPACT_REFUSED"',),
+    ),
 }
 
 
@@ -612,6 +643,21 @@ def _console_script_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcom
 
 def _python_module_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
     return run_entrypoint(row, repo_root)
+
+
+def _npm_pack_entries(payload: object) -> list[dict[str, Any]]:
+    """Normalise `npm pack --json` across the two shapes npm has shipped.
+
+    npm emitted a list of pack results for years and now emits an object keyed
+    by package name. The delivery contract is the packed file set, which is
+    the same either way, so the check does not depend on which npm is present.
+    """
+
+    if isinstance(payload, list):
+        return [entry for entry in payload if isinstance(entry, dict)]
+    if isinstance(payload, dict):
+        return [entry for entry in payload.values() if isinstance(entry, dict)]
+    raise ValueError(f"unrecognised npm pack --json payload: {type(payload).__name__}")
 
 
 def _outcome(
@@ -1262,10 +1308,11 @@ def _check_npm_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
         )
         if dry_run.returncode != 0:
             return _outcome(row, OutcomeStatus.FAIL, "offline npm dry-run failed")
+
         try:
-            dry_metadata = json.loads(dry_run.stdout)
-            dry_files = {entry["path"] for entry in dry_metadata[0]["files"]}
-        except (IndexError, KeyError, TypeError, json.JSONDecodeError):
+            dry_entries = _npm_pack_entries(json.loads(dry_run.stdout))
+            dry_files = {entry["path"] for entry in dry_entries[0]["files"]}
+        except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError):
             return _outcome(row, OutcomeStatus.FAIL, "npm dry-run output was malformed")
         packed_dir = root / "packed"
         packed_dir.mkdir()
@@ -1289,11 +1336,20 @@ def _check_npm_adapter(row: MatrixRow, repo_root: Path) -> FunctionalOutcome:
         if packed.returncode != 0:
             return _outcome(row, OutcomeStatus.FAIL, "offline npm pack failed")
         try:
-            tarball = packed_dir / json.loads(packed.stdout)[0]["filename"]
+            packed_entries = _npm_pack_entries(json.loads(packed.stdout))
+            tarball = packed_dir / packed_entries[0]["filename"]
             with tarfile.open(tarball) as archive:
                 names = archive.getnames()
                 archive.extractall(root / "extracted")
-        except (IndexError, KeyError, TypeError, json.JSONDecodeError, OSError, tarfile.TarError):
+        except (
+            IndexError,
+            KeyError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+            OSError,
+            tarfile.TarError,
+        ):
             return _outcome(row, OutcomeStatus.FAIL, "npm tarball output was malformed")
         packed_bin = root / "extracted" / "package" / "bin" / "devola-flow.js"
         help_result = subprocess.run(

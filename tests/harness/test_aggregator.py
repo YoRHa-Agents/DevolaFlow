@@ -511,3 +511,132 @@ def test_aggregation_is_identical_across_three_runs(tmp_path: Path) -> None:
     ]
 
     assert rendered[0].encode() == rendered[1].encode() == rendered[2].encode()
+
+
+# --------------------------------------------------------------------------
+# v24.1.0 — F-00 class fix: one bad row must not cost the whole ledger
+# --------------------------------------------------------------------------
+
+
+def test_strict_read_still_aborts_on_a_malformed_row(tmp_path: Path) -> None:
+    """The default is unchanged: strict callers keep getting a hard failure."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + "{not json\n" + json.dumps(_record("d-2")) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(AggregationError):
+        load_ledger_records(ledger)
+
+
+def test_quarantine_isolates_a_bad_row_and_keeps_the_rest(tmp_path: Path) -> None:
+    """F-00: a single unreadable row made the entire ledger unreadable.
+
+    Naming the one retired gate fixed that row. This pins the shape of the
+    failure instead: the next unforeseen row costs one record, not every
+    reading downstream of the ledger.
+    """
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + "{not json\n" + json.dumps(_record("d-2")) + "\n",
+        encoding="utf-8",
+    )
+
+    quarantined: list = []
+    records = load_ledger_records(ledger, quarantine=quarantined)
+
+    assert [record["dispatch_id"] for record in records] == ["d-1", "d-2"]
+    assert len(quarantined) == 1
+    assert quarantined[0].line == 2
+    assert "invalid JSON" in quarantined[0].reason
+
+
+def test_quarantine_never_swallows_the_row_silently(tmp_path: Path, caplog) -> None:
+    """Isolation must remain loud (S-5): logged and returned, never dropped."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + json.dumps({"dispatch_id": "incomplete"}) + "\n",
+        encoding="utf-8",
+    )
+
+    quarantined: list = []
+    with caplog.at_level("WARNING"):
+        records = load_ledger_records(ledger, quarantine=quarantined)
+
+    assert len(records) == 1
+    assert len(quarantined) == 1
+    assert "quarantined unreadable ledger row" in caplog.text
+
+
+def test_quarantine_still_fails_when_no_row_survives(tmp_path: Path) -> None:
+    """Isolation salvages a ledger; it must not manufacture an empty PASS."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text("{not json\n", encoding="utf-8")
+
+    with pytest.raises(AggregationError, match="contains no records"):
+        load_ledger_records(ledger, quarantine=[])
+
+
+def test_a_retired_gate_row_loads_from_a_real_ledger(tmp_path: Path, caplog) -> None:
+    """The F-00 fix was to the reader, so read it.
+
+    The existing coverage asserts the writer refuses a retired name and that
+    the frozenset holds the right entries. Both would still pass if this call
+    raised — which is precisely the outage. Strict mode, no quarantine: a
+    retired name must cost a warning and nothing else.
+    """
+    from devolaflow.harness.telemetry import RETIRED_SI10_GATE_NAMES
+
+    retired = next(iter(RETIRED_SI10_GATE_NAMES))
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "event": "si10_gate",
+                "event_id": f"si10_gate:PV-5:{retired}:PASS",
+                "ts": "2026-08-28T04:19:02.034067+00:00",
+                "pv": "PV-5",
+                "gate": retired,
+                "status": "PASS",
+            }
+        )
+        + "\n"
+        + json.dumps(_record("d-1"))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("WARNING"):
+        records = load_ledger_records(ledger)
+
+    assert len(records) == 2
+    assert records[0]["gate"] == retired
+    assert "retaining retired SI-10 gate" in caplog.text
+
+
+def test_an_unknown_gate_name_still_aborts_a_strict_read(tmp_path: Path) -> None:
+    """Retirement is an explicit list, not an open door.
+
+    If an unrecognised gate were tolerated, the retired-name vocabulary would
+    stop meaning anything and a typo would enter the ledger unnoticed.
+    """
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "event": "si10_gate",
+                "event_id": "si10_gate:PV-5:test-kore:PASS",
+                "ts": "2026-08-28T04:19:02.034067+00:00",
+                "pv": "PV-5",
+                "gate": "test-kore",
+                "status": "PASS",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AggregationError, match="SI-10 gate must be one of"):
+        load_ledger_records(ledger)

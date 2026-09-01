@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "23.1.0"
+version = "24.2.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -40,6 +40,11 @@ devola-init-doctor = "devolaflow.cli:doctor_cmd"
 # Closes D-P-4 + D-P-8 from `.local/research/v9.4.0_gap_analysis.md` §3.2.
 devolaflow-plugins = "devolaflow.cli:plugins_cmd"
 devola-local-archive = "devolaflow.cli:local_archive_cmd"
+# v24.0.0 — workspace context management: risk parking / judgment ledger and
+# non-destructive workspace compaction. Both are the sole write entry points
+# for the surfaces they own (v24-ADR-001 §5).
+devola-parking = "devolaflow.parking.console:parking_cmd"
+devola-compact = "devolaflow.workspace_compact.console:compact_cmd"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2521,5 +2521,44 @@
       "Evidence boundary — 12/12 execution cells pass, provider usage is available for 8/12, and ROI remains INSUFFICIENT"
     ],
     "metrics": {}
+  },
+  {
+    "version": "24.0.0",
+    "date": "2026-09-01",
+    "era": "workspace-compaction",
+    "headline": "MAJOR — Workspace Compaction and Risk Parking",
+    "summary": "Risk parking gives every risk its own file and lifecycle, workspace compaction relocates and indexes instead of summarising and discarding, and approval binds to content hashes rather than standing consent.",
+    "highlights": [
+      "Risk parking — one file per risk with an append-only judgment ledger that records a decision without editing the question",
+      "Workspace compaction — archived originals re-hash to their recorded value, so a compacted folder loses nothing",
+      "Approval discipline — unattended runs leave a plan queued instead of applying it"
+    ],
+    "metrics": {}
+  },
+  {
+    "version": "24.1.0",
+    "date": "2026-09-01",
+    "era": "workspace-compaction",
+    "headline": "MINOR — Self-Digest: What v24 Got Wrong",
+    "summary": "Running v24 against the real repository instead of a fixture exposed a dead-ended compaction funnel, dead telemetry vocabulary, and a retro-digest that silently skipped its two newest sources.",
+    "highlights": [
+      "Net-benefit accounting — a plan prices the digest it would write and reports whether compaction pays for itself",
+      "Include candidates — the heaviest retained files are surfaced with the exact --include invocation, so scan no longer dead-ends at plan",
+      "S-9.1 — tool-mediated relocation of an archived change's handoff envelopes, with content rewrite and deletion still prohibited"
+    ],
+    "metrics": {}
+  },
+  {
+    "version": "24.2.0",
+    "date": "2026-09-01",
+    "era": "workspace-compaction",
+    "headline": "MINOR — Durable Moves, Honest Refusals",
+    "summary": "Two findings parked at the close of v24.1.0 concerned a result that contradicts the filesystem: a committed apply reporting itself refused, and a digest table withheld over agent prose.",
+    "highlights": [
+      "Separated outcomes — digest_findings and digest_current sit alongside findings and refused, so a durable move never reads as a refusal",
+      "Ledger table always re-rendered — narration problems are reported without hiding the rows the digest exists to list",
+      "The v24.0.0 retired-gate reader fix is finally covered by a test that reads one from a ledger"
+    ],
+    "metrics": {}
   }
 ]

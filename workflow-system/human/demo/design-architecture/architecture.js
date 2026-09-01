@@ -53,11 +53,13 @@
     reference("plan-mode-enforcement"),
     reference("repo-modes"),
     reference("retro-digest"),
+    reference("risk-parking"),
     reference("memory-router"),
     reference("subagent-patterns"),
     reference("task-quality-score"),
     reference("team-roles"),
-    reference("troubleshooting")
+    reference("troubleshooting"),
+    reference("workspace-compact")
   ]);
 
   var knowledgeInventory = Object.freeze([

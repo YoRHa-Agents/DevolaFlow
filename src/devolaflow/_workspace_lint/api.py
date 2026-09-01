@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from .common import *  # noqa: F403
+from .parking_semantics import lint_compact_surface, lint_parking_surface
 
 
 def lint_change(
@@ -138,6 +139,10 @@ def _lint_folder(
     _lint_evidence_sizes(change_folder, report)
     _check_harness_preflight(change_folder, repo_root=repo_root, report=report, cache=cache)
     _check_pathfinder_report(change_folder, repo_root=repo_root, report=report, cache=cache)
+    # v24.0.0 — the tool-owned surfaces are re-rendered from their ledgers and
+    # compared, so an edit that bypassed the write-time hook still surfaces.
+    lint_parking_surface(change_folder, report)
+    lint_compact_surface(change_folder, report)
     if layout is ChangeLayout.CHECKLIST:
         _lint_checklist_semantics(
             change_folder,

@@ -1,0 +1,1720 @@
+{
+  "schema_version": 1,
+  "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+  "threshold": 8.5,
+  "scores": [
+    {
+      "id": "code_quality",
+      "score": 10.0,
+      "weight": 0.2,
+      "metadata": {
+        "subcomponents": {
+          "ruff_lint": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "ruff_format": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "coverage": {
+            "score": 10.0,
+            "available": true,
+            "value": 90.0
+          }
+        }
+      }
+    },
+    {
+      "id": "architecture_rationality",
+      "score": 9.29,
+      "weight": 0.2,
+      "metadata": {
+        "subcomponents": {
+          "layout_invariant": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "quantifiable_ratio": {
+            "score": 8.57,
+            "available": true,
+            "value": 0.8571428571428571
+          }
+        }
+      }
+    },
+    {
+      "id": "test_adequacy",
+      "score": 10.0,
+      "weight": 0.2,
+      "metadata": {
+        "subcomponents": {
+          "test_suite": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "coverage": {
+            "score": 10.0,
+            "available": true,
+            "value": 90.0
+          },
+          "w17": {
+            "score": 10.0,
+            "available": true,
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "maintainability",
+      "score": 9.84,
+      "weight": 0.15,
+      "metadata": {
+        "subcomponents": {
+          "ruff_format": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "docstrings": {
+            "score": 9.69,
+            "available": true,
+            "value": 96.87721788502483
+          }
+        }
+      }
+    },
+    {
+      "id": "compatibility",
+      "score": 10.0,
+      "weight": 0.1,
+      "metadata": {
+        "subcomponents": {
+          "layout_invariant": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          },
+          "compatibility_suite": {
+            "score": 10.0,
+            "available": true,
+            "value": true
+          }
+        }
+      }
+    },
+    {
+      "id": "performance_impact",
+      "score": 10.0,
+      "weight": 0.15,
+      "metadata": {
+        "subcomponents": {
+          "budget_compliance_ratio": {
+            "score": 10.0,
+            "available": true,
+            "value": 1.0
+          },
+          "p95_headroom": {
+            "score": 10.0,
+            "available": true,
+            "value": 0.28725
+          }
+        }
+      }
+    }
+  ],
+  "composite": 9.83,
+  "auto_fill_rate": 1.0,
+  "verdict": "READY",
+  "harness_summary": {
+    "schema_version": 1,
+    "records": 13,
+    "events": [],
+    "changes": [
+      "v17-r1-cleanup",
+      "v17-r2-boundaries",
+      "v17-r3-injection",
+      "v17-r4-focus-loop",
+      "v17-r5-model-boundaries"
+    ],
+    "rounds": {
+      "min": 1,
+      "max": 5,
+      "distinct": 5
+    },
+    "tokens": {
+      "total": 18585,
+      "mean": 1429.6153846153845,
+      "p50": 1394,
+      "p95": 2298,
+      "budget_compliance_ratio": 1.0,
+      "p95_budget_utilization": 0.28725,
+      "estimated_host_rule_tokens_mean": 12430.0,
+      "estimated_agents_md_tokens_mean": null,
+      "slice_savings_pct_mean": 49.61538461538461,
+      "context_tokens": {
+        "skill_tokens": {
+          "mean": null,
+          "observed_records": 0,
+          "status": "INSUFFICIENT"
+        },
+        "rule_tokens": {
+          "mean": null,
+          "observed_records": 0,
+          "status": "INSUFFICIENT"
+        },
+        "report_tokens": {
+          "mean": null,
+          "observed_records": 0,
+          "status": "INSUFFICIENT"
+        }
+      },
+      "by_layer": {
+        "L1": {
+          "records": 4,
+          "total": 3206,
+          "mean": 801.5,
+          "p50": 799,
+          "p95": 923,
+          "budget_compliance_ratio": 1.0,
+          "p95_budget_utilization": 0.1846
+        },
+        "L2": {
+          "records": 9,
+          "total": 15379,
+          "mean": 1708.7777777777778,
+          "p50": 1613,
+          "p95": 2298,
+          "budget_compliance_ratio": 1.0,
+          "p95_budget_utilization": 0.28725
+        }
+      }
+    },
+    "constraints": {
+      "count": 140,
+      "tier_breakdown": {
+        "invariant": 40,
+        "guard": 80,
+        "advisory": 20
+      },
+      "quantifiable_ratio": 0.8571428571428571,
+      "advisory_folded_ratio": 0.07692307692307693
+    },
+    "models": {
+      "inherit": 12,
+      "quality": 1
+    },
+    "measurements": {
+      "estimated_agents_md_tokens": {
+        "mean": 10485.285714285714,
+        "observed_records": 7,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      },
+      "suite_wall_seconds": {
+        "mean": 216.80749955384195,
+        "observed_records": 7,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      },
+      "cjk_violations": {
+        "mean": 0.0,
+        "observed_records": 7,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      },
+      "ghost_loc": {
+        "mean": 12685.714285714286,
+        "observed_records": 7,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      }
+    },
+    "metadata_records": [
+      {
+        "run_id": "v21.3.0-t2-20260830",
+        "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+        "generated_at": "2026-08-30T10:28:15.790475+00:00",
+        "salt": "v21.3.0-t2-test-salt-20260830",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "feature/v21.3-telemetry-evidence",
+        "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      },
+      {
+        "run_id": "v21.3-main-post-merge",
+        "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+        "generated_at": "2026-08-30T10:58:52.947676+00:00",
+        "salt": "v21.3-main-post-merge-salt",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "main",
+        "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      },
+      {
+        "run_id": "run-v21-3-metadata-regression-20260830",
+        "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+        "generated_at": "2026-08-30T11:06:46.486732+00:00",
+        "salt": "v21-3-metadata-regression-20260830",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+        "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      },
+      {
+        "run_id": "t2-regression-20260830-2143",
+        "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+        "generated_at": "2026-08-30T13:44:46.633388+00:00",
+        "salt": "t2-salt-20260830-2143",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+        "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      },
+      {
+        "run_id": "v21.3-main-post-t2-fix",
+        "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+        "generated_at": "2026-08-30T13:57:06.407969+00:00",
+        "salt": "v21.3-main-post-t2-fix-salt",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "main",
+        "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      },
+      {
+        "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+        "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+        "generated_at": "2026-09-01T01:26:23.965933+00:00",
+        "salt": null,
+        "salt_status": "INSUFFICIENT",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "release/v23.1.0-c7",
+        "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "INSUFFICIENT"
+      },
+      {
+        "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+        "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+        "generated_at": "2026-09-01T02:03:16.829223+00:00",
+        "salt": null,
+        "salt_status": "INSUFFICIENT",
+        "ledger_path": ".local/telemetry/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "release/v23.1.0-c7",
+        "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "INSUFFICIENT"
+      }
+    ],
+    "token_injection": {
+      "records": 1,
+      "coverage": {
+        "observed_records": 0,
+        "total_records": 1,
+        "ratio": 0.0,
+        "status": "INSUFFICIENT"
+      },
+      "status": "INSUFFICIENT",
+      "by_host_channel": {
+        "kimicode/kimi": {
+          "records": 1,
+          "complete_records": 0,
+          "coverage": {
+            "observed_records": 0,
+            "total_records": 1,
+            "ratio": 0.0,
+            "status": "INSUFFICIENT"
+          },
+          "components": {
+            "skill": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "rule": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "report": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "context": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "provider_usage": {
+            "input": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "output": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "total": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "status": "INSUFFICIENT"
+        }
+      },
+      "by_host": {
+        "kimicode": {
+          "records": 1,
+          "complete_records": 0,
+          "coverage": {
+            "observed_records": 0,
+            "total_records": 1,
+            "ratio": 0.0,
+            "status": "INSUFFICIENT"
+          },
+          "components": {
+            "skill": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "rule": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "report": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "context": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "provider_usage": {
+            "input": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "output": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "total": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "status": "INSUFFICIENT"
+        }
+      },
+      "by_channel": {
+        "kimi": {
+          "records": 1,
+          "complete_records": 0,
+          "coverage": {
+            "observed_records": 0,
+            "total_records": 1,
+            "ratio": 0.0,
+            "status": "INSUFFICIENT"
+          },
+          "components": {
+            "skill": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "rule": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "report": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "context": {
+              "mean": null,
+              "variance": null,
+              "interval": null,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "provider_usage": {
+            "input": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "output": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            },
+            "total": {
+              "mean": null,
+              "observed_records": 0,
+              "coverage": {
+                "observed_records": 0,
+                "total_records": 1,
+                "ratio": 0.0,
+                "status": "INSUFFICIENT"
+              },
+              "status": "INSUFFICIENT"
+            }
+          },
+          "status": "INSUFFICIENT"
+        }
+      }
+    },
+    "metadata": {
+      "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+      "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+      "generated_at": "2026-09-01T02:03:16.829223+00:00",
+      "salt": null,
+      "salt_status": "INSUFFICIENT",
+      "ledger_path": ".local/telemetry/harness.jsonl",
+      "ledger_status": "AVAILABLE",
+      "repo_ref": "release/v23.1.0-c7",
+      "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+      "base_ref": "HEAD~1",
+      "base_ref_status": "AVAILABLE",
+      "repo_status": "AVAILABLE",
+      "status": "INSUFFICIENT"
+    }
+  },
+  "measurements": {
+    "estimated_agents_md_tokens": {
+      "available": true,
+      "value": 10485.285714285714,
+      "status": "AVAILABLE",
+      "source": "telemetry",
+      "provenance": {
+        "observations": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      }
+    },
+    "suite_wall_seconds": {
+      "available": true,
+      "value": 216.80749955384195,
+      "status": "AVAILABLE",
+      "source": "telemetry",
+      "provenance": {
+        "observations": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      }
+    },
+    "cjk_violations": {
+      "available": true,
+      "value": 0.0,
+      "status": "AVAILABLE",
+      "source": "telemetry",
+      "provenance": {
+        "observations": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      }
+    },
+    "ghost_loc": {
+      "available": true,
+      "value": 12685.714285714286,
+      "status": "AVAILABLE",
+      "source": "telemetry",
+      "provenance": {
+        "observations": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3.0-t2-20260830",
+              "sampled_at": "2026-08-30T10:28:15.790475+00:00",
+              "generated_at": "2026-08-30T10:28:15.790475+00:00",
+              "salt": "v21.3.0-t2-test-salt-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "feature/v21.3-telemetry-evidence",
+              "repo_sha": "548ed5a3c1eb3665df390f7b75f78ec081f03434",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-merge",
+              "sampled_at": "2026-08-30T10:58:52.947676+00:00",
+              "generated_at": "2026-08-30T10:58:52.947676+00:00",
+              "salt": "v21.3-main-post-merge-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-v21-3-metadata-regression-20260830",
+              "sampled_at": "2026-08-30T11:06:46.486732+00:00",
+              "generated_at": "2026-08-30T11:06:46.486732+00:00",
+              "salt": "v21-3-metadata-regression-20260830",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "t2-regression-20260830-2143",
+              "sampled_at": "2026-08-30T13:44:46.633388+00:00",
+              "generated_at": "2026-08-30T13:44:46.633388+00:00",
+              "salt": "t2-salt-20260830-2143",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "fix/v21.3-telemetry-multi-run-metadata",
+              "repo_sha": "6b6a39a361a309e3de26dd9e3f4bf367c5f966ee",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "v21.3-main-post-t2-fix",
+              "sampled_at": "2026-08-30T13:57:06.407969+00:00",
+              "generated_at": "2026-08-30T13:57:06.407969+00:00",
+              "salt": "v21.3-main-post-t2-fix-salt",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "main",
+              "repo_sha": "30b8012e6dd504c2473a1e00ba43effae0a41a8a",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-56fca8b6a9e0de6353809acbebd8d0f429d62a63ee95ce198321165e3f297a41",
+              "sampled_at": "2026-09-01T01:26:23.965933+00:00",
+              "generated_at": "2026-09-01T01:26:23.965933+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "run-2d9768bc0e516fc1a502b04a665d7522cc10f90ad6dbe7d5aa2609d897b11616",
+              "sampled_at": "2026-09-01T02:03:16.829223+00:00",
+              "generated_at": "2026-09-01T02:03:16.829223+00:00",
+              "salt": null,
+              "salt_status": "INSUFFICIENT",
+              "ledger_path": ".local/telemetry/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "release/v23.1.0-c7",
+              "repo_sha": "30e0223e9a3c6f545ed92ea8b4557acfa9233f22",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "INSUFFICIENT"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "suggestions": []
+}

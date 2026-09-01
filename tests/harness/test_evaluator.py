@@ -624,6 +624,8 @@ def test_module_cli_pins_fixture_style_envelope_and_exit_codes(
         "harness_summary",
         "measurements",
         "suggestions",
+        # v24.1.0: appended at the tail so the pinned prefix is untouched.
+        "quarantined_rows",
     ]
     assert ready["verdict"] == "READY"
     assert len(ready["scores"]) == 6

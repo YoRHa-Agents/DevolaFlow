@@ -4,8 +4,8 @@ description: "Registry-derived checklist seeds and the sole change-driven runtim
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T19:51:12Z"
-source_version: "23.1.0"
+last_synced: "2026-09-01T07:32:53Z"
+source_version: "24.2.0"
 ---
 
 # Checklist Seed Catalog
@@ -36,6 +36,7 @@ membership is not maintained in this guide.
 | `product-verification` | `composite` | User-facing verification across visual, interaction, accessibility, and acceptance axes. | `verify`, `visual`, `acceptance`, `interaction`, `accessibility`, `uat`, `e2e`, `product`, `quality` |
 | `entropy-cleanup` | `control` | Stale-documentation and drift cleanup knowledge. | `entropy`, `gc`, `cleanup`, `freshness`, `drift`, `maintenance`, `meta`, `documentation` |
 | `local-archive` | `control` | Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge. | `local-archive`, `task-archive`, `archive`, `tasks`, `clustering`, `mapping`, `index`, `report-only` |
+| `workspace-compact` | `control` | In-folder non-destructive compaction, risk lifecycle parking, and append-only operator judgment capture. | `workspace-compact`, `risk-parking`, `judgment`, `compaction`, `mapping`, `digest`, `report-only` |
 | `harness-construction` | `composite` | Harness infrastructure construction (observation/evaluation/probe/baseline/signal/loop-closure coverage) with machine-grounded gap analysis and an archive capability review. | `harness`, `evaluation-infrastructure`, `observability`, `telemetry`, `coverage`, `gap-analysis`, `baseline` |
 | `pathfinder` | `control` | Read-only look-ahead reconnaissance that reports infrastructure and harness gaps before a later wave. | `pathfinder`, `path-find`, `look-ahead`, `infrastructure`, `harness`, `gap-analysis`, `reconnaissance` |
 | `retro-digest` | `composite` | Deterministic retrospective extraction with optional curation and report-only cycle learning. | `retro-digest`, `retrospective`, `digest`, `learnings`, `lessons`, `cycle-close`, `report-only` |

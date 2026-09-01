@@ -1,0 +1,83 @@
+{
+  "artifact_type": "v24-trial-replay",
+  "schema_version": 1,
+  "sample": ".local/tasks/add_compact_and_new_files/sample-risk-parking.md",
+  "source": {
+    "lines": 216,
+    "bytes": 59685,
+    "tokens": 8679
+  },
+  "adoption": {
+    "candidates": 53,
+    "risks_created": 53,
+    "narrative_lines_left_in_source": 136,
+    "legacy_ids_preserved_verbatim": true,
+    "legacy_id_count": 53
+  },
+  "compaction": {
+    "relocated": 15,
+    "resident_tokens_before": 25190,
+    "resident_tokens_after": 15261,
+    "reduction": 0.3942,
+    "vs_original_source": -0.7584,
+    "success": true,
+    "findings": []
+  },
+  "working_set": {
+    "before_tokens": 8679,
+    "before_note": "no index existed; one disposition required reading the whole file",
+    "after_tokens": 1284,
+    "after_note": "generated index plus the one risk file the question is about",
+    "index_tokens": 1119,
+    "typical_risk_tokens": 165,
+    "reduction": 0.8521
+  },
+  "zero_loss": {
+    "mapping_rows": 15,
+    "hash_mismatches": [],
+    "verified": true
+  },
+  "restore_cost": {
+    "probes": [
+      {
+        "query": "PV-16b",
+        "hits": 3,
+        "tokens_read": 129,
+        "resolved": true,
+        "first_hit": "sample-risk-parking.md#L102"
+      },
+      {
+        "query": "PV-29",
+        "hits": 5,
+        "tokens_read": 158,
+        "resolved": true,
+        "first_hit": "sample-risk-parking.md#L93"
+      },
+      {
+        "query": "A-Q25",
+        "hits": 2,
+        "tokens_read": 61,
+        "resolved": true,
+        "first_hit": "sample-risk-parking.md#L66"
+      },
+      {
+        "query": "phase1-restamp",
+        "hits": 1,
+        "tokens_read": 37,
+        "resolved": true,
+        "first_hit": "sample-risk-parking.md#L151"
+      },
+      {
+        "query": "slotsregistry",
+        "hits": 0,
+        "tokens_read": 0,
+        "resolved": false,
+        "first_hit": null
+      }
+    ],
+    "average_tokens_read": 77.0,
+    "source_tokens_if_read_whole": 8679,
+    "ratio_vs_reading_source": 0.0089,
+    "all_resolved": false
+  }
+}

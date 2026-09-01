@@ -1,0 +1,109 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: workspace-compact
+  version: "1.0.0"
+  description: "Seed for in-folder non-destructive compaction, risk parking, and operator judgment capture."
+  category: control
+  intent_keywords:
+    - workspace-compact
+    - workspace compaction
+    - compact task folder
+    - risk parking
+    - park a risk
+    - judgment ledger
+    - pending decision
+    - archive closed risks
+  applicable_scenarios:
+    - bloated-task-folder
+    - long-running-unattended-work
+    - legacy-risk-document-adoption
+  source:
+    kind: composition
+    name: workspace-compact
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: register
+    title_template: "Risk registration through the tool"
+    source_stages:
+      - {id: register, primitive: analyze}
+    assertions:
+      - key: tool-is-sole-writer
+        statement_template: "Every risk, question, and decision is written through devola-parking; no parking file is hand-edited."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: runtime-absence-is-reported
+        statement_template: "An unavailable runtime is reported with its install command rather than worked around by hand."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: decision-does-not-block
+        statement_template: "A risk awaiting a decision references a judgment row instead of blocking, so independent work continues."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: classify
+    title_template: "Compaction candidate classification"
+    source_stages:
+      - {id: classify, primitive: analyze}
+    assertions:
+      - key: only-settled-work-moves
+        statement_template: "Only closed risks, historical output directories, and operator-named paths are classified as movable."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: protected-surfaces-retained
+        statement_template: "Goal, checklist, spec, status, and both append-only ledgers are retained at any size."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: report-only-plan
+    title_template: "Report-only compaction plan"
+    source_stages:
+      - {id: plan, primitive: plan}
+    assertions:
+      - key: plan-states-source-and-hash
+        statement_template: "The plan renders each source, destination, category, token estimate, and content hash before anything moves."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: approval
+    title_template: "Per-run operator approval"
+    source_stages:
+      - {id: approval, primitive: review}
+    assertions:
+      - key: fingerprint-bound-approval
+        statement_template: "Apply cites the fingerprint of the plan just read; no pre-authorisation channel exists."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: unattended-runs-queue
+        statement_template: "An unattended run leaves its plan queued for consent rather than applying it."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: relocate
+    title_template: "Non-destructive relocation"
+    source_stages:
+      - {id: move, primitive: implement}
+    assertions:
+      - key: relocate-never-rewrite
+        statement_template: "Originals move intact into the archive with no rewrite and no deletion action."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: mapping-row-per-move
+        statement_template: "Each move appends one mapping row carrying its hash, bytes, token estimate, and readable subject."
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: verify
+    title_template: "Zero-loss verification and recovery"
+    source_stages:
+      - {id: verify, primitive: verify}
+    assertions:
+      - key: zero-loss-proven
+        statement_template: "Every archived original re-hashes to its recorded value and locate returns its original path."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: narration-anchors-resolve
+        statement_template: "Every verbatim anchor in the digest narration resolves against its archived source file."
+        suggested_priority: P0
+        verify: {mode: manual}
+      - key: both-metrics-reported
+        statement_template: "The reading reports agent working set and resident stored tokens together, not either alone."
+        suggested_priority: P1
+        verify: {mode: manual}

@@ -98,7 +98,7 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     reg = yaml.safe_load((template_dir / "registry.yaml").read_text(encoding="utf-8"))
     entries = reg["compositions"] + reg["templates"]
     # This is a live registry ownership scan, not a v15.2 historical count.
-    assert len(entries) == 27
+    assert len(entries) == 28
     for entry in entries:
         seed_path = template_dir / entry["seed"]
         text = seed_path.read_text(encoding="utf-8")

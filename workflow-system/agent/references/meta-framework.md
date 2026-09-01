@@ -333,6 +333,7 @@ gate DAG.
 | repo-init | checklist-round |
 | change-driven | checklist-round |
 | web-design | checklist-round |
+| workspace-compact | checklist-round |
 
 ## 8. Authoring and Validation Checklist
 

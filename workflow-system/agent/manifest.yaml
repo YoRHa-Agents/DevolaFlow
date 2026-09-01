@@ -59,11 +59,13 @@ references:
   - references/plan-mode-enforcement.md
   - references/repo-modes.md
   - references/retro-digest.md
+  - references/risk-parking.md
   - references/subagent-patterns.md
   - references/task-quality-score.md
   - references/team-roles.md
   - references/troubleshooting.md
   - references/wave-dispatch.md
+  - references/workspace-compact.md
 
 # Tier-3 worked traces — must stay in exact parity with
 # workflow-system/agent/examples/*.md.

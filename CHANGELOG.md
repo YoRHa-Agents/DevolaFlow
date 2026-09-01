@@ -9,6 +9,174 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [24.2.0] - 2026-09-01 — MINOR — Durable Moves, Honest Refusals
+
+v24.1.0 closed with seven findings parked rather than fixed. Two of them were
+about a result that contradicts the filesystem, and they are addressed here.
+
+### Fixed
+
+- **A successful apply no longer reports itself as refused.** `apply_plan`
+  folded whatever `write_digest` returned into `findings` and then set
+  `refused = bool(findings)`. So a run where every move and every ledger row
+  committed came back `refused=True` because a pre-existing narration held an
+  anchor that no longer resolved — telling an operator nothing happened when
+  in fact everything had. `CompactResult` now carries `digest_findings` and
+  `digest_current` alongside `findings` and `refused`, and the CLI reports
+  both. The moves are durable; the index being stale is a different fact and
+  now reads as one.
+- **A narration problem no longer withholds the ledger table.**
+  `write_digest` returned early on any narration finding, leaving `DIGEST.md`
+  without the rows that had just been appended to `mappings.yaml`. The table
+  is derived from the append-only ledger, so holding it back over agent prose
+  hides exactly what the digest exists to list. It is now always re-rendered,
+  the narration is written through unchanged so the flagged claim stays
+  visible, and the findings are still reported.
+- **`workspace-compact` was in the registry but not discoverable from it.**
+  v24.0.0 registered the seed in `templates/registry.yaml` without the two
+  SKILL-side surfaces C-7 requires, so an agent reading the Workflow-Selection
+  list or the Quick-Reference table could not find the workflow the cycle had
+  just shipped, and `workflow-skill.yaml` still claimed 27 seeds. Only
+  `GHOST_FULL=1` runs those parity checks, which is why the six-gate chain did
+  not catch it.
+
+### Added
+
+- **A test that reads a retired gate from a ledger.** The v24.0.0 F-00 fix was
+  to the reader, but its two tests covered the writer refusing to emit a
+  retired name and the contents of the frozenset — both would have passed if
+  `load_ledger_records` still raised on that row, which is the outage itself.
+  Strict-mode read now asserts warn-not-raise, with a companion asserting an
+  unrecognised gate name still aborts so retirement stays an explicit list.
+
+## [24.1.0] - 2026-09-01 — MINOR — Self-Digest: What v24 Got Wrong
+
+v24 shipped two surfaces; running them against the real repository rather than
+a fixture showed where they fail. The headline finding is that the whole
+compaction funnel dead-ended: `scan` flagged three over-threshold folders,
+`plan` proposed zero moves for every one of them, and the escape hatch that
+would have worked appeared nowhere in the output. This cycle fixes that, lands
+the signed S-9 amendment, and closes two blind spots in the evidence chain.
+
+### Added
+
+- **S-9.1 — tool-mediated envelope relocation**, signed as judgment `J-004`.
+  `.rules/soul.mdc` now permits moving an already-archived change's handoff
+  envelopes, and only that: content rewrite and deletion remain prohibited
+  without exception, and an active change's envelopes stay immovable.
+  `devolaflow.workspace_compact.handoff_relocate` (`plan_relocation`,
+  `apply_relocation`, `verify_relocations`) is the only sanctioned mover, with
+  `devola-compact handoff-relocate` and `handoff-verify` as its CLI surface.
+  The Soul set stays at ten rules: S-9.1 narrows an existing invariant.
+- **Net-benefit accounting for compaction.** `CompactPlan` gains
+  `digest_tokens`, `net_tokens`, and `pays_for_itself`, priced by rendering the
+  digest a plan *would* write via `digest.render_digest_rows` — exact, not a
+  constant that drifts when the layout changes. A plan that would make a folder
+  more expensive to read now says so before approval.
+- **`CompactPlan.candidates`.** Automatic classification only moves closed
+  risks and historical output, which is not where real workspace weight sits.
+  The heaviest retained files are now surfaced with summaries, and the plan
+  note names the exact `--include` invocation.
+- **Row-level ledger quarantine.** `load_ledger_records(..., quarantine=[...])`
+  isolates a rejected row and keeps reading; `evaluate` opts in and reports
+  `quarantined_rows` at the tail of its envelope. Strict remains the default.
+- **`DigestResult.silent_sources`.** A retrospective the extractor did not
+  understand is now named rather than absorbed into an aggregate `OK`.
+
+### Fixed
+
+- **`--folder` after the subcommand.** Both CLIs registered it ahead of
+  `add_subparsers` only, so `devola-parking status --folder X` and
+  `devola-compact plan --folder X` failed with `unrecognized arguments` — and
+  the post-subcommand order was exactly what the bloat suggestion printed. Both
+  orders now produce identical output.
+- **`bypassed` was dead telemetry vocabulary.** Declared in v24 and written by
+  nothing, so the ledger could not distinguish "no plan was made" from "a plan
+  declined itself". `devola-compact plan` now emits it with a reason.
+- **Retro-digest skipped the two newest cycles.** The lesson extractor matched
+  only the literal phrase "key learnings" and read only bullets and table rows,
+  so `## Learning` (v23.1.0) and v24's bold-lead paragraphs under
+  `## 4. What we learned` contributed nothing while the digest reported `OK`.
+  Heading vocabulary broadened and bold-lead paragraphs extracted verbatim.
+- **`BloatFinding.over_by`** subtracted the module default instead of the
+  threshold the scan filtered on.
+
+### Changed
+
+- Legacy workspace sweep applied under a one-shot list authorisation:
+  36824 resident tokens across three task folders reduced to 5473 (−85.1%) for
+  509 tokens of digest, verified zero-loss with a byte-identical restore probe.
+
+## [24.0.0] - 2026-09-01 — MAJOR — Workspace Compaction and Risk Parking
+
+Long-running task folders grew until an agent could no longer read one in a
+single pass, and the risks discovered along the way lived in prose that nobody
+could query. This cycle adds two surfaces to fix that, plus the metering to
+prove whether they help.
+
+### Added
+
+- **Risk parking** (`src/devolaflow/parking/`, `devola-parking`): one file per
+  risk with a six-state lifecycle (`open`/`parked`/`active`/`mitigating`/
+  `closed`/`archived`), a generated live index, and an append-only event
+  ledger. `ParkingStore` is the single writer; `RiskState.ARCHIVED` is terminal
+  so a relocated file cannot return and contradict the mapping ledger.
+- **Judgment ledger** (`judgments.yaml`, rendered to `judge.md`): questions and
+  decisions as append-only rows. Answering appends a row citing `supersedes`
+  rather than editing the question, so the decision history stays replayable.
+  "Needs a decision" is a reference, never a risk state, so a pending question
+  does not block the work it belongs to.
+- **Workspace compaction** (`src/devolaflow/workspace_compact/`,
+  `devola-compact`): `plan`/`apply`/`locate`/`restore`/`verify` over one named
+  task or change folder. Compaction relocates and indexes rather than
+  summarising and discarding; `verify_integrity` re-hashes every archived
+  original so "nothing was lost" is checkable.
+- **Per-run approval bound to content**: `CompactPlan.fingerprint` covers each
+  moving file's source, destination, and hash, so a file that changed after the
+  plan was read invalidates the approval. No pre-authorisation, no auto-apply.
+- **Dual-layer `DIGEST.md`**: a generated structural layer from `mappings.yaml`,
+  plus an optional agent narration layer whose every claim must carry a
+  verbatim anchor that `audit_digest` resolves against the archived source.
+- **Shared ledger primitives** (`src/devolaflow/workspace_ledger.py`):
+  `append_ledger_row`, `load_ledger_rows`, `write_generated_view`, and
+  `detect_view_drift`, with traversal and symlink refusal.
+- **`check_parking_write` lifecycle hook**: blocks hand-edits to tool-owned
+  surfaces, which would otherwise leave the generated views disagreeing with
+  the ledgers for reasons nobody could trace.
+- **Compaction telemetry** (`src/devolaflow/workspace_compact/telemetry.py`) on
+  a dedicated `.local/telemetry/compact.jsonl`, recording `applied`, `planned`,
+  and `bypassed` outcomes. The reader skips a damaged row instead of aborting.
+- **Bloat scanning** (`scan_bloat`, `devola-compact scan`): reports folders an
+  agent can no longer read in one pass, as a suggestion and never an action.
+- **`adopt`**: converts a legacy prose risk table into the structured surface,
+  report-only until approved, preserving each source identifier verbatim in
+  `legacy_id`.
+- **References**: `references/risk-parking.md` and
+  `references/workspace-compact.md` (SF-4 set now 34).
+
+### Fixed
+
+- **Harness ledger no longer aborts on a retired SI-10 gate name**
+  (`RETIRED_SI10_GATE_NAMES`). One `iteration-delta-gate` row had made the
+  entire append-only ledger unreadable and every downstream evaluation with
+  it. The reader now accepts retired names as historical evidence and warns;
+  `build_gate_record` still refuses to write one, so the live vocabulary
+  cannot silently expand.
+- **npm delivery contract tests unpinned from one npm JSON shape.** `npm pack
+  --json` now returns an object keyed by package name where it once returned a
+  list, which had left three tests permanently red on a clean tree.
+- **`suggestion_text` quotes the threshold the scan actually used** rather than
+  always printing the default.
+
+### Measured
+
+On the v2.8.6 sample (217-line mixed document, 15 rows adopted): agent working
+set fell from 8679 to 1284 tokens (85.2%), recovering one archived fact cost 77
+tokens on average versus 8679 to read the source (0.9%), and every mapping row
+verified byte-identical. Resident stored tokens fell 39.4% — reported alongside
+because per-risk files add structure, and the smaller number is the honest
+counterweight to the larger one.
+
 ## [23.1.0] - 2026-09-01 — MINOR — Evidence-Preserving Harness Closeout
 
 ### Added
