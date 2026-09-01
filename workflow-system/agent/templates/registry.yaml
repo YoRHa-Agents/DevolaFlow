@@ -100,6 +100,11 @@ compositions:
     category: control
     tags: [local-archive, task-archive, archive, tasks, clustering, mapping, index, report-only]
     description: "Bounded local-task inventory, approved non-deletion moves, and archive verification knowledge."
+  - name: workspace-compact
+    seed: seeds/workspace-compact.yaml
+    category: control
+    tags: [workspace-compact, risk-parking, judgment, compaction, mapping, digest, report-only]
+    description: "In-folder non-destructive compaction, risk lifecycle parking, and append-only operator judgment capture."
   - name: harness-construction
     seed: seeds/harness-construction.yaml
     category: composite

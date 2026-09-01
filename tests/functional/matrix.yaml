@@ -222,6 +222,34 @@ rows:
     design_source:
       - pyproject.toml#project.scripts
       - docs/cycle-archive/v20.0.0/loop3_functional_test_system_gap_analysis.md#O-03
+  # v24.0.0 — workspace context management. Both console scripts are the sole
+  # write entry point for the surfaces they own (v24-ADR-001 §5), so their
+  # availability is itself a contract: an agent that cannot run them must
+  # report writes as unavailable rather than hand-writing the artifacts.
+  - id: pv1.console.devola-parking
+    domain: workspace_context_management
+    surface: console_script
+    call: run_console_script
+    entrypoint: devola-parking
+    fixture: pyproject.toml
+    tier: fast
+    required: true
+    expected: parking probe reports runtime and write availability as JSON
+    design_source:
+      - pyproject.toml#project.scripts
+      - .local/research/v24.0.0_design_adr.md#5
+  - id: pv1.console.devola-compact
+    domain: workspace_context_management
+    surface: console_script
+    call: run_console_script
+    entrypoint: devola-compact
+    fixture: pyproject.toml
+    tier: fast
+    required: true
+    expected: compact planning reports JSON without moving or deleting anything
+    design_source:
+      - pyproject.toml#project.scripts
+      - .local/research/v24.0.0_design_adr.md#5
   # PV-1 O-04 — maintained python -m paths use the same subprocess contract.
   - id: pv1.module.devolaflow-build-skill
     domain: agent_skill_delivery

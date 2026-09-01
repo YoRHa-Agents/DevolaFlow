@@ -4,8 +4,8 @@ description: "Three-layer checklist-round architecture, provenance primitives, a
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T19:51:12Z"
-source_version: "23.1.0"
+last_synced: "2026-09-01T07:31:18Z"
+source_version: "24.0.0"
 ---
 
 # Architecture Overview
@@ -24,7 +24,7 @@ Escalation moves Task → Wave → Project → Human. Every retry loop is bounde
 
 ## Seeds and runtime
 
-The registry currently supplies 27 non-executable checklist
+The registry currently supplies 28 non-executable checklist
 seeds. Their 13 primitive labels
 (`analyze`, `deploy`, `design`, `gate`, `implement`, `plan`, `refine`, `release`, `research`, `review`, `test`, `validate`, `verify`) preserve historical
 decomposition provenance; list order is not runtime order. `change-driven` is

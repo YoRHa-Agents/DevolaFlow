@@ -6,7 +6,7 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
     "schema_version": "3.0",
     "source_path": "workflow-system/agent/templates/registry.yaml"
   },
-  "record_count": 27,
+  "record_count": 28,
   "seeds": [
     {
       "registry_schema_version": "3.0",
@@ -1444,6 +1444,207 @@ window.DEVOLAFLOW_SEED_CATALOG = Object.freeze(
               "key": "mapping-index-verified",
               "statement": "Each move appends a complete surface-local old-path-to-new-path mapping and verifies unique destinations and generated-index coverage.",
               "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "registry_schema_version": "3.0",
+      "seed_schema_version": "1.0",
+      "source": {
+        "kind": "composition",
+        "name": "workspace-compact",
+        "path": "workflow-system/agent/templates/registry.yaml",
+        "schema_version": "2.0"
+      },
+      "name": "workspace-compact",
+      "category": "control",
+      "tags": [
+        "workspace-compact",
+        "risk-parking",
+        "judgment",
+        "compaction",
+        "mapping",
+        "digest",
+        "report-only"
+      ],
+      "description": "In-folder non-destructive compaction, risk lifecycle parking, and append-only operator judgment capture.",
+      "seed_path": "workflow-system/agent/templates/seeds/workspace-compact.yaml",
+      "partitions": [
+        {
+          "key": "register",
+          "title": "Risk registration through the tool",
+          "source_stages": [
+            {
+              "id": "register",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "tool-is-sole-writer",
+              "statement": "Every risk, question, and decision is written through devola-parking; no parking file is hand-edited.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "runtime-absence-is-reported",
+              "statement": "An unavailable runtime is reported with its install command rather than worked around by hand.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "decision-does-not-block",
+              "statement": "A risk awaiting a decision references a judgment row instead of blocking, so independent work continues.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "classify",
+          "title": "Compaction candidate classification",
+          "source_stages": [
+            {
+              "id": "classify",
+              "primitive": "analyze"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "only-settled-work-moves",
+              "statement": "Only closed risks, historical output directories, and operator-named paths are classified as movable.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "protected-surfaces-retained",
+              "statement": "Goal, checklist, spec, status, and both append-only ledgers are retained at any size.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "report-only-plan",
+          "title": "Report-only compaction plan",
+          "source_stages": [
+            {
+              "id": "plan",
+              "primitive": "plan"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "plan-states-source-and-hash",
+              "statement": "The plan renders each source, destination, category, token estimate, and content hash before anything moves.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "approval",
+          "title": "Per-run operator approval",
+          "source_stages": [
+            {
+              "id": "approval",
+              "primitive": "review"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "fingerprint-bound-approval",
+              "statement": "Apply cites the fingerprint of the plan just read; no pre-authorisation channel exists.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "unattended-runs-queue",
+              "statement": "An unattended run leaves its plan queued for consent rather than applying it.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "relocate",
+          "title": "Non-destructive relocation",
+          "source_stages": [
+            {
+              "id": "move",
+              "primitive": "implement"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "relocate-never-rewrite",
+              "statement": "Originals move intact into the archive with no rewrite and no deletion action.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "mapping-row-per-move",
+              "statement": "Each move appends one mapping row carrying its hash, bytes, token estimate, and readable subject.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            }
+          ]
+        },
+        {
+          "key": "verify",
+          "title": "Zero-loss verification and recovery",
+          "source_stages": [
+            {
+              "id": "verify",
+              "primitive": "verify"
+            }
+          ],
+          "assertions": [
+            {
+              "key": "zero-loss-proven",
+              "statement": "Every archived original re-hashes to its recorded value and locate returns its original path.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "narration-anchors-resolve",
+              "statement": "Every verbatim anchor in the digest narration resolves against its archived source file.",
+              "suggested_priority": "P0",
+              "verify": {
+                "mode": "manual"
+              }
+            },
+            {
+              "key": "both-metrics-reported",
+              "statement": "The reading reports agent working set and resident stored tokens together, not either alone.",
+              "suggested_priority": "P1",
               "verify": {
                 "mode": "manual"
               }

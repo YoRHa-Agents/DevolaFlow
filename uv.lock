@@ -141,7 +141,7 @@ toml = [
 
 [[package]]
 name = "devolaflow"
-version = "23.0.0"
+version = "24.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },

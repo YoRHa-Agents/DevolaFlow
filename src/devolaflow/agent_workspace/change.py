@@ -447,6 +447,15 @@ class Change:
         if self.learnings_jsonl is not None:
             _write("learnings.jsonl", self.learnings_jsonl, newline="\n")
 
+        # v24.0.0 — the risk-parking surface belongs to the first artifact
+        # batch alongside goal/checklist/entrance. Scaffolding it here (rather
+        # than lazily on first risk) means an agent that discovers a risk
+        # mid-run has somewhere to put it without a setup detour, which is the
+        # difference between parking the risk and narrating it into prose.
+        from devolaflow.parking.store import ParkingStore
+
+        ParkingStore(folder_path).scaffold()
+
     def with_state(self, new_state: str) -> Change:
         """Return a copy with ``status['state']`` updated; refreshes ``last_updated``.
 

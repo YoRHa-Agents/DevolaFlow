@@ -4,8 +4,8 @@ description: "从注册表派生的清单种子与唯一的 change-driven 运行
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T19:51:12Z"
-source_version: "23.1.0"
+last_synced: "2026-09-01T07:31:18Z"
+source_version: "24.0.0"
 ---
 
 # 清单种子目录
@@ -35,6 +35,7 @@ source_version: "23.1.0"
 | `product-verification` | `composite` | 从视觉、交互、无障碍与验收维度验证用户体验。 | `verify`, `visual`, `acceptance`, `interaction`, `accessibility`, `uat`, `e2e`, `product`, `quality` |
 | `entropy-cleanup` | `control` | 清理过期文档与漂移。 | `entropy`, `gc`, `cleanup`, `freshness`, `drift`, `maintenance`, `meta`, `documentation` |
 | `local-archive` | `control` | 独立任务归档工作流：先报告并明确批准，在严格安全与来源约束下执行有界的非删除移动。 | `local-archive`, `task-archive`, `archive`, `tasks`, `clustering`, `mapping`, `index`, `report-only` |
+| `workspace-compact` | `control` | 任务目录内的非破坏式收缩：风险按生命周期独立建档、判决独立追加成账，已关闭的原件搬入归档并留下可校验的映射与摘要。 | `workspace-compact`, `risk-parking`, `judgment`, `compaction`, `mapping`, `digest`, `report-only` |
 | `harness-construction` | `composite` | 构建 harness 基建（观测/评测/探针/基线/信号/闭环覆盖），以机器化缺口分析打底并在归档时评审能力增量。 | `harness`, `evaluation-infrastructure`, `observability`, `telemetry`, `coverage`, `gap-analysis`, `baseline` |
 | `pathfinder` | `control` | 以只读方式前瞻侦察基础设施与 harness 缺口，并在后续轮次前完成有界交接。 | `pathfinder`, `path-find`, `look-ahead`, `infrastructure`, `harness`, `gap-analysis`, `reconnaissance` |
 | `retro-digest` | `composite` | 确定性提取回顾内容，支持可选整理，并以仅报告方式总结周期学习。 | `retro-digest`, `retrospective`, `digest`, `learnings`, `lessons`, `cycle-close`, `report-only` |

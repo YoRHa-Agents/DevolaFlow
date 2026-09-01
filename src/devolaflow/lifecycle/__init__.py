@@ -90,6 +90,9 @@ from devolaflow.lifecycle.check_human_input_append_only import (
 from devolaflow.lifecycle.check_human_input_append_only import (
     check_human_input_append_only,
 )
+from devolaflow.lifecycle.check_parking_write import (
+    check_parking_write,
+)
 from devolaflow.lifecycle.dispatcher import (
     HookHandler,
     HookResult,
@@ -235,6 +238,12 @@ _set_default_hook(_POST_DISPATCH_EVENT, post_dispatch)
 if record_dispatch_telemetry not in list_handlers(_POST_DISPATCH_EVENT):
     register_hook(_POST_DISPATCH_EVENT, record_dispatch_telemetry)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
+# v24.0.0 — the parking and compaction surfaces are tool-owned. This is an
+# additive extra on the same file_write event, so ownership checking keeps its
+# canonical default position and a payload touching neither surface is a
+# byte-identical no-op.
+if check_parking_write not in list_handlers(_FILE_WRITE_EVENT):
+    register_hook(_FILE_WRITE_EVENT, check_parking_write)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 # v21.0.0 PV-02 T1 — post-hoc S1/trivial-path verification. This is an
 # additive extra on the canonical post_task_complete event (the legacy
@@ -443,6 +452,7 @@ __all__ = [
     "check_file_ownership",
     "check_function_scope",
     "check_human_input_append_only",
+    "check_parking_write",
     "check_init_health",
     "check_module_scope",
     "clear_hooks",

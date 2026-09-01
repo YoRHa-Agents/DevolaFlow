@@ -28,7 +28,7 @@ def test_console_script_inventory_matches_pyproject_and_matrix() -> None:
     rows = {row.entrypoint for row in _entrypoint_rows() if row.surface == "console_script"}
     inventory = set(load_console_script_inventory(root))
 
-    assert len(inventory) == 13
+    assert len(inventory) == 15
     assert rows == inventory
 
 

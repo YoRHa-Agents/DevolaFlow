@@ -9,6 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [24.0.0] - 2026-09-01 — MAJOR — Workspace Compaction and Risk Parking
+
+Long-running task folders grew until an agent could no longer read one in a
+single pass, and the risks discovered along the way lived in prose that nobody
+could query. This cycle adds two surfaces to fix that, plus the metering to
+prove whether they help.
+
+### Added
+
+- **Risk parking** (`src/devolaflow/parking/`, `devola-parking`): one file per
+  risk with a six-state lifecycle (`open`/`parked`/`active`/`mitigating`/
+  `closed`/`archived`), a generated live index, and an append-only event
+  ledger. `ParkingStore` is the single writer; `RiskState.ARCHIVED` is terminal
+  so a relocated file cannot return and contradict the mapping ledger.
+- **Judgment ledger** (`judgments.yaml`, rendered to `judge.md`): questions and
+  decisions as append-only rows. Answering appends a row citing `supersedes`
+  rather than editing the question, so the decision history stays replayable.
+  "Needs a decision" is a reference, never a risk state, so a pending question
+  does not block the work it belongs to.
+- **Workspace compaction** (`src/devolaflow/workspace_compact/`,
+  `devola-compact`): `plan`/`apply`/`locate`/`restore`/`verify` over one named
+  task or change folder. Compaction relocates and indexes rather than
+  summarising and discarding; `verify_integrity` re-hashes every archived
+  original so "nothing was lost" is checkable.
+- **Per-run approval bound to content**: `CompactPlan.fingerprint` covers each
+  moving file's source, destination, and hash, so a file that changed after the
+  plan was read invalidates the approval. No pre-authorisation, no auto-apply.
+- **Dual-layer `DIGEST.md`**: a generated structural layer from `mappings.yaml`,
+  plus an optional agent narration layer whose every claim must carry a
+  verbatim anchor that `audit_digest` resolves against the archived source.
+- **Shared ledger primitives** (`src/devolaflow/workspace_ledger.py`):
+  `append_ledger_row`, `load_ledger_rows`, `write_generated_view`, and
+  `detect_view_drift`, with traversal and symlink refusal.
+- **`check_parking_write` lifecycle hook**: blocks hand-edits to tool-owned
+  surfaces, which would otherwise leave the generated views disagreeing with
+  the ledgers for reasons nobody could trace.
+- **Compaction telemetry** (`src/devolaflow/workspace_compact/telemetry.py`) on
+  a dedicated `.local/telemetry/compact.jsonl`, recording `applied`, `planned`,
+  and `bypassed` outcomes. The reader skips a damaged row instead of aborting.
+- **Bloat scanning** (`scan_bloat`, `devola-compact scan`): reports folders an
+  agent can no longer read in one pass, as a suggestion and never an action.
+- **`adopt`**: converts a legacy prose risk table into the structured surface,
+  report-only until approved, preserving each source identifier verbatim in
+  `legacy_id`.
+- **References**: `references/risk-parking.md` and
+  `references/workspace-compact.md` (SF-4 set now 34).
+
+### Fixed
+
+- **Harness ledger no longer aborts on a retired SI-10 gate name**
+  (`RETIRED_SI10_GATE_NAMES`). One `iteration-delta-gate` row had made the
+  entire append-only ledger unreadable and every downstream evaluation with
+  it. The reader now accepts retired names as historical evidence and warns;
+  `build_gate_record` still refuses to write one, so the live vocabulary
+  cannot silently expand.
+- **npm delivery contract tests unpinned from one npm JSON shape.** `npm pack
+  --json` now returns an object keyed by package name where it once returned a
+  list, which had left three tests permanently red on a clean tree.
+- **`suggestion_text` quotes the threshold the scan actually used** rather than
+  always printing the default.
+
+### Measured
+
+On the v2.8.6 sample (217-line mixed document, 15 rows adopted): agent working
+set fell from 8679 to 1284 tokens (85.2%), recovering one archived fact cost 77
+tokens on average versus 8679 to read the source (0.9%), and every mapping row
+verified byte-identical. Resident stored tokens fell 39.4% — reported alongside
+because per-risk files add structure, and the smaller number is the honest
+counterweight to the larger one.
+
 ## [23.1.0] - 2026-09-01 — MINOR — Evidence-Preserving Harness Closeout
 
 ### Added

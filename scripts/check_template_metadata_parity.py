@@ -22,7 +22,7 @@ REGISTRY_RELATIVE = Path("workflow-system/agent/templates/registry.yaml")
 WORKFLOW_SKILL_RELATIVE = Path("workflow-system/agent/workflow-skill.yaml")
 SEEDS_RELATIVE = Path("workflow-system/agent/templates/seeds")
 REGISTRY_SCHEMA_VERSION = "3.0"
-EXPECTED_SEED_COUNT = 27
+EXPECTED_SEED_COUNT = 28
 RUNTIME_NAME = "change-driven"
 
 

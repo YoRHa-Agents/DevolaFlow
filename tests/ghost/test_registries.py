@@ -268,6 +268,16 @@ _SF4_REFERENCE_SET = frozenset(
         # v18.0.0 PV-6 — L1 Wave async dispatch boundary, bounded
         # concurrency, failure isolation, and S-1 preservation.
         "wave-dispatch.md",
+        # v24.0.0 — risk lifecycle, the append-only judgment ledger, and the
+        # single tool write entry point. "Needs a decision" is a reference
+        # into the ledger rather than a risk state, so a pending question
+        # never blocks the work it belongs to.
+        "risk-parking.md",
+        # v24.0.0 — non-destructive workspace compaction: relocate and index
+        # rather than summarise and discard. Per-run approval bound to
+        # content hashes, an append-only mapping ledger, and a dual-layer
+        # digest whose narration must carry resolvable verbatim anchors.
+        "workspace-compact.md",
     }
 )
 

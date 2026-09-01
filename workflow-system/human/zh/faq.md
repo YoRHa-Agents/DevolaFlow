@@ -4,8 +4,8 @@ description: "关于清单轮次、安装范围、更新与发布证据的常见
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-31T19:51:12Z"
-source_version: "23.1.0"
+last_synced: "2026-09-01T07:31:18Z"
+source_version: "24.0.0"
 ---
 
 # 常见问题
@@ -14,7 +14,7 @@ source_version: "23.1.0"
 
 ## DevolaFlow 执行什么？
 
-它从注册表派生的 27 个清单种子中选择分解知识，将其实体化为
+它从注册表派生的 28 个清单种子中选择分解知识，将其实体化为
 用户确认的清单，并通过唯一的 `change-driven` 运行时执行该合同。
 
 ## 三个 `all` 含义相同吗？

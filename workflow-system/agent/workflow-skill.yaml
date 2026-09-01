@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "23.1.0"
+  version: "24.0.0"
   description: >
     Orchestrate checklist-round software work using a 3-layer Project → Wave →
     Task hierarchy, evidence-backed completion, bounded reinforcement, and
@@ -309,6 +309,7 @@ content:
       - {id: "product-verification", file: "templates/seeds/product-verification.yaml"}
       - {id: "entropy-cleanup", file: "templates/seeds/entropy-cleanup.yaml"}
       - {id: "local-archive", file: "templates/seeds/local-archive.yaml"}
+      - {id: "workspace-compact", file: "templates/seeds/workspace-compact.yaml"}
       - {id: "harness-construction", file: "templates/seeds/harness-construction.yaml"}
       - {id: "pathfinder", file: "templates/seeds/pathfinder.yaml"}
       - {id: "retro-digest", file: "templates/seeds/retro-digest.yaml"}

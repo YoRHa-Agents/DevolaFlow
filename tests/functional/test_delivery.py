@@ -203,6 +203,22 @@ def _npm_json(result: subprocess.CompletedProcess[str]) -> object:
         pytest.fail(f"npm --json output was not JSON: {exc}\n{result.stdout}")
 
 
+def _pack_entries(payload: object) -> list[dict[str, object]]:
+    """Normalise `npm pack --json` across the two shapes npm has shipped.
+
+    npm emitted a list of pack results for years and now emits an object keyed
+    by package name. The contract under test is the packed file set, which is
+    identical either way, so the test asserts on that rather than on whichever
+    envelope the locally installed npm happens to use.
+    """
+
+    if isinstance(payload, list):
+        return [entry for entry in payload if isinstance(entry, dict)]
+    if isinstance(payload, dict):
+        return [entry for entry in payload.values() if isinstance(entry, dict)]
+    pytest.fail(f"unrecognised npm pack --json payload: {payload!r}")
+
+
 @pytest.mark.skipif(
     shutil.which("node") is None or shutil.which("npm") is None,
     reason="optional npm delivery contract skipped: node and npm are required",
@@ -224,8 +240,9 @@ def test_npm_pack_and_packed_bin_contract(tmp_path: Path) -> None:
         check=False,
     )
     dry_metadata = _npm_json(dry_run)
-    assert isinstance(dry_metadata, list) and len(dry_metadata) == 1
-    dry_files = {entry["path"] for entry in dry_metadata[0]["files"]}
+    dry_entries = _pack_entries(dry_metadata)
+    assert len(dry_entries) == 1
+    dry_files = {entry["path"] for entry in dry_entries[0]["files"]}
     assert "bin/devola-flow.js" in dry_files
     assert "package.json" in dry_files
     assert all(not path.startswith("src/") for path in dry_files)
@@ -249,7 +266,9 @@ def test_npm_pack_and_packed_bin_contract(tmp_path: Path) -> None:
         check=False,
     )
     packed_metadata = _npm_json(packed)
-    tarball = packed_dir / packed_metadata[0]["filename"]
+    packed_entries = _pack_entries(packed_metadata)
+    assert len(packed_entries) == 1
+    tarball = packed_dir / packed_entries[0]["filename"]
     assert tarball.is_file()
 
     with tarfile.open(tarball) as archive:
