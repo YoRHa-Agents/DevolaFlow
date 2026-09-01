@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "records": 2,
+  "events": [],
+  "changes": [
+    "v23-token-baseline"
+  ],
+  "rounds": {
+    "min": 1,
+    "max": 1,
+    "distinct": 1
+  },
+  "tokens": {
+    "total": 115,
+    "mean": 57.5,
+    "p50": 57,
+    "p95": 58,
+    "budget_compliance_ratio": 1.0,
+    "p95_budget_utilization": 0.00725,
+    "host_rule_tokens_mean": 11724.0,
+    "agents_md_tokens_mean": 11724.0,
+    "slice_savings_pct_mean": 81.2,
+    "context_tokens": {
+      "skill_tokens": {
+        "mean": 31.0,
+        "observed_records": 2,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          }
+        ]
+      },
+      "rule_tokens": {
+        "mean": 23.0,
+        "observed_records": 2,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          }
+        ]
+      },
+      "report_tokens": {
+        "mean": 17.0,
+        "observed_records": 2,
+        "status": "AVAILABLE",
+        "provenance": [
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          },
+          {
+            "source": "telemetry",
+            "metadata": {
+              "run_id": "pv03-token-baseline-20260831",
+              "sampled_at": "2026-08-31T13:58:00+00:00",
+              "generated_at": "2026-08-31T13:58:00+00:00",
+              "salt": "pv03-baseline",
+              "salt_status": "AVAILABLE",
+              "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+              "ledger_status": "AVAILABLE",
+              "repo_ref": "HEAD",
+              "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+              "base_ref": "HEAD~1",
+              "base_ref_status": "AVAILABLE",
+              "repo_status": "AVAILABLE",
+              "status": "AVAILABLE"
+            }
+          }
+        ]
+      }
+    },
+    "by_layer": {
+      "L2": {
+        "records": 2,
+        "total": 115,
+        "mean": 57.5,
+        "p50": 57,
+        "p95": 58,
+        "budget_compliance_ratio": 1.0,
+        "p95_budget_utilization": 0.00725
+      }
+    }
+  },
+  "constraints": {
+    "count": 2,
+    "tier_breakdown": {
+      "invariant": 0,
+      "guard": 0,
+      "advisory": 2
+    },
+    "quantifiable_ratio": 0.0,
+    "advisory_folded_ratio": 0.0
+  },
+  "models": {
+    "inherit": 2
+  },
+  "measurements": {
+    "agents_md_tokens": {
+      "mean": 11724.0,
+      "observed_records": 2,
+      "status": "AVAILABLE"
+    },
+    "suite_wall_seconds": {
+      "mean": null,
+      "observed_records": 0,
+      "status": "INSUFFICIENT"
+    },
+    "cjk_violations": {
+      "mean": null,
+      "observed_records": 0,
+      "status": "INSUFFICIENT"
+    },
+    "ghost_loc": {
+      "mean": null,
+      "observed_records": 0,
+      "status": "INSUFFICIENT"
+    }
+  },
+  "metadata": {
+    "run_id": "pv03-token-baseline-20260831",
+    "sampled_at": "2026-08-31T13:58:00+00:00",
+    "generated_at": "2026-08-31T13:58:00+00:00",
+    "salt": "pv03-baseline",
+    "salt_status": "AVAILABLE",
+    "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+    "ledger_status": "AVAILABLE",
+    "repo_ref": "HEAD",
+    "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+    "base_ref": "HEAD~1",
+    "base_ref_status": "AVAILABLE",
+    "repo_status": "AVAILABLE",
+    "status": "AVAILABLE"
+  },
+  "context_token_records": [
+    {
+      "schema_version": 1,
+      "event": "context_token_accounting",
+      "event_id": "context_token_accounting:pv03-available-dispatch:2026-08-31T13:58:01+00:00",
+      "ts": "2026-08-31T13:58:01+00:00",
+      "context_tokens": {
+        "skill_tokens": 31,
+        "rule_tokens": 23,
+        "report_tokens": 17
+      },
+      "metadata": {
+        "run_id": "pv03-token-baseline-20260831",
+        "sampled_at": "2026-08-31T13:58:00+00:00",
+        "generated_at": "2026-08-31T13:58:00+00:00",
+        "salt": "pv03-baseline",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "HEAD",
+        "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      }
+    },
+    {
+      "schema_version": 1,
+      "event": "context_token_accounting",
+      "event_id": "context_token_accounting:pv03-missing-dispatch:2026-08-31T13:58:02+00:00",
+      "ts": "2026-08-31T13:58:02+00:00",
+      "context_tokens": {
+        "skill_tokens": null,
+        "rule_tokens": null,
+        "report_tokens": null
+      },
+      "metadata": {
+        "run_id": "pv03-token-baseline-20260831",
+        "sampled_at": "2026-08-31T13:58:00+00:00",
+        "generated_at": "2026-08-31T13:58:00+00:00",
+        "salt": "pv03-baseline",
+        "salt_status": "AVAILABLE",
+        "ledger_path": ".local/telemetry/v23-token-baseline/harness.jsonl",
+        "ledger_status": "AVAILABLE",
+        "repo_ref": "HEAD",
+        "repo_sha": "9ab464e380586822c909b8fd388abaced5bb36e4",
+        "base_ref": "HEAD~1",
+        "base_ref_status": "AVAILABLE",
+        "repo_status": "AVAILABLE",
+        "status": "AVAILABLE"
+      }
+    }
+  ],
+  "cycle": "v23.0.0",
+  "settlement": {
+    "status": "PRE_CYCLE_BASELINE",
+    "settled_at": "2026-08-31",
+    "source_ledger": ".local/telemetry/v23-token-baseline/harness.jsonl",
+    "metrics": {
+      "profile_count": 27,
+      "context_token_records": 2
+    },
+    "evidence": {
+      "profile_count": "workflow-system/agent/context_profiles.yaml",
+      "context_token_records": ".local/telemetry/v23-token-baseline/harness.jsonl"
+    }
+  }
+}
