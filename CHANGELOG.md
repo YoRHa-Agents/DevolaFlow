@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [24.1.0] - 2026-09-01 — MINOR — Self-Digest: What v24 Got Wrong
+
+v24 shipped two surfaces; running them against the real repository rather than
+a fixture showed where they fail. The headline finding is that the whole
+compaction funnel dead-ended: `scan` flagged three over-threshold folders,
+`plan` proposed zero moves for every one of them, and the escape hatch that
+would have worked appeared nowhere in the output. This cycle fixes that, lands
+the signed S-9 amendment, and closes two blind spots in the evidence chain.
+
+### Added
+
+- **S-9.1 — tool-mediated envelope relocation**, signed as judgment `J-004`.
+  `.rules/soul.mdc` now permits moving an already-archived change's handoff
+  envelopes, and only that: content rewrite and deletion remain prohibited
+  without exception, and an active change's envelopes stay immovable.
+  `devolaflow.workspace_compact.handoff_relocate` (`plan_relocation`,
+  `apply_relocation`, `verify_relocations`) is the only sanctioned mover, with
+  `devola-compact handoff-relocate` and `handoff-verify` as its CLI surface.
+  The Soul set stays at ten rules: S-9.1 narrows an existing invariant.
+- **Net-benefit accounting for compaction.** `CompactPlan` gains
+  `digest_tokens`, `net_tokens`, and `pays_for_itself`, priced by rendering the
+  digest a plan *would* write via `digest.render_digest_rows` — exact, not a
+  constant that drifts when the layout changes. A plan that would make a folder
+  more expensive to read now says so before approval.
+- **`CompactPlan.candidates`.** Automatic classification only moves closed
+  risks and historical output, which is not where real workspace weight sits.
+  The heaviest retained files are now surfaced with summaries, and the plan
+  note names the exact `--include` invocation.
+- **Row-level ledger quarantine.** `load_ledger_records(..., quarantine=[...])`
+  isolates a rejected row and keeps reading; `evaluate` opts in and reports
+  `quarantined_rows` at the tail of its envelope. Strict remains the default.
+- **`DigestResult.silent_sources`.** A retrospective the extractor did not
+  understand is now named rather than absorbed into an aggregate `OK`.
+
+### Fixed
+
+- **`--folder` after the subcommand.** Both CLIs registered it ahead of
+  `add_subparsers` only, so `devola-parking status --folder X` and
+  `devola-compact plan --folder X` failed with `unrecognized arguments` — and
+  the post-subcommand order was exactly what the bloat suggestion printed. Both
+  orders now produce identical output.
+- **`bypassed` was dead telemetry vocabulary.** Declared in v24 and written by
+  nothing, so the ledger could not distinguish "no plan was made" from "a plan
+  declined itself". `devola-compact plan` now emits it with a reason.
+- **Retro-digest skipped the two newest cycles.** The lesson extractor matched
+  only the literal phrase "key learnings" and read only bullets and table rows,
+  so `## Learning` (v23.1.0) and v24's bold-lead paragraphs under
+  `## 4. What we learned` contributed nothing while the digest reported `OK`.
+  Heading vocabulary broadened and bold-lead paragraphs extracted verbatim.
+- **`BloatFinding.over_by`** subtracted the module default instead of the
+  threshold the scan filtered on.
+
+### Changed
+
+- Legacy workspace sweep applied under a one-shot list authorisation:
+  36824 resident tokens across three task folders reduced to 5473 (−85.1%) for
+  509 tokens of digest, verified zero-loss with a byte-identical restore probe.
+
 ## [24.0.0] - 2026-09-01 — MAJOR — Workspace Compaction and Risk Parking
 
 Long-running task folders grew until an agent could no longer read one in a

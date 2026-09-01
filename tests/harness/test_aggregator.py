@@ -511,3 +511,68 @@ def test_aggregation_is_identical_across_three_runs(tmp_path: Path) -> None:
     ]
 
     assert rendered[0].encode() == rendered[1].encode() == rendered[2].encode()
+
+
+# --------------------------------------------------------------------------
+# v24.1.0 — F-00 class fix: one bad row must not cost the whole ledger
+# --------------------------------------------------------------------------
+
+
+def test_strict_read_still_aborts_on_a_malformed_row(tmp_path: Path) -> None:
+    """The default is unchanged: strict callers keep getting a hard failure."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + "{not json\n" + json.dumps(_record("d-2")) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(AggregationError):
+        load_ledger_records(ledger)
+
+
+def test_quarantine_isolates_a_bad_row_and_keeps_the_rest(tmp_path: Path) -> None:
+    """F-00: a single unreadable row made the entire ledger unreadable.
+
+    Naming the one retired gate fixed that row. This pins the shape of the
+    failure instead: the next unforeseen row costs one record, not every
+    reading downstream of the ledger.
+    """
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + "{not json\n" + json.dumps(_record("d-2")) + "\n",
+        encoding="utf-8",
+    )
+
+    quarantined: list = []
+    records = load_ledger_records(ledger, quarantine=quarantined)
+
+    assert [record["dispatch_id"] for record in records] == ["d-1", "d-2"]
+    assert len(quarantined) == 1
+    assert quarantined[0].line == 2
+    assert "invalid JSON" in quarantined[0].reason
+
+
+def test_quarantine_never_swallows_the_row_silently(tmp_path: Path, caplog) -> None:
+    """Isolation must remain loud (S-5): logged and returned, never dropped."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text(
+        json.dumps(_record("d-1")) + "\n" + json.dumps({"dispatch_id": "incomplete"}) + "\n",
+        encoding="utf-8",
+    )
+
+    quarantined: list = []
+    with caplog.at_level("WARNING"):
+        records = load_ledger_records(ledger, quarantine=quarantined)
+
+    assert len(records) == 1
+    assert len(quarantined) == 1
+    assert "quarantined unreadable ledger row" in caplog.text
+
+
+def test_quarantine_still_fails_when_no_row_survives(tmp_path: Path) -> None:
+    """Isolation salvages a ledger; it must not manufacture an empty PASS."""
+    ledger = tmp_path / "harness.jsonl"
+    ledger.write_text("{not json\n", encoding="utf-8")
+
+    with pytest.raises(AggregationError, match="contains no records"):
+        load_ledger_records(ledger, quarantine=[])
+

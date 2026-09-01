@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
@@ -24,6 +26,7 @@ from devolaflow.harness.telemetry import (
     LEGACY_HOST_RULE_TOKEN_FIELD,
     METRIC_OBSERVATION_EVENT,
     METRIC_OBSERVATION_FIELDS,
+    RETIRED_SI10_GATE_NAMES,
     SI10_GATE_EVENT,
     SI10_GATE_NAMES,
     TOKEN_ESTIMATOR_FIELD,
@@ -36,6 +39,8 @@ from devolaflow.harness.token_injection import (
     TokenInjectionError,
     validate_token_injection_measurement,
 )
+
+_logger = logging.getLogger(__name__)
 
 _BASE_LEDGER_NAME: Final[str] = "harness.jsonl"
 _SEGMENT_RE: Final[re.Pattern[str]] = re.compile(r"^harness\.([1-9]\d*)\.jsonl$")
@@ -266,8 +271,12 @@ def _validate_si10_event(record: dict[str, Any], *, path: Path, line: int) -> di
     _validate_timestamp(record["ts"], path=path, line=line)
     pv = _non_empty_string(record["pv"], path=path, line=line, field="pv")
     gate = _non_empty_string(record["gate"], path=path, line=line, field="gate")
-    if gate not in SI10_GATE_NAMES:
+    if gate not in SI10_GATE_NAMES and gate not in RETIRED_SI10_GATE_NAMES:
         raise _error(path, line, f"SI-10 gate must be one of {', '.join(SI10_GATE_NAMES)}")
+    if gate in RETIRED_SI10_GATE_NAMES:
+        _logger.warning(
+            "%s:%d: retaining retired SI-10 gate %r as historical evidence", path, line, gate
+        )
     status = _non_empty_string(record["status"], path=path, line=line, field="status")
     if status not in {"PASS", "FAIL"}:
         raise _error(path, line, "SI-10 status must be PASS or FAIL")
@@ -555,8 +564,38 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
     return record
 
 
-def load_ledger_records(source: str | Path) -> list[dict[str, Any]]:
-    """Load and strictly validate records in base-then-numeric segment order."""
+@dataclass(frozen=True)
+class QuarantinedRow:
+    """One ledger row the reader rejected and skipped instead of aborting."""
+
+    path: str
+    line: int
+    reason: str
+
+    def __str__(self) -> str:
+        return f"{self.path}:{self.line}: {self.reason}"
+
+
+def load_ledger_records(
+    source: str | Path,
+    *,
+    quarantine: list[QuarantinedRow] | None = None,
+) -> list[dict[str, Any]]:
+    """Load and strictly validate records in base-then-numeric segment order.
+
+    Strict by default: one malformed row raises and no records are returned.
+
+    Pass a list as ``quarantine`` to opt into row-level isolation instead. A
+    rejected row is appended to that list and skipped; the rest of the ledger
+    still loads. This exists because of the v24 F-00 incident, where a single
+    row carrying a retired gate name made the whole ledger unreadable and took
+    every downstream evaluation with it. Naming the retired gate fixed that one
+    row; isolation fixes the shape of the failure, so the next unforeseen row
+    costs one record rather than the entire evidence base.
+
+    Isolation is never silent (S-5): every quarantined row is logged at WARNING
+    and returned to the caller, which is expected to surface the count.
+    """
 
     records: list[dict[str, Any]] = []
     for path in _segment_paths(source):
@@ -567,13 +606,20 @@ def load_ledger_records(source: str | Path) -> list[dict[str, Any]]:
         if not text:
             raise _error(path, None, "ledger segment is empty")
         for line_number, raw_line in enumerate(text.splitlines(), start=1):
-            if not raw_line.strip():
-                raise _error(path, line_number, "blank JSONL line is not allowed")
             try:
-                parsed = json.loads(raw_line)
-            except json.JSONDecodeError as exc:
-                raise _error(path, line_number, f"invalid JSON: {exc.msg}") from exc
-            records.append(_validate_record(parsed, path=path, line=line_number))
+                if not raw_line.strip():
+                    raise _error(path, line_number, "blank JSONL line is not allowed")
+                try:
+                    parsed = json.loads(raw_line)
+                except json.JSONDecodeError as exc:
+                    raise _error(path, line_number, f"invalid JSON: {exc.msg}") from exc
+                records.append(_validate_record(parsed, path=path, line=line_number))
+            except AggregationError as exc:
+                if quarantine is None:
+                    raise
+                row = QuarantinedRow(str(path), line_number, str(exc))
+                _logger.warning("quarantined unreadable ledger row: %s", row)
+                quarantine.append(row)
     if not records:
         raise AggregationError(f"{source}: ledger contains no records")
     return records
@@ -992,6 +1038,7 @@ def aggregate_ledger(source: str | Path) -> dict[str, Any]:
 
 __all__ = [
     "AggregationError",
+    "QuarantinedRow",
     "aggregate_ledger",
     "aggregate_metric_observations",
     "aggregate_records",

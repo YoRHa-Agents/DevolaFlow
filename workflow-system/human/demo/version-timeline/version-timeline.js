@@ -36,7 +36,9 @@
     'design-cycle': '设计周期',
     'human-surface': '人类界面',
     'init-reliability': '初始化可靠性',
-    'checklist-harness': '清单与内置评估'
+    'checklist-harness': '清单与内置评估',
+    'evidence-preserving-harness-closeout': '证据保全式收口',
+    'workspace-compaction': '工作区收缩'
   };
 
   var EN = {

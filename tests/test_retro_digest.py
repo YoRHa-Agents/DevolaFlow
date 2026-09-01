@@ -179,3 +179,99 @@ def test_report_is_deterministic_and_separates_lessons_from_benefits() -> None:
 def test_missing_or_malformed_sections_are_empty(markdown: str) -> None:
     assert extract_retrospective_records(markdown, source_path="sample.md") == ()
     assert extract_evaluation_findings(markdown, source_path="sample_evaluation.md") == ()
+
+
+# --------------------------------------------------------------------------
+# v24.1.0 — the digest was silently skipping the newest cycles
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "## Key learnings",
+        "## Learning",
+        "## Learnings",
+        "## 4. What we learned",
+        "## Lessons learned",
+    ],
+)
+def test_lesson_sections_are_recognised_across_real_heading_phrasings(heading: str) -> None:
+    """v24 matched only "key learnings", so newer retrospectives contributed nothing.
+
+    `## Learning` (v23.1.0) and `## 4. What we learned` (v24.0.0) were both
+    skipped while the digest still reported OK — the two most recent cycles
+    were exactly the ones dropped.
+    """
+    markdown = f"{heading}\n\n- one durable lesson\n"
+    records = extract_retrospective_records(markdown, source_path="r.md", cycle="v1.0.0")
+    assert [record.text for record in records] == ["one durable lesson"]
+
+
+def test_bold_lead_paragraphs_are_extracted_verbatim() -> None:
+    """A lesson too long for a bullet is written as a bold-lead paragraph.
+
+    v24.0.0 wrote its entire learnings section that way and the extractor,
+    which recognised only bullets and table rows, returned nothing from it.
+    """
+    markdown = (
+        "## What we learned\n"
+        "\n"
+        "**The obvious metric was the wrong one.** Splitting one blob into\n"
+        "per-risk files adds structure, so the stored total grows.\n"
+        "\n"
+        "**Compaction has a fixed cost.** It only pays above a threshold.\n"
+    )
+    records = extract_retrospective_records(markdown, source_path="r.md", cycle="v24.0.0")
+
+    assert len(records) == 2
+    first = records[0]
+    assert first.text == (
+        "**The obvious metric was the wrong one.** Splitting one blob into "
+        "per-risk files adds structure, so the stored total grows."
+    ), "W-29 requires the passage verbatim; the paragraph must not be truncated to its lede"
+    assert first.end_line > first.start_line, "a multi-line passage must span its real lines"
+    assert records[1].text.startswith("**Compaction has a fixed cost.**")
+
+
+def test_emphasis_inside_prose_is_not_mistaken_for_a_lede(tmp_path: Path) -> None:
+    """Only a deliberate bold lede counts; emphasised prose is not a lesson."""
+    markdown = "## Learnings\n\nThis paragraph merely **emphasises** a word.\n"
+    assert extract_retrospective_records(markdown, source_path="r.md", cycle="v1.0.0") == ()
+
+
+def test_a_discovered_source_that_yields_nothing_is_reported_not_hidden(tmp_path: Path) -> None:
+    """Aggregate OK over hundreds of records hid that the newest source gave zero.
+
+    W-29: missing evidence is INSUFFICIENT, never PASS. A source the extractor
+    did not understand is a different problem from an empty file, and the
+    caller needs the list to tell them apart.
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v1.0.0_retrospective.md").write_text(
+        "## Key learnings\n\n- a recognised lesson\n", encoding="utf-8"
+    )
+    (research / "v2.0.0_retrospective.md").write_text(
+        "## Postmortem Notes\n\n- an unrecognised section\n", encoding="utf-8"
+    )
+
+    result = build_digest(tmp_path)
+
+    assert result.status == "OK"
+    assert result.silent_sources == (".local/research/v2.0.0_retrospective.md",)
+    assert "unrecognised, not empty" in result.reason
+
+
+def test_no_silent_sources_leaves_the_reason_empty(tmp_path: Path) -> None:
+    """The warning must not fire when every discovered source contributed."""
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v1.0.0_retrospective.md").write_text(
+        "## Key learnings\n\n- a recognised lesson\n", encoding="utf-8"
+    )
+
+    result = build_digest(tmp_path)
+
+    assert result.silent_sources == ()
+    assert result.reason == ""

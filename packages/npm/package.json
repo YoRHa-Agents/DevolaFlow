@@ -1,6 +1,6 @@
 {
   "name": "@yorha-agents/devola-flow",
-  "version": "24.0.0",
+  "version": "24.1.0",
   "description": "Thin installer for the DevolaFlow agent skill: downloads the version-matched skill file set and provisions the matching Python runtime through uv into the Cursor, Claude Code, Codex, KimiCode, or DSH user-level skill directories. Zero npm dependencies; works on Windows.",
   "bin": {
     "devola-flow": "./bin/devola-flow.js"

@@ -138,6 +138,14 @@ SI10_GATE_NAMES: Final[tuple[str, ...]] = (
     "test-harness",
     "check-cursor-skill",
 )
+#: Gate names a previous Makefile really did emit into the shared ledger, and
+#: which the current SI-10 vocabulary no longer includes. The ledger is
+#: append-only, so these rows exist forever. The reader accepts them as
+#: historical evidence; :func:`build_gate_record` still refuses to write one,
+#: so the vocabulary cannot silently expand. Aborting the whole ledger over a
+#: retired name — the v24.0.0 F-00 failure — turned a naming drift into a
+#: total evaluation outage.
+RETIRED_SI10_GATE_NAMES: Final[frozenset[str]] = frozenset({"iteration-delta-gate"})
 SI10_GATE_STATUSES: Final[frozenset[str]] = frozenset({"PASS", "FAIL"})
 LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {
     "L0": 5_000,

@@ -4,8 +4,8 @@ description: "从清单派生的宿主配置、安装渠道与可选 host bridge
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-09-01T07:31:18Z"
-source_version: "24.0.0"
+last_synced: "2026-09-01T07:32:21Z"
+source_version: "24.1.0"
 ---
 
 # 集成指南

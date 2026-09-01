@@ -72,6 +72,9 @@ _SUGGESTED_TRIGGERS: Final[tuple[str, ...]] = (
 _CYCLE_RE: Final[re.Pattern[str]] = re.compile(r"v\d+(?:\.\d+){1,2}", re.IGNORECASE)
 _HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*$")
 _BULLET_RE: Final[re.Pattern[str]] = re.compile(r"^\s{0,3}(?:[-*+]|\d+[.)])\s+(.*)$")
+#: `**A claim.** followed by its evidence.` — a bold-lead paragraph, which is
+#: how a retrospective states a lesson when it needs more than one sentence.
+_LEDE_PARAGRAPH_RE: Final[re.Pattern[str]] = re.compile(r"^\*\*[^*].*?\*\*\S?\s")
 _TABLE_SEPARATOR_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$"
 )
@@ -146,6 +149,13 @@ class DigestResult:
     benefits: tuple[DigestRecord, ...] = ()
     status: DigestStatus = "INSUFFICIENT"
     reason: str = ""
+    silent_sources: tuple[str, ...] = ()
+    """Sources that were discovered and read but produced no record.
+
+    Named separately from `reason` so a caller can act on the list rather
+    than parse prose. A silent source means the extractor did not recognise
+    its section headings, which is a different problem from an empty file.
+    """
 
     @property
     def records(self) -> tuple[DigestRecord, ...]:
@@ -241,11 +251,28 @@ def _normalise_heading(heading: str) -> str:
     return re.sub(r"[\s`*_:#—–-]+", " ", heading).strip().casefold()
 
 
+#: Heading phrasings that introduce a retrospective's lessons. v24 matched
+#: only "key learnings", so `## Learning` (v23.1.0) and `## 4. What we learned`
+#: (v24.0.0) contributed nothing while the digest still reported OK — the two
+#: most recent cycles were the ones silently dropped.
+_LESSON_PHRASES: Final[tuple[str, ...]] = (
+    "key learnings",
+    "learnings",
+    "learning",
+    "what we learned",
+    "lessons learned",
+    "lesson learned",
+    "lessons",
+)
+
+
 def _is_section_heading(heading: str, *, category: DigestCategory) -> bool:
     normalised = _normalise_heading(heading)
     compact = normalised.replace(" ", "")
     if category == "lesson":
-        return "key learnings" in normalised or "\u5173\u952e\u5b66\u4e60" in compact
+        if "\u5173\u952e\u5b66\u4e60" in compact:
+            return True
+        return any(phrase in normalised for phrase in _LESSON_PHRASES)
     return (
         "findings closure" in normalised
         or normalised.startswith("findings")
@@ -295,14 +322,28 @@ def _extract_section(
         resolved_path = Path(resolved_path).name
     resolved_cycle = cycle or _cycle_for(resolved_path)
     records: list[DigestRecord] = []
-    for offset, line in enumerate(lines):
+    offset = 0
+    while offset < len(lines):
+        line = lines[offset]
         bullet = _BULLET_RE.match(line)
         is_table = line.strip().startswith("|") and line.strip().endswith("|")
         if bullet:
-            text = bullet.group(1)
+            text, raw, span = bullet.group(1), line, offset
         elif is_table and not _TABLE_SEPARATOR_RE.match(line):
-            text = line
+            text, raw, span = line, line, offset
+        elif _LEDE_PARAGRAPH_RE.match(line):
+            # A bold-lead paragraph is a deliberate lede, not prose that
+            # happens to be emphasised. v24.0.0 wrote its whole "What we
+            # learned" section this way and the digest extracted nothing from
+            # it, because only bullets and table rows were recognised.
+            span = offset
+            while span + 1 < len(lines) and lines[span + 1].strip():
+                span += 1
+            block = lines[offset : span + 1]
+            text = " ".join(item.strip() for item in block)
+            raw = line
         else:
+            offset += 1
             continue
         line_number = first_line + offset
         records.append(
@@ -313,12 +354,13 @@ def _extract_section(
                 text=text,
                 source_path=resolved_path,
                 start_line=line_number,
-                end_line=line_number,
+                end_line=first_line + span,
                 source_kind=source_kind,
                 section=section_name,
-                raw_text=line,
+                raw_text=raw,
             )
         )
+        offset = span + 1
     return tuple(records)
 
 
@@ -409,11 +451,38 @@ def build_digest(repo_root: Path | str) -> DigestResult:
     ordered_lessons = tuple(sorted(lessons, key=lambda record: record.record_id))
     ordered_benefits = tuple(sorted(benefits, key=lambda record: record.record_id))
     records = ordered_lessons + ordered_benefits
+    # A source discovered but yielding nothing is the failure worth naming.
+    # Aggregate OK over hundreds of records hid the fact that the two newest
+    # cycles contributed zero, which is exactly backwards: recent evidence is
+    # the evidence a digest exists to surface (W-29 — missing evidence is
+    # INSUFFICIENT, never PASS).
+    contributing = {record.source_path for record in records}
+    silent = tuple(
+        sorted(
+            source.path
+            for source in (*retrospectives, *evaluations)
+            if source.path not in contributing
+        )
+    )
+    if not records:
+        status, reason = (
+            "INSUFFICIENT",
+            "No supported retrospective or evaluation sections were found.",
+        )
+    elif silent:
+        status = "OK"
+        reason = (
+            f"{len(silent)} discovered source(s) contributed no records; "
+            "their sections are unrecognised, not empty: " + ", ".join(silent)
+        )
+    else:
+        status, reason = "OK", ""
     return DigestResult(
         lessons=ordered_lessons,
         benefits=ordered_benefits,
-        status="OK" if records else "INSUFFICIENT",
-        reason="" if records else "No supported retrospective or evaluation sections were found.",
+        status=status,
+        reason=reason,
+        silent_sources=silent,
     )
 
 

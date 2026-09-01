@@ -19,6 +19,15 @@ the two append-only / disjoint-scope hooks share normalisation
 semantics and a uniform ``(payload, *, strict=False) -> HookResult``
 signature.
 
+Since v24.1.0 the hook also adjudicates ``operation: "relocate"``
+payloads under **S-9.1**. Relocation is the one motion the amendment
+permits, and only when all four of its conditions hold: the owning
+change is already archived, the mover is the workspace-compact tool, a
+matching approval fingerprint is present, and a mapping row will record
+the content hash. Anything short of all four is a blocker, so the
+permissive reading of "a move is not a modification" never becomes the
+default.
+
 Permissive default — emits a WARNING via the lifecycle logger. Strict
 mode re-raises the top-severity :class:`HookViolation` (severity
 ``blocker`` for append-only breaches, ``error`` for shape violations).
@@ -32,6 +41,18 @@ from typing import Any
 from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
 
 EVENT = "envelope_write"
+
+#: The only mover S-9.1 sanctions. A payload naming anything else is
+#: describing a hand-rolled move, which the amendment does not permit.
+RELOCATION_TOOL = "devolaflow.workspace_compact.handoff_relocate"
+
+#: S-9.1 conditions 1, 2, and 3 as payload fields the caller must supply.
+#: Condition 4 (the mapping row) is enforced by the mover itself, which
+#: appends the row in the same operation as the move.
+_RELOCATION_CONDITIONS: tuple[tuple[str, str], ...] = (
+    ("change_archived", "the owning change is not archived as a whole"),
+    ("approval_fingerprint", "no approval fingerprint authorises this relocation"),
+)
 
 
 def _normalise(path: str) -> str:
@@ -102,6 +123,9 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
             )
         ]
 
+    if payload.get("operation") == "relocate":
+        return _collect_relocation_violations(payload, path)
+
     normalised_path = _normalise(path)
     normalised_existing = {_normalise(p) for p in existing if isinstance(p, str)}
 
@@ -125,6 +149,42 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
     return []
 
 
+def _collect_relocation_violations(payload: dict[str, Any], path: str) -> list[HookViolation]:
+    """Adjudicate one S-9.1 relocation payload.
+
+    Refuses by default: a missing condition field reads as unmet, never as
+    "presumably fine". The four conditions are independent, so every unmet
+    one is reported together rather than one at a time — an agent that has
+    to rediscover them serially will guess.
+    """
+    unmet = [
+        message for field_name, message in _RELOCATION_CONDITIONS if not payload.get(field_name)
+    ]
+    tool = payload.get("tool")
+    if tool != RELOCATION_TOOL:
+        unmet.append(f"the mover is {tool!r}, not the sanctioned {RELOCATION_TOOL!r}")
+    if not unmet:
+        return []
+    return [
+        HookViolation(
+            code="CEA004",
+            message=(
+                f"S-9.1 relocation refused for '{path}': " + "; ".join(unmet) + ". "
+                "Relocation is permitted only for an already-archived change, "
+                "performed by the workspace-compact tool, under a matching "
+                "approval fingerprint, with a hashed mapping row."
+            ),
+            severity="blocker",
+            context={
+                "path": path,
+                "operation": "relocate",
+                "unmet_conditions": unmet,
+                "tool": tool,
+            },
+        )
+    ]
+
+
 def check_envelope_append_only(
     payload: dict[str, Any],
     *,
@@ -141,9 +201,13 @@ def check_envelope_append_only(
     existing envelopes must NEVER be overwritten or deleted. Agents
     that need to convey new information MUST author a fresh envelope
     with ``seq+1``.
+
+    When ``payload['operation'] == 'relocate'`` the S-9.1 branch runs
+    instead: the four amendment conditions must all hold, otherwise the
+    move is a blocker.
     """
     violations = _collect_violations(payload)
     return finalize(EVENT, violations, strict=strict)
 
 
-__all__ = ["EVENT", "check_envelope_append_only"]
+__all__ = ["EVENT", "RELOCATION_TOOL", "check_envelope_append_only"]

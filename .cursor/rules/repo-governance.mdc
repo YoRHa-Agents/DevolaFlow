@@ -87,6 +87,33 @@ Enforcement: `tests/test_handoff_envelope_immutable.py` lints CI runs;
 
 Source: v15-ADR-008 §S-9.
 
+### S-9.1 — Tool-Mediated Relocation of Archived-Change Envelopes
+
+An envelope MAY be relocated — moved with no content change — from
+`.local/.agent/handoff/` to `.local/.agent/archive/handoff/<change-id>/` when
+**all four** of the following hold:
+
+1. the change that owns the envelope is already archived as a whole
+   (`.local/.agent/archive/<date>-<change-id>/` exists);
+2. the move is performed by the workspace-compact tool, never by hand;
+3. an approval artifact whose fingerprint matches the current relocation plan
+   authorizes the exact set of envelopes being moved;
+4. an append-only mapping row records source, destination, reason, timestamp,
+   and content hash, and a generated index preserves navigability.
+
+Envelopes belonging to an active change MUST NOT be relocated. Relocation
+changes location only: content is never rewritten and no envelope is ever
+deleted, and the mapping ledger's hash makes both claims verifiable.
+
+Enforcement: `devolaflow.workspace_compact.handoff_relocate`
+(`plan_relocation` / `apply_relocation`) is the only sanctioned mover;
+`lifecycle/check_envelope_append_only` verifies the four conditions on an
+`operation: relocate` payload and still blocks overwrite and deletion;
+`tests/test_handoff_envelope_immutable.py` pins permitted and refused cases.
+
+Source: amendment signed v24.1.0 per
+`.local/research/v24.0.0_s9_amendment_draft.md`.
+
 ## S-10 — Prompt-Side Governance Contract Embedding
 
 Every dispatch payload returned by

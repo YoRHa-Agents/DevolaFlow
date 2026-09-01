@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from devolaflow.harness.aggregator import (
+    QuarantinedRow,
     aggregate_metric_observations,
     aggregate_records,
     load_ledger_records,
@@ -322,7 +323,11 @@ def evaluate_harness(
         raise EvaluationError("threshold must be a finite number in [0, 10]")
 
     aggregation_source = _ledger_aggregation_source(ledger)
-    records = load_ledger_records(aggregation_source)
+    # Row-level isolation, not strictness relief: a row the reader cannot
+    # parse is dropped and counted rather than aborting the evaluation. F-00
+    # showed that the alternative is losing every reading over one bad line.
+    quarantined: list[QuarantinedRow] = []
+    records = load_ledger_records(aggregation_source, quarantine=quarantined)
     resolved_sampled_at = sampled_at or (
         _latest_timestamp(records) if signals is not None else datetime.now(UTC).isoformat()
     )
@@ -369,7 +374,8 @@ def evaluate_harness(
         resolved_signals = normalize_signals(normalized_signal_input)
     if collected_signals is not None:
         _persist_collected_measurements(ledger, collected_signals, metadata=metadata)
-        records = load_ledger_records(aggregation_source)
+        quarantined = []
+        records = load_ledger_records(aggregation_source, quarantine=quarantined)
         summary = aggregate_records(records)
         summary = {**summary, "metadata": metadata}
     measurement_signals, measurement_sources = _resolve_measurements(
@@ -509,6 +515,14 @@ def evaluate_harness(
             summary["measurements"],
         ),
         "suggestions": suggestions,
+        # Appended at the tail, never inserted: the envelope's key order is
+        # pinned. Surfaced rather than only logged because a reading taken
+        # over a ledger the reader could not fully parse must say so in the
+        # artifact, or row isolation becomes a way to lose evidence quietly
+        # (S-5).
+        "quarantined_rows": [
+            {"path": row.path, "line": row.line, "reason": row.reason} for row in quarantined
+        ],
     }
     if (
         run_metadata is not None
