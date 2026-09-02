@@ -1,9 +1,0 @@
-# captured_from_plugin_version: 2.0.0
-# Captured from: `uipro init --ai cursor --global` v2.0.0 stdout on success
-# Shape: human-readable log with exit code 0 on success; shape pinned by
-#        v10.8.0 D-C-2. Canonical ui-pro URL: https://github.com/YoRHa-Agents/ui-pro
-[uipro] initialising ui-pro for scope=global, ai=cursor
-[uipro] detected cursor install at ~/.cursor/
-[uipro] writing ~/.cursor/skills/ui-pro/SKILL.md
-[uipro] writing ~/.cursor/skills/ui-pro/.ui-pro-version
-[uipro] init complete; exit_code=0

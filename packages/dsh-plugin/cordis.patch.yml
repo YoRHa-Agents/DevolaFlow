@@ -1,4 +1,0 @@
-# Mount the DevolaFlow boundary plugin into each DSH profile that installs it.
-- insert:
-    - id: devolaflow-boundary
-      name: '@yorha-agents/devola-flow-dsh'
